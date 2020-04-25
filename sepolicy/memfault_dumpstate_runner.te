@@ -1,0 +1,9 @@
+# Allow to set system properties "ctl.start" / "ctl.stop":
+set_prop(dumpstate, ctl_start_prop)
+set_prop(dumpstate, ctl_stop_prop)
+
+# Allow to connect to the dumpstate control socket:
+unix_socket_connect(dumpstate, dumpstate, dumpstate)
+
+allow dumpstate system_app_data_file:dir create_dir_perms;
+allow dumpstate system_app_data_file:file create_file_perms;

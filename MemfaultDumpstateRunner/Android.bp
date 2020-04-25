@@ -1,0 +1,20 @@
+cc_binary {
+    name: "MemfaultDumpstateRunner",
+    srcs: [
+        "MemfaultDumpstateRunner.cpp",
+    ],
+    cflags: [
+            "-Werror",
+            "-Wall",
+    ],
+    cppflags: [
+        "-Wno-unused-parameter",
+    ],
+    shared_libs: [
+        "libbase",
+        "libcutils",
+        "libdumpstateutil",
+        "liblog",
+    ],
+    init_rc: ["memfault_init.rc"],
+}

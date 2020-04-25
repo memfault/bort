@@ -1,0 +1,27 @@
+# Defines an init service called "memfault_dumpstatez". AOSP already exposes a very similar init
+# service, called "dumpstatez". Significant changes with the "vanilla" dumpstatez:
+# 1. -q / "quiet" flag, which skips vibing
+# 2. the control socket is owned by root:root, allowing the connecting program
+# (MemfaultDumpstateRunner) to connect as root.
+# See https://cs.android.com/android/_/android/platform/frameworks/native/+/0f58ab624b96f7f2e49a606ee8ce0cedeb10004d:cmds/dumpstate/dumpstate.rc;l=14;drc=235864b47896d308f56a012b1d509588a5069daf
+
+service memfault_dumpstatez /system/bin/dumpstate -S -d -z -q
+    setenv MEMFAULT_UPLOADER_CAPTURED 1
+    socket dumpstate stream 0660 root root
+    class main
+    disabled
+    oneshot
+
+# Defines an init service called "memfault_dumpstate_runner", which is used to invoke the
+# MemfaultDumpstateRunner program to collect a bugreport.
+# The only purpose of memfault_dumpstate_runner is to trigger "memfault_dumpstatez", wait for
+# it to complete and copy the bugreport.zip into a location that can be accessed by
+# com.memfault.bort. It runs as root and in the "dumpstate" sepolicy domain, because it needs
+# to access both the shell-owned bugreport output of dumpstate and it needs to be able to copy it
+# into com.memfault.bort's filesystem sandboxed location. See MemfaultDumpstateRunner.cpp for
+# the source code of the program itself.
+
+service memfault_dumpstate_runner /system/bin/MemfaultDumpstateRunner
+    class core
+    disabled
+    oneshot
