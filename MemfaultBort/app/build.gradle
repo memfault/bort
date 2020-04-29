@@ -11,8 +11,12 @@ android {
         applicationId "com.memfault.bort"
         minSdkVersion versions.minSdk
         targetSdkVersion versions.compileSdk
-        versionCode 1
-        versionName "1.0"
+        versionCode "$VERSION_CODE" as Integer
+        versionName "$VERSION_NAME"
+
+        // Set the project API key in app/gradle.properties
+        buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "$MEMFAULT_PROJECT_API_KEY"
+        buildConfigField "String", "MEMFAULT_FILES_BASE_URL", "$MEMFAULT_FILES_BASE_URL"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

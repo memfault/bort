@@ -12,7 +12,7 @@
         tools:ignore="ProtectedPermissions" />
 
     <application
-        android:name=".BortApplication"
+        android:name=".Bort"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -43,6 +43,13 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <!-- Disable the default initializer in order to provide a custom WorkerFactory -->
+        <provider
+            android:name="androidx.work.impl.WorkManagerInitializer"
+            android:authorities="${applicationId}.workmanager-init"
+            tools:node="remove"
+            android:exported="false" />
     </application>
 
 </manifest>

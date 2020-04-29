@@ -127,9 +127,11 @@ index 233f82640a2..e1c32ab37eb 100644
 ### Configure the Bort app
 
 **You must set your project API key in the Bort app**. This is set in
-`SettingsProvider.kt`. In this file you can also configure the bug report
-generation (request) interval, in hours; the minimum log level that will be
-logged to LogCat; and the maximum number of times bort will attempt to re-try
+`app/gradle.properties`; the app will not compile without this property.
+
+Additional settings can also be configured in `Settings.kt`, such as the bug
+report generation (request) interval, in hours; the minimum log level that will
+be logged to LogCat; and the maximum number of times bort will attempt to re-try
 uploading a bug report.
 
 ### Build the Bort APK

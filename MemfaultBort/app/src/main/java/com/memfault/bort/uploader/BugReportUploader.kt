@@ -16,17 +16,15 @@ private fun <T : Any> Response<T>.asResult(): ListenableWorker.Result =
     }
 
 internal class BugReportUploader(
-    private val settingsProvider: SettingsProvider,
-    private val preparedUploader: PreparedUploader?,
+    private val preparedUploader: PreparedUploader,
     private val filePath: String?,
-    private val maxUploadAttempts: Int = settingsProvider.maxUploadAttempts()
+    private val maxUploadAttempts: Int = 3
 ) {
 
     internal suspend fun upload(
         runAttemptCount: Int
     ): ListenableWorker.Result {
         Logger.v("uploading $filePath")
-        preparedUploader ?: return deleteAndFail("No uploader available")
         val path = filePath ?: return deleteAndFail("File path is null")
 
         if (runAttemptCount >= maxUploadAttempts) {

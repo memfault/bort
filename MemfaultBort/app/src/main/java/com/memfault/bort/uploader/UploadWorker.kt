@@ -5,39 +5,28 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
 import com.memfault.bort.Logger
-import com.memfault.bort.SettingsProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.HttpUrl
 import retrofit2.Retrofit
 
 internal class UploadWorker(
     appContext: Context,
-    private val workerParameters: WorkerParameters
+    private val workerParameters: WorkerParameters,
+    private val retrofit: Retrofit,
+    private val apiKey: String,
+    private val maxUploadAttempts: Int
 ) : CoroutineWorker(appContext, workerParameters) {
-    private val settingsProvider = SettingsProvider()
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        val httpUrl = HttpUrl.parse(settingsProvider.baseUrl())
-
-        val retrofit: Retrofit? = httpUrl?.let {
-            Retrofit.Builder()
-                .baseUrl(httpUrl)
-                .addConverterFactory(PreparedUploader.converterFactory())
-                .build()
-        }
-
-        val preparedUploader: PreparedUploader? = retrofit?.let {
-            PreparedUploader(
-                retrofit.create(PreparedUploadService::class.java),
-                settingsProvider.apiKey()
-            )
-        }
+        val preparedUploader = PreparedUploader(
+            retrofit.create(PreparedUploadService::class.java),
+            apiKey
+        )
 
         return@withContext BugReportUploader(
-            SettingsProvider(),
-            preparedUploader,
-            inputData.getString(INTENT_EXTRA_BUGREPORT_PATH)
+            preparedUploader = preparedUploader,
+            filePath = inputData.getString(INTENT_EXTRA_BUGREPORT_PATH),
+            maxUploadAttempts = maxUploadAttempts
         ).upload(
             workerParameters.runAttemptCount
         ).also {

@@ -10,8 +10,7 @@ private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.REQUEST_PE
 private const val WORK_UNIQUE_NAME = "com.memfault.bort.work.REQUEST"
 
 class BugReportRequester(
-    private val context: Context,
-    private val settingsProvider: SettingsProvider
+    private val context: Context
 ) {
 
     fun request(): UUID =
@@ -25,9 +24,9 @@ class BugReportRequester(
                 )
         }.id
 
-    fun requestPeriodic() =
+    fun requestPeriodic(bugReportRequestIntervalHours: Long) =
         PeriodicWorkRequestBuilder<BugReportRequestWorker>(
-            settingsProvider.bugReportRequestIntervalHours(),
+            bugReportRequestIntervalHours,
             TimeUnit.HOURS
         ).build().also {
             WorkManager.getInstance(context)

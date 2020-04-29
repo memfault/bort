@@ -1,5 +1,6 @@
 package com.memfault.bort.uploader
 
+import com.memfault.bort.SimpleServiceLocator
 import okhttp3.mockwebserver.MockWebServer
 import retrofit2.Retrofit
 import java.io.File
@@ -27,7 +28,7 @@ internal fun createUploader(server: MockWebServer) =
 fun createService(server: MockWebServer): PreparedUploadService =
     Retrofit.Builder()
         .baseUrl(server.url("/"))
-        .addConverterFactory(PreparedUploader.converterFactory())
+        .addConverterFactory(SimpleServiceLocator.retrofitConverterFactory)
         .build()
         .create(PreparedUploadService::class.java)
 

@@ -6,7 +6,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
-import com.memfault.bort.SettingsProvider
+import com.memfault.bort.NetworkConstraint
 import java.io.File
 import java.util.*
 
@@ -14,11 +14,11 @@ private const val WORK_TAG = "com.memfault.bort.work.tag.UPLOAD"
 
 class BugReportUploadScheduler(
     private val context: Context,
-    private val settingsProvider: SettingsProvider
+    private val networkConstraint: NetworkConstraint
 ) {
     private val constraints: Constraints by lazy {
         Constraints.Builder()
-            .setRequiredNetworkType(settingsProvider.bugReportNetworkConstraint().networkType)
+            .setRequiredNetworkType(networkConstraint.networkType)
             .build()
     }
 

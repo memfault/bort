@@ -17,8 +17,7 @@ class UploadBugReportActivity : AppCompatActivity() {
 
     fun createBugReport(@Suppress("UNUSED_PARAMETER") v: View) =
         BugReportRequester(
-            this,
-            SettingsProvider()
+            this
         ).request().also {
             WorkManager.getInstance(this)
                 .getWorkInfoByIdLiveData(it)

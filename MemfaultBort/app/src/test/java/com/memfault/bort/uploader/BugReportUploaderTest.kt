@@ -35,23 +35,9 @@ class BugReportUploaderTest {
     }
 
     @Test
-    fun nullUploaderFails() {
-        val result = runBlocking {
-            BugReportUploader(
-                settingsProvider = SettingsProvider(),
-                preparedUploader = null,
-                filePath = file.toString()
-            ).upload(0)
-        }
-        assert(result is ListenableWorker.Result.Failure)
-        assertFalse(file.exists())
-    }
-
-    @Test
     fun maxUploadAttemptFails() {
         val result = runBlocking {
             BugReportUploader(
-                settingsProvider = SettingsProvider(),
                 preparedUploader = createUploader(server),
                 filePath = file.toString(),
                 maxUploadAttempts = 3
@@ -65,7 +51,6 @@ class BugReportUploaderTest {
     fun nullPathFails() {
         val result = runBlocking {
             BugReportUploader(
-                settingsProvider = SettingsProvider(),
                 preparedUploader = createUploader(server),
                 filePath = null
             ).upload(0)
@@ -77,7 +62,6 @@ class BugReportUploaderTest {
     fun badPathFails() {
         val result = runBlocking {
             BugReportUploader(
-                settingsProvider = SettingsProvider(),
                 preparedUploader = createUploader(server),
                 filePath = "abcd"
             ).upload(0)
@@ -90,7 +74,6 @@ class BugReportUploaderTest {
         server.enqueue(MockResponse().setResponseCode(400))
         val result = runBlocking {
             BugReportUploader(
-                settingsProvider = SettingsProvider(),
                 preparedUploader = createUploader(server),
                 filePath = file.toString()
             ).upload(0)
@@ -104,7 +87,6 @@ class BugReportUploaderTest {
         server.enqueue(MockResponse().setResponseCode(500))
         val result = runBlocking {
             BugReportUploader(
-                settingsProvider = SettingsProvider(),
                 preparedUploader = createUploader(server),
                 filePath = file.toString()
             ).upload(0)
@@ -118,7 +100,6 @@ class BugReportUploaderTest {
         server.enqueue(MockResponse())
         val result = runBlocking {
             BugReportUploader(
-                settingsProvider = SettingsProvider(),
                 preparedUploader = createUploader(server),
                 filePath = file.toString()
             ).upload(0)
@@ -136,7 +117,6 @@ class BugReportUploaderTest {
         }
         val result = runBlocking {
             BugReportUploader(
-                settingsProvider = SettingsProvider(),
                 preparedUploader = createUploader(server),
                 filePath = file.toString()
             ).upload(0)

@@ -3,15 +3,11 @@ package com.memfault.bort.receivers
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.memfault.bort.INTENT_ACTION_BUGREPORT_FINISHED
-import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
-import com.memfault.bort.Logger
-import com.memfault.bort.SettingsProvider
+import com.memfault.bort.*
 import com.memfault.bort.uploader.BugReportUploadScheduler
 import java.io.File
 
 class BugReportReceiver : BroadcastReceiver() {
-    private val settingsProvider = SettingsProvider()
 
     override fun onReceive(context: Context?, intent: Intent?) {
         Logger.d("onReceive ${intent?.action}")
@@ -28,7 +24,7 @@ class BugReportReceiver : BroadcastReceiver() {
 
         BugReportUploadScheduler(
             context,
-            settingsProvider
+            Bort.serviceLocator().settingsProvider().bugReportNetworkConstraint()
         ).enqueue(bugreportFile)
     }
 }

@@ -1,9 +1,6 @@
 package com.memfault.bort.uploader
 
-import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonConfiguration
 import okhttp3.MediaType
 import okhttp3.RequestBody
 import retrofit2.Response
@@ -55,10 +52,6 @@ internal class PreparedUploader(
     private val preparedUploadService: PreparedUploadService,
     private val apiKey: String
 ) {
-    companion object {
-        internal fun converterFactory() =
-            Json(JsonConfiguration.Stable).asConverterFactory(MediaType.get("application/json"))
-    }
 
     /**
      * Prepare a file upload.
