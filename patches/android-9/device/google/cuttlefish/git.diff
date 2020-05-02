@@ -1,0 +1,25 @@
+diff --git a/shared/BoardConfig.mk b/shared/BoardConfig.mk
+index d2907de1..50af2c90 100644
+--- a/shared/BoardConfig.mk
++++ b/shared/BoardConfig.mk
+@@ -106,6 +106,7 @@ WIFI_DRIVER_FW_PATH_AP      := "/dev/null"
+
+ BOARD_SEPOLICY_DIRS += device/google/cuttlefish/shared/sepolicy/private
+ BOARD_SEPOLICY_DIRS += device/google/cuttlefish/shared/sepolicy/vendor
++BOARD_SEPOLICY_DIRS += packages/apps/bort/sepolicy
+
+ # master has breaking changes in dlfcn.h, but the platform SDK hasn't been
+ # bumped. Restore the line below when it is.
+diff --git a/shared/phone/device.mk b/shared/phone/device.mk
+index d49d8a71..c33ab2c8 100644
+--- a/shared/phone/device.mk
++++ b/shared/phone/device.mk
+@@ -36,6 +36,8 @@ PRODUCT_PACKAGES += \
+     TeleService \
+     libcuttlefish-ril \
+     rild \
++    MemfaultDumpstateRunner \
++    MemfaultBort \
+
+ PRODUCT_COPY_FILES += \
+     frameworks/native/data/etc/android.hardware.telephony.gsm.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.telephony.gsm.xml

@@ -3,9 +3,11 @@
 # 1. -q / "quiet" flag, which skips vibing
 # 2. the control socket is owned by root:root, allowing the connecting program
 # (MemfaultDumpstateRunner) to connect as root.
+# Note: the -o option is ignored as of Android 10, but is required in Android 9!
 # See https://cs.android.com/android/_/android/platform/frameworks/native/+/0f58ab624b96f7f2e49a606ee8ce0cedeb10004d:cmds/dumpstate/dumpstate.rc;l=14;drc=235864b47896d308f56a012b1d509588a5069daf
 
-service memfault_dumpstatez /system/bin/dumpstate -S -d -z -q
+service memfault_dumpstatez /system/bin/dumpstate -S -d -z -q \
+          -o /data/user_de/0/com.android.shell/files/bugreports/bugreport
     setenv MEMFAULT_UPLOADER_CAPTURED 1
     socket dumpstate stream 0660 root root
     class main

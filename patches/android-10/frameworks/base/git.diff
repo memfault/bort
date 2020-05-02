@@ -1,0 +1,15 @@
+diff --git a/data/etc/platform.xml b/data/etc/platform.xml
+index 233f82640a2..e1c32ab37eb 100644
+--- a/data/etc/platform.xml
++++ b/data/etc/platform.xml
+@@ -229,6 +229,10 @@
+          access while in power save mode, even if they aren't in the foreground. -->
+     <allow-in-power-save package="com.android.providers.downloads" />
+
++    <!-- Memfault requires internet access while in power save mode in order to upload
++         while in the background -->
++    <allow-in-power-save package="com.memfault.bort" />
++
+     <!-- These are the standard packages that are white-listed to always have internet
+          access while in data mode, even if they aren't in the foreground. -->
+     <allow-in-data-usage-save package="com.android.providers.downloads" />

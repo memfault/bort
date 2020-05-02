@@ -1,0 +1,24 @@
+diff --git a/prebuilts/api/28.0/public/domain.te b/prebuilts/api/28.0/public/domain.te
+index e9337b6..43586db 100644
+--- a/prebuilts/api/28.0/public/domain.te
++++ b/prebuilts/api/28.0/public/domain.te
+@@ -1172,6 +1172,7 @@ neverallow {
+   -traced_probes # resolve inodes for i/o tracing.
+                  # only needs open and read, the rest is neverallow in
+                  # traced_probes.te.
++  -dumpstate # Memfault
+ } system_app_data_file:dir_file_class_set { create unlink open };
+ neverallow {
+   isolated_app
+diff --git a/public/domain.te b/public/domain.te
+index e9337b6..43586db 100644
+--- a/public/domain.te
++++ b/public/domain.te
+@@ -1172,6 +1172,7 @@ neverallow {
+   -traced_probes # resolve inodes for i/o tracing.
+                  # only needs open and read, the rest is neverallow in
+                  # traced_probes.te.
++  -dumpstate # Memfault
+ } system_app_data_file:dir_file_class_set { create unlink open };
+ neverallow {
+   isolated_app

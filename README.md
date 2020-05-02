@@ -51,6 +51,9 @@ but through the slightly specialized `memfault_dumpstatez`. See
 
 ## Integration steps
 
+> The modifications that are listed in this section can also be found as git
+> patch files in the `patches/` folder in this SDK.
+
 - Add this repo to your tree at `packages/apps/bort` (i.e. add it to your repo
   manifest).
 

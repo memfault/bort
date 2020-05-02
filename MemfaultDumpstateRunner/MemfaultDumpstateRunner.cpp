@@ -214,26 +214,6 @@ void SendBroadcast(const std::string& bugreportPath) {
                    .Build());
 }
 
-uint32_t GetTargetUid(void) {
-  std::vector<std::string> cmd = {
-      "/system/bin/pm", "list", "packages", "-U", TARGET_PACKAGE_ID
-  };
-  TemporaryFile tempFile;
-  RunCommandToFd(tempFile.fd, "", cmd,
-             CommandOptions::WithTimeout(20)
-                 .Log("Getting " TARGET_PACKAGE_ID " UID: '%s'\n")
-                 .Always()
-                 .Build());
-  std::string pmOutput;
-  android::base::ReadFileToString(tempFile.path, &pmOutput);
-  std::size_t found = pmOutput.rfind(":");
-  if (found == std::string::npos) {
-    ALOGE("Failed to find UID in %s\n", pmOutput.c_str());
-    return 0;
-  }
-  return std::stoi(pmOutput.substr(found + 1));
-}
-
 void CleanupDumpstateLogs(void) {
     glob_t glob_result;
     static constexpr char glob_pattern[] = "/bugreports/*-dumpstate_log-*.txt";
@@ -289,7 +269,7 @@ bool createParentDirs(uint32_t targetUid) {
 }  // namespace
 
 int main(void) {
-    const uint32_t targetUid = GetTargetUid();
+    const uint32_t targetUid = AID_SYSTEM;
     ALOGI("Target UID: %d", targetUid);
 
     if (!createParentDirs(targetUid)) {
