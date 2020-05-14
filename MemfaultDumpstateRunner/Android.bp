@@ -2,6 +2,7 @@ cc_binary {
     name: "MemfaultDumpstateRunner",
     srcs: [
         "MemfaultDumpstateRunner.cpp",
+        "android-9/file.cpp",
     ],
     cflags: [
             "-Werror",
@@ -10,6 +11,13 @@ cc_binary {
     cppflags: [
         "-Wno-unused-parameter",
     ],
+    product_variables: {
+        // There is no way to pull in PLATFORM_VERSION, only the SDK level is available.
+        // Use that as a proxy to detect what back-ported code needs to be pulled in:
+        platform_sdk_version: {
+            cflags: ["-DPLATFORM_SDK_VERSION=%d"],
+        },
+    },
     shared_libs: [
         "libbase",
         "libcutils",

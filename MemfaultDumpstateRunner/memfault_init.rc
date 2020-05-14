@@ -17,10 +17,10 @@ service memfault_dumpstatez /system/bin/dumpstate -S -d -z -q \
 # Defines an init service called "memfault_dumpstate_runner", which is used to invoke the
 # MemfaultDumpstateRunner program to collect a bugreport.
 # The only purpose of memfault_dumpstate_runner is to trigger "memfault_dumpstatez", wait for
-# it to complete and copy the bugreport.zip into a location that can be accessed by
-# com.memfault.bort. It runs as root and in the "dumpstate" sepolicy domain, because it needs
+# it to complete and copy the bugreport.zip into a location that can be accessed by Bort.
+# It runs as root and in the "dumpstate" sepolicy domain, because it needs
 # to access both the shell-owned bugreport output of dumpstate and it needs to be able to copy it
-# into com.memfault.bort's filesystem sandboxed location. See MemfaultDumpstateRunner.cpp for
+# into Bort's filesystem sandboxed location. See MemfaultDumpstateRunner.cpp for
 # the source code of the program itself.
 
 service memfault_dumpstate_runner /system/bin/MemfaultDumpstateRunner

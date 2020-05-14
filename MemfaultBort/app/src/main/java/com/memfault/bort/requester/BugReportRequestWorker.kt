@@ -1,12 +1,15 @@
 package com.memfault.bort.requester
 
-import android.annotation.SuppressLint
+import android.Manifest
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import com.memfault.bort.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
+import com.memfault.bort.INTENT_ACTION_BUG_REPORT_START
 import com.memfault.bort.Logger
-import com.memfault.bort.SERVICE_MEMFAULT_DUMPSTATE_RUNNER
-import java.lang.reflect.Method
+import com.memfault.bort.isBuildTypeBlacklisted
 
 internal class BugReportRequestWorker(
     appContext: Context,
@@ -14,31 +17,23 @@ internal class BugReportRequestWorker(
 ) : Worker(appContext, workerParameters) {
 
     override fun doWork(): Result {
-        Logger.v("BugReportRequestWorker start")
-        try {
-            SystemPropertiesProxy.set("ctl.start", SERVICE_MEMFAULT_DUMPSTATE_RUNNER)
-        } catch (e: IllegalArgumentException) {
-            Logger.e("Failed to invoke SystemProperties.set", e)
+        if (isBuildTypeBlacklisted()) {
             return Result.failure()
+        }
+        Logger.v("Sending $INTENT_ACTION_BUG_REPORT_START to $APPLICATION_ID_MEMFAULT_USAGE_REPORTER")
+        Intent(INTENT_ACTION_BUG_REPORT_START).apply {
+            component = ComponentName(
+                APPLICATION_ID_MEMFAULT_USAGE_REPORTER,
+                "${APPLICATION_ID_MEMFAULT_USAGE_REPORTER}.BugReportStartReceiver"
+            )
+        }.also {
+            applicationContext.sendBroadcast(
+                it,
+                Manifest.permission.DUMP
+            )
         }
         return Result.success()
     }
 }
 
-private object SystemPropertiesProxy {
-    @SuppressLint("DiscouragedPrivateApi", "PrivateApi")
-    @Throws(IllegalArgumentException::class)
-    @JvmStatic
-    fun set(key: String, value: String) {
-        try {
-            val systemProperties = Class.forName("android.os.SystemProperties")
-            val setter: Method = systemProperties.getDeclaredMethod(
-                "set", String::class.java, String::class.java
-            )
-            setter.isAccessible = true
-            setter.invoke(systemProperties, key, value)
-        } catch (e: ReflectiveOperationException) {
-            throw IllegalArgumentException(e)
-        }
-    }
-}
+

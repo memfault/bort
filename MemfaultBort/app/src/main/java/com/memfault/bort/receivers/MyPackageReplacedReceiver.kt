@@ -3,10 +3,8 @@ package com.memfault.bort.receivers
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.memfault.bort.Bort
-import com.memfault.bort.INTENT_ACTION_MY_PACKAGE_REPLACED
-import com.memfault.bort.Logger
-import com.memfault.bort.SettingsProvider
+import android.os.Build
+import com.memfault.bort.*
 import com.memfault.bort.requester.BugReportRequester
 
 class MyPackageReplacedReceiver : BroadcastReceiver() {
@@ -14,6 +12,7 @@ class MyPackageReplacedReceiver : BroadcastReceiver() {
         context ?: return
         intent ?: return
         when {
+            isBuildTypeBlacklisted() -> return
             intent.action != INTENT_ACTION_MY_PACKAGE_REPLACED -> return
         }
         Logger.v("Requesting periodic bug report from MyPackageReplacedReceiver")

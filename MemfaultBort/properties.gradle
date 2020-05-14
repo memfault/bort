@@ -1,0 +1,9 @@
+ext.bortProperty = { propName ->
+    if (rootProject.hasProperty(propName)) {
+        return rootProject.property(propName)
+    }
+    def bortPropertiesFile = rootProject.file("bort.properties")
+    def bortProperties = new Properties()
+    bortProperties.load(new FileInputStream(bortPropertiesFile))
+    return bortProperties[propName]
+}

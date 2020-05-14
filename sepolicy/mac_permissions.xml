@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<policy>
+    <!-- See keys.conf for more info -->
+    <signer signature="@BORT" >
+        <seinfo value="bort" />
+    </signer>
+</policy>

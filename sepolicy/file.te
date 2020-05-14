@@ -1,0 +1,4 @@
+# dumpstate is disallowed by a neverallow rule to write to system_app_data_file files, therefore
+# we use a specific file type that is used for files created in the file system "sandbox" of
+# the com.memfault.bort app (assigned in seapp_contexts):
+type bort_app_data_file, file_type, data_file_type, core_data_file_type;

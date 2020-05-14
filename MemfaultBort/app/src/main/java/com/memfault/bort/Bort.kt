@@ -2,31 +2,34 @@ package com.memfault.bort
 
 import android.app.Application
 import android.content.Context
-import androidx.work.*
+import android.os.Build
+import androidx.work.Configuration
+import androidx.work.ListenableWorker
+import androidx.work.WorkerFactory
+import androidx.work.WorkerParameters
 import com.memfault.bort.requester.BugReportRequester
 import com.memfault.bort.uploader.UploadWorker
-import okhttp3.OkHttpClient
-import retrofit2.Retrofit
 
 
-
-internal class BortWorkerFactory: WorkerFactory() {
+internal class BortWorkerFactory : WorkerFactory() {
     override fun createWorker(
         appContext: Context,
         workerClassName: String,
         workerParameters: WorkerParameters
     ): ListenableWorker? = when (workerClassName) {
-            UploadWorker::class.qualifiedName -> UploadWorker(
-                appContext,
-                workerParameters,
-                Bort.serviceLocator().retrofitClient(),
-                BuildConfig.MEMFAULT_PROJECT_API_KEY,
-                Bort.serviceLocator().settingsProvider().maxUploadAttempts()
-            )
-            // Delegate to the default worker factory
-            else -> null
-        }
+        UploadWorker::class.qualifiedName -> UploadWorker(
+            appContext,
+            workerParameters,
+            Bort.serviceLocator().retrofitClient(),
+            BuildConfig.MEMFAULT_PROJECT_API_KEY,
+            Bort.serviceLocator().settingsProvider().maxUploadAttempts()
+        )
+        // Delegate to the default worker factory
+        else -> null
+    }
 }
+
+fun isBuildTypeBlacklisted() = Build.TYPE == BuildConfig.BLACKLISTED_BUILD_VARIANT
 
 class Bort : Application(), Configuration.Provider {
 
@@ -34,11 +37,29 @@ class Bort : Application(), Configuration.Provider {
         super.onCreate()
 
         serviceLocator = SimpleServiceLocator.from(
-            object: SettingsProvider {}
+            object : SettingsProvider {}
         )
 
         Logger.minLevel = serviceLocator().settingsProvider().minLogLevel()
-        Logger.v("onCreate")
+        with(serviceLocator.settingsProvider()) {
+            Logger.minLevel = minLogLevel()
+            Logger.v(
+                """
+                Settings:
+                requestIntervalHours=${bugReportRequestIntervalHours()}
+                minLogLevel=${minLogLevel()}
+                networkConstraint=${bugReportNetworkConstraint()}
+                maxUploadAttempts=${maxUploadAttempts()}
+                build=${Build.TYPE}
+            """.trimIndent()
+            )
+        }
+
+        if (isBuildTypeBlacklisted()) {
+            Logger.d("'${BuildConfig.BLACKLISTED_BUILD_VARIANT}' build, not running")
+            return
+        }
+
 
         BugReportRequester(
             context = this

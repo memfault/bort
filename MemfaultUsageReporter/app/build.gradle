@@ -1,0 +1,41 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
+
+android {
+    compileSdkVersion COMPILE_SDK_VERSION as Integer
+    buildToolsVersion BUILD_TOOLS_VERSION as String
+
+    defaultConfig {
+        applicationId "com.memfault.usagereporter"
+        minSdkVersion MIN_SDK_VERSION as Integer
+        targetSdkVersion COMPILE_SDK_VERSION as Integer
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.core:core-ktx:1.2.0'
+}
+
+task copyReleaseApk(type: Copy) {
+    from file("$buildDir/outputs/apk/release/app-release-unsigned.apk")
+    into rootDir
+    rename 'app-release-unsigned.apk', 'MemfaultUsageReporter.apk'
+}
+
+afterEvaluate {
+    assembleRelease.finalizedBy copyReleaseApk
+}

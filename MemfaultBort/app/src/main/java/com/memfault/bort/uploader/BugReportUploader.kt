@@ -39,8 +39,10 @@ internal class BugReportUploader(
         val prepareResponse = try {
             preparedUploader.prepare()
         } catch (e: HttpException) {
+            Logger.e("prepare", e)
             return ListenableWorker.Result.retry()
         } catch (e: Exception) {
+            Logger.e("prepare", e)
             return ListenableWorker.Result.retry()
         }
 
@@ -58,8 +60,10 @@ internal class BugReportUploader(
                 is ListenableWorker.Result.Failure -> return deleteAndFail("Upload failed")
             }
         } catch (e: HttpException) {
+            Logger.e("upload", e)
             return ListenableWorker.Result.retry()
         } catch (e: Exception) {
+            Logger.e("upload", e)
             return ListenableWorker.Result.retry()
         }
 
@@ -69,8 +73,10 @@ internal class BugReportUploader(
                 is ListenableWorker.Result.Failure -> return deleteAndFail("Upload failed")
             }
         } catch (e: HttpException) {
+            Logger.e("commit", e)
             return ListenableWorker.Result.retry()
         } catch (e: Exception) {
+            Logger.e("commit", e)
             return ListenableWorker.Result.retry()
         }
 

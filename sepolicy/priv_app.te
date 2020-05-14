@@ -1,0 +1,2 @@
+allow priv_app bort_app_data_file:dir create_dir_perms;
+allow priv_app bort_app_data_file:{ file lnk_file } create_file_perms;

@@ -14,6 +14,7 @@ class BugReportReceiver : BroadcastReceiver() {
         intent ?: return
         context ?: return
         when {
+            isBuildTypeBlacklisted() -> return
             intent.action != INTENT_ACTION_BUGREPORT_FINISHED -> return
         }
         val bugreportPath = intent.getStringExtra(INTENT_EXTRA_BUGREPORT_PATH)

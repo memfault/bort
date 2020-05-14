@@ -38,6 +38,7 @@ internal data class SimpleServiceLocator constructor(
 
         internal fun from(settingsProvider: SettingsProvider): SimpleServiceLocator {
             val okHttpClient = OkHttpClient.Builder()
+                .addInterceptor(LoggingNetworkInterceptor())
                 .build()
             val retrofit = Retrofit.Builder()
                 .client(okHttpClient)

@@ -1,25 +1,22 @@
 diff --git a/shared/BoardConfig.mk b/shared/BoardConfig.mk
-index d2907de1..50af2c90 100644
+index d2907de..e04478a 100644
 --- a/shared/BoardConfig.mk
 +++ b/shared/BoardConfig.mk
-@@ -106,6 +106,7 @@ WIFI_DRIVER_FW_PATH_AP      := "/dev/null"
-
- BOARD_SEPOLICY_DIRS += device/google/cuttlefish/shared/sepolicy/private
- BOARD_SEPOLICY_DIRS += device/google/cuttlefish/shared/sepolicy/vendor
-+BOARD_SEPOLICY_DIRS += packages/apps/bort/sepolicy
-
- # master has breaking changes in dlfcn.h, but the platform SDK hasn't been
- # bumped. Restore the line below when it is.
+@@ -159,3 +159,6 @@ TARGET_RECOVERY_FSTAB ?= device/google/cuttlefish/shared/config/fstab.recovery
+ # To see full logs from init, disable ratelimiting.
+ # The default is 5 messages per second amortized, with a burst of up to 10.
+ BOARD_KERNEL_CMDLINE += printk.devkmsg=on
++
++include packages/apps/bort/BoardConfig.mk
++
 diff --git a/shared/phone/device.mk b/shared/phone/device.mk
-index d49d8a71..c33ab2c8 100644
+index d49d8a7..ad04b8c 100644
 --- a/shared/phone/device.mk
 +++ b/shared/phone/device.mk
-@@ -36,6 +36,8 @@ PRODUCT_PACKAGES += \
-     TeleService \
-     libcuttlefish-ril \
-     rild \
-+    MemfaultDumpstateRunner \
-+    MemfaultBort \
-
- PRODUCT_COPY_FILES += \
-     frameworks/native/data/etc/android.hardware.telephony.gsm.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.telephony.gsm.xml
+@@ -43,3 +43,6 @@ PRODUCT_COPY_FILES += \
+ # These flags are important for the GSI, but break auto
+ PRODUCT_ENFORCE_RRO_TARGETS := framework-res
+ PRODUCT_ENFORCE_RRO_EXCLUDED_OVERLAYS := device/google/cuttlefish/shared/overlay
++
++include packages/apps/bort/product.mk
++

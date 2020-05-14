@@ -2,29 +2,50 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlinx-serialization'
+apply from: "../properties.gradle"
+
+def keystorePropertiesFile = rootProject.file(bortProperty("BORT_KEYSTORE_PROPERTIES_PATH"))
+def keystoreProperties = new Properties()
+keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 
 android {
     compileSdkVersion versions.compileSdk
-    buildToolsVersion "29.0.3"
+    buildToolsVersion versions.buildTools
 
     defaultConfig {
-        applicationId "com.memfault.bort"
+        applicationId "vnd.myandroid.bortappid"
         minSdkVersion versions.minSdk
         targetSdkVersion versions.compileSdk
-        versionCode "$VERSION_CODE" as Integer
-        versionName "$VERSION_NAME"
+        versionCode bortProperty("APP_VERSION_CODE") as Integer
+        versionName bortProperty("APP_VERSION_NAME") as String
 
-        // Set the project API key in app/gradle.properties
-        buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "$MEMFAULT_PROJECT_API_KEY"
-        buildConfigField "String", "MEMFAULT_FILES_BASE_URL", "$MEMFAULT_FILES_BASE_URL"
+        // Set the project API key in bort.properties
+        buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "\"" + bortProperty("MEMFAULT_PROJECT_API_KEY") + "\""
+        buildConfigField "String", "MEMFAULT_FILES_BASE_URL", "\"$MEMFAULT_FILES_BASE_URL\""
+        buildConfigField "String", "BLACKLISTED_BUILD_VARIANT", "\"$BLACKLISTED_BUILD_VARIANT\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile file(keystoreProperties['storeFile'])
+            storePassword keystoreProperties['storePassword']
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+
+        // Used for CI. Do not use for production.
+        releaseTest {
+            initWith release
         }
     }
 
@@ -66,11 +87,24 @@ dependencies {
 }
 
 task copyReleaseApk(type: Copy) {
-    from file("$buildDir/outputs/apk/release/app-release-unsigned.apk")
+    from file("$buildDir/outputs/apk/release/app-release.apk")
     into rootDir
-    rename 'app-release-unsigned.apk', 'MemfaultBort.apk'
+    rename 'app-release.apk', 'MemfaultBort.apk'
 }
 
+import java.nio.file.Paths
+
+task exportPem(type: Exec) {
+    commandLine 'keytool',
+            '-export',
+            '-rfc',
+            '-keystore', keystoreProperties['storeFile'],
+            '-alias', keystoreProperties['keyAlias'],
+            '-file', Paths.get(rootDir.toString(), "MemfaultBort.x509.pem"),
+            '-storepass', keystoreProperties['storePassword']
+}
+
+
 afterEvaluate {
-    assembleRelease.finalizedBy copyReleaseApk
+    assembleRelease.finalizedBy copyReleaseApk, exportPem
 }

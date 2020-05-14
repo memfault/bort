@@ -46,8 +46,10 @@
 #include <string>
 #include <vector>
 
-#define TARGET_PACKAGE_ID "com.memfault.bort"
-#define TARGET_DIR "/data/data/" TARGET_PACKAGE_ID "/files/bugreports/"
+#include "android-9/file.h"
+
+#define TARGET_APP_ID "vnd.myandroid.bortappid"
+#define TARGET_DIR "/data/data/" TARGET_APP_ID "/files/bugreports/"
 
 using android::os::dumpstate::CommandOptions;
 using android::os::dumpstate::RunCommandToFd;
@@ -214,6 +216,26 @@ void SendBroadcast(const std::string& bugreportPath) {
                    .Build());
 }
 
+uint32_t GetTargetUid(void) {
+  std::vector<std::string> cmd = {
+      "/system/bin/pm", "list", "packages", "-U", TARGET_APP_ID
+  };
+  TemporaryFile tempFile;
+  RunCommandToFd(tempFile.fd, "", cmd,
+             CommandOptions::WithTimeout(20)
+                 .Log("Getting " TARGET_APP_ID " UID: '%s'\n")
+                 .Always()
+                 .Build());
+  std::string pmOutput;
+  android::base::ReadFileToString(tempFile.path, &pmOutput);
+  std::size_t found = pmOutput.rfind(":");
+  if (found == std::string::npos) {
+    ALOGE("Failed to find UID in %s\n", pmOutput.c_str());
+    return 0;
+  }
+  return std::stoi(pmOutput.substr(found + 1));
+}
+
 void CleanupDumpstateLogs(void) {
     glob_t glob_result;
     static constexpr char glob_pattern[] = "/bugreports/*-dumpstate_log-*.txt";
@@ -269,12 +291,11 @@ bool createParentDirs(uint32_t targetUid) {
 }  // namespace
 
 int main(void) {
-    const uint32_t targetUid = AID_SYSTEM;
+    const uint32_t targetUid = GetTargetUid();
     ALOGI("Target UID: %d", targetUid);
 
     if (!createParentDirs(targetUid)) {
-        ALOGE("Failed to create output directories. "
-              "This likely means com.memfault.bugreportservice was not installed (yet)");
+        ALOGE("Failed to create output directories. ");
         return EXIT_FAILURE;
     }
 

@@ -1,0 +1,7 @@
+<permissions>
+    <feature name="vnd.myandroid.bortfeaturename" />
+    <allow-in-power-save package="com.memfault.bort" />
+    <privapp-permissions package="com.memfault.bort">
+        <permission name="android.permission.DUMP" />
+    </privapp-permissions>
+</permissions>

@@ -5,6 +5,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
 import com.memfault.bort.Logger
+import com.memfault.bort.isBuildTypeBlacklisted
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.Retrofit
@@ -18,6 +19,9 @@ internal class UploadWorker(
 ) : CoroutineWorker(appContext, workerParameters) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        if (isBuildTypeBlacklisted()) {
+            return@withContext Result.failure()
+        }
         val preparedUploader = PreparedUploader(
             retrofit.create(PreparedUploadService::class.java),
             apiKey
