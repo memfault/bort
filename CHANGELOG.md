@@ -1,5 +1,15 @@
 # Memfault Bort Changelog
 
+## v2.0.1
+
+#### :chart_with_upwards_trend: Improvements
+
+- `bort_cli.py` tool improvements:
+  - For the `patch-aosp` command, the `--bort-app-id` option has been removed
+    because it is no longer needed.
+  - Check whether patch is applied, before attempting to apply patch.
+  - Fix log message to correctly reflect whether patches failed to apply.
+
 ## v2.0.0
 
 #### :rocket: New Features

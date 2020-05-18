@@ -85,10 +85,11 @@ class Command(abc.ABC):
 
 
 class PatchAOSPCommand(Command):
-    def __init__(self, aosp_root, apply_patch_command, bort_app_id, android_release):
+    def __init__(self, aosp_root, check_patch_command, apply_patch_command, force, android_release):
         self._aosp_root = aosp_root
+        self._check_patch_command = check_patch_command or self._default_check_patch_command()
         self._apply_patch_command = apply_patch_command or self._default_apply_patch_command()
-        self._bort_app_id = bort_app_id
+        self._force = force
         self._patches_dir = os.path.join(SCRIPT_DIR, "patches", f"android-{android_release}")
         self._patches = []
         self._errors = []
@@ -100,14 +101,43 @@ class PatchAOSPCommand(Command):
         parser.add_argument(
             "aosp_root", type=readable_dir_type, help="The path of the checked out AOSP repository"
         )
-        parser.add_argument("--android-release", type=int, choices=RELEASES, required=True)
-        parser.add_argument("--apply-patch-command", type=shell_command_type, default=None)
-        parser.add_argument("--bort-app-id", type=android_application_id_type, required=True)
+        parser.add_argument(
+            "--android-release",
+            type=int,
+            choices=RELEASES,
+            required=True,
+            help="Android platform version",
+        )
+        parser.add_argument(
+            "--check-patch-command",
+            type=shell_command_type,
+            default=None,
+            help="Command to check whether patch is applied. Expected to exit with status 0 if patch is applied.",
+        )
+        parser.add_argument(
+            "--apply-patch-command",
+            type=shell_command_type,
+            default=None,
+            help="Command to apply patch. The patch is provided through stdin.",
+        )
+        parser.add_argument(
+            "--force",
+            action="store_true",
+            default=False,
+            help="Apply patch, even when already applied.",
+        )
 
     @staticmethod
     def _default_apply_patch_command():
         try:
             return shell_command_type("patch -f -p1")
+        except argparse.ArgumentTypeError as error:
+            sys.exit(str(error))
+
+    @staticmethod
+    def _default_check_patch_command():
+        try:
+            return shell_command_type("patch -R -p1 --dry-run")
         except argparse.ArgumentTypeError as error:
             sys.exit(str(error))
 
@@ -128,39 +158,45 @@ class PatchAOSPCommand(Command):
     def _apply_all_patches(self):
         glob_pattern = os.path.join(self._patches_dir, "**", "git.diff")
 
-        for patch in glob.iglob(glob_pattern, recursive=True):
-            self._apply_patch(patch)
+        for patch_abspath in glob.iglob(glob_pattern, recursive=True):
+            patch_relpath = os.path.relpath(patch_abspath, self._patches_dir)
+            repo_subdir = os.path.dirname(patch_relpath)
 
-    @contextlib.contextmanager
-    def _using_patch(self, patch_abspath):
-        with open(patch_abspath) as patch_file:
-            content = patch_file.read()
-            content = content.replace(PLACEHOLDER_BORT_APP_ID, self._bort_app_id)
-            with io.StringIO(content) as patched_patch_file:
-                yield patched_patch_file
+            with open(patch_abspath) as patch_file:
+                content = patch_file.read()
 
-    def _apply_patch(self, patch_abspath):
-        patch_relpath = os.path.relpath(patch_abspath, self._patches_dir)
-        repo_subdir = os.path.dirname(patch_relpath)
+            if not self._force and self._check_patch(repo_subdir, patch_relpath, content):
+                continue  # Already applied!
 
-        with open(patch_abspath) as patch_file:
-            content = _replace_placeholders(
-                patch_file.read(), {PLACEHOLDER_BORT_APP_ID: self._bort_app_id}
+            self._apply_patch(repo_subdir, patch_relpath, content)
+
+    def _check_patch(self, repo_subdir, patch_relpath, content) -> bool:
+        check_cmd = self._check_patch_command
+        try:
+            subprocess.check_output(
+                check_cmd,
+                cwd=os.path.join(self._aosp_root, repo_subdir),
+                input=content.encode("utf-8"),
             )
+            logging.info("Skipping patch %r: already applied!", patch_relpath)
+            return True
 
+        except subprocess.CalledProcessError:
+            return False
+
+    def _apply_patch(self, repo_subdir, patch_relpath, content):
         self._patches.append(patch_relpath)
-        cmd = self._apply_patch_command
-        logging.info("Running %r (in %r)", shlex_join(cmd), repo_subdir)
+        apply_cmd = self._apply_patch_command
+        logging.info("Running %r (in %r)", shlex_join(apply_cmd), repo_subdir)
 
         try:
-            process = subprocess.Popen(
-                cmd,
+            output = subprocess.check_output(
+                apply_cmd,
                 cwd=os.path.join(self._aosp_root, repo_subdir),
-                stdin=subprocess.PIPE,
-                stdout=sys.stderr,
+                input=content.encode("utf-8"),
                 stderr=sys.stderr,
             )
-            process.communicate(content.encode("utf-8"))
+            logging.info(output.decode("utf-8"))
 
         except (subprocess.CalledProcessError, FileNotFoundError) as error:
             logging.warning(error)

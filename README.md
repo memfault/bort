@@ -75,7 +75,6 @@ but through the slightly specialized `memfault_dumpstatez`. See
 
   ```
   packages/apps/bort/bort_cli.py patch-aosp \
-    --bort-app-id <YOUR_BORT_APPLICATION_ID> \
     --android-release 10 \
     <AOSP_ROOT>
   ```
@@ -132,6 +131,13 @@ Instructions on how to create a keystore in Android Studio can be found
 [here](https://developer.android.com/studio/publish/app-signing#generate-key).
 If you plan to update the app via the Play Store, you may wish to follow the
 additional instructions on that page.
+
+> _Important Notes_
+>
+> - The key that is used to sign the Bort app must NOT be the platform signing
+>   key, otherwise updates to the Bort app may be rejected by the Play Store.
+> - The key must ONLY be used to sign the Bort app and no other apps. Special
+>   permissions are assigned to Bort based on the signing certificate.
 
 Once you have a keystore, set up a `keystore.properties` file and provide the
 path to it via the `bort.properties` file:
