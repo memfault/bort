@@ -1,3 +1,5 @@
+import java.nio.file.Paths
+
 ext.bortProperty = { propName ->
     if (rootProject.hasProperty(propName)) {
         return rootProject.property(propName)
@@ -6,4 +8,29 @@ ext.bortProperty = { propName ->
     def bortProperties = new Properties()
     bortProperties.load(new FileInputStream(bortPropertiesFile))
     return bortProperties[propName]
+}
+
+ext.loadKeystoreProperties = {
+    ext.keystorePropertiesFile = rootProject.file(bortProperty("BORT_KEYSTORE_PROPERTIES_PATH"))
+
+    def keystoreProperties = new Properties()
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    ext.keystoreProperties = keystoreProperties
+    return keystoreProperties
+}
+
+ext.getKeystoreFilePath = {
+    def relativePath = ext.keystoreProperties['storeFile']
+    if (relativePath == null) {
+        throw new IllegalArgumentException("Keystore storeFile property must be set")
+    }
+    def keystoreFilePath = Paths.get(ext.keystorePropertiesFile.getParent(), relativePath)
+    if (keystoreFilePath.toFile().exists()) {
+        return keystoreFilePath
+    }
+    // Notify of API behaviour change
+    logger.warn("WARNING: Keystore storeFile property is set, but does not exist relative to the keystore.properties file.")
+    logger.warn("Please update the storeFile property to be relative to keystore.properties")
+    logger.warn("Assuming it is relative to the current module.")
+    return relativePath
 }

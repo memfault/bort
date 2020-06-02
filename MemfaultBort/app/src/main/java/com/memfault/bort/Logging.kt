@@ -8,11 +8,17 @@ enum class LogLevel(internal val level: Int) {
     WARN(2),
     INFO(3),
     DEBUG(4),
-    VERBOSE(5)
+    VERBOSE(5),
+    TEST(6);
+
+    companion object {
+        fun fromInt(level: Int) = values().firstOrNull { it.level == level }
+    }
 }
 
 object Logger {
     const val TAG = "bort"
+    const val TAG_TEST = "bort-test"
 
     @JvmStatic
     var minLevel: LogLevel = LogLevel.NONE
@@ -33,6 +39,9 @@ object Logger {
     fun v(message: String) = log(LogLevel.VERBOSE, message)
 
     @JvmStatic
+    fun test(message: String) = log(LogLevel.TEST, message)
+
+    @JvmStatic
     fun e(message: String, t: Throwable) = log(LogLevel.ERROR, message, t)
 
     @JvmStatic
@@ -48,6 +57,9 @@ object Logger {
     fun v(message: String, t: Throwable) = log(LogLevel.VERBOSE, message, t)
 
     @JvmStatic
+    fun test(message: String, t: Throwable) = log(LogLevel.TEST, message, t)
+
+    @JvmStatic
     internal fun log(level: LogLevel, message: String) {
         if (level > minLevel) return
         when (level) {
@@ -56,6 +68,7 @@ object Logger {
             LogLevel.INFO -> Log.i(TAG, message)
             LogLevel.DEBUG -> Log.d(TAG, message)
             LogLevel.VERBOSE -> Log.v(TAG, message)
+            LogLevel.TEST -> Log.v(TAG_TEST, message)
             else -> return
         }
     }
@@ -69,6 +82,7 @@ object Logger {
             LogLevel.INFO -> Log.i(TAG, message, t)
             LogLevel.DEBUG -> Log.d(TAG, message, t)
             LogLevel.VERBOSE -> Log.v(TAG, message, t)
+            LogLevel.TEST -> Log.v(TAG_TEST, message, t)
             else -> return
         }
     }

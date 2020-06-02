@@ -155,6 +155,39 @@ storeFile=myKeystore.jks
 storePassword=mySecretStorePassword
 ```
 
+### Optional: Upload to a custom endpoint
+
+If you wish to upload bug reports to Memfault via your own server, you can
+enable this by providing a custom `FileUploader`.
+
+Implement the uploader and set the factory in the application's `onCreate`:
+
+```diff
++import retrofit2.Retrofit
++import vnd.myandroid.bortappid.SampleBugReportUploader
+
+
+ class Bort : Application(), Configuration.Provider {
+
+     override fun onCreate() {
+         super.onCreate()
++
++        ComponentsBuilder().apply {
++            fileUploaderFactory = object : FileUploaderFactory {
++                override fun create(retrofit: Retrofit, projectApiKey: String): FileUploader =
++                    SampleBugReportUploader(
++                        retrofit,
++                        apiKey
++                    )
++            }
++        }.also {
++            updateComponents(it)
++        }
+```
+
+a sample uploader is provided in
+[`SampleBugReportUploader.kt`](https://github.com/memfault/bort/blob/master/MemfaultBort/app/src/main/java/vnd/myandroid/bortappid/SampleBugReportUploader.kt).
+
 ### Build the Bort APK
 
 The `MemfaultBort` app is built using gradle. Building the release APK will

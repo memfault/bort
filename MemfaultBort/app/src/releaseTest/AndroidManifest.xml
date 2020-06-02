@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.memfault.bort">
+    <application>
+        <receiver
+            android:name=".receivers.TestSettingReceiver">
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.TEST_SETTING_SET" />
+            </intent-filter>
+        </receiver>
+        <receiver
+                android:name=".receivers.TestRequestBugreportReceiver">
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.TEST_REQUEST_BUGREPORT" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".receivers.TestProbeBootedReceiver">
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.TEST_PROBE_BOOTED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

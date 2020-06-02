@@ -4,8 +4,6 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.Observer
-import androidx.work.WorkManager
 import com.memfault.bort.requester.BugReportRequester
 
 
@@ -15,17 +13,9 @@ class UploadBugReportActivity : AppCompatActivity() {
         setContentView(R.layout.activity_upload)
     }
 
-    fun createBugReport(@Suppress("UNUSED_PARAMETER") v: View) =
-        BugReportRequester(
-            this
-        ).request().also {
-            WorkManager.getInstance(this)
-                .getWorkInfoByIdLiveData(it)
-                .observe(this, Observer { workInfo ->
-                    workInfo ?: return@Observer
-                    val message = "Request now in state: ${workInfo.state}"
-                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-                    Logger.d(message)
-                })
-        }
+    fun createBugReport(@Suppress("UNUSED_PARAMETER") v: View) {
+        val message = "Requesting bug report; see logcat for details"
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+        BugReportRequester(this).request()
+    }
 }

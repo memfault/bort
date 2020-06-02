@@ -91,7 +91,6 @@ class PatchAOSPCommand(Command):
         self._apply_patch_command = apply_patch_command or self._default_apply_patch_command()
         self._force = force
         self._patches_dir = os.path.join(SCRIPT_DIR, "patches", f"android-{android_release}")
-        self._patches = []
         self._errors = []
         self._warnings = []
 
@@ -150,9 +149,6 @@ class PatchAOSPCommand(Command):
         if self._warnings:
             sys.exit("Some optional patches couldn't be applied.")
 
-        if not self._patches:
-            sys.exit("No patches were applied.")
-
         logging.info("All patches applied successfully.")
 
     def _apply_all_patches(self):
@@ -185,7 +181,6 @@ class PatchAOSPCommand(Command):
             return False
 
     def _apply_patch(self, repo_subdir, patch_relpath, content):
-        self._patches.append(patch_relpath)
         apply_cmd = self._apply_patch_command
         logging.info("Running %r (in %r)", shlex_join(apply_cmd), repo_subdir)
 

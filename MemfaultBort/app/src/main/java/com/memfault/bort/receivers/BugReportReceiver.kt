@@ -1,22 +1,15 @@
 package com.memfault.bort.receivers
 
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.memfault.bort.*
 import com.memfault.bort.uploader.BugReportUploadScheduler
 import java.io.File
 
-class BugReportReceiver : BroadcastReceiver() {
-
-    override fun onReceive(context: Context?, intent: Intent?) {
-        Logger.d("onReceive ${intent?.action}")
-        intent ?: return
-        context ?: return
-        when {
-            isBuildTypeBlacklisted() -> return
-            intent.action != INTENT_ACTION_BUGREPORT_FINISHED -> return
-        }
+class BugReportReceiver : SingleActionBroadcastReceiver(
+    INTENT_ACTION_BUGREPORT_FINISHED
+) {
+    override fun onIntentReceived(context: Context, intent: Intent) {
         val bugreportPath = intent.getStringExtra(INTENT_EXTRA_BUGREPORT_PATH)
         Logger.v("Got bugreport path: $bugreportPath")
         bugreportPath ?: return
@@ -25,7 +18,7 @@ class BugReportReceiver : BroadcastReceiver() {
 
         BugReportUploadScheduler(
             context,
-            Bort.serviceLocator().settingsProvider().bugReportNetworkConstraint()
+            settingsProvider.bugReportNetworkConstraint()
         ).enqueue(bugreportFile)
     }
 }

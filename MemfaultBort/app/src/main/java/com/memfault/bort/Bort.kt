@@ -8,40 +8,14 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import com.memfault.bort.requester.BugReportRequester
-import com.memfault.bort.uploader.UploadWorker
 
-
-internal class BortWorkerFactory : WorkerFactory() {
-    override fun createWorker(
-        appContext: Context,
-        workerClassName: String,
-        workerParameters: WorkerParameters
-    ): ListenableWorker? = when (workerClassName) {
-        UploadWorker::class.qualifiedName -> UploadWorker(
-            appContext,
-            workerParameters,
-            Bort.serviceLocator().retrofitClient(),
-            BuildConfig.MEMFAULT_PROJECT_API_KEY,
-            Bort.serviceLocator().settingsProvider().maxUploadAttempts()
-        )
-        // Delegate to the default worker factory
-        else -> null
-    }
-}
-
-fun isBuildTypeBlacklisted() = Build.TYPE == BuildConfig.BLACKLISTED_BUILD_VARIANT
 
 class Bort : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
 
-        serviceLocator = SimpleServiceLocator.from(
-            object : SettingsProvider {}
-        )
-
-        Logger.minLevel = serviceLocator().settingsProvider().minLogLevel()
-        with(serviceLocator.settingsProvider()) {
+        with(appComponents().settingsProvider) {
             Logger.minLevel = minLogLevel()
             Logger.v(
                 """
@@ -55,7 +29,7 @@ class Bort : Application(), Configuration.Provider {
             )
         }
 
-        if (isBuildTypeBlacklisted()) {
+        if (appComponents().settingsProvider.isBuildTypeBlacklisted()) {
             Logger.d("'${BuildConfig.BLACKLISTED_BUILD_VARIANT}' build, not running")
             return
         }
@@ -64,18 +38,54 @@ class Bort : Application(), Configuration.Provider {
         BugReportRequester(
             context = this
         ).requestPeriodic(
-            serviceLocator().settingsProvider().bugReportRequestIntervalHours()
+            appComponents().settingsProvider.bugReportRequestIntervalHours()
         )
     }
 
     companion object {
-        private lateinit var serviceLocator: ServiceLocator
+        private var appComponentsBuilder: AppComponents.Builder? = ComponentsBuilder()
+        @Volatile private var appComponents: AppComponents? = null
 
-        @JvmStatic
-        fun serviceLocator() = serviceLocator
+        internal fun appComponents(): AppComponents {
+            appComponents?.let {
+                return it
+            }
+            return synchronized(this) {
+                val components = appComponents
+                components?.let {
+                    return components
+                }
+                val created = checkNotNull(appComponentsBuilder).build()
+                appComponents = created
+                appComponentsBuilder = null
+                created
+            }
+        }
+
+        internal fun updateComponents(builder: AppComponents.Builder) {
+            synchronized(this) {
+                appComponents = null
+                appComponentsBuilder = builder
+            }
+        }
     }
 
-    override fun getWorkManagerConfiguration(): Configuration = Configuration.Builder()
-        .setWorkerFactory(BortWorkerFactory())
-        .build()
+    override fun getWorkManagerConfiguration(): Configuration =
+        Configuration.Builder()
+            .setWorkerFactory(
+                // Create a WorkerFactory provider that provides a fresh WorkerFactory. This
+                // ensures the WorkerFactory is always using fresh app components.
+                object : WorkerFactory() {
+                    override fun createWorker(
+                        appContext: Context,
+                        workerClassName: String,
+                        workerParameters: WorkerParameters
+                    ): ListenableWorker? =
+                        appComponents().workerFactory.createWorker(
+                            appContext,
+                            workerClassName,
+                            workerParameters
+                        )
+                }
+            ).build()
 }

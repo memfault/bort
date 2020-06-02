@@ -1,5 +1,20 @@
 # Memfault Bort Changelog
 
+## v2.1.0
+
+#### :rocket: New Features
+
+- Adds the ability to upload bug reports to a user-specified endpoint
+
+#### :chart_with_upwards_trend: Improvements
+
+- The `storeFile` property in a `keystore.properties` file is now expected to be
+  relative to the `keystore.properties` file itself, no longer relative to
+  `bort/MemfaultBort/app`.
+- `bort_cli.py` tool improvements:
+  - The tool no longer exits with a non-zero code if all patches have already
+    been applied.
+
 ## v2.0.1
 
 #### :chart_with_upwards_trend: Improvements

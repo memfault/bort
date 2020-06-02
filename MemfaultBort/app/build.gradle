@@ -4,9 +4,9 @@ apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlinx-serialization'
 apply from: "../properties.gradle"
 
-def keystorePropertiesFile = rootProject.file(bortProperty("BORT_KEYSTORE_PROPERTIES_PATH"))
-def keystoreProperties = new Properties()
-keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+
+def keystoreProperties = loadKeystoreProperties()
+def keystoreFilePath = getKeystoreFilePath()
 
 android {
     compileSdkVersion versions.compileSdk
@@ -24,6 +24,11 @@ android {
         buildConfigField "String", "MEMFAULT_FILES_BASE_URL", "\"$MEMFAULT_FILES_BASE_URL\""
         buildConfigField "String", "BLACKLISTED_BUILD_VARIANT", "\"$BLACKLISTED_BUILD_VARIANT\""
 
+        buildConfigField "int", "BUG_REPORT_REQUEST_INTERVAL_HOURS", bortProperty("BUG_REPORT_REQUEST_INTERVAL_HOURS")
+        buildConfigField "int", "BUG_REPORT_MAX_UPLOAD_ATTEMPTS", bortProperty("BUG_REPORT_MAX_UPLOAD_ATTEMPTS")
+        buildConfigField "Boolean", "UPLOAD_NETWORK_CONSTRAINT_ALLOW_METERED_CONNECTION", bortProperty("UPLOAD_NETWORK_CONSTRAINT_ALLOW_METERED_CONNECTION")
+        buildConfigField "int", "MINIMUM_LOG_LEVEL", bortProperty("MINIMUM_LOG_LEVEL")
+
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -31,7 +36,7 @@ android {
         release {
             keyAlias keystoreProperties['keyAlias']
             keyPassword keystoreProperties['keyPassword']
-            storeFile file(keystoreProperties['storeFile'])
+            storeFile file(keystoreFilePath)
             storePassword keystoreProperties['storePassword']
         }
     }
@@ -98,7 +103,7 @@ task exportPem(type: Exec) {
     commandLine 'keytool',
             '-export',
             '-rfc',
-            '-keystore', keystoreProperties['storeFile'],
+            '-keystore', keystoreFilePath,
             '-alias', keystoreProperties['keyAlias'],
             '-file', Paths.get(rootDir.toString(), "MemfaultBort.x509.pem"),
             '-storepass', keystoreProperties['storePassword']
