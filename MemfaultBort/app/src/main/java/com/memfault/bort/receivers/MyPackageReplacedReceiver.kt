@@ -5,10 +5,10 @@ import android.content.Intent
 import com.memfault.bort.*
 import com.memfault.bort.requester.BugReportRequester
 
-class MyPackageReplacedReceiver : SingleActionBroadcastReceiver(
+class MyPackageReplacedReceiver : BortEnabledFilteringReceiver(
     INTENT_ACTION_MY_PACKAGE_REPLACED
 ) {
-    override fun onIntentReceived(context: Context, intent: Intent) {
+    override fun onReceivedAndEnabled(context: Context, intent: Intent) {
         BugReportRequester(
             context
         ).requestPeriodic(

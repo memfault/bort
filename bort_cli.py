@@ -85,12 +85,15 @@ class Command(abc.ABC):
 
 
 class PatchAOSPCommand(Command):
-    def __init__(self, aosp_root, check_patch_command, apply_patch_command, force, android_release):
+    def __init__(
+        self, aosp_root, check_patch_command, apply_patch_command, force, android_release, exclude
+    ):
         self._aosp_root = aosp_root
         self._check_patch_command = check_patch_command or self._default_check_patch_command()
         self._apply_patch_command = apply_patch_command or self._default_apply_patch_command()
         self._force = force
         self._patches_dir = os.path.join(SCRIPT_DIR, "patches", f"android-{android_release}")
+        self._exclude_dirs = exclude
         self._errors = []
         self._warnings = []
 
@@ -125,6 +128,9 @@ class PatchAOSPCommand(Command):
             default=False,
             help="Apply patch, even when already applied.",
         )
+        parser.add_argument(
+            "--exclude", action="append", help="Directories to exclude from patching"
+        )
 
     @staticmethod
     def _default_apply_patch_command():
@@ -157,6 +163,10 @@ class PatchAOSPCommand(Command):
         for patch_abspath in glob.iglob(glob_pattern, recursive=True):
             patch_relpath = os.path.relpath(patch_abspath, self._patches_dir)
             repo_subdir = os.path.dirname(patch_relpath)
+
+            if repo_subdir in self._exclude_dirs:
+                logging.info("Skipping patch: %r: excluded!", patch_relpath)
+                continue
 
             with open(patch_abspath) as patch_file:
                 content = patch_file.read()

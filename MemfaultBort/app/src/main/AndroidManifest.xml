@@ -41,6 +41,20 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".receivers.BortEnableReceiver"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.BORT_ENABLE" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".receivers.RequestBugReportReceiver"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.REQUEST_BUG_REPORT" />
+            </intent-filter>
+        </receiver>
 
         <!-- Disable the default initializer in order to provide a custom WorkerFactory -->
         <provider

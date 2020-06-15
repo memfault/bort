@@ -2,11 +2,10 @@ package com.memfault.bort.receivers
 
 import android.content.Context
 import android.content.Intent
-import com.memfault.bort.Bort
-import com.memfault.bort.ComponentsBuilder
-import com.memfault.bort.Logger
+import androidx.preference.PreferenceManager
+import com.memfault.bort.*
 
-class TestSettingReceiver: SingleActionBroadcastReceiver(
+class TestSettingReceiver: SingleActionReceiver(
     "com.memfault.intent.action.TEST_SETTING_SET"
 ) {
 
@@ -16,12 +15,16 @@ class TestSettingReceiver: SingleActionBroadcastReceiver(
                 val projectKey = intent.getStringExtra(
                         "project_key"
                 )
-                Logger.d("project_key: $projectKey")
-                ComponentsBuilder.updatedProjectKey = projectKey
+                Logger.test("project_key: $projectKey")
+                projectKey ?: return
+                PersistentProjectKeyProvider(
+                    PreferenceManager.getDefaultSharedPreferences(context)
+                ).also {
+                    Logger.test("Key was: ${it.getValue()}")
+                    it.setValue(projectKey)
+                    Logger.test("Updated to key: ${it.getValue()}")
+                }
             }
         }
-
-        Logger.d("Updating app components")
-        Bort.updateComponents(ComponentsBuilder())
     }
 }

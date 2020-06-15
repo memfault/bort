@@ -1,6 +1,6 @@
 package com.memfault.bort.uploader
 
-import com.memfault.bort.ComponentsBuilder
+import com.memfault.bort.kotlinxJsonConverterFactory
 import okhttp3.mockwebserver.MockWebServer
 import retrofit2.Retrofit
 import java.io.File
@@ -28,7 +28,7 @@ internal fun createUploader(server: MockWebServer) =
 fun createService(server: MockWebServer): PreparedUploadService =
     Retrofit.Builder()
         .baseUrl(server.url("/"))
-        .addConverterFactory(ComponentsBuilder().converterFactory)
+        .addConverterFactory(kotlinxJsonConverterFactory())
         .build()
         .create(PreparedUploadService::class.java)
 

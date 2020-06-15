@@ -1,6 +1,8 @@
 package com.memfault.bort
 
 import android.content.Context
+import android.content.SharedPreferences
+import androidx.preference.PreferenceManager
 import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
@@ -9,12 +11,12 @@ import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 
-internal class ComponentsBuilder: AppComponents.Builder() {
+internal class ReleaseTestComponentsBuilder(
+    context: Context
+): AppComponents.Builder(
+    context
+) {
     init {
-        updatedProjectKey?.let {
-            apiKey = it
-        }
-
         networkInterceptor = Interceptor { chain ->
             val request: Request = chain.request()
             val t1: Long = System.nanoTime()
@@ -30,21 +32,12 @@ ${response.headers()}
             response
         }
 
-        workerFactory = object : WorkerFactory() {
+        interceptingWorkerFactory = object : WorkerFactory() {
             override fun createWorker(
                 appContext: Context,
                 workerClassName: String,
                 workerParameters: WorkerParameters
-            ): ListenableWorker? {
-                defaultWorkerFactory.createWorker(
-                    appContext,
-                    workerClassName,
-                    workerParameters
-                )?.let {
-                    return it
-                }
-
-                return when (workerClassName) {
+            ): ListenableWorker? = when (workerClassName) {
                     BugReportRequestWorker::class.qualifiedName -> object : BugReportRequestWorker(
                         appContext,
                         workerParameters
@@ -55,12 +48,27 @@ ${response.headers()}
                         }
                     }
                     else -> null
-                }
             }
         }
-    }
 
-    companion object {
-        var updatedProjectKey: String? = null
+        settingsProvider = PersistentSettingsProvider(
+            PersistentProjectKeyProvider(
+                PreferenceManager.getDefaultSharedPreferences(context)
+            )
+        )
     }
+}
+
+class PersistentProjectKeyProvider(
+    sharedPreferences: SharedPreferences
+) : PreferenceKeyProvider<String>(
+    sharedPreferences = sharedPreferences,
+    defaultValue = BuildConfig.MEMFAULT_PROJECT_API_KEY,
+    preferenceKey = "test-project-api-key"
+)
+
+class PersistentSettingsProvider(
+    private val persistentProjectKeyProvider: PersistentProjectKeyProvider
+) : BuildConfigSettingsProvider() {
+    override fun projectKey(): String = persistentProjectKeyProvider.getValue()
 }

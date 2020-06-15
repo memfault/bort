@@ -12,20 +12,20 @@ internal class UploadWorker(
     appContext: Context,
     private val workerParameters: WorkerParameters,
     private val settingsProvider: SettingsProvider,
+    private val bortEnabledProvider: BortEnabledProvider,
     private val fileUploaderFactory: FileUploaderFactory,
-    private val retrofit: Retrofit,
-    private val projectKey: String
+    private val retrofit: Retrofit
 ) : CoroutineWorker(appContext, workerParameters) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        if (settingsProvider.isBuildTypeBlacklisted()) {
+        if (!bortEnabledProvider.isEnabled()) {
             return@withContext Result.failure()
         }
 
         val filePath = inputData.getString(INTENT_EXTRA_BUGREPORT_PATH)
 
         return@withContext DelegatingUploader(
-            delegate = fileUploaderFactory.create(retrofit, projectKey),
+            delegate = fileUploaderFactory.create(retrofit, settingsProvider.projectKey()),
             filePath = filePath,
             maxUploadAttempts = settingsProvider.maxUploadAttempts()
         ).upload(

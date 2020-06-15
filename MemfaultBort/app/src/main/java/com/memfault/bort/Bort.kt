@@ -10,10 +10,12 @@ import androidx.work.WorkerParameters
 import com.memfault.bort.requester.BugReportRequester
 
 
-class Bort : Application(), Configuration.Provider {
+open class Bort : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+
+        appComponentsBuilder = initComponents()
 
         with(appComponents().settingsProvider) {
             Logger.minLevel = minLogLevel()
@@ -24,26 +26,22 @@ class Bort : Application(), Configuration.Provider {
                 minLogLevel=${minLogLevel()}
                 networkConstraint=${bugReportNetworkConstraint()}
                 maxUploadAttempts=${maxUploadAttempts()}
+                isRuntimeEnableRequired=${isRuntimeEnableRequired()}
                 build=${Build.TYPE}
             """.trimIndent()
             )
         }
 
-        if (appComponents().settingsProvider.isBuildTypeBlacklisted()) {
-            Logger.d("'${BuildConfig.BLACKLISTED_BUILD_VARIANT}' build, not running")
+        if (!appComponents().isEnabled()) {
+            Logger.test("Bort not enabled, not running app")
             return
         }
-
-
-        BugReportRequester(
-            context = this
-        ).requestPeriodic(
-            appComponents().settingsProvider.bugReportRequestIntervalHours()
-        )
     }
 
+    open fun initComponents(): AppComponents.Builder = AppComponents.Builder(this)
+
     companion object {
-        private var appComponentsBuilder: AppComponents.Builder? = ComponentsBuilder()
+        private var appComponentsBuilder: AppComponents.Builder? = null
         @Volatile private var appComponents: AppComponents? = null
 
         internal fun appComponents(): AppComponents {

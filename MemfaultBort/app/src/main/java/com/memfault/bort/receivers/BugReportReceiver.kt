@@ -6,10 +6,10 @@ import com.memfault.bort.*
 import com.memfault.bort.uploader.BugReportUploadScheduler
 import java.io.File
 
-class BugReportReceiver : SingleActionBroadcastReceiver(
+class BugReportReceiver : BortEnabledFilteringReceiver(
     INTENT_ACTION_BUGREPORT_FINISHED
 ) {
-    override fun onIntentReceived(context: Context, intent: Intent) {
+    override fun onReceivedAndEnabled(context: Context, intent: Intent) {
         val bugreportPath = intent.getStringExtra(INTENT_EXTRA_BUGREPORT_PATH)
         Logger.v("Got bugreport path: $bugreportPath")
         bugreportPath ?: return

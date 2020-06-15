@@ -15,7 +15,11 @@ private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.REQUEST_PE
 
 internal fun requestBugReport(
     context: Context
-) {
+): Boolean {
+    if (!Bort.appComponents().isEnabled()) {
+        return false
+    }
+
     Logger.v("Sending $INTENT_ACTION_BUG_REPORT_START to $APPLICATION_ID_MEMFAULT_USAGE_REPORTER")
     Intent(INTENT_ACTION_BUG_REPORT_START).apply {
         component = ComponentName(
@@ -28,6 +32,7 @@ internal fun requestBugReport(
             Manifest.permission.DUMP
         )
     }
+    return true
 }
 
 class BugReportRequester(
@@ -36,18 +41,32 @@ class BugReportRequester(
 
     fun request() = requestBugReport(context)
 
-    fun requestPeriodic(bugReportRequestIntervalHours: Long) =
-        PeriodicWorkRequestBuilder<BugReportRequestWorker>(
+    fun requestPeriodic(
+        bugReportRequestIntervalHours: Long,
+        initialDelayMinutes: Long? = null
+    ) = PeriodicWorkRequestBuilder<BugReportRequestWorker>(
             bugReportRequestIntervalHours,
             TimeUnit.HOURS
-        ).build().also {
+        ).also { builder ->
+            initialDelayMinutes?.let { delay ->
+                builder.setInitialDelay(delay, TimeUnit.MINUTES)
+            }
+            Logger.test("Requesting bug report every $bugReportRequestIntervalHours hours")
+        }.build().also {
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(
                     WORK_UNIQUE_NAME_PERIODIC,
-                    ExistingPeriodicWorkPolicy.REPLACE,
+                    ExistingPeriodicWorkPolicy.KEEP,
                     it
                 )
         }
+
+    fun cancelPeriodic() {
+        Logger.test("Cancelling periodic work $WORK_UNIQUE_NAME_PERIODIC")
+        WorkManager.getInstance(context)
+            .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
+    }
+
 }
 
 internal open class BugReportRequestWorker(
@@ -55,15 +74,7 @@ internal open class BugReportRequestWorker(
     workerParameters: WorkerParameters
 ) : Worker(appContext, workerParameters) {
 
-    override fun doWork(): Result {
-        val settingsProvider = Bort.appComponents().settingsProvider
-
-        if (settingsProvider.isBuildTypeBlacklisted()) {
-            return Result.failure()
-        }
-
-        requestBugReport(applicationContext)
-
-        return Result.success()
-    }
+    override fun doWork(): Result =
+        if (requestBugReport(applicationContext))
+            Result.success() else Result.failure()
 }

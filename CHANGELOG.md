@@ -1,5 +1,14 @@
 # Memfault Bort Changelog
 
+## v2.2.0
+
+#### :rocket: New Features
+
+- This release adds an intent-based API to enable or disable the SDK at runtime.
+- Additionally, there is new requirement that the SDK be explicitly enabled
+  using this API at runtime. This can be disabled via a gradle property,
+- There is now also an intent-based API to trigger a one-off bug report.
+
 ## v2.1.0
 
 #### :rocket: New Features

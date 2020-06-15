@@ -71,32 +71,35 @@ but through the slightly specialized `memfault_dumpstatez`. See
 - Decide on an vendor-specific application ID for the Bort application so that
   you can upload it to the Google Play Store if necessary.
 
-* Patch the repository with `bort_cli.py` (requires Python 3.2+):
+- Apply [AOSP patches](https://github.com/memfault/bort/tree/master/patches)
+  using the `bort_cli.py` tool (requires Python 3.2+).
 
-  ```
-  packages/apps/bort/bort_cli.py patch-aosp \
-    --android-release 10 \
-    <AOSP_ROOT>
-  ```
+```
+packages/apps/bort/bort_cli.py patch-aosp \
+  --android-release 10 \
+  <AOSP_ROOT>
+```
 
-  ```
-  packages/apps/bort/bort_cli.py patch-bort \
-    --bort-app-id <YOUR_BORT_APPLICATION_ID> \
-    <AOSP_ROOT>/packages/apps/bort/MemfaultBort
-  ```
+- Patch the default application ID with your own:
 
-  ```
-  packages/apps/bort/bort_cli.py patch-dumpstate-runner \
-    --bort-app-id <YOUR_BORT_APPLICATION_ID> \
-    <AOSP_ROOT>/packages/apps/bort/MemfaultDumpstateRunner
-  ```
+```
+packages/apps/bort/bort_cli.py patch-bort \
+  --bort-app-id <YOUR_BORT_APPLICATION_ID> \
+  <AOSP_ROOT>/packages/apps/bort/MemfaultBort
+```
 
-* Add this line to your `device.mk` file, to get the components included in your
+```
+packages/apps/bort/bort_cli.py patch-dumpstate-runner \
+  --bort-app-id <YOUR_BORT_APPLICATION_ID> \
+  <AOSP_ROOT>/packages/apps/bort/MemfaultDumpstateRunner
+```
+
+- Add this line to your `device.mk` file, to get the components included in your
   build:
 
-  ```
-  include packages/apps/bort/product.mk
-  ```
+```
+include packages/apps/bort/product.mk
+```
 
 - Add this line to your `BoardConfig.mk` file, to get the sepolicy files picked
   up by the build system:
@@ -104,6 +107,21 @@ but through the slightly specialized `memfault_dumpstatez`. See
   ```
   include packages/apps/bort/BoardConfig.mk
   ```
+
+### When are bug reports collected?
+
+The bort app periodically generates bug reports by scheduling a periodic task to
+trigger the `MemfaultDumpstateRunner`.
+
+The bort app registers a handler (broadcast receiver) for the system boot event
+as well as when the app itself is updated or installed. When either of these
+happens, the app will register the periodic task if one is not registered.
+
+Configuration of the task period as well as the initial delay for when the first
+bug report is generated (e.g. if you wish to wait until more data is available)
+is described below.
+
+Bug reports can also be generated via an intent as described below.
 
 ### Configure the Bort app
 
@@ -113,9 +131,9 @@ We also recommend updating the other properties as necessary, for example,
 updating the SDK levels to match the API level of your OS and updating the build
 tools version to what is available in your environment.
 
-Additional settings can also be configured in `Settings.kt`, such as the bug
-report generation (request) interval, in hours; the minimum log level that will
-be logged to LogCat; and the maximum number of times bort will attempt to re-try
+Additional settings can also be configured this file, such as the bug report
+generation (request) interval, in hours; the minimum log level that will be
+logged to LogCat; and the maximum number of times bort will attempt to re-try
 uploading a bug report.
 
 You must provide the Android SDK location for gradle. This can either be set
@@ -155,6 +173,57 @@ storeFile=myKeystore.jks
 storePassword=mySecretStorePassword
 ```
 
+### Enabling the SDK at Runtime
+
+By default, the SDK assumes it is running on a device that may contain
+Personally Identifiable Information (PII). As such, it will not run until it is
+explicitly told to do so (e.g. when user consent has been obtained). Once
+enabled, that value will be persisted in preferences. If the bort app's data is
+cleared, this value must be set again.
+
+To enable the SDK, send an intent to the `BortEnableReceiver`. Note that this
+requires the `Manifest.permission.DUMP` permission.
+
+```kotlin
+Intent("com.memfault.intent.action.BORT_ENABLE").apply {
+    component = ComponentName(
+        APPLICATION_ID_BORT, // Whatever you have chosen for the application ID
+        "com.memfault.bort.receivers.BortEnableReceiver"
+    )
+    putExtra("com.memfault.intent.extra.BORT_ENABLED", true)
+}.also {
+    context.sendBroadcast(
+        it,
+        Manifest.permission.DUMP
+    )
+}
+```
+
+To disable the SDK, for example if the user later revokes consent, simply send
+the same intent with the opposite boolean extra
+
+```kotlin
+Intent("com.memfault.intent.action.BORT_ENABLE").apply {
+    component = ComponentName(
+        APPLICATION_ID_BORT,
+        "com.memfault.bort.receivers.BortEnableReceiver"
+    )
+    putExtra("com.memfault.intent.extra.BORT_ENABLED", false) // <-- Now disabled
+}.also {
+    context.sendBroadcast(
+        it,
+        Manifest.permission.DUMP
+    )
+}
+```
+
+If the SDK is running on a device that does not require user consent, this
+requirement can be disabled by changing a property in `bort.properties`:
+
+```
+RUNTIME_ENABLE_REQUIRED=false
+```
+
 ### Optional: Upload to a custom endpoint
 
 If you wish to upload bug reports to Memfault via your own server, you can
@@ -187,6 +256,31 @@ Implement the uploader and set the factory in the application's `onCreate`:
 
 a sample uploader is provided in
 [`SampleBugReportUploader.kt`](https://github.com/memfault/bort/blob/master/MemfaultBort/app/src/main/java/vnd/myandroid/bortappid/SampleBugReportUploader.kt).
+
+### Optional: Triggering a one-off bug report
+
+In addition to generating bug reports at regular intervals, you may also wish to
+capture a bug report if a significant event occurs. Doing this will not affect
+the scheduled bug reports.
+
+Note that if the dumpstate runner is busy capturing a bug report already, the
+in-flight bug report will continue and the interrupting request will be ignored.
+
+Triggering a bug report requires the `DUMP` permission:
+
+```kotlin
+Intent("com.memfault.intent.action.REQUEST_BUG_REPORT").apply {
+    component = ComponentName(
+        APPLICATION_ID_BORT,
+        "com.memfault.bort.receivers.RequestBugReportReceiver"
+    )
+}.also {
+    context.sendBroadcast(
+        it,
+        Manifest.permission.DUMP
+    )
+}
+```
 
 ### Build the Bort APK
 

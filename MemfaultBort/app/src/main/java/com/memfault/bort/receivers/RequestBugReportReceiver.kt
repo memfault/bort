@@ -5,16 +5,13 @@ import android.content.Intent
 import com.memfault.bort.*
 import com.memfault.bort.requester.BugReportRequester
 
-class BootReceiver : BortEnabledFilteringReceiver(
-    INTENT_ACTION_BOOT_COMPLETED
+class RequestBugReportReceiver : BortEnabledFilteringReceiver(
+    "com.memfault.intent.action.REQUEST_BUG_REPORT"
 ) {
-
     override fun onReceivedAndEnabled(context: Context, intent: Intent) {
+        Logger.v("Received request for bug report")
         BugReportRequester(
             context
-        ).requestPeriodic(
-            settingsProvider.bugReportRequestIntervalHours(),
-            settingsProvider.firstBugReportDelayAfterBootMinutes()
-        )
+        ).request()
     }
 }

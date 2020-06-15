@@ -11,8 +11,16 @@ enum class NetworkConstraint(
 
 interface SettingsProvider {
     fun bugReportRequestIntervalHours(): Long
+    fun firstBugReportDelayAfterBootMinutes(): Long
     fun minLogLevel(): LogLevel
     fun bugReportNetworkConstraint(): NetworkConstraint
     fun maxUploadAttempts(): Int
-    fun isBuildTypeBlacklisted(): Boolean
+    fun isRuntimeEnableRequired(): Boolean
+    fun projectKey(): String
+    fun baseUrl(): String
+}
+
+interface BortEnabledProvider {
+    fun setEnabled(isOptedIn: Boolean)
+    fun isEnabled(): Boolean
 }
