@@ -10,6 +10,7 @@ class BootReceiver : BortEnabledFilteringReceiver(
 ) {
 
     override fun onReceivedAndEnabled(context: Context, intent: Intent) {
+        Logger.logEvent("boot")
         BugReportRequester(
             context
         ).requestPeriodic(

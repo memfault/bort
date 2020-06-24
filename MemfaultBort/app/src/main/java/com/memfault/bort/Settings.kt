@@ -18,6 +18,12 @@ interface SettingsProvider {
     fun isRuntimeEnableRequired(): Boolean
     fun projectKey(): String
     fun baseUrl(): String
+    fun appVersionName(): String
+    fun appVersionCode(): Int
+    fun upstreamVersionName(): String
+    fun upstreamVersionCode(): Int
+    fun upstreamGitSha(): String
+    fun currentGitSha(): String
 }
 
 interface BortEnabledProvider {

@@ -236,22 +236,24 @@ Implement the uploader and set the factory in the application's `onCreate`:
 +import vnd.myandroid.bortappid.SampleBugReportUploader
 
 
- class Bort : Application(), Configuration.Provider {
+ open class Bort : Application(), Configuration.Provider {
+@@ -38,7 +40,15 @@ open class Bort : Application(), Configuration.Provider {
+         }
+     }
 
-     override fun onCreate() {
-         super.onCreate()
-+
-+        ComponentsBuilder().apply {
-+            fileUploaderFactory = object : FileUploaderFactory {
-+                override fun create(retrofit: Retrofit, projectApiKey: String): FileUploader =
-+                    SampleBugReportUploader(
-+                        retrofit,
-+                        apiKey
-+                    )
-+            }
-+        }.also {
-+            updateComponents(it)
+-    open fun initComponents(): AppComponents.Builder = AppComponents.Builder(this)
++    open fun initComponents(): AppComponents.Builder = AppComponents.Builder(this).apply {
++        fileUploaderFactory = object : FileUploaderFactory {
++            override fun create(retrofit: Retrofit, projectApiKey: String): FileUploader =
++                SampleBugReportUploader(
++                    retrofit = retrofit,
++                    apiKey = projectApiKey
++                )
 +        }
++    }
+
+     companion object {
+         private var appComponentsBuilder: AppComponents.Builder? = null
 ```
 
 a sample uploader is provided in

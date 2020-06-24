@@ -33,10 +33,7 @@ class SampleBugReportUploader(
 
         val uploadService = customRetrofit.create(SampleUploadService::class.java)
 
-        val requestBody = RequestBody.create(
-            MediaType.get("application/octet-stream"),
-            file
-        )
+        val requestBody = RequestBody.create(MediaType.get("application/octet-stream"), file)
         return try {
             val response = uploadService.upload(requestBody)
             when (response.code()) {

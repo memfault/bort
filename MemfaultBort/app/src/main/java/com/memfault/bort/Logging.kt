@@ -1,5 +1,6 @@
 package com.memfault.bort
 
+import android.util.EventLog
 import android.util.Log
 
 enum class LogLevel(internal val level: Int) {
@@ -85,5 +86,15 @@ object Logger {
             LogLevel.TEST -> Log.v(TAG_TEST, message, t)
             else -> return
         }
+    }
+
+    @JvmStatic
+    internal fun logEvent(vararg strings: String) {
+        EventLog.writeEvent(40000000, *strings)
+    }
+
+    @JvmStatic
+    internal fun logEventBortSdkEnabled(isEnabled: Boolean) {
+        EventLog.writeEvent(40000001, if (isEnabled) 1 else 0)
     }
 }

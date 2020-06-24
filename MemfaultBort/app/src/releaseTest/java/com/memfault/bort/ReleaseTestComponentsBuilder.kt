@@ -17,7 +17,7 @@ internal class ReleaseTestComponentsBuilder(
     context
 ) {
     init {
-        networkInterceptor = Interceptor { chain ->
+        loggingInterceptor = Interceptor { chain ->
             val request: Request = chain.request()
             val t1: Long = System.nanoTime()
             Logger.v("Sending request ${request.url()} on ${chain.connection()} ${request.headers()}")

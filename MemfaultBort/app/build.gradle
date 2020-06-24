@@ -16,8 +16,8 @@ android {
         applicationId "vnd.myandroid.bortappid"
         minSdkVersion versions.minSdk
         targetSdkVersion versions.compileSdk
-        versionCode bortProperty("APP_VERSION_CODE") as Integer
-        versionName bortProperty("APP_VERSION_NAME") as String
+        versionCode loadVersionCode() as Integer
+        versionName loadVersionName() as String
 
         // Set the project API key in bort.properties
         buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "\"" + bortProperty("MEMFAULT_PROJECT_API_KEY") + "\""
@@ -29,6 +29,11 @@ android {
         buildConfigField "Boolean", "UPLOAD_NETWORK_CONSTRAINT_ALLOW_METERED_CONNECTION", bortProperty("UPLOAD_NETWORK_CONSTRAINT_ALLOW_METERED_CONNECTION")
         buildConfigField "int", "MINIMUM_LOG_LEVEL", bortProperty("MINIMUM_LOG_LEVEL")
         buildConfigField "Boolean", "RUNTIME_ENABLE_REQUIRED", bortProperty("RUNTIME_ENABLE_REQUIRED")
+
+        buildConfigField "String", "UPSTREAM_VERSION_NAME", "\"${upstreamVersionName()}\""
+        buildConfigField "int", "UPSTREAM_VERSION_CODE", "${upstreamVersionCode()}"
+        buildConfigField "String", "UPSTREAM_GIT_SHA", "\"${upstreamGitSha()}\""
+        buildConfigField "String", "CURRENT_GIT_SHA", "\"${currentGitSha()}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -84,6 +89,7 @@ dependencies {
     implementation deps.serialization.converter
 
     implementation deps.retrofit
+    implementation deps.okhttp
     implementation deps.okio
 
     debugImplementation deps.debug.leakCanary

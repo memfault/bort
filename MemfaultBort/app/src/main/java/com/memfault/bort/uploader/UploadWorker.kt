@@ -18,6 +18,7 @@ internal class UploadWorker(
 ) : CoroutineWorker(appContext, workerParameters) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        Logger.logEvent("upload", "start", workerParameters.runAttemptCount.toString())
         if (!bortEnabledProvider.isEnabled()) {
             return@withContext Result.failure()
         }
@@ -31,8 +32,11 @@ internal class UploadWorker(
         ).upload(
             workerParameters.runAttemptCount
         ).also {
-            Logger.v("UploadWorker result: $it")
-            Logger.test("UploadWorker result: $it")
+            Logger.logEvent("upload", "result", it.toString())
+            "UploadWorker result: $it".also { message ->
+                Logger.v(message)
+                Logger.test(message)
+            }
         }
     }
 }

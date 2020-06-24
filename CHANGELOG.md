@@ -1,5 +1,25 @@
 # Memfault Bort Changelog
 
+## v2.2.1
+
+#### :boom: Breaking Changes
+
+- The `versionCode` and `versionName` are now set by default by the SDK. If you
+  need to override them or increase the `versionCode` for an OTA update, see
+  `bort.properties`.
+
+#### :chart_with_upwards_trend: Improvements
+
+- Fixed `bort_cli.py` to patch the custom application ID into the permissions
+  XML. This fixes an issue where the MemfaultBort application was not being
+  granted the expected permissions.
+
+#### :house: Internal
+
+- More debug info in requests to track and debug different SDK behaviour.
+- Use the `EventLog` API to log SDK events.
+- Update `MemfaultBort` dependencies.
+
 ## v2.2.0
 
 #### :rocket: New Features

@@ -1,5 +1,6 @@
 package com.memfault.bort.uploader
 
+import com.memfault.bort.Logger
 import kotlinx.serialization.Serializable
 import okhttp3.MediaType
 import okhttp3.RequestBody
@@ -32,7 +33,9 @@ data class CommitRequest(
 
 interface PreparedUploadService {
     @POST("/api/v0/upload")
-    suspend fun prepare(@Header(PROJECT_KEY_HEADER) apiKey: String): Response<PrepareResult>
+    suspend fun prepare(
+        @Header(PROJECT_KEY_HEADER) apiKey: String
+    ): Response<PrepareResult>
 
     @PUT
     suspend fun upload(@Url url: String, @Body file: RequestBody): Response<Unit>
@@ -45,19 +48,26 @@ interface PreparedUploadService {
     ): Response<Unit>
 }
 
+// Work around since vararg's can't be used in lambdas
+internal interface UploadEventLogger {
+    fun log(vararg strings: String) = Logger.logEvent(*strings)
+}
+
 /**
  * A client to upload files to Memfault's ("prepared") file upload API.
  */
 internal class PreparedUploader(
     private val preparedUploadService: PreparedUploadService,
-    private val apiKey: String
+    private val apiKey: String,
+    private val eventLogger: UploadEventLogger = object : UploadEventLogger {}
 ) {
 
     /**
      * Prepare a file upload.
      */
-    suspend fun prepare(): Response<PrepareResult> =
-        preparedUploadService.prepare(apiKey)
+    suspend fun prepare(): Response<PrepareResult> = preparedUploadService.prepare(apiKey).also {
+            eventLogger.log("prepare")
+    }
 
     /**
      * Upload a prepared file.
@@ -67,7 +77,9 @@ internal class PreparedUploader(
         return preparedUploadService.upload(
             uploadUrl,
             requestBody
-        )
+        ).also {
+            eventLogger.log("upload", "done")
+        }
     }
 
     /**
@@ -82,5 +94,7 @@ internal class PreparedUploader(
                     token
                 )
             )
-        )
+        ).also {
+            eventLogger.log("commit", "done")
+        }
 }

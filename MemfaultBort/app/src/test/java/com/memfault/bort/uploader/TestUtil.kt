@@ -22,7 +22,10 @@ const val SECRET_KEY = "secretKey"
 internal fun createUploader(server: MockWebServer) =
     PreparedUploader(
         createService(server),
-        apiKey = SECRET_KEY
+        apiKey = SECRET_KEY,
+        eventLogger = object : UploadEventLogger {
+            override fun log(vararg strings: String) {}
+        }
     )
 
 fun createService(server: MockWebServer): PreparedUploadService =

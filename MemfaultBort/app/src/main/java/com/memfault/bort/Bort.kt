@@ -7,7 +7,6 @@ import androidx.work.Configuration
 import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
-import com.memfault.bort.requester.BugReportRequester
 
 
 open class Bort : Application(), Configuration.Provider {
@@ -17,11 +16,40 @@ open class Bort : Application(), Configuration.Provider {
 
         appComponentsBuilder = initComponents()
 
+        logDebugInfo()
+
+        if (!appComponents().isEnabled()) {
+            Logger.test("Bort not enabled, not running app")
+            return
+        }
+    }
+
+    open fun initComponents(): AppComponents.Builder = AppComponents.Builder(this)
+
+    private fun logDebugInfo() {
+        Logger.logEventBortSdkEnabled(appComponents().isEnabled())
+
         with(appComponents().settingsProvider) {
             Logger.minLevel = minLogLevel()
+            Logger.logEvent(
+                "device=${appComponents().deviceIdProvider.deviceId()}",
+                "appVersionName=${appVersionName()}",
+                "appVersionCode=${appVersionCode()}",
+                "currentGitSha=${currentGitSha()}",
+                "upstreamGitSha${upstreamGitSha()}",
+                "upstreamVersionName=${upstreamVersionName()}",
+                "upstreamVersionCode=${upstreamVersionCode()}"
+            )
             Logger.v(
                 """
                 Settings:
+                "device=${appComponents().deviceIdProvider.deviceId()}"
+                appVersionName=${appVersionName()}
+                appVersionCode=${appVersionCode()}
+                currentGitSha=${currentGitSha()}
+                upstreamGitSha=${upstreamGitSha()}
+                upstreamVersionName=${upstreamVersionName()}
+                upstreamVersionCode=${upstreamVersionCode()}
                 requestIntervalHours=${bugReportRequestIntervalHours()}
                 minLogLevel=${minLogLevel()}
                 networkConstraint=${bugReportNetworkConstraint()}
@@ -31,14 +59,7 @@ open class Bort : Application(), Configuration.Provider {
             """.trimIndent()
             )
         }
-
-        if (!appComponents().isEnabled()) {
-            Logger.test("Bort not enabled, not running app")
-            return
-        }
     }
-
-    open fun initComponents(): AppComponents.Builder = AppComponents.Builder(this)
 
     companion object {
         private var appComponentsBuilder: AppComponents.Builder? = null
