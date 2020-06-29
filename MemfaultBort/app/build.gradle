@@ -44,6 +44,8 @@ android {
             keyPassword keystoreProperties['keyPassword']
             storeFile file(keystoreFilePath)
             storePassword keystoreProperties['storePassword']
+            v1SigningEnabled bortProperty("V1_SIGNING_ENABLED") as Boolean
+            v2SigningEnabled bortProperty("V2_SIGNING_ENABLED") as Boolean
         }
     }
 

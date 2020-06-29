@@ -72,7 +72,7 @@ but through the slightly specialized `memfault_dumpstatez`. See
   you can upload it to the Google Play Store if necessary.
 
 - Apply [AOSP patches](https://github.com/memfault/bort/tree/master/patches)
-  using the `bort_cli.py` tool (requires Python 3.2+).
+  using the `bort_cli.py` tool (requires Python 3.6+).
 
 ```
 packages/apps/bort/bort_cli.py patch-aosp \

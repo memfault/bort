@@ -6,6 +6,7 @@ import glob
 import io
 import logging
 import os
+import platform
 import re
 import shlex
 import shutil
@@ -18,6 +19,7 @@ PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
 RELEASES = range(9, 10 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+PYTHON_MIN_VERSION = ("3", "6", "0")
 
 
 def shlex_join(cmd):
@@ -298,6 +300,14 @@ class CommandLineInterface:
         PatchDumpstateRunnerCommand.register(create_parser)
 
     def run(self):
+        if platform.python_version_tuple() < PYTHON_MIN_VERSION:
+            logging.error(
+                "Python %s+ required, found %r",
+                ".".join(PYTHON_MIN_VERSION),
+                platform.python_version(),
+            )
+            sys.exit(1)
+
         args = vars(self._root_parser.parse_args())
         command = args.pop("command", None)
 

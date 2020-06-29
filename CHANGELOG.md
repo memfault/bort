@@ -1,5 +1,16 @@
 # Memfault Bort Changelog
 
+## v2.2.2
+
+#### :chart_with_upwards_trend: Improvements
+
+- Easily specify V1 and/or V2 APK signing configurations for the MemfaultBort
+  app using `bort.properties`.
+
+#### :house: Internal
+
+- The `bort_cli.py` script now requires Python 3.6+
+
 ## v2.2.1
 
 #### :boom: Breaking Changes
