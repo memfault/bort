@@ -12,3 +12,4 @@
 /captures
 .externalNativeBuild
 .cxx
+validate-sdk-integration.log

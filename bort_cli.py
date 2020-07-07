@@ -2,6 +2,7 @@
 import abc
 import argparse  # requires Python 3.2+
 import contextlib
+import datetime
 import glob
 import io
 import logging
@@ -13,13 +14,24 @@ import shutil
 import subprocess
 import sys
 
+LOG_FILE = "validate-sdk-integration.log"
+
 logging.basicConfig(format="%(message)s", level=logging.INFO)
+fh = logging.FileHandler(LOG_FILE)
+fh.setLevel(logging.DEBUG)
+logging.getLogger("").addHandler(fh)
 
 PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
 RELEASES = range(9, 10 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 PYTHON_MIN_VERSION = ("3", "6", "0")
+USAGE_REPORTER_APPLICATION_ID = "com.memfault.usagereporter"
+USAGE_REPORTER_APK_PATH = (
+    r"package:/system/priv-app/MemfaultUsageReporter/MemfaultUsageReporter.apk"
+)
+BORT_APK_PATH = r"package:/system/priv-app/MemfaultBort/MemfaultBort.apk"
+LOG_ENTRY_SEPARATOR = "============================================================"
 
 
 def shlex_join(cmd):
@@ -283,10 +295,137 @@ class PatchDumpstateRunnerCommand(Command):
             )
 
 
+class ValidateConnectedDevice(Command):
+    def __init__(self, bort_app_id, device=None, vendor_feature_name=None):
+        self._bort_app_id = bort_app_id
+        self._device = device
+        self._vendor_feature_name = vendor_feature_name or bort_app_id
+        self._errors = []
+
+    @classmethod
+    def register(cls, create_parser):
+        parser = create_parser(cls, "validate-sdk-integration")
+        parser.add_argument("--bort-app-id", type=android_application_id_type, required=True)
+        parser.add_argument(
+            "--device", type=str, help="Optional device ID passed to ADB's `-s` flag"
+        )
+        parser.add_argument(
+            "--vendor-feature-name", type=str, help="Defaults to the provided Application ID"
+        )
+
+    @property
+    def _device_arg(self):
+        return ("-s", self._device) if self._device else ()
+
+    def _get_shell_cmd_output(self, *, description: str, cmd) -> str:
+        logging.info("\n%s", description)
+        shell_cmd = shlex_join(cmd)
+        logging.info("\t%s", shell_cmd)
+
+        def _shell_command():
+            try:
+                return shell_command_type(shell_cmd)
+            except argparse.ArgumentTypeError as arg_error:
+                sys.exit(str(arg_error))
+
+        try:
+            output = subprocess.check_output(_shell_command(), stderr=sys.stderr)
+            return output.decode("utf-8")
+        except subprocess.CalledProcessError as error:
+            self._errors.append(str(error))
+
+    def _run_shell_cmd_and_expect(self, *, description: str, cmd, pattern: str):
+        output = self._get_shell_cmd_output(description=description, cmd=cmd)
+        if not output or not re.search(pattern, output, re.RegexFlag.MULTILINE):
+            self._errors.append(f"\n\n❌ Expected:\n{pattern}\n\nFound:\n{output}")
+            logging.info("\t❌ No match for '%s'", pattern)
+            return
+        logging.info("\tOutput matched '%s'", pattern)
+
+    def _verify_device_connected(self):
+        """
+        If a target device is specified, verify that specific is connected. Otherwise, verify any device is connected.
+        If there are multiple devices, `-s` (thus `--device`) must be used as well.
+        """
+        pattern = r"(?<=List of devices attached\n)"
+        pattern += rf"(.|\n)*{re.escape(self._device)}" if self._device else "(.)+"
+        self._run_shell_cmd_and_expect(
+            description="Verifying device is connected", cmd=("adb", "devices"), pattern=pattern
+        )
+
+    def _run_adb_shell_cmd_and_expect(self, *, description: str, adb_shell_cmd, pattern: str):
+        device_arg = ("-s", self._device) if self._device else ()
+        self._run_shell_cmd_and_expect(
+            description=description,
+            cmd=("adb", *device_arg, "shell", *adb_shell_cmd),
+            pattern=pattern,
+        )
+
+    def run(self):
+        if self._bort_app_id == PLACEHOLDER_BORT_APP_ID:
+            sys.exit(
+                "Invalid application ID. Please run the 'patch-bort' command and change the application ID."
+            )
+        logging.info(LOG_ENTRY_SEPARATOR)
+        logging.info("validate-sdk-integration %s", datetime.datetime.now())
+        self._verify_device_connected()
+        if self._errors:
+            sys.exit("\n".join((*self._errors, "❌ Failure: device not found. No tests run.")))
+
+        self._run_adb_shell_cmd_and_expect(
+            description="Verifying MemfaultUsageReporter app is installed",
+            adb_shell_cmd=("pm", "path", USAGE_REPORTER_APPLICATION_ID),
+            pattern=USAGE_REPORTER_APK_PATH,
+        )
+        self._run_adb_shell_cmd_and_expect(
+            description="Verifying MemfaultBort app is installed",
+            adb_shell_cmd=("pm", "path", self._bort_app_id),
+            pattern=BORT_APK_PATH,
+        )
+        self._run_adb_shell_cmd_and_expect(
+            description=f"Verifying device has feature {self._vendor_feature_name}",
+            adb_shell_cmd=("pm", "list", "features"),
+            pattern=rf"^feature\:{self._vendor_feature_name}$",
+        )
+        for permission in (
+            "android.permission.FOREGROUND_SERVICE",
+            "android.permission.RECEIVE_BOOT_COMPLETED",
+            "android.permission.INTERNET",
+            "android.permission.ACCESS_NETWORK_STATE",
+            "android.permission.DUMP",
+            "android.permission.WAKE_LOCK",
+        ):
+            self._run_adb_shell_cmd_and_expect(
+                description=f"Verifying MemfaultBort app has permission '{permission}'",
+                adb_shell_cmd=("dumpsys", "package", self._bort_app_id),
+                pattern=rf"{permission}: granted=true",
+            )
+        self._run_adb_shell_cmd_and_expect(
+            description=f"Verifying MemfaultUsageReport app has permission 'android.permission.DUMP'",
+            adb_shell_cmd=("dumpsys", "package", USAGE_REPORTER_APPLICATION_ID),
+            pattern=rf"android.permission.DUMP: granted=true",
+        )
+
+        self._run_adb_shell_cmd_and_expect(
+            description="Verifying MemfaultBort is on device idle whitelist",
+            adb_shell_cmd=("dumpsys", "deviceidle"),
+            pattern=rf"Whitelist system apps:(.|\n)*({self._bort_app_id})",
+        )
+
+        if self._errors:
+            for error in self._errors:
+                logging.info(LOG_ENTRY_SEPARATOR)
+                logging.info(error)
+            sys.exit(f"❌ Failure: One or more errors detected. See {LOG_FILE} for details")
+
+        logging.info("\n✅ SUCCESS: Bort SDK on the connected device appears to be valid")
+        logging.info("Results written to %s", LOG_FILE)
+
+
 class CommandLineInterface:
     def __init__(self):
         self._root_parser = argparse.ArgumentParser(
-            description="Prepares an AOSP for Memfault Bort."
+            description="Prepares and validates an AOSP device for Memfault Bort."
         )
         subparsers = self._root_parser.add_subparsers()
 
@@ -298,6 +437,7 @@ class CommandLineInterface:
         PatchAOSPCommand.register(create_parser)
         PatchBortCommand.register(create_parser)
         PatchDumpstateRunnerCommand.register(create_parser)
+        ValidateConnectedDevice.register(create_parser)
 
     def run(self):
         if platform.python_version_tuple() < PYTHON_MIN_VERSION:

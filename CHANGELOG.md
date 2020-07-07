@@ -1,5 +1,18 @@
 # Memfault Bort Changelog
 
+## v2.2.3
+
+#### :rocket: New Features
+
+- Validate your SDK integration with the `validate-sdk-integration` command in
+  `bort_cli.py`.
+
+#### :chart_with_upwards_trend: Improvements
+
+- The SDK will now work if
+  [UserManager.DISALLOW_DEBUGGING_FEATURES](https://developer.android.com/reference/android/os/UserManager#DISALLOW_DEBUGGING_FEATURES)
+  is enabled.
+
 ## v2.2.2
 
 #### :chart_with_upwards_trend: Improvements

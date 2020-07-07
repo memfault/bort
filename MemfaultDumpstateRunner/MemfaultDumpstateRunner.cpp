@@ -49,6 +49,8 @@
 #include "android-9/file.h"
 
 #define TARGET_APP_ID "vnd.myandroid.bortappid"
+#define TARGET_COMPONENT_CLASS "com.memfault.bort.receivers.BugReportReceiver"
+#define TARGET_COMPONENT TARGET_APP_ID "/" TARGET_COMPONENT_CLASS
 #define TARGET_DIR "/data/data/" TARGET_APP_ID "/files/bugreports/"
 
 using android::os::dumpstate::CommandOptions;
@@ -205,13 +207,13 @@ void SendBroadcast(const std::string& bugreportPath) {
         "--receiver-foreground", "--receiver-include-background",
         "-a", "com.memfault.intent.action.BUGREPORT_FINISHED",
         "--es", "com.memfault.intent.extra.BUGREPORT_PATH", bugreportPath,
+        "-n", TARGET_COMPONENT
     };
 
     RunCommandToFd(STDOUT_FILENO, "", am,
                CommandOptions::WithTimeout(20)
                    .Log("Sending broadcast: '%s'\n")
                    .Always()
-                   .DropRoot()
                    .RedirectStderr()
                    .Build());
 }

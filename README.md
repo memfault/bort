@@ -318,3 +318,22 @@ root directory where it will be picked up by the AOSP build system.
 ```
 cd MemfaultUsageReporter && ./gradlew assembleRelease # Or gradlew assembleRelease on Windows
 ```
+
+## Validating the SDK Integration
+
+The `bort_cli.py` tool can be used to check for issues with the SDK
+installation. To use it, install a build containing the Bort SDK on a device
+that you wish to validate. Connect that device via ADB (verify via
+`adb devices`) and run the script:
+
+```bash
+./bort_cli.py validate-sdk-integration --bort-app-id your.app.id
+```
+
+If you have multiple devices connected, use the `--device` flag to specify the
+target device. For more information on the different options, run the command
+with the `-h` flag:
+
+```bash
+./bort_cli.py validate-sdk-integration -h
+```
