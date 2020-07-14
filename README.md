@@ -224,6 +224,13 @@ requirement can be disabled by changing a property in `bort.properties`:
 RUNTIME_ENABLE_REQUIRED=false
 ```
 
+If you wish to enable the SDK on a development device over ADB, `bort_cli.py`
+provides a convenience command:
+
+```bash
+./bort_cli.py enable-bort --bort-app-id your.app.id
+```
+
 ### Optional: Upload to a custom endpoint
 
 If you wish to upload bug reports to Memfault via your own server, you can
@@ -282,6 +289,13 @@ Intent("com.memfault.intent.action.REQUEST_BUG_REPORT").apply {
         Manifest.permission.DUMP
     )
 }
+```
+
+If you wish to generate a bug report using the SDK on a development device over
+ADB, `bort_cli.py` provides a convenience command:
+
+```bash
+./bort_cli.py request-bug-report --bort-app-id your.app.id
 ```
 
 ### Build the Bort APK

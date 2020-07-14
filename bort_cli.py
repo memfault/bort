@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*
 import abc
 import argparse  # requires Python 3.2+
 import contextlib
@@ -13,6 +14,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from typing import Callable, Iterable, List, Optional, Tuple
 
 LOG_FILE = "validate-sdk-integration.log"
 
@@ -21,6 +23,7 @@ fh = logging.FileHandler(LOG_FILE)
 fh.setLevel(logging.DEBUG)
 logging.getLogger("").addHandler(fh)
 
+DEFAULT_ENCODING = "utf-8"
 PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
 RELEASES = range(9, 10 + 1)
@@ -196,7 +199,7 @@ class PatchAOSPCommand(Command):
             subprocess.check_output(
                 check_cmd,
                 cwd=os.path.join(self._aosp_root, repo_subdir),
-                input=content.encode("utf-8"),
+                input=content.encode(DEFAULT_ENCODING),
             )
             logging.info("Skipping patch %r: already applied!", patch_relpath)
             return True
@@ -212,10 +215,10 @@ class PatchAOSPCommand(Command):
             output = subprocess.check_output(
                 apply_cmd,
                 cwd=os.path.join(self._aosp_root, repo_subdir),
-                input=content.encode("utf-8"),
+                input=content.encode(DEFAULT_ENCODING),
                 stderr=sys.stderr,
             )
-            logging.info(output.decode("utf-8"))
+            logging.info(output.decode(DEFAULT_ENCODING))
 
         except (subprocess.CalledProcessError, FileNotFoundError) as error:
             logging.warning(error)
@@ -295,6 +298,201 @@ class PatchDumpstateRunnerCommand(Command):
             )
 
 
+def _get_shell_cmd_output_and_errors(
+    *, description: str, cmd: Tuple
+) -> Tuple[Optional[str], List[str]]:
+    logging.info("\n%s", description)
+    shell_cmd = shlex_join(cmd)
+    logging.info("\t%s", shell_cmd)
+
+    def _shell_command():
+        try:
+            return shell_command_type(shell_cmd)
+        except argparse.ArgumentTypeError as arg_error:
+            sys.exit(str(arg_error))
+
+    try:
+        output = subprocess.check_output(_shell_command(), stderr=sys.stderr)
+        return output.decode("utf-8"), []
+    except subprocess.CalledProcessError as error:
+        return None, [str(error)]
+
+
+def _create_adb_command(cmd: Tuple, device: Optional[str] = None) -> Tuple:
+    return ("adb", *(("-s", device) if device else ()), *cmd)
+
+
+def _get_adb_shell_cmd_output_and_errors(
+    *, description: str, cmd, device: Optional[str] = None
+) -> Tuple[Optional[str], List[str]]:
+    return _get_shell_cmd_output_and_errors(
+        description=description, cmd=_create_adb_command(("shell", *cmd), device=device)
+    )
+
+
+def _multiline_search_matcher(pattern: str) -> Callable[[str], bool]:
+    def _search(output: str) -> bool:
+        return re.search(pattern, output, re.RegexFlag.MULTILINE)
+
+    return _search
+
+
+def _expect_or_errors(
+    *, output: str, description: str, matcher: Callable[[str], bool]
+) -> List[str]:
+    if not output or not matcher(output):
+        logging.info("\t Test failed")
+        return [
+            f"{os.linesep}{os.linesep}{description}{os.linesep}{os.linesep}Output did not match:{os.linesep}{os.linesep}{output}"
+        ]
+
+    logging.info("\tTest passed")
+    return []
+
+
+def _run_shell_cmd_and_expect(
+    *, description: str, cmd: Tuple, matcher: Callable[[str], bool]
+) -> List[str]:
+    output, errors = _get_shell_cmd_output_and_errors(description=description, cmd=cmd)
+    if errors:
+        return errors
+    return _expect_or_errors(output=output, description=description, matcher=matcher)
+
+
+def _run_adb_shell_cmd_and_expect(
+    *, description: str, cmd: Tuple, matcher: Callable[[str], bool], device: Optional[str] = None
+) -> List[str]:
+    output, errors = _get_adb_shell_cmd_output_and_errors(
+        description=description, cmd=cmd, device=device
+    )
+    if errors:
+        return errors
+    return _expect_or_errors(output=output, description=description, matcher=matcher)
+
+
+def _log_errors(errors: Iterable[str]):
+    for error in errors:
+        logging.info(LOG_ENTRY_SEPARATOR)
+        logging.info(error)
+
+
+def _verify_device_connected(device: Optional[str] = None) -> List[str]:
+    """
+    If a target device is specified, verify that specific is connected. Otherwise, verify any device is connected.
+    If there are multiple devices, `-s` (thus `--device`) must be used as well.
+    """
+
+    def _matcher(output: str) -> bool:
+        lines = output.splitlines()
+        if len(lines) < 2:
+            return False
+        if "List of devices attached" not in lines[0]:
+            return False
+        # If a device was provided, verify it's connected
+        if device:
+            for line in lines[1:]:
+                if device in line:
+                    return True
+            return False
+
+        # Otherwise, verify any device is connected
+        # Entries look like 'XXX device'
+        for line in lines[1:]:
+            if "device" in line:
+                return True
+        return False
+
+    return _run_shell_cmd_and_expect(
+        description="Verifying device is connected", cmd=("adb", "devices"), matcher=_matcher
+    )
+
+
+def _send_broadcast(
+    bort_app_id: str, description: str, broadcast: Tuple, device: Optional[str] = None
+):
+    if bort_app_id == PLACEHOLDER_BORT_APP_ID:
+        sys.exit(
+            "Invalid application ID. Please run the 'patch-bort' command and change the application ID."
+        )
+    output, errors = _get_adb_shell_cmd_output_and_errors(
+        description=description, cmd=broadcast, device=device
+    )
+    logging.info(output)
+    if errors:
+        _log_errors(errors)
+        sys.exit(" Failure: unable to send broadcast")
+    logging.info("Sent broadcast: check logcat logs for result")
+
+
+class RequestBugReport(Command):
+    def __init__(self, bort_app_id: str, device: Optional[str] = None):
+        self._bort_app_id = bort_app_id
+        self._device = device
+
+    @classmethod
+    def register(cls, create_parser):
+        parser = create_parser(cls, "request-bug-report")
+        parser.add_argument("--bort-app-id", type=android_application_id_type, required=True)
+        parser.add_argument(
+            "--device",
+            type=str,
+            help="Optional device ID passed to ADB's `-s` flag. Required if multiple devices are connected.",
+        )
+
+    def run(self):
+        if self._bort_app_id == PLACEHOLDER_BORT_APP_ID:
+            sys.exit(
+                "Invalid application ID. Please run the 'patch-bort' command and change the application ID."
+            )
+        broadcast_cmd = (
+            "am",
+            "broadcast",
+            "--receiver-include-background",
+            "-a",
+            "com.memfault.intent.action.REQUEST_BUG_REPORT",
+            "-n",
+            f"{self._bort_app_id}/com.memfault.bort.receivers.RequestBugReportReceiver",
+        )
+        _send_broadcast(
+            self._bort_app_id, "Requesting bug report from bort", broadcast_cmd, self._device
+        )
+
+
+class EnableBort(Command):
+    def __init__(self, bort_app_id, device=None):
+        self._bort_app_id = bort_app_id
+        self._device = device
+
+    @classmethod
+    def register(cls, create_parser):
+        parser = create_parser(cls, "enable-bort")
+        parser.add_argument("--bort-app-id", type=android_application_id_type, required=True)
+        parser.add_argument(
+            "--device",
+            type=str,
+            help="Optional device ID passed to ADB's `-s` flag. Required if multiple devices are connected.",
+        )
+
+    def run(self):
+        if self._bort_app_id == PLACEHOLDER_BORT_APP_ID:
+            sys.exit(
+                "Invalid application ID. Please run the 'patch-bort' command and change the application ID."
+            )
+        broadcast_cmd = (
+            "am",
+            "broadcast",
+            "--receiver-include-background",
+            "-a",
+            "com.memfault.intent.action.BORT_ENABLE",
+            "-n",
+            f"{self._bort_app_id}/com.memfault.bort.receivers.BortEnableReceiver",
+            "--ez",
+            "com.memfault.intent.extra.BORT_ENABLED",
+            "true",
+        )
+        _send_broadcast(self._bort_app_id, "Enabling bort", broadcast_cmd, self._device)
+
+
 class ValidateConnectedDevice(Command):
     def __init__(self, bort_app_id, device=None, vendor_feature_name=None):
         self._bort_app_id = bort_app_id
@@ -313,54 +511,6 @@ class ValidateConnectedDevice(Command):
             "--vendor-feature-name", type=str, help="Defaults to the provided Application ID"
         )
 
-    @property
-    def _device_arg(self):
-        return ("-s", self._device) if self._device else ()
-
-    def _get_shell_cmd_output(self, *, description: str, cmd) -> str:
-        logging.info("\n%s", description)
-        shell_cmd = shlex_join(cmd)
-        logging.info("\t%s", shell_cmd)
-
-        def _shell_command():
-            try:
-                return shell_command_type(shell_cmd)
-            except argparse.ArgumentTypeError as arg_error:
-                sys.exit(str(arg_error))
-
-        try:
-            output = subprocess.check_output(_shell_command(), stderr=sys.stderr)
-            return output.decode("utf-8")
-        except subprocess.CalledProcessError as error:
-            self._errors.append(str(error))
-
-    def _run_shell_cmd_and_expect(self, *, description: str, cmd, pattern: str):
-        output = self._get_shell_cmd_output(description=description, cmd=cmd)
-        if not output or not re.search(pattern, output, re.RegexFlag.MULTILINE):
-            self._errors.append(f"\n\n❌ Expected:\n{pattern}\n\nFound:\n{output}")
-            logging.info("\t❌ No match for '%s'", pattern)
-            return
-        logging.info("\tOutput matched '%s'", pattern)
-
-    def _verify_device_connected(self):
-        """
-        If a target device is specified, verify that specific is connected. Otherwise, verify any device is connected.
-        If there are multiple devices, `-s` (thus `--device`) must be used as well.
-        """
-        pattern = r"(?<=List of devices attached\n)"
-        pattern += rf"(.|\n)*{re.escape(self._device)}" if self._device else "(.)+"
-        self._run_shell_cmd_and_expect(
-            description="Verifying device is connected", cmd=("adb", "devices"), pattern=pattern
-        )
-
-    def _run_adb_shell_cmd_and_expect(self, *, description: str, adb_shell_cmd, pattern: str):
-        device_arg = ("-s", self._device) if self._device else ()
-        self._run_shell_cmd_and_expect(
-            description=description,
-            cmd=("adb", *device_arg, "shell", *adb_shell_cmd),
-            pattern=pattern,
-        )
-
     def run(self):
         if self._bort_app_id == PLACEHOLDER_BORT_APP_ID:
             sys.exit(
@@ -368,24 +518,34 @@ class ValidateConnectedDevice(Command):
             )
         logging.info(LOG_ENTRY_SEPARATOR)
         logging.info("validate-sdk-integration %s", datetime.datetime.now())
-        self._verify_device_connected()
-        if self._errors:
-            sys.exit("\n".join((*self._errors, "❌ Failure: device not found. No tests run.")))
+        errors = _verify_device_connected(self._device)
+        if errors:
+            _log_errors(errors)
+            sys.exit("Failure: device not found. No tests run.")
 
-        self._run_adb_shell_cmd_and_expect(
-            description="Verifying MemfaultUsageReporter app is installed",
-            adb_shell_cmd=("pm", "path", USAGE_REPORTER_APPLICATION_ID),
-            pattern=USAGE_REPORTER_APK_PATH,
+        self._errors.extend(
+            _run_adb_shell_cmd_and_expect(
+                description="Verifying MemfaultUsageReporter app is installed",
+                cmd=("pm", "path", USAGE_REPORTER_APPLICATION_ID),
+                matcher=_multiline_search_matcher(USAGE_REPORTER_APK_PATH),
+                device=self._device,
+            )
         )
-        self._run_adb_shell_cmd_and_expect(
-            description="Verifying MemfaultBort app is installed",
-            adb_shell_cmd=("pm", "path", self._bort_app_id),
-            pattern=BORT_APK_PATH,
+        self._errors.extend(
+            _run_adb_shell_cmd_and_expect(
+                description="Verifying MemfaultBort app is installed",
+                cmd=("pm", "path", self._bort_app_id),
+                matcher=_multiline_search_matcher(BORT_APK_PATH),
+                device=self._device,
+            )
         )
-        self._run_adb_shell_cmd_and_expect(
-            description=f"Verifying device has feature {self._vendor_feature_name}",
-            adb_shell_cmd=("pm", "list", "features"),
-            pattern=rf"^feature\:{self._vendor_feature_name}$",
+        self._errors.extend(
+            _run_adb_shell_cmd_and_expect(
+                description=f"Verifying device has feature {self._vendor_feature_name}",
+                cmd=("pm", "list", "features"),
+                matcher=_multiline_search_matcher(rf"^feature\:{self._vendor_feature_name}$"),
+                device=self._device,
+            )
         )
         for permission in (
             "android.permission.FOREGROUND_SERVICE",
@@ -395,30 +555,54 @@ class ValidateConnectedDevice(Command):
             "android.permission.DUMP",
             "android.permission.WAKE_LOCK",
         ):
-            self._run_adb_shell_cmd_and_expect(
-                description=f"Verifying MemfaultBort app has permission '{permission}'",
-                adb_shell_cmd=("dumpsys", "package", self._bort_app_id),
-                pattern=rf"{permission}: granted=true",
+            self._errors.extend(
+                _run_adb_shell_cmd_and_expect(
+                    description=f"Verifying MemfaultBort app has permission '{permission}'",
+                    cmd=("dumpsys", "package", self._bort_app_id),
+                    matcher=_multiline_search_matcher(rf"{permission}: granted=true"),
+                    device=self._device,
+                )
             )
-        self._run_adb_shell_cmd_and_expect(
-            description=f"Verifying MemfaultUsageReport app has permission 'android.permission.DUMP'",
-            adb_shell_cmd=("dumpsys", "package", USAGE_REPORTER_APPLICATION_ID),
-            pattern=rf"android.permission.DUMP: granted=true",
+        self._errors.extend(
+            _run_adb_shell_cmd_and_expect(
+                description=f"Verifying MemfaultUsageReport app has permission 'android.permission.DUMP'",
+                cmd=("dumpsys", "package", USAGE_REPORTER_APPLICATION_ID),
+                matcher=_multiline_search_matcher(rf"android.permission.DUMP: granted=true"),
+                device=self._device,
+            )
         )
 
-        self._run_adb_shell_cmd_and_expect(
-            description="Verifying MemfaultBort is on device idle whitelist",
-            adb_shell_cmd=("dumpsys", "deviceidle"),
-            pattern=rf"Whitelist system apps:(.|\n)*({self._bort_app_id})",
+        def _idle_whitelist_matcher(output: str) -> bool:
+            lines = output.splitlines()
+            whitelist_start = 0
+            for idx, line in enumerate(lines):
+                if "Whitelist system apps:" in line:
+                    whitelist_start = idx
+                    break
+            if not whitelist_start:
+                return False
+            for line in lines[whitelist_start:]:
+                if self._bort_app_id in line:
+                    return True
+            return False
+
+        self._errors.extend(
+            _run_adb_shell_cmd_and_expect(
+                description="Verifying MemfaultBort is on device idle whitelist",
+                cmd=("dumpsys", "deviceidle"),
+                matcher=_idle_whitelist_matcher,
+                device=self._device,
+            )
         )
 
         if self._errors:
             for error in self._errors:
                 logging.info(LOG_ENTRY_SEPARATOR)
                 logging.info(error)
-            sys.exit(f"❌ Failure: One or more errors detected. See {LOG_FILE} for details")
+            sys.exit(f" Failure: One or more errors detected. See {LOG_FILE} for details")
 
-        logging.info("\n✅ SUCCESS: Bort SDK on the connected device appears to be valid")
+        logging.info("")
+        logging.info("SUCCESS: Bort SDK on the connected device appears to be valid")
         logging.info("Results written to %s", LOG_FILE)
 
 
@@ -438,6 +622,8 @@ class CommandLineInterface:
         PatchBortCommand.register(create_parser)
         PatchDumpstateRunnerCommand.register(create_parser)
         ValidateConnectedDevice.register(create_parser)
+        RequestBugReport.register(create_parser)
+        EnableBort.register(create_parser)
 
     def run(self):
         if platform.python_version_tuple() < PYTHON_MIN_VERSION:

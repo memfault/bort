@@ -1,5 +1,16 @@
 # Memfault Bort Changelog
 
+## v2.2.4
+
+#### :rocket: New Features
+
+- Adds `enable-bort` and `request-bug-report` commands to `bort_cli.py`.
+
+#### :chart_with_upwards_trend: Improvements
+
+- Adds fixes for the `validate-sdk-integration` command in `bort_cli.py` when
+  being run on Windows.
+
 ## v2.2.3
 
 #### :rocket: New Features
