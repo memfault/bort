@@ -1,14 +1,14 @@
 package com.memfault.bort.uploader
 
 import com.memfault.bort.Logger
+import com.memfault.bort.http.ProjectKeyAuthenticated
 import kotlinx.serialization.Serializable
 import okhttp3.MediaType
 import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.*
 import java.io.File
-
-internal const val PROJECT_KEY_HEADER = "Memfault-Project-Key"
+import kotlin.String
 
 @Serializable
 data class PrepareResponseData(
@@ -33,16 +33,15 @@ data class CommitRequest(
 
 interface PreparedUploadService {
     @POST("/api/v0/upload")
-    suspend fun prepare(
-        @Header(PROJECT_KEY_HEADER) apiKey: String
-    ): Response<PrepareResult>
+    @ProjectKeyAuthenticated
+    suspend fun prepare(): Response<PrepareResult>
 
     @PUT
     suspend fun upload(@Url url: String, @Body file: RequestBody): Response<Unit>
 
     @POST("/api/v0/upload/{upload_type}")
+    @ProjectKeyAuthenticated
     suspend fun commit(
-        @Header("Memfault-Project-Key") apiKey: String,
         @Path(value = "upload_type") uploadType: String,
         @Body commitRequest: CommitRequest
     ): Response<Unit>
@@ -58,14 +57,13 @@ internal interface UploadEventLogger {
  */
 internal class PreparedUploader(
     private val preparedUploadService: PreparedUploadService,
-    private val apiKey: String,
     private val eventLogger: UploadEventLogger = object : UploadEventLogger {}
 ) {
 
     /**
      * Prepare a file upload.
      */
-    suspend fun prepare(): Response<PrepareResult> = preparedUploadService.prepare(apiKey).also {
+    suspend fun prepare(): Response<PrepareResult> = preparedUploadService.prepare().also {
             eventLogger.log("prepare")
     }
 
@@ -87,7 +85,6 @@ internal class PreparedUploader(
      */
     suspend fun commitBugreport(token: String): Response<Unit> =
         preparedUploadService.commit(
-            apiKey = apiKey,
             uploadType = "bugreport",
             commitRequest = CommitRequest(
                 CommitFileToken(

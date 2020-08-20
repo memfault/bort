@@ -1,0 +1,6 @@
+# Defines an init service called "memfault_dumpster", which is used to invoke the
+# MemfaultDumpster program. See MemfaultDumpster.cpp for the source code of the
+# program itself.
+
+service memfault_dumpster /system/bin/MemfaultDumpster
+    class core

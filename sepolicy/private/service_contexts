@@ -1,0 +1,2 @@
+# See https://source.android.com/security/selinux/compatibility#service-contexts
+memfault_dumpster                                 u:object_r:memfault_dumpster_service:s0

@@ -1,6 +1,6 @@
 package com.memfault.bort.uploader
 
-import androidx.work.ListenableWorker
+import com.memfault.bort.TaskResult
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -39,7 +39,7 @@ class MemfaultBugReportUploaderTest {
                 preparedUploader = createUploader(server)
             ).upload(file)
         }
-        assert(result is ListenableWorker.Result.Failure)
+        assert(result == TaskResult.FAILURE)
     }
 
     @Test
@@ -50,7 +50,7 @@ class MemfaultBugReportUploaderTest {
                 preparedUploader = createUploader(server)
             ).upload(file)
         }
-        assert(result is ListenableWorker.Result.Retry)
+        assert(result == TaskResult.RETRY)
     }
 
     @Test
@@ -61,6 +61,6 @@ class MemfaultBugReportUploaderTest {
                 preparedUploader = createUploader(server)
             ).upload(file)
         }
-        assert(result is ListenableWorker.Result.Retry)
+        assert(result == TaskResult.RETRY)
     }
 }

@@ -1,8 +1,8 @@
 package vnd.myandroid.bortappid // Update to match your package
 
-import androidx.work.ListenableWorker
 import com.memfault.bort.FileUploader
 import com.memfault.bort.Logger
+import com.memfault.bort.TaskResult
 import okhttp3.MediaType
 import okhttp3.RequestBody
 import retrofit2.HttpException
@@ -24,7 +24,7 @@ class SampleBugReportUploader(
     private val apiKey: String
 ): FileUploader {
 
-    override suspend fun upload(file: File): ListenableWorker.Result {
+    override suspend fun upload(file: File): TaskResult {
         val customRetrofit = retrofit.newBuilder()
             .baseUrl(BASE_URL)
             .build()
@@ -37,14 +37,14 @@ class SampleBugReportUploader(
         return try {
             val response = uploadService.upload(requestBody)
             when (response.code()) {
-                in 500..599 -> ListenableWorker.Result.retry()
-                408 -> ListenableWorker.Result.retry()
-                in 200..299 -> ListenableWorker.Result.success()
-                else -> ListenableWorker.Result.failure()
+                in 500..599 -> TaskResult.RETRY
+                408 -> TaskResult.RETRY
+                in 200..299 -> TaskResult.SUCCESS
+                else -> TaskResult.FAILURE
             }
         } catch (e: HttpException) {
             Logger.e("upload failure", e)
-            ListenableWorker.Result.retry()
+            TaskResult.RETRY
         }
     }
 }

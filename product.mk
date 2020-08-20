@@ -1,1 +1,1 @@
-PRODUCT_PACKAGES += MemfaultDumpstateRunner MemfaultBort MemfaultUsageReporter
+PRODUCT_PACKAGES += MemfaultDumpstateRunner MemfaultDumpster MemfaultBort MemfaultUsageReporter

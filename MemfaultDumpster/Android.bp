@@ -1,0 +1,43 @@
+cc_binary {
+    name: "MemfaultDumpster",
+    srcs: [
+        "MemfaultDumpster.cpp",
+        "android-9/file.cpp",
+        ":memfault_dumpster_aidl",
+    ],
+    cflags: [
+            "-Werror",
+            "-Wall",
+    ],
+    cppflags: [
+        "-Wno-unused-parameter",
+    ],
+    product_variables: {
+        // There is no way to pull in PLATFORM_VERSION, only the SDK level is available.
+        // Use that as a proxy to detect what back-ported code needs to be pulled in:
+        platform_sdk_version: {
+            cflags: ["-DPLATFORM_SDK_VERSION=%d"],
+        },
+    },
+    shared_libs: [
+        "libbase",
+        "libbinder",
+        "libcutils",
+        "libdumpstateutil",
+        "liblog",
+        "libutils",
+    ],
+    init_rc: ["memfault_dumpster.rc"],
+    aidl: {
+        local_include_dirs: ["binder"],
+    },
+}
+
+filegroup {
+    name: "memfault_dumpster_aidl",
+    srcs: [
+        "binder/com/memfault/dumpster/IDumpsterBasicCommandListener.aidl",
+        "binder/com/memfault/dumpster/IDumpster.aidl",
+    ],
+    path: "binder",
+}

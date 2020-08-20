@@ -27,10 +27,7 @@ internal fun requestBugReport(
             "$APPLICATION_ID_MEMFAULT_USAGE_REPORTER.BugReportStartReceiver"
         )
     }.also {
-        context.sendBroadcast(
-            it,
-            Manifest.permission.DUMP
-        )
+        context.sendBroadcast(it)
     }
     return true
 }

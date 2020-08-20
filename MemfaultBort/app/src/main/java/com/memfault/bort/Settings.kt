@@ -1,5 +1,6 @@
 package com.memfault.bort
 
+import androidx.work.Constraints
 import androidx.work.NetworkType
 
 enum class NetworkConstraint(
@@ -17,14 +18,22 @@ interface SettingsProvider {
     fun maxUploadAttempts(): Int
     fun isRuntimeEnableRequired(): Boolean
     fun projectKey(): String
-    fun baseUrl(): String
+    fun filesBaseUrl(): String
+    fun ingressBaseUrl(): String
     fun appVersionName(): String
     fun appVersionCode(): Int
     fun upstreamVersionName(): String
     fun upstreamVersionCode(): Int
     fun upstreamGitSha(): String
     fun currentGitSha(): String
+
 }
+
+fun SettingsProvider.uploadConstraints(): Constraints =
+    Constraints.Builder()
+        .setRequiredNetworkType(bugReportNetworkConstraint().networkType)
+        .build()
+
 
 interface BortEnabledProvider {
     fun setEnabled(isOptedIn: Boolean)

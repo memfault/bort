@@ -10,6 +10,12 @@
         android:name="android.permission.DUMP"
         tools:ignore="ProtectedPermissions" />
 
+    <permission
+        android:name="com.memfault.bort.permission.CONTROL"
+        android:label="@string/permission_control_label"
+        android:description="@string/permission_control_description"
+        android:protectionLevel="signature|privileged" />
+
     <!-- Prevent app being installed on non-vendor devices -->
     <uses-feature android:name="vnd.myandroid.bortfeaturename" />
 
@@ -31,26 +37,34 @@
                 <action android:name="com.memfault.intent.action.BUGREPORT_FINISHED" />
             </intent-filter>
         </receiver>
-        <receiver android:name=".receivers.MyPackageReplacedReceiver">
+
+        <receiver android:name=".receivers.SystemEventReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
-        <receiver android:name=".receivers.BootReceiver">
+
+        <receiver
+            android:name=".receivers.ControlReceiver"
+            android:permission="${bortControlPermission}">
             <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.memfault.intent.action.BORT_ENABLE" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.REQUEST_BUG_REPORT" />
             </intent-filter>
         </receiver>
+
+        <!-- Used for controlling the SDK from the ADB shell, which has the DUMP permission -->
         <receiver
-            android:name=".receivers.BortEnableReceiver"
+            android:name=".receivers.ShellControlReceiver"
             android:permission="android.permission.DUMP">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.BORT_ENABLE" />
             </intent-filter>
-        </receiver>
-        <receiver
-            android:name=".receivers.RequestBugReportReceiver"
-            android:permission="android.permission.DUMP">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.REQUEST_BUG_REPORT" />
             </intent-filter>
@@ -62,6 +76,24 @@
             android:authorities="${applicationId}.workmanager-init"
             tools:node="remove"
             android:exported="false" />
+
+        <!-- Deprecated receiver. Please use the ControlReceiver instead. -->
+        <receiver
+            android:name=".receivers.RequestBugReportReceiver"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.REQUEST_BUG_REPORT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Deprecated receiver. Please use the ControlReceiver instead. -->
+        <receiver
+            android:name=".receivers.BortEnableReceiver"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.BORT_ENABLE" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

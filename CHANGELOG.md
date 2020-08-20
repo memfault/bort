@@ -1,5 +1,33 @@
 # Memfault Bort Changelog
 
+## 2.3.0
+
+#### :boom: Breaking Changes
+
+- Controlling the Bort SDK, either enabling it or requesting a bug report, now
+  requires the `com.memfault.bort.permission.CONTROL` permission. This
+  permission may not be used by regular apps. This permission may only be
+  granted to applications signed with the same signing key as `MemfaultBort`
+  (`signature`) or applications that are installed as privileged apps on the
+  system image (`privileged`). See
+  [Android protectionLevel](https://developer.android.com/reference/android/R.attr#protectionLevel)
+  for further documentation.
+- Broadcasts to control the SDK (enabling/disabling, requesting a bug report)
+  have been consolidated into a single, new receiver
+  (`com.memfault.bort.receivers.ControlReceiver`).
+
+#### :house: Internal
+
+- Log events when the SDK is enabled and disabled.
+
+#### :chart_with_upwards_trend: Improvements
+
+- There is a new `bort.property` called `BORT_CONTROL_PERMISSION`, used to
+  specify which permission should be used to control the SDK. By default, this
+  is property is set to `com.memfault.bort.permission.CONTROL`.
+- Improved `bort_cli.py`'s `validate-sdk-integration` command to also check the
+  ownership and sepolicy context of key SDK files.
+
 ## v2.2.4
 
 #### :rocket: New Features

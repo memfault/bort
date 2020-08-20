@@ -1,5 +1,6 @@
 subdirs = [
     "MemfaultDumpstateRunner",
+    "MemfaultDumpster",
     "MemfaultBort",
     "MemfaultUsageReporter",
 ]

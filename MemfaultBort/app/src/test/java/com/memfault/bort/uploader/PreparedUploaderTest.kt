@@ -1,5 +1,6 @@
 package com.memfault.bort.uploader
 
+import com.memfault.bort.http.PROJECT_KEY_HEADER
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer

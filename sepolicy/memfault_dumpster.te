@@ -1,0 +1,5 @@
+# MFLT-1955: Create dedicated domain for MemfaultDumpster instead of re-using dumpstate's
+
+type memfault_dumpster_service, service_manager_type;
+
+add_service(dumpstate, memfault_dumpster_service)

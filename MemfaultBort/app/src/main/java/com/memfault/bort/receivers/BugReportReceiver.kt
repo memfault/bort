@@ -2,15 +2,17 @@ package com.memfault.bort.receivers
 
 import android.content.Context
 import android.content.Intent
-import android.util.EventLog
 import com.memfault.bort.*
-import com.memfault.bort.uploader.BugReportUploadScheduler
+import com.memfault.bort.uploader.BugReportUploader
+import com.memfault.bort.uploader.makeBugreportUploadInputData
 import java.io.File
 
+private const val WORK_TAG = "com.memfault.bort.work.tag.UPLOAD"
+
 class BugReportReceiver : BortEnabledFilteringReceiver(
-    INTENT_ACTION_BUGREPORT_FINISHED
+    setOf(INTENT_ACTION_BUGREPORT_FINISHED)
 ) {
-    override fun onReceivedAndEnabled(context: Context, intent: Intent) {
+    override fun onReceivedAndEnabled(context: Context, intent: Intent, action: String) {
         val bugreportPath = intent.getStringExtra(INTENT_EXTRA_BUGREPORT_PATH)
         Logger.v("Got bugreport path: $bugreportPath")
         Logger.logEvent("bugreport", "received")
@@ -18,9 +20,12 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
 
         val bugreportFile = File(bugreportPath)
 
-        BugReportUploadScheduler(
+        enqueueWorkOnce<BugReportUploader>(
             context,
-            settingsProvider.bugReportNetworkConstraint()
-        ).enqueue(bugreportFile)
+            makeBugreportUploadInputData(bugreportFile.toString())
+        ) {
+            setConstraints(settingsProvider.uploadConstraints())
+            addTag(WORK_TAG)
+        }
     }
 }

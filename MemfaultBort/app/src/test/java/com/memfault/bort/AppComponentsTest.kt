@@ -4,9 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.nhaarman.mockitokotlin2.doReturn
 import com.nhaarman.mockitokotlin2.mock
-import okhttp3.Request
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Test
 
 class AppComponentsTest {
@@ -19,7 +16,10 @@ class AppComponentsTest {
         AppComponents.Builder(context, sharedPreferences).apply {
             settingsProvider = mock<SettingsProvider> {
                 on { isRuntimeEnableRequired() } doReturn true
-                on { baseUrl() } doReturn "https://test.com"
+                on { filesBaseUrl() } doReturn "https://test.com"
+                on { ingressBaseUrl() } doReturn "https://ingress.test.com"
+                on { bugReportNetworkConstraint() } doReturn NetworkConstraint.CONNECTED
+                on { projectKey() } doReturn "SECRET"
             }
             deviceIdProvider = mock<DeviceIdProvider>() {
                 on { deviceId() } doReturn "abc"
@@ -28,56 +28,5 @@ class AppComponentsTest {
             assert(it.bortEnabledProvider !is BortAlwaysEnabledProvider)
         }
 
-    }
-
-    @Test
-    fun transformRequestRespectsWhitelist() {
-        listOf(
-            "https://memfault.otherdomain.org/",
-            "https://foo.com/",
-            "http://foo.com/",
-            "http://127.0.0.1:5000/",
-            "http://localhost:5000/"
-        ).forEach { url ->
-            Request.Builder()
-                .url(url)
-                .build().also {request ->
-                    DebugInfoInjectingInterceptor(
-                        mock<SettingsProvider>(),
-                        mock<DeviceIdProvider>()
-                    ).transformRequest(request).let {
-                        assertEquals(url, it.url().toString())
-                    }
-                }
-        }
-    }
-
-    @Test
-    fun transformMemfaultOrCleartextApiRequests() {
-        listOf(
-            "https://memfault.com/",
-            "https://sub.memfault.com/",
-            "http://localhost:9000/api",
-            "http://127.0.0.1:5000/api"
-        ).forEach { url ->
-            Request.Builder()
-                .url(url)
-                .build().also {request ->
-                    DebugInfoInjectingInterceptor(
-                        mock<SettingsProvider>(),
-                        mock<DeviceIdProvider>()
-                    ).transformRequest(request).let { result ->
-                        result.url().queryParameterNames().also { queryParamNames ->
-                            assert(queryParamNames.contains(QUERY_PARAM_UPSTREAM_VERSION_NAME))
-                            assert(queryParamNames.contains(QUERY_PARAM_UPSTREAM_VERSION_CODE))
-                            assert(queryParamNames.contains(QUERY_PARAM_UPSTREAM_GIT_SHA))
-                            assert(queryParamNames.contains(QUERY_PARAM_VERSION_NAME))
-                            assert(queryParamNames.contains(QUERY_PARAM_VERSION_CODE))
-                            assert(queryParamNames.contains(QUERY_PARAM_DEVICE_ID))
-                        }
-                        assertNotNull(result.header(X_REQUEST_ID))
-                    }
-                }
-        }
     }
 }

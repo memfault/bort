@@ -1,72 +1,64 @@
 package com.memfault.bort.uploader
 
-import androidx.work.ListenableWorker
 import com.memfault.bort.FileUploader
 import com.memfault.bort.Logger
+import com.memfault.bort.TaskResult
+import com.memfault.bort.asResult
 import retrofit2.HttpException
-import retrofit2.Response
 import java.io.File
-
-private fun <T : Any> Response<T>.asResult(): ListenableWorker.Result =
-    when (code()) {
-        in 500..599 -> ListenableWorker.Result.retry()
-        408 -> ListenableWorker.Result.retry()
-        in 200..299 -> ListenableWorker.Result.success()
-        else -> ListenableWorker.Result.failure()
-    }
 
 internal class MemfaultBugReportUploader(
     private val preparedUploader: PreparedUploader
 ): FileUploader {
 
-    override suspend fun upload(file: File): ListenableWorker.Result {
+    override suspend fun upload(file: File): TaskResult {
         Logger.v("uploading $file")
 
         val prepareResponse = try {
             preparedUploader.prepare()
         } catch (e: HttpException) {
             Logger.e("prepare", e)
-            return ListenableWorker.Result.retry()
+            return TaskResult.RETRY
         } catch (e: Exception) {
             Logger.e("prepare", e)
-            return ListenableWorker.Result.retry()
+            return TaskResult.RETRY
         }
 
         when (val result = prepareResponse.asResult()) {
-            is ListenableWorker.Result.Retry -> return result
-            is ListenableWorker.Result.Failure -> return result
+            TaskResult.RETRY -> return result
+            TaskResult.FAILURE -> return result
         }
 
         // Re-try for unexpected server-side response
-        val prepareData = prepareResponse.body()?.data ?: return ListenableWorker.Result.retry()
+        val prepareData = prepareResponse.body()?.data ?: return TaskResult.RETRY
 
         try {
             when (val result = preparedUploader.upload(file, prepareData.upload_url).asResult()) {
-                is ListenableWorker.Result.Retry -> return result
-                is ListenableWorker.Result.Failure -> return result
+                TaskResult.RETRY -> return result
+                TaskResult.FAILURE -> return result
             }
         } catch (e: HttpException) {
             Logger.e("upload", e)
-            return ListenableWorker.Result.retry()
+            return TaskResult.RETRY
         } catch (e: Exception) {
             Logger.e("upload", e)
-            return ListenableWorker.Result.retry()
+            return TaskResult.RETRY
         }
 
         try {
             when (val result = preparedUploader.commitBugreport(prepareData.token).asResult()) {
-                is ListenableWorker.Result.Retry -> return result
-                is ListenableWorker.Result.Failure -> return result
+                TaskResult.RETRY -> return result
+                TaskResult.FAILURE -> return result
             }
         } catch (e: HttpException) {
             Logger.e("commit", e)
-            return ListenableWorker.Result.retry()
+            return TaskResult.RETRY
         } catch (e: Exception) {
             Logger.e("commit", e)
-            return ListenableWorker.Result.retry()
+            return TaskResult.RETRY
         }
 
-        return ListenableWorker.Result.success()
+        return TaskResult.SUCCESS
     }
 
 }

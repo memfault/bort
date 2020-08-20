@@ -9,6 +9,20 @@ index d2907de..e04478a 100644
 +
 +include packages/apps/bort/BoardConfig.mk
 +
+diff --git a/shared/device.mk b/shared/device.mk
+index 90b96a5..80bad47 100644
+--- a/shared/device.mk
++++ b/shared/device.mk
+@@ -55,6 +55,9 @@ PRODUCT_PROPERTY_OVERRIDES += \
+ PRODUCT_PROPERTY_OVERRIDES += \
+     wlan.driver.status=ok
+
++# Enforce privapp-permissions whitelist.
++PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions=enforce
++
+ # aes-256-heh default is not supported in standard kernels.
+ PRODUCT_PROPERTY_OVERRIDES += ro.crypto.volume.filenames_mode=aes-256-cts
+
 diff --git a/shared/phone/device.mk b/shared/phone/device.mk
 index d49d8a7..ad04b8c 100644
 --- a/shared/phone/device.mk

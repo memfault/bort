@@ -33,6 +33,8 @@ USAGE_REPORTER_APPLICATION_ID = "com.memfault.usagereporter"
 USAGE_REPORTER_APK_PATH = (
     r"package:/system/priv-app/MemfaultUsageReporter/MemfaultUsageReporter.apk"
 )
+MEMFAULT_DUMPSTATE_RUNNER_PATH = "/system/bin/MemfaultDumpstateRunner"
+MEMFAULT_INIT_RC_PATH = "/etc/init/memfault_init.rc"
 BORT_APK_PATH = r"package:/system/priv-app/MemfaultBort/MemfaultBort.apk"
 LOG_ENTRY_SEPARATOR = "============================================================"
 
@@ -313,7 +315,8 @@ def _get_shell_cmd_output_and_errors(
 
     try:
         output = subprocess.check_output(_shell_command(), stderr=sys.stderr)
-        return output.decode("utf-8"), []
+        result = output.decode("utf-8")[:-1]  # Trim trailing newline
+        return result, []
     except subprocess.CalledProcessError as error:
         return None, [str(error)]
 
@@ -368,6 +371,26 @@ def _run_adb_shell_cmd_and_expect(
     if errors:
         return errors
     return _expect_or_errors(output=output, description=description, matcher=matcher)
+
+
+def _check_file_ownership_and_secontext(
+    *,
+    path: str,
+    mode: str,
+    owner: str,
+    group: str,
+    secontext: str,
+    device: Optional[str] = None,
+    directory: bool = False,
+) -> List[str]:
+    return _run_adb_shell_cmd_and_expect(
+        description=f"Verifying {path} is installed correctly",
+        cmd=("ls", "-lZd" if directory else "-lZ", path),
+        matcher=_multiline_search_matcher(
+            rf"^{mode}\s[0-9]+\s{owner}\s{group}\s{secontext}.*{path}$"
+        ),
+        device=device,
+    )
 
 
 def _log_errors(errors: Iterable[str]):
@@ -451,7 +474,7 @@ class RequestBugReport(Command):
             "-a",
             "com.memfault.intent.action.REQUEST_BUG_REPORT",
             "-n",
-            f"{self._bort_app_id}/com.memfault.bort.receivers.RequestBugReportReceiver",
+            f"{self._bort_app_id}/com.memfault.bort.receivers.ShellControlReceiver",
         )
         _send_broadcast(
             self._bort_app_id, "Requesting bug report from bort", broadcast_cmd, self._device
@@ -485,7 +508,7 @@ class EnableBort(Command):
             "-a",
             "com.memfault.intent.action.BORT_ENABLE",
             "-n",
-            f"{self._bort_app_id}/com.memfault.bort.receivers.BortEnableReceiver",
+            f"{self._bort_app_id}/com.memfault.bort.receivers.ShellControlReceiver",
             "--ez",
             "com.memfault.intent.extra.BORT_ENABLED",
             "true",
@@ -511,6 +534,57 @@ class ValidateConnectedDevice(Command):
             "--vendor-feature-name", type=str, help="Defaults to the provided Application ID"
         )
 
+    def _query_build_type(self) -> Optional[str]:
+        output, errors = _get_adb_shell_cmd_output_and_errors(
+            description="Querying build type",
+            cmd=("getprop", "ro.build.type"),
+            device=self._device,
+        )
+        if errors:
+            self._errors.extend(errors)
+        return output
+
+    def _run_checks_requiring_root(self):
+        _run_shell_cmd_and_expect(
+            description="Restarting ADB with root permissions",
+            cmd=_create_adb_command(("root",), device=self._device),
+            matcher=lambda x: True,
+        )
+
+        self._errors.extend(
+            _check_file_ownership_and_secontext(
+                path=MEMFAULT_DUMPSTATE_RUNNER_PATH,
+                mode="-rwxr-xr-x",
+                owner="root",
+                group="shell",
+                secontext="u:object_r:dumpstate_exec:s0",
+                device=self._device,
+            )
+        )
+
+        self._errors.extend(
+            _check_file_ownership_and_secontext(
+                path=MEMFAULT_INIT_RC_PATH,
+                mode="-rw-r--r--",
+                owner="root",
+                group="root",
+                secontext="u:object_r:system_file:s0",
+                device=self._device,
+            )
+        )
+
+        self._errors.extend(
+            _check_file_ownership_and_secontext(
+                path=f"/data/data/{self._bort_app_id}/",
+                mode="drwx------",
+                owner="u[0-9]+_a[0-9]+",
+                group="u[0-9]+_a[0-9]+",
+                secontext="u:object_r:bort_app_data_file:s0",
+                directory=True,
+                device=self._device,
+            )
+        )
+
     def run(self):
         if self._bort_app_id == PLACEHOLDER_BORT_APP_ID:
             sys.exit(
@@ -522,6 +596,14 @@ class ValidateConnectedDevice(Command):
         if errors:
             _log_errors(errors)
             sys.exit("Failure: device not found. No tests run.")
+
+        build_type = self._query_build_type()
+        if build_type == "user":
+            logging.info(
+                "'%s' build detected. Skipping validation checks that require adb root!", build_type
+            )
+        else:
+            self._run_checks_requiring_root()
 
         self._errors.extend(
             _run_adb_shell_cmd_and_expect(
@@ -563,14 +645,6 @@ class ValidateConnectedDevice(Command):
                     device=self._device,
                 )
             )
-        self._errors.extend(
-            _run_adb_shell_cmd_and_expect(
-                description=f"Verifying MemfaultUsageReport app has permission 'android.permission.DUMP'",
-                cmd=("dumpsys", "package", USAGE_REPORTER_APPLICATION_ID),
-                matcher=_multiline_search_matcher(rf"android.permission.DUMP: granted=true"),
-                device=self._device,
-            )
-        )
 
         def _idle_whitelist_matcher(output: str) -> bool:
             lines = output.splitlines()

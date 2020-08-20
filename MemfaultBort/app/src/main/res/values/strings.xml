@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">Bort</string>
     <string name="start_bug_report">Start Bug Report</string>
+    <string name="permission_control_label">Control the Bort SDK</string>
+    <string name="permission_control_description">Allows the application to control the Bort
+        SDK behavior, including being able to enable and disable the SDK.
+    </string>
 </resources>

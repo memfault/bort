@@ -3,14 +3,17 @@ package com.memfault.bort
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
+import androidx.work.Data
 import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.memfault.bort.http.DebugInfoInjectingInterceptor
+import com.memfault.bort.http.LoggingNetworkInterceptor
+import com.memfault.bort.http.ProjectKeyInjectingInterceptor
+import com.memfault.bort.uploader.*
 import com.memfault.bort.uploader.MemfaultBugReportUploader
-import com.memfault.bort.uploader.PreparedUploadService
 import com.memfault.bort.uploader.PreparedUploader
-import com.memfault.bort.uploader.UploadWorker
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonConfiguration
 import okhttp3.*
@@ -28,7 +31,9 @@ data class AppComponents(
     val workerFactory: WorkerFactory,
     val fileUploaderFactory: FileUploaderFactory,
     val bortEnabledProvider: BortEnabledProvider,
-    val deviceIdProvider: DeviceIdProvider
+    val deviceIdProvider: DeviceIdProvider,
+    val httpTaskCallFactory: HttpTaskCallFactory,
+    val ingressService: IngressService
 ) {
     open class Builder(
         private val context: Context,
@@ -50,7 +55,9 @@ data class AppComponents(
             val settingsProvider = settingsProvider ?: BuildConfigSettingsProvider()
             val deviceIdProvider = deviceIdProvider ?: RandomUuidDeviceIdProvider(sharedPreferences)
             val fileUploaderFactory = fileUploaderFactory ?: MemfaultFileUploaderFactory()
+            val projectKeyInjectingInterceptor = ProjectKeyInjectingInterceptor(settingsProvider::projectKey)
             val okHttpClient = okHttpClient ?: OkHttpClient.Builder()
+                .addInterceptor(projectKeyInjectingInterceptor)
                 .addInterceptor(
                     debugInfoInjectingInterceptor ?: DebugInfoInjectingInterceptor(
                         settingsProvider,
@@ -61,7 +68,7 @@ data class AppComponents(
                 .build()
             val retrofit = retrofit ?: Retrofit.Builder()
                 .client(okHttpClient)
-                .baseUrl(HttpUrl.get(settingsProvider.baseUrl()))
+                .baseUrl(HttpUrl.get(settingsProvider.filesBaseUrl()))
                 .addConverterFactory(
                     kotlinxJsonConverterFactory()
                 )
@@ -81,8 +88,15 @@ data class AppComponents(
                 bortEnabledProvider = bortEnabledProvider,
                 retrofit = retrofit,
                 fileUploaderFactory = fileUploaderFactory,
+                okHttpClient = okHttpClient,
+                deviceIdProvider = deviceIdProvider,
                 interceptingFactory = interceptingWorkerFactory
             )
+
+            val httpTaskCallFactory = HttpTaskCallFactory.fromContextAndConstraints(
+                context, settingsProvider.uploadConstraints(), projectKeyInjectingInterceptor
+            )
+
             return AppComponents(
                 settingsProvider = settingsProvider,
                 okHttpClient = okHttpClient,
@@ -90,7 +104,9 @@ data class AppComponents(
                 workerFactory = workerFactory,
                 fileUploaderFactory = fileUploaderFactory,
                 bortEnabledProvider = bortEnabledProvider,
-                deviceIdProvider = deviceIdProvider
+                deviceIdProvider = deviceIdProvider,
+                httpTaskCallFactory = httpTaskCallFactory,
+                ingressService = makeIngressService(settingsProvider, httpTaskCallFactory)
             )
         }
     }
@@ -101,76 +117,6 @@ data class AppComponents(
 fun kotlinxJsonConverterFactory(): Converter.Factory =
     Json(JsonConfiguration.Stable)
         .asConverterFactory(MediaType.get("application/json"))
-
-class LoggingNetworkInterceptor : Interceptor {
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val request: Request = chain.request()
-        val t1: Long = System.nanoTime()
-        Logger.v("Sending request ${request.url()}")
-        val response: Response = chain.proceed(request)
-        val t2: Long = System.nanoTime()
-        val delta = (t2 - t1) / 1e6
-        Logger.v(
-            """
-Received response for ${response.request().url()} in ${String.format("%.1f", delta)} ms
-        """.trimEnd()
-        )
-        return response
-    }
-}
-
-internal const val QUERY_PARAM_UPSTREAM_VERSION_NAME = "upstreamVersionName"
-internal const val QUERY_PARAM_UPSTREAM_VERSION_CODE = "upstreamVersionCode"
-internal const val QUERY_PARAM_UPSTREAM_GIT_SHA = "upstreamGitSha"
-internal const val QUERY_PARAM_VERSION_NAME = "versionName"
-internal const val QUERY_PARAM_VERSION_CODE = "versionCode"
-internal const val QUERY_PARAM_DEVICE_ID = "deviceId"
-internal const val X_REQUEST_ID = "X-Request-Id"
-
-/** Inject debug information for requests to memfault or to a local api server */
-class DebugInfoInjectingInterceptor(
-    private val settingsProvider: SettingsProvider,
-    private val deviceIdProvider: DeviceIdProvider
-) : Interceptor {
-
-    fun transformRequest(request: Request): Request {
-        with (request.url()) {
-            when {
-                this.host() in listOf("127.0.0.1", "localhost")
-                        && request.url().encodedPathSegments().firstOrNull() == "api" -> {
-                    // Fall through
-                }
-                this.topPrivateDomain().equals("memfault.com", ignoreCase = true) -> {
-                    // Fall through
-                }
-                else -> return request
-            }
-        }
-        return request.url().newBuilder().apply {
-            listOf(
-                QUERY_PARAM_UPSTREAM_VERSION_NAME to settingsProvider.upstreamVersionName(),
-                QUERY_PARAM_UPSTREAM_VERSION_CODE to settingsProvider.upstreamVersionCode()
-                    .toString(),
-                QUERY_PARAM_UPSTREAM_GIT_SHA to settingsProvider.upstreamGitSha(),
-                QUERY_PARAM_VERSION_NAME to settingsProvider.appVersionName(),
-                QUERY_PARAM_VERSION_CODE to settingsProvider.appVersionCode().toString(),
-                QUERY_PARAM_DEVICE_ID to deviceIdProvider.deviceId()
-            ).forEach {
-                addQueryParameter(it.first, it.second)
-            }
-        }.let {
-            request.newBuilder()
-                .addHeader(X_REQUEST_ID, UUID.randomUUID().toString())
-                .url(it.build())
-                .build()
-        }
-    }
-
-    override fun intercept(chain: Interceptor.Chain): Response =
-        chain.proceed(
-            transformRequest(chain.request())
-        )
-}
 
 interface DeviceIdProvider {
     fun deviceId(): String
@@ -206,7 +152,9 @@ open class BuildConfigSettingsProvider : SettingsProvider {
 
     override fun projectKey(): String = BuildConfig.MEMFAULT_PROJECT_API_KEY
 
-    override fun baseUrl(): String = BuildConfig.MEMFAULT_FILES_BASE_URL
+    override fun filesBaseUrl(): String = BuildConfig.MEMFAULT_FILES_BASE_URL
+
+    override fun ingressBaseUrl(): String = BuildConfig.MEMFAULT_INGRESS_BASE_URL
 
     override fun appVersionName(): String = BuildConfig.VERSION_NAME
 
@@ -226,8 +174,10 @@ class DefaultWorkerFactory(
     private val bortEnabledProvider: BortEnabledProvider,
     private val retrofit: Retrofit,
     private val fileUploaderFactory: FileUploaderFactory,
+    private val okHttpClient: OkHttpClient,
+    private val deviceIdProvider: DeviceIdProvider,
     private val interceptingFactory: WorkerFactory? = null
-) : WorkerFactory() {
+) : WorkerFactory(), TaskFactory {
     override fun createWorker(
         appContext: Context,
         workerClassName: String,
@@ -242,13 +192,23 @@ class DefaultWorkerFactory(
         }
 
         return when (workerClassName) {
-            UploadWorker::class.qualifiedName -> UploadWorker(
-                appContext = appContext,
-                workerParameters = workerParameters,
-                settingsProvider = settingsProvider,
+            TaskRunnerWorker::class.qualifiedName ->
+                TaskRunnerWorker(
+                    appContext = appContext,
+                    workerParameters = workerParameters,
+                    taskFactory = this
+                )
+            else -> null
+        }
+    }
+
+    override fun create(inputData: Data): Task<*>? {
+        return when (inputData.workDelegateClass) {
+            HttpTask::class.qualifiedName -> HttpTask(okHttpClient = okHttpClient)
+            BugReportUploader::class.qualifiedName -> BugReportUploader(
+                delegate = fileUploaderFactory.create(retrofit, settingsProvider.projectKey()),
                 bortEnabledProvider = bortEnabledProvider,
-                retrofit = retrofit,
-                fileUploaderFactory = fileUploaderFactory
+                maxAttempts = settingsProvider.maxUploadAttempts()
             )
             else -> null
         }
@@ -259,8 +219,7 @@ class MemfaultFileUploaderFactory : FileUploaderFactory {
     override fun create(retrofit: Retrofit, projectApiKey: String): FileUploader =
         MemfaultBugReportUploader(
             preparedUploader = PreparedUploader(
-                retrofit.create(PreparedUploadService::class.java),
-                projectApiKey
+                retrofit.create(PreparedUploadService::class.java)
             )
         )
 }

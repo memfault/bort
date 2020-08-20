@@ -1,5 +1,4 @@
 <permissions>
     <privapp-permissions package="com.memfault.usagereporter">
-        <permission name="android.permission.DUMP" />
     </privapp-permissions>
 </permissions>

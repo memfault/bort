@@ -108,6 +108,11 @@ include packages/apps/bort/product.mk
   include packages/apps/bort/BoardConfig.mk
   ```
 
+  Verify whether `BOARD_SEPOLICY_DIRS` and `BOARD_PLAT_PRIVATE_SEPOLICY_DIR`
+  makefile variables in your `BoardConfig.mk` use `+=` and not `:=`, or, ensure
+  that the SDK's `BoardConfig.mk` is included at the very end, after your own
+  assignments to the aforementioned variables.
+
 ### When are bug reports collected?
 
 The bort app periodically generates bug reports by scheduling a periodic task to
@@ -181,21 +186,24 @@ explicitly told to do so (e.g. when user consent has been obtained). Once
 enabled, that value will be persisted in preferences. If the bort app's data is
 cleared, this value must be set again.
 
-To enable the SDK, send an intent to the `BortEnableReceiver`. Note that this
-requires the `Manifest.permission.DUMP` permission.
+To enable the SDK, send an intent to the `ControlReceiver`. Note that the sender
+_must_ hold the permission specified in the `BORT_CONTROL_PERMISSION` property
+in `bort.properties`. The default is `com.memfault.bort.permission.CONTROL`,
+which may only be may only be granted to applications signed with the same
+signing key as `MemfaultBort` (`signature`) or applications that are installed
+as privileged apps on the system image (`privileged`). See
+[Android protectionLevel](https://developer.android.com/reference/android/R.attr#protectionLevel)
+for further documentation.
 
 ```kotlin
 Intent("com.memfault.intent.action.BORT_ENABLE").apply {
     component = ComponentName(
         APPLICATION_ID_BORT, // Whatever you have chosen for the application ID
-        "com.memfault.bort.receivers.BortEnableReceiver"
+        "com.memfault.bort.receivers.ControlReceiver"
     )
     putExtra("com.memfault.intent.extra.BORT_ENABLED", true)
 }.also {
-    context.sendBroadcast(
-        it,
-        Manifest.permission.DUMP
-    )
+    context.sendBroadcast(it)
 }
 ```
 
@@ -206,14 +214,11 @@ the same intent with the opposite boolean extra
 Intent("com.memfault.intent.action.BORT_ENABLE").apply {
     component = ComponentName(
         APPLICATION_ID_BORT,
-        "com.memfault.bort.receivers.BortEnableReceiver"
+        "com.memfault.bort.receivers.ControlReceiver"
     )
     putExtra("com.memfault.intent.extra.BORT_ENABLED", false) // <-- Now disabled
 }.also {
-    context.sendBroadcast(
-        it,
-        Manifest.permission.DUMP
-    )
+    context.sendBroadcast(it)
 }
 ```
 
@@ -275,19 +280,18 @@ the scheduled bug reports.
 Note that if the dumpstate runner is busy capturing a bug report already, the
 in-flight bug report will continue and the interrupting request will be ignored.
 
-Triggering a bug report requires the `DUMP` permission:
+Triggering a bug report requires that the sender hold the permission specified
+in the `BORT_CONTROL_PERMISSION` property in `bort.properties`. The default is
+the `com.memfault.bort.permission.CONTROL`.
 
 ```kotlin
 Intent("com.memfault.intent.action.REQUEST_BUG_REPORT").apply {
     component = ComponentName(
         APPLICATION_ID_BORT,
-        "com.memfault.bort.receivers.RequestBugReportReceiver"
+        "com.memfault.bort.receivers.ControlReceiver"
     )
 }.also {
-    context.sendBroadcast(
-        it,
-        Manifest.permission.DUMP
-    )
+    context.sendBroadcast(it)
 }
 ```
 
