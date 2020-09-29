@@ -1,6 +1,42 @@
 # Memfault Bort Changelog
 
-## 2.3.0
+## v2.4.0 - September 29, 2020
+
+#### :chart_with_upwards_trend: Improvements
+
+- Before this release, the Bort application ID and feature name had to be
+  patched in various files, using the `bort_cli.py` tool. With this release,
+  `BORT_APPLICATION_ID` and `BORT_FEATURE_NAME` properties have been added to
+  the `bort.properties` file. Files that had to be patched previously, are now
+  generated at build-time, using the `BORT_APPLICATION_ID` and
+  `BORT_FEATURE_NAME` from the `bort.properties` file.
+- The `bort_cli.py` command `patch-bort` has been changed to only patch the
+  `bort.properties`' `BORT_APPLICATION_ID` and `BORT_FEATURE_NAME` properties if
+  they have not already been set.
+
+#### :house: Internal
+
+- The target SDK is now a configurable SDK property (via `bort.properties`)
+- The default target SDK has been lowered 26 from 29 for more consistent
+  behaviour across the supported platforms.
+- The min SDK version has been lowered to 26 to support Android 8.
+
+#### :boom: Breaking Changes
+
+- The folder structure of the SDK has been changed: the `MemfaultBort` and
+  `MemfaultUsageReporter` folders have been merged into a single
+  `MemfaultPackages` folder. The two Android Studio projects have been merged
+  into a single project with both `MemfaultBort.apk` and
+  `MemfaultUsageReporter.apk` targets.
+- To conform to Android conventions, the SDK is now expected to be installed at
+  `<AOSP_ROOT>/vendor/memfault/bort` instead of
+  `<AOSP_ROOT>/packages/apps/bort`.
+- The `bort_cli.py` command `patch-dumpstate-runner` has been removed. The
+  command is no longer needed. Instead of patching the .cpp source code, a
+  header file is now generated based on the `MemfaultPackags/bort.properties`
+  file.
+
+## v2.3.0 - August 20, 2020
 
 #### :boom: Breaking Changes
 
@@ -28,7 +64,7 @@
 - Improved `bort_cli.py`'s `validate-sdk-integration` command to also check the
   ownership and sepolicy context of key SDK files.
 
-## v2.2.4
+## v2.2.4 - July 14, 2020
 
 #### :rocket: New Features
 
@@ -39,7 +75,7 @@
 - Adds fixes for the `validate-sdk-integration` command in `bort_cli.py` when
   being run on Windows.
 
-## v2.2.3
+## v2.2.3 - July 8, 2020
 
 #### :rocket: New Features
 
@@ -52,7 +88,7 @@
   [UserManager.DISALLOW_DEBUGGING_FEATURES](https://developer.android.com/reference/android/os/UserManager#DISALLOW_DEBUGGING_FEATURES)
   is enabled.
 
-## v2.2.2
+## v2.2.2 - June 29, 2020
 
 #### :chart_with_upwards_trend: Improvements
 
@@ -63,7 +99,7 @@
 
 - The `bort_cli.py` script now requires Python 3.6+
 
-## v2.2.1
+## v2.2.1 - June 24, 2020
 
 #### :boom: Breaking Changes
 
@@ -83,7 +119,7 @@
 - Use the `EventLog` API to log SDK events.
 - Update `MemfaultBort` dependencies.
 
-## v2.2.0
+## v2.2.0 - June 15, 2020
 
 #### :rocket: New Features
 
@@ -92,7 +128,7 @@
   using this API at runtime. This can be disabled via a gradle property,
 - There is now also an intent-based API to trigger a one-off bug report.
 
-## v2.1.0
+## v2.1.0 - June 2, 2020
 
 #### :rocket: New Features
 
@@ -107,7 +143,7 @@
   - The tool no longer exits with a non-zero code if all patches have already
     been applied.
 
-## v2.0.1
+## v2.0.1 - May 18, 2020
 
 #### :chart_with_upwards_trend: Improvements
 
@@ -117,7 +153,7 @@
   - Check whether patch is applied, before attempting to apply patch.
   - Fix log message to correctly reflect whether patches failed to apply.
 
-## v2.0.0
+## v2.0.0 - May 14, 2020
 
 #### :rocket: New Features
 
@@ -167,12 +203,12 @@
   `MemfaultBort/app/gradle.properties` to `MemfaultBort/bort.properties`; you
   will need to set your API key in this new location.
 
-## v1.1.0
+## v1.1.0 - May 2, 2020
 
 - Added git patch files under `patches/`, including a python script
   `apply-patches.py` to automate applying the patches.
 - Added support for Android 9 (alongside Android 10).
 
-## v1.0.0
+## v1.0.0 - April 29, 2020
 
 - Initial release.

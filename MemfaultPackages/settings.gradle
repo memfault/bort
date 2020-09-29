@@ -1,0 +1,5 @@
+rootProject.name='Bort'
+include ':bort-shared'
+include ':bort'
+include ':reporter'
+

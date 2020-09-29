@@ -3,7 +3,6 @@ cc_binary {
     srcs: [
         "MemfaultDumpster.cpp",
         "android-9/file.cpp",
-        ":memfault_dumpster_aidl",
     ],
     cflags: [
             "-Werror",
@@ -25,19 +24,24 @@ cc_binary {
         "libcutils",
         "libdumpstateutil",
         "liblog",
+        "libmemfault_dumpster_aidl",
         "libutils",
     ],
     init_rc: ["memfault_dumpster.rc"],
-    aidl: {
-        local_include_dirs: ["binder"],
-    },
 }
 
-filegroup {
-    name: "memfault_dumpster_aidl",
+cc_library_shared {
+    name: "libmemfault_dumpster_aidl",
+    shared_libs: [
+        "libbinder",
+        "libutils",
+    ],
+    aidl: {
+        local_include_dirs: ["binder"],
+        export_aidl_headers: true,
+    },
     srcs: [
         "binder/com/memfault/dumpster/IDumpsterBasicCommandListener.aidl",
         "binder/com/memfault/dumpster/IDumpster.aidl",
     ],
-    path: "binder",
 }

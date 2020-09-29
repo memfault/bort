@@ -1,0 +1,9 @@
+################################################################################
+# Macro to conditionally include rules based on the PLATFORM_SDK_VERSION:
+# if (PLATFORM_SDK_VERSION >= $1) then { $2 } else { $3 }
+#
+# NOTE: this relies on the memfault_platform_sdk_version definition to be
+# defined through the BOARD_SEPOLICY_M4DEFS build variable, which is set from
+# the bort/BoardConfig.mk file.
+#
+define(`if_sdk_version_gteq', `ifelse(eval(memfault_platform_sdk_version >= `$1'), `1', $2, $3)')

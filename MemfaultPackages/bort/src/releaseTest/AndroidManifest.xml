@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.memfault.bort">
+    <application
+        tools:replace="android:name"
+        android:name=".BortReleaseTest"
+        tools:ignore="MissingApplicationIcon">
+        <receiver
+            android:name=".receivers.TestReceiver"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.TEST_SETTING_SET" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.TEST_QUERY_BOOT_COMPLETED" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.TEST_BORT_ECHO" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.TEST_SELF_TEST" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

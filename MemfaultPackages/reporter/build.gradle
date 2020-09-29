@@ -1,0 +1,50 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-android-extensions'
+apply from: "../properties.gradle"
+
+android {
+    compileSdkVersion versions.compileSdk
+    buildToolsVersion versions.buildTools
+
+    defaultConfig {
+        applicationId "com.memfault.usagereporter"
+
+        minSdkVersion versions.minSdk
+        targetSdkVersion versions.targetSdk
+        versionCode loadVersionCode() as Integer
+        versionName loadVersionName() as String
+
+        buildConfigField "int", "MINIMUM_LOG_LEVEL", bortProperty("MINIMUM_LOG_LEVEL")
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+
+        // Used for CI. Do not use for production.
+        releaseTest {
+            initWith release
+        }
+    }
+
+}
+
+dependencies {
+    implementation project(':bort-shared')
+
+    implementation deps.kotlin.stdlib
+}
+
+task copyReleaseApk(type: Copy) {
+    from file("$buildDir/outputs/apk/release/reporter-release-unsigned.apk")
+    into rootDir
+    rename 'reporter-release-unsigned.apk', 'MemfaultUsageReporter.apk'
+}
+
+afterEvaluate {
+    assembleRelease.finalizedBy copyReleaseApk
+}

@@ -1,0 +1,26 @@
+diff --git a/target/board/generic_arm64/BoardConfig.mk b/target/board/generic_arm64/BoardConfig.mk
+index 46c8865..bfea13b 100644
+--- a/target/board/generic_arm64/BoardConfig.mk
++++ b/target/board/generic_arm64/BoardConfig.mk
+@@ -96,3 +96,7 @@ DEVICE_MATRIX_FILE   := device/generic/goldfish/compatibility_matrix.xml
+
+ BOARD_PROPERTY_OVERRIDES_SPLIT_ENABLED := true
+ BOARD_SEPOLICY_DIRS += build/target/board/generic/sepolicy
++
++TARGET_BOOTLOADER_BOARD_NAME := generic-arm64
++include vendor/memfault/bort/BoardConfig.mk
++
+diff --git a/target/product/emulator.mk b/target/product/emulator.mk
+index 0e1e581..690f672 100644
+--- a/target/product/emulator.mk
++++ b/target/product/emulator.mk
+@@ -151,3 +151,9 @@ PRODUCT_PACKAGE_OVERLAYS := device/generic/goldfish/overlay
+ PRODUCT_CHARACTERISTICS := emulator
+ 
+ PRODUCT_FULL_TREBLE_OVERRIDE := true
++
++# Enforce privapp-permissions whitelist.
++PRODUCT_PROPERTY_OVERRIDES += ro.control_privapp_permissions=enforce
++
++include vendor/memfault/bort/product.mk
++

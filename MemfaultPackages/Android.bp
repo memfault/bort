@@ -1,0 +1,11 @@
+genrule {
+    name: "MemfaultBortPropertiesHeader",
+    out: ["bort_properties.h"],
+    srcs: [
+        "bort.properties",
+    ],
+    tool_files: [
+        "bort_src_gen.py",
+    ],
+    cmd: "$(location bort_src_gen.py) cpp-header $(out) $(in)",
+}

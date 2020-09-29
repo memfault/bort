@@ -7,7 +7,7 @@ index d2907de..e04478a 100644
  # The default is 5 messages per second amortized, with a burst of up to 10.
  BOARD_KERNEL_CMDLINE += printk.devkmsg=on
 +
-+include packages/apps/bort/BoardConfig.mk
++include vendor/memfault/bort/BoardConfig.mk
 +
 diff --git a/shared/device.mk b/shared/device.mk
 index 90b96a5..80bad47 100644
@@ -32,5 +32,5 @@ index d49d8a7..ad04b8c 100644
  PRODUCT_ENFORCE_RRO_TARGETS := framework-res
  PRODUCT_ENFORCE_RRO_EXCLUDED_OVERLAYS := device/google/cuttlefish/shared/overlay
 +
-+include packages/apps/bort/product.mk
++include vendor/memfault/bort/product.mk
 +

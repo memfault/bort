@@ -1,0 +1,7 @@
+<permissions>
+    <feature name="$BORT_FEATURE_NAME" />
+    <allow-in-power-save package="$BORT_APPLICATION_ID" />
+    <privapp-permissions package="$BORT_APPLICATION_ID">
+        <permission name="android.permission.DUMP" />
+    </privapp-permissions>
+</permissions>

@@ -7,7 +7,7 @@ index 07f5da1..b963a8f 100644
  # The default is 5 messages per second amortized, with a burst of up to 10.
  BOARD_KERNEL_CMDLINE += printk.devkmsg=on
 +
-+include packages/apps/bort/BoardConfig.mk
++include vendor/memfault/bort/BoardConfig.mk
 +
 diff --git a/shared/device.mk b/shared/device.mk
 index 3f1183e..d758657 100644
@@ -32,5 +32,5 @@ index 115f80f..b958713 100644
    TARGET_BUILD_SYSTEM_ROOT_IMAGE ?= true
  endif
 +
-+include packages/apps/bort/product.mk
++include vendor/memfault/bort/product.mk
 +

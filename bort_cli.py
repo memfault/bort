@@ -2,10 +2,8 @@
 # -*- coding: utf-8 -*
 import abc
 import argparse  # requires Python 3.2+
-import contextlib
 import datetime
 import glob
-import io
 import logging
 import os
 import platform
@@ -26,7 +24,7 @@ logging.getLogger("").addHandler(fh)
 DEFAULT_ENCODING = "utf-8"
 PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
-RELEASES = range(9, 10 + 1)
+RELEASES = range(8, 10 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 PYTHON_MIN_VERSION = ("3", "6", "0")
 USAGE_REPORTER_APPLICATION_ID = "com.memfault.usagereporter"
@@ -35,6 +33,8 @@ USAGE_REPORTER_APK_PATH = (
 )
 MEMFAULT_DUMPSTATE_RUNNER_PATH = "/system/bin/MemfaultDumpstateRunner"
 MEMFAULT_INIT_RC_PATH = "/etc/init/memfault_init.rc"
+MEMFAULT_DUMPSTER_PATH = "/system/bin/MemfaultDumpster"
+MEMFAULT_DUMPSTER_RC_PATH = "/etc/init/memfault_dumpster.rc"
 BORT_APK_PATH = r"package:/system/priv-app/MemfaultBort/MemfaultBort.apk"
 LOG_ENTRY_SEPARATOR = "============================================================"
 
@@ -258,14 +258,14 @@ class PatchBortCommand(Command):
             "--vendor-feature-name", type=str, help="Defaults to the provided Application ID"
         )
         parser.add_argument(
-            "path", type=readable_dir_type, help="The path to the MemfaultBort folder from the SDK"
+            "path",
+            type=readable_dir_type,
+            help="The path to the MemfaultPackages folder from the SDK",
         )
 
     def run(self):
         for file_relpath in [
-            "app/build.gradle",
-            "app/src/main/AndroidManifest.xml",
-            "com.memfault.bort.xml",
+            "bort.properties",
         ]:
             file_abspath = os.path.join(self._path, file_relpath)
             _replace_placeholders_in_file(
@@ -274,29 +274,6 @@ class PatchBortCommand(Command):
                     PLACEHOLDER_BORT_APP_ID: self._bort_app_id,
                     PLACEHOLDER_FEATURE_NAME: self._vendor_feature_name,
                 },
-            )
-
-
-class PatchDumpstateRunnerCommand(Command):
-    def __init__(self, path, bort_app_id):
-        self._path = path
-        self._bort_app_id = bort_app_id
-
-    @classmethod
-    def register(cls, create_parser):
-        parser = create_parser(cls, "patch-dumpstate-runner")
-        parser.add_argument("--bort-app-id", type=android_application_id_type, required=True)
-        parser.add_argument(
-            "path", type=readable_dir_type, help="The path to the MemfaultBort folder from the SDK"
-        )
-
-    def run(self):
-        for file_relpath in [
-            "MemfaultDumpstateRunner.cpp",
-        ]:
-            file_abspath = os.path.join(self._path, file_relpath)
-            _replace_placeholders_in_file(
-                file_abspath, mapping={PLACEHOLDER_BORT_APP_ID: self._bort_app_id,},
             )
 
 
@@ -430,13 +407,24 @@ def _verify_device_connected(device: Optional[str] = None) -> List[str]:
     )
 
 
+def _check_bort_app_id(bort_app_id: str) -> None:
+    if bort_app_id == PLACEHOLDER_BORT_APP_ID:
+        sys.exit(
+            f"Invalid application ID '{bort_app_id}'. Please configure BORT_APPLICATION_ID in bort.properties."
+        )
+
+
+def _check_feature_name(feature_name: str) -> None:
+    if feature_name == PLACEHOLDER_FEATURE_NAME:
+        sys.exit(
+            f"Invalid feature name '{feature_name}'. Please configure BORT_FEATURE_NAME in bort.properties."
+        )
+
+
 def _send_broadcast(
     bort_app_id: str, description: str, broadcast: Tuple, device: Optional[str] = None
 ):
-    if bort_app_id == PLACEHOLDER_BORT_APP_ID:
-        sys.exit(
-            "Invalid application ID. Please run the 'patch-bort' command and change the application ID."
-        )
+    _check_bort_app_id(bort_app_id)
     output, errors = _get_adb_shell_cmd_output_and_errors(
         description=description, cmd=broadcast, device=device
     )
@@ -463,10 +451,7 @@ class RequestBugReport(Command):
         )
 
     def run(self):
-        if self._bort_app_id == PLACEHOLDER_BORT_APP_ID:
-            sys.exit(
-                "Invalid application ID. Please run the 'patch-bort' command and change the application ID."
-            )
+        _check_bort_app_id(self._bort_app_id)
         broadcast_cmd = (
             "am",
             "broadcast",
@@ -497,10 +482,7 @@ class EnableBort(Command):
         )
 
     def run(self):
-        if self._bort_app_id == PLACEHOLDER_BORT_APP_ID:
-            sys.exit(
-                "Invalid application ID. Please run the 'patch-bort' command and change the application ID."
-            )
+        _check_bort_app_id(self._bort_app_id)
         broadcast_cmd = (
             "am",
             "broadcast",
@@ -534,15 +516,22 @@ class ValidateConnectedDevice(Command):
             "--vendor-feature-name", type=str, help="Defaults to the provided Application ID"
         )
 
-    def _query_build_type(self) -> Optional[str]:
+    def _getprop(self, key: str) -> Optional[str]:
         output, errors = _get_adb_shell_cmd_output_and_errors(
-            description="Querying build type",
-            cmd=("getprop", "ro.build.type"),
-            device=self._device,
+            description=f"Querying {key}", cmd=("getprop", key), device=self._device,
         )
         if errors:
             self._errors.extend(errors)
         return output
+
+    def _query_sdk_version(self) -> Optional[int]:
+        version_str = self._getprop("ro.build.version.sdk")
+        if version_str:
+            return int(version_str)
+        return None
+
+    def _query_build_type(self) -> Optional[str]:
+        return self._getprop("ro.build.type")
 
     def _run_checks_requiring_root(self):
         _run_shell_cmd_and_expect(
@@ -575,6 +564,28 @@ class ValidateConnectedDevice(Command):
 
         self._errors.extend(
             _check_file_ownership_and_secontext(
+                path=MEMFAULT_DUMPSTER_PATH,
+                mode="-rwxr-xr-x",
+                owner="root",
+                group="shell",
+                secontext="u:object_r:dumpstate_exec:s0",
+                device=self._device,
+            )
+        )
+
+        self._errors.extend(
+            _check_file_ownership_and_secontext(
+                path=MEMFAULT_DUMPSTER_RC_PATH,
+                mode="-rw-r--r--",
+                owner="root",
+                group="root",
+                secontext="u:object_r:system_file:s0",
+                device=self._device,
+            )
+        )
+
+        self._errors.extend(
+            _check_file_ownership_and_secontext(
                 path=f"/data/data/{self._bort_app_id}/",
                 mode="drwx------",
                 owner="u[0-9]+_a[0-9]+",
@@ -586,10 +597,8 @@ class ValidateConnectedDevice(Command):
         )
 
     def run(self):
-        if self._bort_app_id == PLACEHOLDER_BORT_APP_ID:
-            sys.exit(
-                "Invalid application ID. Please run the 'patch-bort' command and change the application ID."
-            )
+        _check_bort_app_id(self._bort_app_id)
+        _check_feature_name(self._vendor_feature_name)
         logging.info(LOG_ENTRY_SEPARATOR)
         logging.info("validate-sdk-integration %s", datetime.datetime.now())
         errors = _verify_device_connected(self._device)
@@ -604,6 +613,10 @@ class ValidateConnectedDevice(Command):
             )
         else:
             self._run_checks_requiring_root()
+
+        sdk_version = self._query_sdk_version()
+        if not sdk_version:
+            sys.exit("Failure: could not get SDK version.")
 
         self._errors.extend(
             _run_adb_shell_cmd_and_expect(
@@ -629,14 +642,22 @@ class ValidateConnectedDevice(Command):
                 device=self._device,
             )
         )
-        for permission in (
-            "android.permission.FOREGROUND_SERVICE",
-            "android.permission.RECEIVE_BOOT_COMPLETED",
-            "android.permission.INTERNET",
-            "android.permission.ACCESS_NETWORK_STATE",
-            "android.permission.DUMP",
-            "android.permission.WAKE_LOCK",
+        for permission, min_sdk_version in (
+            ("android.permission.FOREGROUND_SERVICE", 28),
+            ("android.permission.RECEIVE_BOOT_COMPLETED", 1),
+            ("android.permission.INTERNET", 1),
+            ("android.permission.ACCESS_NETWORK_STATE", 1),
+            ("android.permission.DUMP", 1),
+            ("android.permission.WAKE_LOCK", 1),
         ):
+            if sdk_version < min_sdk_version:
+                logging.info(
+                    "\nSkipping check for '%s' because it is not supported (SDK version %d < %d)",
+                    permission,
+                    sdk_version,
+                    min_sdk_version,
+                )
+                continue
             self._errors.extend(
                 _run_adb_shell_cmd_and_expect(
                     description=f"Verifying MemfaultBort app has permission '{permission}'",
@@ -694,7 +715,6 @@ class CommandLineInterface:
 
         PatchAOSPCommand.register(create_parser)
         PatchBortCommand.register(create_parser)
-        PatchDumpstateRunnerCommand.register(create_parser)
         ValidateConnectedDevice.register(create_parser)
         RequestBugReport.register(create_parser)
         EnableBort.register(create_parser)

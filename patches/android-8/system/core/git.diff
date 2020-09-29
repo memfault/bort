@@ -1,0 +1,52 @@
+diff --git a/debuggerd/libdebuggerd/test/tombstone_test.cpp b/debuggerd/libdebuggerd/test/tombstone_test.cpp
+index 6be59e7..0620f4b 100644
+--- a/debuggerd/libdebuggerd/test/tombstone_test.cpp
++++ b/debuggerd/libdebuggerd/test/tombstone_test.cpp
+@@ -15,6 +15,7 @@
+  */
+ 
+ #include <stdlib.h>
++#include <time.h>
+ 
+ #include <memory>
+ #include <string>
+@@ -643,3 +644,10 @@ TEST_F(TombstoneTest, dump_header_info) {
+   expected += android::base::StringPrintf("ABI: '%s'\n", ABI_STRING);
+   ASSERT_STREQ(expected.c_str(), amfd_data_.c_str());
+ }
++
++TEST_F(TombstoneTest, dump_timestamp) {
++  setenv("TZ", "UTC", 1);
++  tzset();
++  dump_timestamp(&log_, 0);
++  ASSERT_STREQ("Timestamp: 1970-01-01 00:00:00+0000\n", amfd_data_.c_str());
++}
+diff --git a/debuggerd/libdebuggerd/tombstone.cpp b/debuggerd/libdebuggerd/tombstone.cpp
+index b9a0bc7..a3537d5 100644
+--- a/debuggerd/libdebuggerd/tombstone.cpp
++++ b/debuggerd/libdebuggerd/tombstone.cpp
+@@ -219,6 +219,15 @@ static void dump_header_info(log_t* log) {
+   _LOG(log, logtype::HEADER, "ABI: '%s'\n", ABI_STRING);
+ }
+ 
++static void dump_timestamp(log_t* log, time_t time) {
++  struct tm tm;
++  localtime_r(&time, &tm);
++
++  char buf[strlen("1970-01-01 00:00:00+0830") + 1];
++  strftime(buf, sizeof(buf), "%F %T%z", &tm);
++  _LOG(log, logtype::HEADER, "Timestamp: %s\n", buf);
++}
++
+ static void dump_probable_cause(log_t* log, const siginfo_t& si) {
+   std::string cause;
+   if (si.si_signo == SIGSEGV && si.si_code == SEGV_MAPERR) {
+@@ -670,6 +679,8 @@ static void dump_crash(log_t* log, BacktraceMap* map, const OpenFilesList* open_
+   _LOG(log, logtype::HEADER,
+        "*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\n");
+   dump_header_info(log);
++  dump_timestamp(log, time(nullptr));
++
+   dump_thread(log, pid, tid, process_name, threads.find(tid)->second, map, abort_msg_address, true);
+   if (want_logs) {
+     dump_logs(log, pid, 5);

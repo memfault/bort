@@ -18,6 +18,9 @@ cc_binary {
             cflags: ["-DPLATFORM_SDK_VERSION=%d"],
         },
     },
+    generated_headers: [
+        "MemfaultBortPropertiesHeader",
+    ],
     shared_libs: [
         "libbase",
         "libcutils",

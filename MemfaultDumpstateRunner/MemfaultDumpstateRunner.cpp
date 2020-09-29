@@ -27,10 +27,10 @@
 #include <android-base/unique_fd.h>
 #include <cutils/sockets.h>
 #include <DumpstateUtil.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ftw.h>
-#include <glob.h>
 #include <log/log_main.h>
 #include <private/android_filesystem_config.h>
 #include <stdio.h>
@@ -48,7 +48,12 @@
 
 #include "android-9/file.h"
 
-#define TARGET_APP_ID "vnd.myandroid.bortappid"
+#include <bort_properties.h>
+
+#define _STRINGIFY(x) #x
+#define STRINGIFY(x) _STRINGIFY(x)
+
+#define TARGET_APP_ID STRINGIFY(BORT_APPLICATION_ID)
 #define TARGET_COMPONENT_CLASS "com.memfault.bort.receivers.BugReportReceiver"
 #define TARGET_COMPONENT TARGET_APP_ID "/" TARGET_COMPONENT_CLASS
 #define TARGET_DIR "/data/data/" TARGET_APP_ID "/files/bugreports/"
@@ -219,38 +224,50 @@ void SendBroadcast(const std::string& bugreportPath) {
 }
 
 uint32_t GetTargetUid(void) {
-  std::vector<std::string> cmd = {
-      "/system/bin/pm", "list", "packages", "-U", TARGET_APP_ID
-  };
-  TemporaryFile tempFile;
-  RunCommandToFd(tempFile.fd, "", cmd,
-             CommandOptions::WithTimeout(20)
-                 .Log("Getting " TARGET_APP_ID " UID: '%s'\n")
-                 .Always()
-                 .Build());
-  std::string pmOutput;
-  android::base::ReadFileToString(tempFile.path, &pmOutput);
-  std::size_t found = pmOutput.rfind(":");
-  if (found == std::string::npos) {
-    ALOGE("Failed to find UID in %s\n", pmOutput.c_str());
-    return 0;
-  }
-  return std::stoi(pmOutput.substr(found + 1));
+    std::vector<std::string> cmd = {
+        "/system/bin/pm", "list", "packages", "-U", TARGET_APP_ID
+    };
+    TemporaryFile tempFile;
+    RunCommandToFd(tempFile.fd, "", cmd,
+               CommandOptions::WithTimeout(20)
+                   .Log("Getting " TARGET_APP_ID " UID: '%s'\n")
+                   .Always()
+                   .Build());
+    std::string pmOutput;
+    android::base::ReadFileToString(tempFile.path, &pmOutput);
+    std::size_t found = pmOutput.rfind(":");
+    if (found == std::string::npos) {
+        ALOGE("Failed to find UID in %s\n", pmOutput.c_str());
+        return 0;
+    }
+    return std::stoi(pmOutput.substr(found + 1));
+}
+
+int DumpstateLogScandirFilter(const dirent* de) {
+    if (de->d_type != DT_REG) {
+        return 0;
+    }
+    std::string filename = de->d_name;
+    if (filename.find("-dumpstate_log-") == std::string::npos) {
+        return 0;
+    }
+    return 1;
 }
 
 void CleanupDumpstateLogs(void) {
-    glob_t glob_result;
-    static constexpr char glob_pattern[] = "/bugreports/*-dumpstate_log-*.txt";
-    const int ret = glob(glob_pattern, GLOB_MARK, nullptr, &glob_result);
-    if (ret != 0 && ret != GLOB_NOMATCH) {
-        globfree(&glob_result);
+    dirent** log_files;
+    int n = scandir("/bugreports/", &log_files, DumpstateLogScandirFilter, NULL);
+    if (n == -1) {
+        ALOGE("scandir failed: %s\n", strerror(errno));
         return;
     }
 
-    for (size_t i = 0; i < glob_result.gl_pathc; i++) {
-      cleanupFile(glob_result.gl_pathv[i]);
+    while (n--) {
+        std::string path = std::string("/bugreports/") + log_files[n]->d_name;
+        cleanupFile(path.c_str());
+        free(log_files[n]);
     }
-    globfree(&glob_result);
+    free(log_files);
 }
 
 // Based on https://cs.android.com/android/_/android/platform/frameworks/native/+/0f58ab624b96f7f2e49a606ee8ce0cedeb10004d:cmds/dumpstate/dumpstate.cpp;l=3650;drc=f2a15e8742cf33e37e6c96f4731c298c6749bb68
