@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.memfault.bort.shared.INTENT_ACTION_BUG_REPORT_START
 import com.memfault.bort.shared.Logger
 import java.lang.reflect.Method
 
@@ -15,7 +16,7 @@ class BugReportStartReceiver : BroadcastReceiver() {
         context ?: return
         intent ?: return
         when {
-            intent.action != "com.memfault.intent.action.BUG_REPORT_START" -> return
+            intent.action != INTENT_ACTION_BUG_REPORT_START-> return
         }
         Logger.v("Starting $SERVICE_MEMFAULT_DUMPSTATE_RUNNER")
         try {

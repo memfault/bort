@@ -6,8 +6,10 @@ import androidx.preference.PreferenceManager
 import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
+import com.memfault.bort.dropbox.testDropBoxEntryProcessors
 import com.memfault.bort.requester.BugReportRequestWorker
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.PreferenceKeyProvider
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
@@ -57,6 +59,8 @@ ${response.headers()}
                 PreferenceManager.getDefaultSharedPreferences(context)
             )
         )
+
+        dropBoxEntryProcessors = testDropBoxEntryProcessors()
     }
 }
 

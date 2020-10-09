@@ -56,6 +56,15 @@ inline fun <reified K : Task<*>> enqueueWorkOnce(
     inputData: Data = Data.EMPTY,
     block: OneTimeWorkRequest.Builder.() -> Unit = {}
 ): WorkRequest =
+    oneTimeWorkRequest<K>(inputData, block).also {
+            WorkManager.getInstance(context)
+                .enqueue(it)
+        }
+
+inline fun <reified K : Task<*>> oneTimeWorkRequest(
+    inputData: Data,
+    block: OneTimeWorkRequest.Builder.() -> Unit = {}
+): OneTimeWorkRequest =
     OneTimeWorkRequestBuilder<TaskRunnerWorker>()
         .setInputData(
             addWorkDelegateClass(
@@ -63,10 +72,7 @@ inline fun <reified K : Task<*>> enqueueWorkOnce(
             )
         )
         .apply(block)
-        .build().also {
-            WorkManager.getInstance(context)
-                .enqueue(it)
-        }
+        .build()
 
 interface TaskFactory {
     fun create(inputData: Data): Task<*>?

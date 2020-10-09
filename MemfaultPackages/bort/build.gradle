@@ -111,6 +111,7 @@ dependencies {
 
     testImplementation deps.test.junit
     testImplementation deps.test.coroutines
+    testImplementation deps.test.mockk
     testImplementation deps.test.mockito
     testImplementation deps.test.mockitoKotlin
     testImplementation deps.test.mockWebServer

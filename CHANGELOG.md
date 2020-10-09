@@ -1,5 +1,11 @@
 # Memfault Bort Changelog
 
+## v2.4.1 - October 9, 2020
+
+#### :chart_with_upwards_trend: Improvements
+
+- Additional HTTP logging
+
 ## v2.4.0 - September 29, 2020
 
 #### :chart_with_upwards_trend: Improvements

@@ -7,6 +7,7 @@ import android.provider.Settings
 import androidx.preference.PreferenceManager
 import com.memfault.bort.*
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.PreferenceKeyProvider
 import kotlinx.coroutines.runBlocking
 
 private const val INTENT_EXTRA_ECHO_STRING = "echo"

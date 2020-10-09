@@ -4,9 +4,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import androidx.work.*
-import com.memfault.bort.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import com.memfault.bort.Bort
-import com.memfault.bort.INTENT_ACTION_BUG_REPORT_START
+import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
+import com.memfault.bort.shared.INTENT_ACTION_BUG_REPORT_START
 import com.memfault.bort.shared.Logger
 import java.util.concurrent.TimeUnit
 

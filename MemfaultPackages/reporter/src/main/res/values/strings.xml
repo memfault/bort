@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">MemfaultUsageReporter</string>
+    <string name="permission_reporter_label">Access MemfaultUsageReporter</string>
+    <string name="permission_reporter_description">Allows the application to access
+        MemfaultUsageReporter. No apps other than Bort should be granted this permission!
+    </string>
 </resources>

@@ -1,15 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:sharedUserId="android.uid.system"
-    package="com.memfault.usagereporter">
+    package="com.memfault.usagereporter"
+    android:sharedUserId="android.uid.system">
 
+    <permission
+        android:name="com.memfault.usagereporter.permission.REPORTER_ACCESS"
+        android:description="@string/permission_reporter_description"
+        android:label="@string/permission_reporter_label"
+        android:protectionLevel="signature|privileged" />
+
+    <!-- DropBoxManager.getNextEntry() requires these: -->
+    <uses-permission
+        android:name="android.permission.READ_LOGS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- UserHandle.CURRENT and battery stats require this:-->
+    <uses-permission
+        android:name="android.permission.INTERACT_ACROSS_USERS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Persistence is required to ensure all implicit system intents
+         (i.e. DROPBOX_ENTRY_ADDED) are received -->
     <application
         android:name=".UsageReporter"
         android:allowBackup="false"
         android:label="@string/app_name"
+        android:persistent="true"
+
         android:supportsRtl="true"
         tools:ignore="MissingApplicationIcon">
 
+        <service
+            android:name=".ReporterService"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="com.memfault.usagereporter.permission.REPORTER_ACCESS">
+        </service>
 
         <receiver
             android:name=".BugReportStartReceiver"

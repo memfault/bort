@@ -6,6 +6,7 @@ import com.memfault.bort.ingress.IngressService
 import com.memfault.bort.ingress.RebootEvent
 import com.memfault.bort.ingress.RebootEventInfo
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.PreferenceKeyProvider
 import java.io.File
 import java.time.Instant
 import java.util.concurrent.TimeUnit

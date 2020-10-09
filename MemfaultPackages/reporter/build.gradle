@@ -16,6 +16,7 @@ android {
         versionName loadVersionName() as String
 
         buildConfigField "int", "MINIMUM_LOG_LEVEL", bortProperty("MINIMUM_LOG_LEVEL")
+        buildConfigField "String", "BORT_APPLICATION_ID", "\"" + bortProperty("BORT_APPLICATION_ID") + "\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -31,12 +32,20 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
 }
 
 dependencies {
     implementation project(':bort-shared')
 
     implementation deps.kotlin.stdlib
+    implementation deps.android.preference
+
+    testImplementation deps.test.junit
+    testImplementation deps.test.coroutines
+    testImplementation deps.test.mockk
 }
 
 task copyReleaseApk(type: Copy) {

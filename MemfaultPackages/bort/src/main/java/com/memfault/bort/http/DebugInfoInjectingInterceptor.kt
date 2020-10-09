@@ -32,6 +32,7 @@ class DebugInfoInjectingInterceptor(
             }
             else -> return request
         }
+        val xRequestId = UUID.randomUUID().toString()
         val transformedUrl = url.newBuilder().apply {
             linkedMapOf(
                 QUERY_PARAM_UPSTREAM_VERSION_NAME to settingsProvider.upstreamVersionName(),
@@ -40,11 +41,12 @@ class DebugInfoInjectingInterceptor(
                 QUERY_PARAM_UPSTREAM_GIT_SHA to settingsProvider.upstreamGitSha(),
                 QUERY_PARAM_VERSION_NAME to settingsProvider.appVersionName(),
                 QUERY_PARAM_VERSION_CODE to settingsProvider.appVersionCode().toString(),
-                QUERY_PARAM_DEVICE_ID to deviceIdProvider.deviceId()
+                QUERY_PARAM_DEVICE_ID to deviceIdProvider.deviceId(),
+                X_REQUEST_ID to xRequestId
             ).forEach { key, value -> addQueryParameter(key, value) }
         }.build()
         return request.newBuilder()
-            .addHeader(X_REQUEST_ID, UUID.randomUUID().toString())
+            .addHeader(X_REQUEST_ID, xRequestId)
             .url(transformedUrl)
             .build()
     }

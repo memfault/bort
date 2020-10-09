@@ -2,12 +2,17 @@ package com.memfault.bort
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Looper
 import androidx.preference.PreferenceManager
 import androidx.work.Data
 import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.memfault.bort.dropbox.DropBoxGetEntriesTask
+import com.memfault.bort.dropbox.EntryProcessor
+import com.memfault.bort.dropbox.RealDropBoxLastProcessedEntryProvider
+import com.memfault.bort.dropbox.realDropBoxEntryProcessors
 import com.memfault.bort.http.DebugInfoInjectingInterceptor
 import com.memfault.bort.http.LoggingNetworkInterceptor
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
@@ -35,7 +40,8 @@ data class AppComponents(
     val bortEnabledProvider: BortEnabledProvider,
     val deviceIdProvider: DeviceIdProvider,
     val httpTaskCallFactory: HttpTaskCallFactory,
-    val ingressService: IngressService
+    val ingressService: IngressService,
+    val reporterServiceConnector: ReporterServiceConnector
 ) {
     open class Builder(
         private val context: Context,
@@ -52,6 +58,8 @@ data class AppComponents(
         var fileUploaderFactory: FileUploaderFactory? = null
         var bortEnabledProvider: BortEnabledProvider? = null
         var deviceIdProvider: DeviceIdProvider? = null
+        var reporterServiceConnector: ReporterServiceConnector? = null
+        var dropBoxEntryProcessors: Map<String, EntryProcessor>? = null
 
         fun build(): AppComponents {
             val settingsProvider = settingsProvider ?: BuildConfigSettingsProvider()
@@ -85,13 +93,22 @@ data class AppComponents(
                     BortAlwaysEnabledProvider()
                 }
 
+            val reporterServiceConnector = reporterServiceConnector ?: RealReporterServiceConnector(
+                    context = context,
+                    inboundLooper = Looper.getMainLooper()
+            )
+            val dropBoxEntryProcessors = dropBoxEntryProcessors ?: realDropBoxEntryProcessors()
+
             val workerFactory = DefaultWorkerFactory(
+                context = context,
                 settingsProvider = settingsProvider,
                 bortEnabledProvider = bortEnabledProvider,
                 retrofit = retrofit,
                 fileUploaderFactory = fileUploaderFactory,
                 okHttpClient = okHttpClient,
                 deviceIdProvider = deviceIdProvider,
+                reporterServiceConnector = reporterServiceConnector,
+                dropBoxEntryProcessors = dropBoxEntryProcessors,
                 interceptingFactory = interceptingWorkerFactory
             )
 
@@ -108,7 +125,8 @@ data class AppComponents(
                 bortEnabledProvider = bortEnabledProvider,
                 deviceIdProvider = deviceIdProvider,
                 httpTaskCallFactory = httpTaskCallFactory,
-                ingressService = IngressService.create(settingsProvider, httpTaskCallFactory)
+                ingressService = IngressService.create(settingsProvider, httpTaskCallFactory),
+                reporterServiceConnector = reporterServiceConnector
             )
         }
     }
@@ -176,12 +194,15 @@ open class BuildConfigSettingsProvider : SettingsProvider {
 }
 
 class DefaultWorkerFactory(
+    private val context: Context,
     private val settingsProvider: SettingsProvider,
     private val bortEnabledProvider: BortEnabledProvider,
     private val retrofit: Retrofit,
     private val fileUploaderFactory: FileUploaderFactory,
     private val okHttpClient: OkHttpClient,
     private val deviceIdProvider: DeviceIdProvider,
+    private val reporterServiceConnector: ReporterServiceConnector,
+    private val dropBoxEntryProcessors: Map<String, EntryProcessor>,
     private val interceptingFactory: WorkerFactory? = null
 ) : WorkerFactory(), TaskFactory {
     override fun createWorker(
@@ -209,12 +230,20 @@ class DefaultWorkerFactory(
     }
 
     override fun create(inputData: Data): Task<*>? {
+
         return when (inputData.workDelegateClass) {
             HttpTask::class.qualifiedName -> HttpTask(okHttpClient = okHttpClient)
             BugReportUploader::class.qualifiedName -> BugReportUploader(
                 delegate = fileUploaderFactory.create(retrofit, settingsProvider.projectKey()),
                 bortEnabledProvider = bortEnabledProvider,
                 maxAttempts = settingsProvider.maxUploadAttempts()
+            )
+            DropBoxGetEntriesTask::class.qualifiedName -> DropBoxGetEntriesTask(
+                lastProcessedEntryProvider = RealDropBoxLastProcessedEntryProvider(
+                    PreferenceManager.getDefaultSharedPreferences(context)
+                ),
+                reporterServiceConnector = reporterServiceConnector,
+                entryProcessors = dropBoxEntryProcessors
             )
             else -> null
         }
@@ -239,45 +268,6 @@ class BortAlwaysEnabledProvider : BortEnabledProvider {
 
     override fun isEnabled(): Boolean {
         return true
-    }
-}
-
-abstract class PreferenceKeyProvider<T>(
-    private val sharedPreferences: SharedPreferences,
-    private val defaultValue: T,
-    private val preferenceKey: String
-) {
-    init {
-        when (defaultValue) {
-            is Boolean, is String, is Int, is Long, is Float -> {
-            }
-            else -> throw IllegalArgumentException("Unsupported type $defaultValue")
-        }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    fun setValue(newValue: T): Unit = with(sharedPreferences.edit()) {
-        when (newValue) {
-            is Boolean -> putBoolean(preferenceKey, newValue)
-            is String -> putString(preferenceKey, newValue)
-            is Int -> putInt(preferenceKey, newValue)
-            is Long -> putLong(preferenceKey, newValue)
-            is Float -> putFloat(preferenceKey, newValue)
-            else -> throw IllegalArgumentException("Unsupported type $newValue")
-        }
-        apply()
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    fun getValue(): T = with(sharedPreferences) {
-        return when (defaultValue) {
-            is Boolean -> getBoolean(preferenceKey, defaultValue) as T
-            is String -> getString(preferenceKey, defaultValue) as T
-            is Int -> getInt(preferenceKey, defaultValue) as T
-            is Long -> getLong(preferenceKey, defaultValue) as T
-            is Float -> getFloat(preferenceKey, defaultValue) as T
-            else -> throw IllegalArgumentException("Unsupported type $defaultValue")
-        }
     }
 }
 

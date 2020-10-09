@@ -24,6 +24,8 @@ class AppComponentsTest {
             deviceIdProvider = mock<DeviceIdProvider>() {
                 on { deviceId() } doReturn "abc"
             }
+            dropBoxEntryProcessors = emptyMap()
+            reporterServiceConnector = mock<ReporterServiceConnector>()
         }.build().also {
             assert(it.bortEnabledProvider !is BortAlwaysEnabledProvider)
         }
