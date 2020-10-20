@@ -1,0 +1,17 @@
+On Android 8.1 and older (< API level 28), BOARD_PLAT_PRIVATE_SEPOLICY_DIR
+is not allowed to hold multiple directories. A build error will occur when
+BOARD_PLAT_PRIVATE_SEPOLICY_DIR is also used by customer/vendor code.
+We work around this by patching system/sepolicy directly.
+
+diff --git a/private/service_contexts b/private/service_contexts
+index a82243ffb..b7c66a146 100644
+--- a/private/service_contexts
++++ b/private/service_contexts
+@@ -93,6 +93,7 @@ media_projection                          u:object_r:media_projection_service:s0
+ media_resource_monitor                    u:object_r:media_session_service:s0
+ media_router                              u:object_r:media_router_service:s0
+ media_session                             u:object_r:media_session_service:s0
++memfault_dumpster                         u:object_r:memfault_dumpster_service:s0
+ meminfo                                   u:object_r:meminfo_service:s0
+ midi                                      u:object_r:midi_service:s0
+ mount                                     u:object_r:mount_service:s0

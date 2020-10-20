@@ -30,6 +30,7 @@ interface SettingsProvider {
     fun currentGitSha(): String
     fun androidBuildVersionKey(): String
     fun androidHardwareVersionKey(): String
+    fun androidSerialNumberKey(): String
 }
 
 fun SettingsProvider.uploadConstraints(): Constraints =

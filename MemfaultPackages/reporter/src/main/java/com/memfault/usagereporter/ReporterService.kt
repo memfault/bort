@@ -7,7 +7,12 @@ import android.os.*
 import android.os.Process.THREAD_PRIORITY_BACKGROUND
 import androidx.preference.PreferenceManager
 import com.memfault.bort.shared.*
-import java.lang.Exception
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+
+private const val COMMAND_EXECUTOR_MAX_THREADS = 2
+private const val COMMAND_EXECUTOR_TERMINATION_WAIT_SECS: Long = 30
 
 typealias SendReply = (reply: ServiceMessage) -> Unit
 
@@ -19,16 +24,16 @@ class DropBoxMessageHandler(
     private val getDropBoxManager: () -> DropBoxManager?,
     private val filterSettingsProvider: DropBoxFilterSettingsProvider
 ) {
-    fun handleSetTagFilterMessage(message: SetTagFilterRequest, sendReply: SendReply) {
+    fun handleSetTagFilterMessage(message: DropBoxSetTagFilterRequest, sendReply: SendReply) {
         filterSettingsProvider.includedTags = message.includedTags.toSet()
-        sendReply(SetTagFilterResponse())
+        sendReply(DropBoxSetTagFilterResponse())
     }
 
-    fun handleGetNextEntryRequest(request: GetNextEntryRequest, sendReply: SendReply) {
+    fun handleGetNextEntryRequest(request: DropBoxGetNextEntryRequest, sendReply: SendReply) {
         sendReply(when (val db = getDropBoxManager()) {
             null -> ErrorResponse("Failed to get DropBoxManager")
             else -> try {
-                GetNextEntryResponse(findFirstMatchingEntry(db, request.lastTimeMillis))
+                DropBoxGetNextEntryResponse(findFirstMatchingEntry(db, request.lastTimeMillis))
             } catch (e: Exception) {
                 ErrorResponse.fromException(e)
             }
@@ -47,9 +52,22 @@ class DropBoxMessageHandler(
     }
 }
 
+class RunCommandMessageHandler(
+    val enqueueCommand: (List<String>, CommandRunnerOptions) -> CommandRunner
+) {
+    private fun <C : Command> enqueueCommandRequest(request: RunCommandRequest<C>) =
+        enqueueCommand(request.command.toList(), request.runnerOptions)
+
+    fun handleBatteryStatsRequest(request: BatteryStatsRequest, sendReply: SendReply) =
+        enqueueCommandRequest(request).also {
+            sendReply(BatteryStatsResponse())
+        }
+}
+
 // android.os.Message cannot be instantiated in unit tests. The odd code splitting & injecting is
 // done to keep the toMessage() and fromMessage() out of the main body of code.
 class ReporterServiceMessageHandler(
+    private val runCommandMessageHandler: RunCommandMessageHandler,
     private val dropBoxMessageHandler: DropBoxMessageHandler,
     private val serviceMessageFromMessage: (message: Message) -> ReporterServiceMessage,
     private val getSendReply: (message: Message) -> SendReply
@@ -77,10 +95,13 @@ class ReporterServiceMessageHandler(
             }
         }
         when (serviceMessage) {
-            is SetTagFilterRequest ->
+            is BatteryStatsRequest ->
+                runCommandMessageHandler.handleBatteryStatsRequest(serviceMessage, sendReply)
+            is DropBoxSetTagFilterRequest ->
                 dropBoxMessageHandler.handleSetTagFilterMessage(serviceMessage, sendReply)
-            is GetNextEntryRequest ->
+            is DropBoxGetNextEntryRequest ->
                 dropBoxMessageHandler.handleGetNextEntryRequest(serviceMessage, sendReply)
+            is VersionRequest -> handleVersionRequest(sendReply)
             null -> sendReply(ErrorResponse("Unknown Message: ${message}")).also {
                 Logger.e("Unknown Message: ${message}")
             }
@@ -91,10 +112,15 @@ class ReporterServiceMessageHandler(
 
         return true
     }
+
+    private fun handleVersionRequest(sendReply: (reply: ServiceMessage) -> Unit) {
+        sendReply(VersionResponse(REPORTER_SERVICE_VERSION))
+    }
 }
 
 class ReporterService : Service() {
     private var messenger: Messenger? = null
+    private lateinit var commandExecutor: ExecutorService
     private lateinit var handlerThread: HandlerThread
     private lateinit var messageHandler: ReporterServiceMessageHandler
 
@@ -103,7 +129,10 @@ class ReporterService : Service() {
         handlerThread = HandlerThread("ReporterService", THREAD_PRIORITY_BACKGROUND).apply {
             start()
         }
+        commandExecutor = Executors.newFixedThreadPool(COMMAND_EXECUTOR_MAX_THREADS)
+
         messageHandler = ReporterServiceMessageHandler(
+            runCommandMessageHandler = RunCommandMessageHandler(::enqueueCommand),
             dropBoxMessageHandler = DropBoxMessageHandler(
                 getDropBoxManager = ::getDropBoxManager,
                 filterSettingsProvider = RealDropBoxFilterSettingsProvider(
@@ -117,9 +146,25 @@ class ReporterService : Service() {
 
     override fun onDestroy() {
         Logger.d("Destroying ReporterService")
+
         handlerThread.quitSafely()
+        Logger.v("handlerThread quit safely!")
+
+        commandExecutor.shutdown()
+        val timedOut = !commandExecutor.awaitTermination(
+            COMMAND_EXECUTOR_TERMINATION_WAIT_SECS,
+            TimeUnit.SECONDS
+        )
+        Logger.v("commandExecutor shut down! (timedOut=$timedOut)")
+
         Logger.test("Destroyed ReporterService")
     }
+
+    private fun enqueueCommand(command: List<String>, runnerOptions: CommandRunnerOptions): CommandRunner =
+        CommandRunner(command, runnerOptions).also {
+            commandExecutor.submit(it)
+            Logger.v("Enqueued command ${it.options.id} to $commandExecutor")
+        }
 
     private fun getSendReply(message: Message): SendReply {
         return { serviceMessage: ServiceMessage ->

@@ -1,14 +1,19 @@
 package com.memfault.bort.shared
 
-import android.os.Bundle
-import android.os.DropBoxManager
-import android.os.Message
+import android.os.*
 import java.lang.Exception
+import java.util.*
 
 class UnknownMessageException(message: String) : Exception(message)
 
+val REPORTER_SERVICE_VERSION: Int = 1
+
 // Generic responses:
 val ERROR_RSP = -1
+
+// General messages:
+val VERSION_REQ: Int = 1
+val VERSION_RSP: Int = 2
 
 // DropBox related messages:
 val DROPBOX_SET_TAG_FILTER_REQ: Int = 100
@@ -16,6 +21,10 @@ val DROPBOX_SET_TAG_FILTER_RSP: Int = 101
 
 val DROPBOX_GET_NEXT_ENTRY_REQ: Int = 102
 val DROPBOX_GET_NEXT_ENTRY_RSP: Int = 103
+
+// Batterystats related messages:
+val BATTERYSTATS_REQ: Int = 200
+val BATTERYSTATS_RSP: Int = 201
 
 abstract class ReporterServiceMessage : ServiceMessage {
     abstract val messageId: Int
@@ -30,11 +39,17 @@ abstract class ReporterServiceMessage : ServiceMessage {
     companion object {
         fun fromMessage(message: Message): ReporterServiceMessage =
             when (message.what) {
-                DROPBOX_SET_TAG_FILTER_REQ -> SetTagFilterRequest.fromBundle(message.data)
-                DROPBOX_SET_TAG_FILTER_RSP -> SetTagFilterResponse()
+                VERSION_REQ -> VersionRequest()
+                VERSION_RSP -> VersionResponse.fromBundle(message.data)
 
-                DROPBOX_GET_NEXT_ENTRY_REQ -> GetNextEntryRequest.fromBundle(message.data)
-                DROPBOX_GET_NEXT_ENTRY_RSP -> GetNextEntryResponse.fromBundle(message.data)
+                DROPBOX_SET_TAG_FILTER_REQ -> DropBoxSetTagFilterRequest.fromBundle(message.data)
+                DROPBOX_SET_TAG_FILTER_RSP -> DropBoxSetTagFilterResponse()
+
+                DROPBOX_GET_NEXT_ENTRY_REQ -> DropBoxGetNextEntryRequest.fromBundle(message.data)
+                DROPBOX_GET_NEXT_ENTRY_RSP -> DropBoxGetNextEntryResponse.fromBundle(message.data)
+
+                BATTERYSTATS_REQ -> BatteryStatsRequest.fromBundle(message.data)
+                BATTERYSTATS_RSP -> BatteryStatsResponse()
 
                 ERROR_RSP -> ErrorResponse.fromBundle(message.data)
                 else -> throw UnknownMessageException("Unknown ReporterServiceMessage ID: ${message.what}")
@@ -42,9 +57,40 @@ abstract class ReporterServiceMessage : ServiceMessage {
     }
 }
 
+open class SimpleReporterServiceMessage(override val messageId: Int) : ReporterServiceMessage() {
+    override fun toBundle(): Bundle = Bundle()
+
+    override fun hashCode(): Int {
+        return messageId
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        return messageId == (other as SimpleReporterServiceMessage).messageId
+    }
+
+    override fun toString(): String =
+        "${this::class.simpleName ?: this::class}(messageId=$messageId)"
+}
+
+private const val VERSION = "VERSION"
+
+class VersionRequest : SimpleReporterServiceMessage(VERSION_REQ)
+class VersionResponse(val version: Int): ReporterServiceMessage() {
+    override val messageId: Int = VERSION_RSP
+    override fun toBundle(): Bundle = Bundle().apply {
+        putInt(VERSION, version)
+    }
+
+    companion object {
+        fun fromBundle(bundle: Bundle) = VersionResponse(bundle.getInt(VERSION))
+    }
+}
+
 private const val INCLUDED_TAGS = "INCLUDED_TAGS"
 
-data class SetTagFilterRequest(val includedTags: List<String>): ReporterServiceMessage() {
+data class DropBoxSetTagFilterRequest(val includedTags: List<String>): ReporterServiceMessage() {
     override val messageId: Int = DROPBOX_SET_TAG_FILTER_REQ
     override fun toBundle(): Bundle = Bundle().apply {
         putStringArray(INCLUDED_TAGS, includedTags.toTypedArray())
@@ -52,33 +98,30 @@ data class SetTagFilterRequest(val includedTags: List<String>): ReporterServiceM
 
     companion object {
         fun fromBundle(bundle: Bundle) =
-            SetTagFilterRequest(
+            DropBoxSetTagFilterRequest(
                 bundle.getStringArray(INCLUDED_TAGS)?.toList() ?: emptyList()
             )
     }
 }
 
-data class SetTagFilterResponse(var unused: Int = 0): ReporterServiceMessage() {
-    override val messageId: Int = DROPBOX_SET_TAG_FILTER_RSP
-    override fun toBundle(): Bundle = Bundle()
-}
+class DropBoxSetTagFilterResponse: SimpleReporterServiceMessage(DROPBOX_SET_TAG_FILTER_RSP)
 
 private const val LAST = "LAST"
 
-data class GetNextEntryRequest(val lastTimeMillis: Long): ReporterServiceMessage() {
+data class DropBoxGetNextEntryRequest(val lastTimeMillis: Long): ReporterServiceMessage() {
     override val messageId: Int = DROPBOX_GET_NEXT_ENTRY_REQ
     override fun toBundle(): Bundle = Bundle().apply {
         putLong(LAST, lastTimeMillis)
     }
 
     companion object {
-        fun fromBundle(bundle: Bundle) = GetNextEntryRequest(bundle.getLong(LAST))
+        fun fromBundle(bundle: Bundle) = DropBoxGetNextEntryRequest(bundle.getLong(LAST))
     }
 }
 
 private const val ENTRY = "ENTRY"
 
-data class GetNextEntryResponse(val entry: DropBoxManager.Entry?): ReporterServiceMessage() {
+data class DropBoxGetNextEntryResponse(val entry: DropBoxManager.Entry?): ReporterServiceMessage() {
     override val messageId: Int = DROPBOX_GET_NEXT_ENTRY_RSP
     override fun toBundle(): Bundle = Bundle().apply {
         putParcelable(ENTRY, entry)
@@ -86,9 +129,49 @@ data class GetNextEntryResponse(val entry: DropBoxManager.Entry?): ReporterServi
 
     companion object {
         fun fromBundle(bundle: Bundle) =
-            GetNextEntryResponse(bundle.getParcelable(ENTRY))
+            DropBoxGetNextEntryResponse(bundle.getParcelable(ENTRY))
     }
 }
+
+private const val COMMAND = "ARGS"
+private const val RUN_OPTS = "RUN_OPTS"
+
+abstract class RunCommandRequest<C : Command>(
+): ReporterServiceMessage() {
+    abstract val command: C
+    abstract val runnerOptions: CommandRunnerOptions
+    final override fun toBundle(): Bundle = Bundle().apply {
+        putParcelable(COMMAND, command.toBundle())
+        putParcelable(RUN_OPTS, runnerOptions.toBundle())
+    }
+}
+
+fun Bundle.getCommandRunnerOptions() =
+    this.getParcelable<Bundle>(RUN_OPTS)?.let {
+        CommandRunnerOptions.fromBundle(it)
+    } ?: CommandRunnerOptions(null)
+
+fun Bundle.getCommandRunnerCommand() =
+    this.getParcelable<Bundle>(COMMAND)
+
+data class BatteryStatsRequest(
+    override val command: BatteryStatsCommand,
+    override val runnerOptions: CommandRunnerOptions
+): RunCommandRequest<BatteryStatsCommand>() {
+    override val messageId: Int = BATTERYSTATS_REQ
+    companion object {
+        fun fromBundle(bundle: Bundle) = with(bundle) {
+            BatteryStatsRequest(
+                getCommandRunnerCommand()?.let {
+                    BatteryStatsCommand.fromBundle(it)
+                } ?: BatteryStatsCommand(),
+                getCommandRunnerOptions()
+            )
+        }
+    }
+}
+
+class BatteryStatsResponse : SimpleReporterServiceMessage(BATTERYSTATS_RSP)
 
 private const val ERROR_MESSAGE = "MSG"
 

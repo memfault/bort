@@ -32,6 +32,7 @@ abstract class FilteringReceiver(
     protected lateinit var okHttpClient: OkHttpClient
     protected lateinit var deviceIdProvider: DeviceIdProvider
     protected lateinit var ingressService: IngressService
+    protected lateinit var reporterServiceConnector: ReporterServiceConnector
 
     override fun onReceive(context: Context?, intent: Intent?) {
         Logger.v("Received action=${intent?.action}")
@@ -54,6 +55,7 @@ abstract class FilteringReceiver(
         okHttpClient = it.okHttpClient
         deviceIdProvider = it.deviceIdProvider
         ingressService = it.ingressService
+        reporterServiceConnector = it.reporterServiceConnector
     }
 
     abstract fun onIntentReceived(context: Context, intent: Intent, action: String)

@@ -34,6 +34,7 @@ class ReporterServiceTest {
         replier = mockk(relaxed = true)
         filterSettingsProvider = FakeDropBoxFilterSettingsProvider(emptySet())
         messageHandler = ReporterServiceMessageHandler(
+            runCommandMessageHandler = RunCommandMessageHandler(mockk()),
             dropBoxMessageHandler = DropBoxMessageHandler(
                 getDropBoxManager = { dropBoxManager },
                 filterSettingsProvider = filterSettingsProvider
@@ -41,6 +42,12 @@ class ReporterServiceTest {
             serviceMessageFromMessage = ReporterServiceMessage.Companion::fromMessage,
             getSendReply = { replier::sendReply }
         )
+    }
+
+    @Test
+    fun handlesVersionMessage() {
+        messageHandler.handleServiceMessage(VersionRequest(), mockk())
+        verify(exactly = 1) { replier.sendReply(ofType(VersionResponse::class)) }
     }
 
     @Test
@@ -60,22 +67,22 @@ class ReporterServiceTest {
     fun handlesSendReplyRemoteException() {
         every { replier.sendReply(any()) } throws RemoteException()
         // Should not throw:
-        messageHandler.handleServiceMessage(SetTagFilterRequest(emptyList()), mockk())
-        verify(exactly = 1) { replier.sendReply(ofType(SetTagFilterResponse::class)) }
+        messageHandler.handleServiceMessage(DropBoxSetTagFilterRequest(emptyList()), mockk())
+        verify(exactly = 1) { replier.sendReply(ofType(DropBoxSetTagFilterResponse::class)) }
     }
 
     @Test
     fun dropBoxSetTagFilter() {
         val includedTags = listOf("foo", "bar")
-        messageHandler.handleServiceMessage(SetTagFilterRequest(includedTags), mockk())
-        verify(exactly = 1) { replier.sendReply(ofType(SetTagFilterResponse::class)) }
+        messageHandler.handleServiceMessage(DropBoxSetTagFilterRequest(includedTags), mockk())
+        verify(exactly = 1) { replier.sendReply(ofType(DropBoxSetTagFilterResponse::class)) }
         assertEquals(includedTags.toSet(), filterSettingsProvider.includedTags)
     }
 
     @Test
     fun dropBoxManagerUnavailable() {
         dropBoxManager = null
-        messageHandler.handleServiceMessage(GetNextEntryRequest(0), mockk())
+        messageHandler.handleServiceMessage(DropBoxGetNextEntryRequest(0), mockk())
         verify(exactly = 1) { replier.sendReply(ofType(ErrorResponse::class)) }
     }
 
@@ -84,7 +91,7 @@ class ReporterServiceTest {
         every {
             dropBoxManager?.getNextEntry(null, any())
         } throws RemoteException()
-        messageHandler.handleServiceMessage(GetNextEntryRequest(0), mockk())
+        messageHandler.handleServiceMessage(DropBoxGetNextEntryRequest(0), mockk())
         verify(exactly = 1) { replier.sendReply(ofType(ErrorResponse::class)) }
     }
 
@@ -102,12 +109,12 @@ class ReporterServiceTest {
         every {
             dropBoxManager?.getNextEntry(null, any())
         } returnsMany listOf(filteredEntry, testEntry, null)
-        messageHandler.handleServiceMessage(GetNextEntryRequest(0), mockk())
+        messageHandler.handleServiceMessage(DropBoxGetNextEntryRequest(0), mockk())
         verifySequence {
             dropBoxManager?.getNextEntry(null, 0)
             dropBoxManager?.getNextEntry(null, 10)
         }
-        verify(exactly = 1) { replier.sendReply(GetNextEntryResponse(testEntry)) }
+        verify(exactly = 1) { replier.sendReply(DropBoxGetNextEntryResponse(testEntry)) }
     }
 
     @Test
@@ -115,10 +122,10 @@ class ReporterServiceTest {
         every {
             dropBoxManager?.getNextEntry(null, any())
         } returns null
-        messageHandler.handleServiceMessage(GetNextEntryRequest(10), mockk())
+        messageHandler.handleServiceMessage(DropBoxGetNextEntryRequest(10), mockk())
         verifySequence {
             dropBoxManager?.getNextEntry(null, 10)
         }
-        verify(exactly = 1) { replier.sendReply(GetNextEntryResponse(null)) }
+        verify(exactly = 1) { replier.sendReply(DropBoxGetNextEntryResponse(null)) }
     }
 }

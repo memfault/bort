@@ -35,22 +35,30 @@ ${response.headers()}
             response
         }
 
-        interceptingWorkerFactory = object : WorkerFactory() {
+        interceptingWorkerFactory = object : InterceptingWorkerFactory {
             override fun createWorker(
                 appContext: Context,
                 workerClassName: String,
-                workerParameters: WorkerParameters
+                workerParameters: WorkerParameters,
+                settingsProvider: SettingsProvider,
+                reporterServiceConnector: ReporterServiceConnector
             ): ListenableWorker? = when (workerClassName) {
-                    BugReportRequestWorker::class.qualifiedName -> object : BugReportRequestWorker(
-                        appContext,
-                        workerParameters
-                    ) {
-                        override fun doWork(): Result {
-                            Logger.i("** MFLT-TEST ** Periodic Bug Report Request")
-                            return Result.success()
-                        }
+                BugReportRequestWorker::class.qualifiedName -> object : BugReportRequestWorker(
+                    appContext,
+                    workerParameters
+                ) {
+                    override fun doWork(): Result {
+                        Logger.i("** MFLT-TEST ** Periodic Bug Report Request")
+                        return Result.success()
                     }
-                    else -> null
+                }
+                SelfTestWorker::class.qualifiedName -> SelfTestWorker(
+                    appContext = appContext,
+                    workerParameters = workerParameters,
+                    reporterServiceConnector = reporterServiceConnector,
+                    settingsProvider = settingsProvider
+                )
+                else -> null
             }
         }
 

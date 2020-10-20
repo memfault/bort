@@ -17,13 +17,15 @@ import com.memfault.bort.http.DebugInfoInjectingInterceptor
 import com.memfault.bort.http.LoggingNetworkInterceptor
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.ingress.IngressService
+import com.memfault.bort.shared.LogLevel
+import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.uploader.*
-import com.memfault.bort.uploader.MemfaultBugReportUploader
-import com.memfault.bort.uploader.PreparedUploader
-import com.memfault.bort.shared.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonConfiguration
-import okhttp3.*
+import okhttp3.HttpUrl
+import okhttp3.Interceptor
+import okhttp3.MediaType
+import okhttp3.OkHttpClient
 import retrofit2.Converter
 import retrofit2.Retrofit
 import java.util.*
@@ -54,7 +56,7 @@ data class AppComponents(
         var debugInfoInjectingInterceptor: Interceptor? = null
         var okHttpClient: OkHttpClient? = null
         var retrofit: Retrofit? = null
-        var interceptingWorkerFactory: WorkerFactory? = null
+        var interceptingWorkerFactory: InterceptingWorkerFactory? = null
         var fileUploaderFactory: FileUploaderFactory? = null
         var bortEnabledProvider: BortEnabledProvider? = null
         var deviceIdProvider: DeviceIdProvider? = null
@@ -94,8 +96,8 @@ data class AppComponents(
                 }
 
             val reporterServiceConnector = reporterServiceConnector ?: RealReporterServiceConnector(
-                    context = context,
-                    inboundLooper = Looper.getMainLooper()
+                context = context,
+                inboundLooper = Looper.getMainLooper()
             )
             val dropBoxEntryProcessors = dropBoxEntryProcessors ?: realDropBoxEntryProcessors()
 
@@ -191,6 +193,18 @@ open class BuildConfigSettingsProvider : SettingsProvider {
     override fun androidBuildVersionKey(): String = BuildConfig.ANDROID_BUILD_VERSION_KEY
 
     override fun androidHardwareVersionKey(): String = BuildConfig.ANDROID_HARDWARE_VERSION_KEY
+
+    override fun androidSerialNumberKey(): String = BuildConfig.ANDROID_DEVICE_SERIAL_KEY
+}
+
+interface InterceptingWorkerFactory {
+    fun createWorker(
+        appContext: Context,
+        workerClassName: String,
+        workerParameters: WorkerParameters,
+        settingsProvider: SettingsProvider,
+        reporterServiceConnector: ReporterServiceConnector
+    ): ListenableWorker?
 }
 
 class DefaultWorkerFactory(
@@ -203,7 +217,7 @@ class DefaultWorkerFactory(
     private val deviceIdProvider: DeviceIdProvider,
     private val reporterServiceConnector: ReporterServiceConnector,
     private val dropBoxEntryProcessors: Map<String, EntryProcessor>,
-    private val interceptingFactory: WorkerFactory? = null
+    private val interceptingFactory: InterceptingWorkerFactory? = null
 ) : WorkerFactory(), TaskFactory {
     override fun createWorker(
         appContext: Context,
@@ -213,7 +227,9 @@ class DefaultWorkerFactory(
         interceptingFactory?.createWorker(
             appContext,
             workerClassName,
-            workerParameters
+            workerParameters,
+            settingsProvider,
+            reporterServiceConnector
         )?.let {
             return it
         }

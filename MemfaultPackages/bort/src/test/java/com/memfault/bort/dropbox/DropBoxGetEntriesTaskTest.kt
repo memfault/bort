@@ -15,6 +15,7 @@ import org.junit.Test
 import java.lang.Exception
 
 private const val TEST_TAG = "TEST"
+private const val TEST_SERVICE_VERSION = 1
 
 fun mockEntry(timeMillis_: Long, tag_: String = TEST_TAG) = mockk<DropBoxManager.Entry> {
     every { tag } returns tag_
@@ -30,21 +31,26 @@ class DropBoxGetEntriesTaskTest {
     lateinit var mockEntryProcessor: EntryProcessor
     lateinit var task: DropBoxGetEntriesTask
     lateinit var lastProcessedEntryProvider: FakeLastProcessedEntryProvider
+    var serviceVersion: Int = TEST_SERVICE_VERSION
 
     @Before
     fun setUp() {
         MockKAnnotations.init(this)
+        serviceVersion = TEST_SERVICE_VERSION
         mockServiceConnection = mockk {
             coEvery {
-                sendAndReceive(ofType(SetTagFilterRequest::class))
-            } returns SetTagFilterResponse()
+                sendAndReceive(ofType(DropBoxSetTagFilterRequest::class))
+            } returns DropBoxSetTagFilterResponse()
+            coEvery {
+                sendAndReceive(ofType(VersionRequest::class))
+            } returns VersionResponse(serviceVersion)
         }
-        val connectBlockSlot = slot<suspend (getService: ServiceGetter<ReporterServiceConnection>) -> Any>()
+        val connectBlockSlot = slot<suspend (getService: ServiceGetter<ReporterClient>) -> Any>()
         mockServiceConnector = mockk {
             coEvery {
                 connect(capture(connectBlockSlot))
             } coAnswers {
-                connectBlockSlot.captured({ mockServiceConnection })
+                connectBlockSlot.captured({ ReporterClient(mockServiceConnection, mockk()) })
             }
         }
         lastProcessedEntryProvider = FakeLastProcessedEntryProvider(0)
@@ -63,9 +69,9 @@ class DropBoxGetEntriesTaskTest {
 
     private fun mockGetNextEntryReponses(vararg entries: DropBoxManager.Entry?) {
         coEvery {
-            mockServiceConnection.sendAndReceive(ofType(GetNextEntryRequest::class))
+            mockServiceConnection.sendAndReceive(ofType(DropBoxGetNextEntryRequest::class))
         } returnsMany
-                entries.map { GetNextEntryResponse(it) }
+                entries.map { DropBoxGetNextEntryResponse(it) }
     }
 
     @Test
@@ -82,14 +88,14 @@ class DropBoxGetEntriesTaskTest {
     @Test
     fun failsTaskIfSetTagFilterFails() {
         coEvery {
-            mockServiceConnection.sendAndReceive(ofType(SetTagFilterRequest::class))
+            mockServiceConnection.sendAndReceive(ofType(DropBoxSetTagFilterRequest::class))
         } returns ErrorResponse("Can't do!")
 
         val result = runBlocking {
             task.doWork()
         }
         coVerify(exactly = 1) {
-            mockServiceConnection.sendAndReceive(ofType(SetTagFilterRequest::class))
+            mockServiceConnection.sendAndReceive(ofType(DropBoxSetTagFilterRequest::class))
         }
         assertEquals(TaskResult.FAILURE, result)
     }
@@ -97,14 +103,14 @@ class DropBoxGetEntriesTaskTest {
     @Test
     fun failsTaskIfGetNextEntryFails() {
         coEvery {
-            mockServiceConnection.sendAndReceive(ofType(GetNextEntryRequest::class))
+            mockServiceConnection.sendAndReceive(ofType(DropBoxGetNextEntryRequest::class))
         } returns ErrorResponse("Can't do!")
 
         val result = runBlocking {
             task.doWork()
         }
         coVerify(exactly = 1) {
-            mockServiceConnection.sendAndReceive(ofType(GetNextEntryRequest::class))
+            mockServiceConnection.sendAndReceive(ofType(DropBoxGetNextEntryRequest::class))
         }
         assertEquals(TaskResult.FAILURE, result)
     }
@@ -118,7 +124,7 @@ class DropBoxGetEntriesTaskTest {
         }
 
         coVerify(exactly = 2) {
-            mockServiceConnection.sendAndReceive(ofType(GetNextEntryRequest::class))
+            mockServiceConnection.sendAndReceive(ofType(DropBoxGetNextEntryRequest::class))
         }
         assertEquals(TaskResult.SUCCESS, result)
     }
@@ -137,7 +143,7 @@ class DropBoxGetEntriesTaskTest {
         }
 
         coVerify(exactly = 4) {
-            mockServiceConnection.sendAndReceive(ofType(GetNextEntryRequest::class))
+            mockServiceConnection.sendAndReceive(ofType(DropBoxGetNextEntryRequest::class))
         }
         coVerify(exactly = 2) {
             mockEntryProcessor.process(any())
@@ -158,7 +164,7 @@ class DropBoxGetEntriesTaskTest {
         }
 
         coVerify(exactly = 3) {
-            mockServiceConnection.sendAndReceive(ofType(GetNextEntryRequest::class))
+            mockServiceConnection.sendAndReceive(ofType(DropBoxGetNextEntryRequest::class))
         }
         coVerify(exactly = 0) {
             mockEntryProcessor.process(any())

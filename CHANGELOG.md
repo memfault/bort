@@ -1,5 +1,18 @@
 # Memfault Bort Changelog
 
+## v2.5.0 - October 20, 2020
+
+#### :chart_with_upwards_trend: Improvements
+
+- Remove reliance on `BOARD_PLAT_PRIVATE_SEPOLICY_DIR` for Android 8.1 or older
+  platforms. This makefile variable is supposed to be set to only a single
+  directory on these older platforms and was causing issues when the variable
+  was already used for other purposes than Bort. As a work-around,
+  `BOARD_PLAT_PRIVATE_SEPOLICY_DIR` is now used only on Android 9 and newer. For
+  older Android versions, Bort's private sepolicy changes are patched directly
+  into `system/sepolicy`. See `BoardConfig.mk` and
+  `patches/android-8/system/sepolicy/git.diff`.
+
 ## v2.4.1 - October 9, 2020
 
 #### :chart_with_upwards_trend: Improvements

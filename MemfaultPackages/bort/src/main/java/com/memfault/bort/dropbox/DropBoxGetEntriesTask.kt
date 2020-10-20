@@ -50,7 +50,7 @@ class DropBoxGetEntriesTask(
     suspend fun doWork() =
         try {
             reporterServiceConnector.connect { getConnection ->
-                if (!getConnection().setTagFilter(entryProcessors.keys.toList())) {
+                if (!getConnection().dropBoxSetTagFilter(entryProcessors.keys.toList())) {
                     return@connect TaskResult.FAILURE
                 }
 
@@ -60,10 +60,10 @@ class DropBoxGetEntriesTask(
             TaskResult.FAILURE
         }
 
-    private suspend fun process(getConnection: ServiceGetter<ReporterServiceConnection>): Boolean {
+    private suspend fun process(getConnection: ServiceGetter<ReporterClient>): Boolean {
         var previousWasNull = false
         while (true) {
-            val (entry, success) = getConnection().getNextEntry(lastProcessedEntryProvider.timeMillis)
+            val (entry, success) = getConnection().dropBoxGetNextEntry(lastProcessedEntryProvider.timeMillis)
             if (!success) return false
 
             // In case entries are added in quick succession, we'd end up with one worker

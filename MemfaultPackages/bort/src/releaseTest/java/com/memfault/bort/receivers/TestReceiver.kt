@@ -5,12 +5,15 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.provider.Settings
 import androidx.preference.PreferenceManager
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.memfault.bort.*
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
-import kotlinx.coroutines.runBlocking
 
 private const val INTENT_EXTRA_ECHO_STRING = "echo"
+private const val WORK_UNIQUE_NAME_SELF_TEST = "com.memfault.bort.work.SELF_TEST"
 
 class TestLastTrackedBootCountProvider(
     sharedPreferences: SharedPreferences
@@ -52,10 +55,10 @@ class TestReceiver : FilteringReceiver(
                 Logger.test("bort echo ${intent.getStringExtra(INTENT_EXTRA_ECHO_STRING)}")
             }
             "com.memfault.intent.action.TEST_SELF_TEST" -> {
-                runBlocking {
-                    val output = DumpsterClient().getprop()
-                    val result = if (output?.containsKey("ro.serialno") == true) "success" else "failed"
-                    Logger.test("Bort self test: $result")
+                OneTimeWorkRequestBuilder<SelfTestWorker>().build().also {
+                    WorkManager.getInstance(context).enqueueUniqueWork(
+                        WORK_UNIQUE_NAME_SELF_TEST, ExistingWorkPolicy.REPLACE, it
+                    )
                 }
             }
             "android.intent.action.BOOT_COMPLETED" -> {

@@ -11,6 +11,7 @@ class DeviceInfoFromSettingsAndDumpster {
         get() = mock<SettingsProvider> {
             on { androidBuildVersionKey() } doReturn "ro.build.version.incremental"
             on { androidHardwareVersionKey() } doReturn "ro.product.board"
+            on { androidSerialNumberKey() } doReturn "ro.serialno"
         }
 
     @Test

@@ -44,7 +44,7 @@ abstract class PreferenceKeyProvider<T>(
 
     @Suppress("UNCHECKED_CAST")
     private fun ensureStringSet(value: Set<*>): Set<String> {
-        value.firstOrNull { it !is String }?.also { element ->
+        value.firstOrNull { it !is String }?.let { element ->
             throw IllegalArgumentException("Unsupported type $element in Set")
         }
         return value as Set<String>

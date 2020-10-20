@@ -90,10 +90,4 @@ class DumpsterClient(
             parseGetpropOutput(it)
         }
     }
-
-    /**
-     * Convenience helper to get the device serial number system property.
-     * @return The device serial number, or null in case they could not be retrieved.
-     */
-    suspend fun getSerial(): String? = getprop()?.get("ro.serialno")
 }

@@ -11,7 +11,7 @@ data class DeviceInfo(
             props: Map<String, String>
         ): DeviceInfo {
             return DeviceInfo(
-                props["ro.serialno"] ?: "unknown",
+                props[settingsProvider.androidSerialNumberKey()] ?: "unknown",
                 hardwareVersionFromSettingsAndSystemProperties(settingsProvider, props),
                 props[settingsProvider.androidBuildVersionKey()] ?: "unknown"
             )

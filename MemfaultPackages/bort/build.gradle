@@ -35,6 +35,7 @@ android {
         buildConfigField "Boolean", "RUNTIME_ENABLE_REQUIRED", bortProperty("RUNTIME_ENABLE_REQUIRED")
         buildConfigField "String", "ANDROID_BUILD_VERSION_KEY", "\"" + bortProperty("ANDROID_BUILD_VERSION_KEY") + "\""
         buildConfigField "String", "ANDROID_HARDWARE_VERSION_KEY", "\"" + bortProperty("ANDROID_HARDWARE_VERSION_KEY") + "\""
+        buildConfigField "String", "ANDROID_DEVICE_SERIAL_KEY", "\"" + bortProperty("ANDROID_DEVICE_SERIAL_KEY") + "\""
 
         buildConfigField "String", "UPSTREAM_VERSION_NAME", "\"${upstreamVersionName()}\""
         buildConfigField "int", "UPSTREAM_VERSION_CODE", "${upstreamVersionCode()}"
@@ -97,6 +98,8 @@ dependencies {
     implementation project(':bort-shared')
 
     implementation deps.kotlin.stdlib
+    implementation deps.kotlin.coroutines
+
     implementation deps.android.work
     implementation deps.android.preference
 
