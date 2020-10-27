@@ -1,5 +1,28 @@
 # Memfault Bort Changelog
 
+## v2.6.0 - October 27, 2020
+
+#### :chart_with_upwards_trend: Improvements
+
+- Added the option to capture "minimal" bug reports. These collect the data
+  required for Memfault diagnostics while being roughly 5x smaller and requiring
+  10x less load on the system. If system load or bandwidth are concerns for your
+  deployment, we recommend using minimal mode. See `BUG_REPORT_MINIMAL_MODE` in
+  `bort.properties`.
+- Added options to enable/disable the data sources that Bort uses to collect
+  traces. By default, only bug reports are used
+  (`DATA_SOURCE_BUG_REPORTS_ENABLED=true`). We are working on adding a new data
+  source that uses Android's DropBoxManager API. This is still experimental and
+  is therefore disabled (`DATA_SOURCE_DROP_BOX_ENABLED=false`).
+- Memfault now supports custom configuration of the Hardware and Software
+  Versions as well as Serial Number sources by specifying which system
+  properties to read. New SDK properties must be configured to enable this. See
+  the following properties in `bort.properties`:
+  - `ANDROID_HARDWARE_VERSION_KEY`
+  - `ANDROID_DEVICE_SERIAL_KEY`
+  - `ANDROID_BUILD_VERSION_SOURCE`
+  - `ANDROID_BUILD_VERSION_KEY`
+
 ## v2.5.0 - October 20, 2020
 
 #### :chart_with_upwards_trend: Improvements

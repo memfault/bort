@@ -4,10 +4,10 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.preference.PreferenceManager
 import androidx.work.ListenableWorker
-import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import com.memfault.bort.dropbox.testDropBoxEntryProcessors
 import com.memfault.bort.requester.BugReportRequestWorker
+import com.memfault.bort.selfTesting.SelfTestWorker
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
 import okhttp3.Interceptor
@@ -16,20 +16,20 @@ import okhttp3.Response
 
 internal class ReleaseTestComponentsBuilder(
     context: Context
-): AppComponents.Builder(
+) : AppComponents.Builder(
     context
 ) {
     init {
         loggingInterceptor = Interceptor { chain ->
             val request: Request = chain.request()
             val t1: Long = System.nanoTime()
-            Logger.v("Sending request ${request.url()} on ${chain.connection()} ${request.headers()}")
+            Logger.v("Sending request ${request.url} on ${chain.connection()} ${request.headers}")
             val response: Response = chain.proceed(request)
             val t2: Long = System.nanoTime()
             Logger.v(
                 """
-Received response for ${response.request().url()} in ${String.format("%.1f", (t2 - t1) / 1e6)} ms
-${response.headers()}
+Received response for ${response.request.url} in ${String.format("%.1f", (t2 - t1) / 1e6)} ms
+${response.headers}
             """
             )
             response
@@ -43,15 +43,16 @@ ${response.headers()}
                 settingsProvider: SettingsProvider,
                 reporterServiceConnector: ReporterServiceConnector
             ): ListenableWorker? = when (workerClassName) {
-                BugReportRequestWorker::class.qualifiedName -> object : BugReportRequestWorker(
-                    appContext,
-                    workerParameters
-                ) {
-                    override fun doWork(): Result {
-                        Logger.i("** MFLT-TEST ** Periodic Bug Report Request")
-                        return Result.success()
+                BugReportRequestWorker::class.qualifiedName ->
+                    object : BugReportRequestWorker(
+                        appContext,
+                        workerParameters
+                    ) {
+                        override fun doWork(): Result {
+                            Logger.i("** MFLT-TEST ** Periodic Bug Report Request")
+                            return Result.success()
+                        }
                     }
-                }
                 SelfTestWorker::class.qualifiedName -> SelfTestWorker(
                     appContext = appContext,
                     workerParameters = workerParameters,
@@ -83,5 +84,8 @@ class PersistentProjectKeyProvider(
 class PersistentSettingsProvider(
     private val persistentProjectKeyProvider: PersistentProjectKeyProvider
 ) : BuildConfigSettingsProvider() {
-    override fun projectKey(): String = persistentProjectKeyProvider.getValue()
+    override val httpApiSettings = object : HttpApiSettings by super.httpApiSettings {
+        override val projectKey: String
+            get() = persistentProjectKeyProvider.getValue()
+    }
 }

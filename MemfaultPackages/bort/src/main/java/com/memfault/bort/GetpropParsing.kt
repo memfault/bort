@@ -7,4 +7,4 @@ private val SYSTEM_PROPERTY_REGEX = Regex("""^\[(\S+)]: \[(.*)]$""")
 fun parseGetpropOutput(o: String): Map<String, String> =
     o.split("\n")
         .mapNotNull { line -> SYSTEM_PROPERTY_REGEX.matchEntire(line)?.destructured }
-        .associateBy({ (k, _) -> k }, {(_, v) -> v})
+        .associateBy({ (k, _) -> k }, { (_, v) -> v })

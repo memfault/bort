@@ -5,7 +5,7 @@ import com.memfault.bort.shared.Logger
 
 fun testDropBoxEntryProcessors(): Map<String, EntryProcessor> {
     val testEntryProcessor = TestEntryProcessor()
-    return mapOf (
+    return mapOf(
         *testEntryProcessor.tagPairs()
     )
 }

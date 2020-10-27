@@ -5,6 +5,7 @@ import argparse  # requires Python 3.2+
 import datetime
 import glob
 import logging
+import logging.handlers
 import os
 import platform
 import re
@@ -17,7 +18,10 @@ from typing import Callable, Iterable, List, Optional, Tuple
 LOG_FILE = "validate-sdk-integration.log"
 
 logging.basicConfig(format="%(message)s", level=logging.INFO)
-fh = logging.FileHandler(LOG_FILE)
+should_rollover = os.path.exists(LOG_FILE) and os.path.getsize(LOG_FILE) > 0
+fh = logging.handlers.RotatingFileHandler(LOG_FILE, backupCount=5)
+if should_rollover:
+    fh.doRollover()
 fh.setLevel(logging.DEBUG)
 logging.getLogger("").addHandler(fh)
 
@@ -112,7 +116,7 @@ class PatchAOSPCommand(Command):
         self._apply_patch_command = apply_patch_command or self._default_apply_patch_command()
         self._force = force
         self._patches_dir = os.path.join(SCRIPT_DIR, "patches", f"android-{android_release}")
-        self._exclude_dirs = exclude
+        self._exclude_dirs = exclude or []
         self._errors = []
         self._warnings = []
 
@@ -317,14 +321,16 @@ def _multiline_search_matcher(pattern: str) -> Callable[[str], bool]:
     return _search
 
 
+def _format_error(description: str, *details: str) -> str:
+    return (2 * os.linesep).join(("", description, *details))
+
+
 def _expect_or_errors(
     *, output: str, description: str, matcher: Callable[[str], bool]
 ) -> List[str]:
     if not output or not matcher(output):
         logging.info("\t Test failed")
-        return [
-            f"{os.linesep}{os.linesep}{description}{os.linesep}{os.linesep}Output did not match:{os.linesep}{os.linesep}{output}"
-        ]
+        return [_format_error(description, "Output did not match:", output)]
 
     logging.info("\tTest passed")
     return []
@@ -348,6 +354,16 @@ def _run_adb_shell_cmd_and_expect(
     if errors:
         return errors
     return _expect_or_errors(output=output, description=description, matcher=matcher)
+
+
+def _run_adb_shell_dumpsys_package(
+    package_id: str, device: Optional[str] = None
+) -> Tuple[Optional[str], List[str]]:
+    return _get_adb_shell_cmd_output_and_errors(
+        description=f"Querying package info for {package_id}",
+        cmd=("dumpsys", "package", package_id),
+        device=device,
+    )
 
 
 def _check_file_ownership_and_secontext(
@@ -596,6 +612,57 @@ class ValidateConnectedDevice(Command):
             )
         )
 
+    def _check_bort_permissions(self, bort_package_info: Optional[str], sdk_version: Optional[int]):
+        for permission, min_sdk_version in (
+            ("android.permission.FOREGROUND_SERVICE", 28),
+            ("android.permission.RECEIVE_BOOT_COMPLETED", 1),
+            ("android.permission.INTERNET", 1),
+            ("android.permission.ACCESS_NETWORK_STATE", 1),
+            ("android.permission.DUMP", 1),
+            ("android.permission.WAKE_LOCK", 1),
+        ):
+            if sdk_version < min_sdk_version:
+                logging.info(
+                    "\nSkipping check for '%s' because it is not supported (SDK version %d < %d)",
+                    permission,
+                    sdk_version,
+                    min_sdk_version,
+                )
+                continue
+            description = f"Verifying MemfaultBort app has permission '{permission}'"
+            logging.info("\n%s", description)
+            self._errors.extend(
+                _expect_or_errors(
+                    output=bort_package_info,
+                    description=description,
+                    matcher=_multiline_search_matcher(rf"{permission}: granted=true"),
+                )
+            )
+
+    def _check_package_versions(self, *package_infos: Optional[str]):
+        description = "\nVerifying Bort packages have the same version"
+        logging.info(description)
+        if not all(package_infos):
+            logging.info("\t Test failed")
+            self._errors.append(_format_error(description, "Missing package info"))
+            return
+
+        def _find_version_names(info: str):
+            version_names = re.findall(r"versionName=(\S+)", info, re.RegexFlag.MULTILINE)
+            if len(version_names) > 1:
+                self._errors.append(
+                    _format_error(description, "Multiple versions of same package found:", info)
+                )
+            return version_names[0]
+
+        versions = set(map(_find_version_names, package_infos))
+        if len(versions) > 1:
+            self._errors.append(
+                _format_error(description, "Different versions found:", *package_infos)
+            )
+
+        logging.info("\tTest passed")
+
     def run(self):
         _check_bort_app_id(self._bort_app_id)
         _check_feature_name(self._vendor_feature_name)
@@ -642,30 +709,18 @@ class ValidateConnectedDevice(Command):
                 device=self._device,
             )
         )
-        for permission, min_sdk_version in (
-            ("android.permission.FOREGROUND_SERVICE", 28),
-            ("android.permission.RECEIVE_BOOT_COMPLETED", 1),
-            ("android.permission.INTERNET", 1),
-            ("android.permission.ACCESS_NETWORK_STATE", 1),
-            ("android.permission.DUMP", 1),
-            ("android.permission.WAKE_LOCK", 1),
-        ):
-            if sdk_version < min_sdk_version:
-                logging.info(
-                    "\nSkipping check for '%s' because it is not supported (SDK version %d < %d)",
-                    permission,
-                    sdk_version,
-                    min_sdk_version,
-                )
-                continue
-            self._errors.extend(
-                _run_adb_shell_cmd_and_expect(
-                    description=f"Verifying MemfaultBort app has permission '{permission}'",
-                    cmd=("dumpsys", "package", self._bort_app_id),
-                    matcher=_multiline_search_matcher(rf"{permission}: granted=true"),
-                    device=self._device,
-                )
-            )
+
+        def _get_package_info(app_id: str) -> Optional[str]:
+            package_info, errors = _run_adb_shell_dumpsys_package(app_id, device=self._device)
+            self._errors.extend(errors)
+            return package_info
+
+        bort_package_info, usage_reporter_package_info = map(
+            _get_package_info, (self._bort_app_id, USAGE_REPORTER_APPLICATION_ID)
+        )
+
+        self._check_bort_permissions(bort_package_info, sdk_version)
+        self._check_package_versions(bort_package_info, usage_reporter_package_info)
 
         def _idle_whitelist_matcher(output: str) -> bool:
             lines = output.splitlines()

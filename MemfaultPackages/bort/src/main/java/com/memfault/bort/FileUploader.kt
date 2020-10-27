@@ -1,7 +1,7 @@
 package com.memfault.bort
 
-import retrofit2.Retrofit
 import java.io.File
+import retrofit2.Retrofit
 
 interface FileUploader {
     suspend fun upload(file: File): TaskResult

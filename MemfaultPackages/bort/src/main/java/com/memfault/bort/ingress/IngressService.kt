@@ -1,14 +1,16 @@
 package com.memfault.bort.ingress
 
-import com.memfault.bort.SettingsProvider
+import com.memfault.bort.HttpApiSettings
 import com.memfault.bort.http.ProjectKeyAuthenticated
 import com.memfault.bort.kotlinxJsonConverterFactory
 import com.memfault.bort.uploader.HttpTaskCallFactory
 import com.memfault.bort.uploader.HttpTaskOptions
-import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import retrofit2.Call
 import retrofit2.Retrofit
-import retrofit2.http.*
+import retrofit2.http.Body
+import retrofit2.http.POST
+import retrofit2.http.Tag
 
 internal const val SDK_VERSION = "0.5.0"
 internal const val SOFTWARE_TYPE = "android-build"
@@ -37,11 +39,11 @@ interface IngressService {
 
     companion object {
         fun create(
-            settingsProvider: SettingsProvider,
+            httpApiSettings: HttpApiSettings,
             httpTaskCallFactory: HttpTaskCallFactory
         ): IngressService =
             Retrofit.Builder()
-                .baseUrl(HttpUrl.get(settingsProvider.ingressBaseUrl()))
+                .baseUrl(httpApiSettings.ingressBaseUrl.toHttpUrl())
                 .callFactory(httpTaskCallFactory)
                 .addConverterFactory(
                     kotlinxJsonConverterFactory()

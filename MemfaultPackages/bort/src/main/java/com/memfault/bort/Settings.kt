@@ -2,8 +2,9 @@ package com.memfault.bort
 
 import androidx.work.Constraints
 import androidx.work.NetworkType
+import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.LogLevel
-
+import com.memfault.bort.shared.SdkVersionInfo
 
 enum class NetworkConstraint(
     val networkType: NetworkType
@@ -12,32 +13,57 @@ enum class NetworkConstraint(
     UNMETERED(NetworkType.UNMETERED)
 }
 
-interface SettingsProvider {
-    fun bugReportRequestIntervalHours(): Long
-    fun firstBugReportDelayAfterBootMinutes(): Long
-    fun minLogLevel(): LogLevel
-    fun bugReportNetworkConstraint(): NetworkConstraint
-    fun maxUploadAttempts(): Int
-    fun isRuntimeEnableRequired(): Boolean
-    fun projectKey(): String
-    fun filesBaseUrl(): String
-    fun ingressBaseUrl(): String
-    fun appVersionName(): String
-    fun appVersionCode(): Int
-    fun upstreamVersionName(): String
-    fun upstreamVersionCode(): Int
-    fun upstreamGitSha(): String
-    fun currentGitSha(): String
-    fun androidBuildVersionKey(): String
-    fun androidHardwareVersionKey(): String
-    fun androidSerialNumberKey(): String
+interface BugReportSettings {
+    val dataSourceEnabled: Boolean
+    val requestIntervalHours: Long
+    val defaultOptions: BugReportOptions
+    val maxUploadAttempts: Int
+    val firstBugReportDelayAfterBootMinutes: Long
 }
 
-fun SettingsProvider.uploadConstraints(): Constraints =
-    Constraints.Builder()
-        .setRequiredNetworkType(bugReportNetworkConstraint().networkType)
-        .build()
+interface DropBoxSettings {
+    val dataSourceEnabled: Boolean
+}
 
+enum class AndroidBuildFormat(val id: String) {
+    SYSTEM_PROPERTY_ONLY("system_property_only"),
+    BUILD_FINGERPRINT_ONLY("build_fingerprint_only"),
+    BUILD_FINGERPRINT_AND_SYSTEM_PROPERTY("build_fingerprint_and_system_property");
+
+    companion object {
+        fun getById(id: String) = AndroidBuildFormat.values().first { it.id == id }
+    }
+}
+
+interface DeviceInfoSettings {
+    val androidBuildFormat: AndroidBuildFormat
+    val androidBuildVersionKey: String
+    val androidHardwareVersionKey: String
+    val androidSerialNumberKey: String
+}
+
+interface HttpApiSettings {
+    val projectKey: String
+    val filesBaseUrl: String
+    val ingressBaseUrl: String
+    val uploadNetworkConstraint: NetworkConstraint
+
+    val uploadConstraints: Constraints
+        get() = Constraints.Builder()
+            .setRequiredNetworkType(uploadNetworkConstraint.networkType)
+            .build()
+}
+
+interface SettingsProvider {
+    val minLogLevel: LogLevel
+    val isRuntimeEnableRequired: Boolean
+
+    val httpApiSettings: HttpApiSettings
+    val sdkVersionInfo: SdkVersionInfo
+    val deviceInfoSettings: DeviceInfoSettings
+    val bugReportSettings: BugReportSettings
+    val dropBoxSettings: DropBoxSettings
+}
 
 interface BortEnabledProvider {
     fun setEnabled(isOptedIn: Boolean)

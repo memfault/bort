@@ -7,11 +7,11 @@ import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.kotlinxJsonConverterFactory
 import com.nhaarman.mockitokotlin2.doReturn
 import com.nhaarman.mockitokotlin2.mock
+import java.io.File
+import kotlin.String
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockWebServer
 import retrofit2.Retrofit
-import java.io.File
-import kotlin.String
 
 const val UPLOAD_URL = "https://test.com/abc"
 const val AUTH_TOKEN = "auth_token"
@@ -45,7 +45,6 @@ fun createRetrofit(server: MockWebServer) =
         .baseUrl(server.url("/"))
         .addConverterFactory(kotlinxJsonConverterFactory())
         .build()
-
 
 fun loadTestFileFromResources() = File(
     PreparedUploaderTest::class.java.getResource("/test.txt")!!.path

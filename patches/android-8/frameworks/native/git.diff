@@ -1,0 +1,54 @@
+diff --git a/cmds/dumpstate/dumpstate.cpp b/cmds/dumpstate/dumpstate.cpp
+index 5f93e9906..8cfd2de41 100644
+--- a/cmds/dumpstate/dumpstate.cpp
++++ b/cmds/dumpstate/dumpstate.cpp
+@@ -1268,6 +1268,40 @@ static void DumpstateTelephonyOnly() {
+     printf("========================================================\n");
+ }
+ 
++static void DumpstateMemfaultMinimalMode() {
++    MYLOGI("Running Dumpstate in Memfault Minimal Mode...\n");
++
++    /* Run some operations that require root. */
++    tombstone_data.reset(GetDumpFds(TOMBSTONE_DIR, TOMBSTONE_FILE_PREFIX, !ds.IsZipping()));
++    anr_data.reset(GetDumpFds(ANR_DIR, ANR_FILE_PREFIX, !ds.IsZipping()));
++
++    ds.AddDir(RECOVERY_DIR, true);
++    ds.AddDir(RECOVERY_DATA_DIR, true);
++    ds.AddDir(LOGPERSIST_DATA_DIR, false);
++
++    if (!DropRootUser()) {
++        return;
++    }
++    RunCommand("PRINTENV", {"printenv"});
++    do_dmesg();
++
++    DoLogcat();
++    AddAnrTraceFiles();
++    // NOTE: tombstones are always added as separate entries in the zip archive
++    // and are not interspersed with the main report.
++    const bool tombstones_dumped = AddDumps(tombstone_data->begin(), tombstone_data->end(),
++                                            "TOMBSTONE", true /* add_to_zip */);
++    if (!tombstones_dumped) {
++        printf("*** NO TOMBSTONES to dump in %s\n\n", TOMBSTONE_DIR.c_str());
++    }
++    DoKmsg();
++
++    RunCommand("SYSTEM PROPERTIES", {"getprop"});
++    RunDumpsys("DUMPSYS", {"--skip", "meminfo", "cpuinfo"}, CommandOptions::WithTimeout(90).Build(),
++               10);
++    RunDumpsys("CHECKIN BATTERYSTATS", {"batterystats", "-c"});
++}
++
+ void Dumpstate::DumpstateBoard() {
+     DurationReporter duration_reporter("dumpstate_board()");
+     printf("========================================================\n");
+@@ -1807,6 +1841,8 @@ int main(int argc, char *argv[]) {
+     if (telephony_only) {
+         DumpstateTelephonyOnly();
+         ds.DumpstateBoard();
++    } else if (android::base::GetBoolProperty("dumpstate.memfault.minimal", false)) {
++        DumpstateMemfaultMinimalMode();
+     } else {
+         // Dumps systrace right away, otherwise it will be filled with unnecessary events.
+         // First try to dump anrd trace if the daemon is running. Otherwise, dump

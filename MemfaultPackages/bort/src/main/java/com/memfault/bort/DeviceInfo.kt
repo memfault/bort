@@ -1,5 +1,7 @@
 package com.memfault.bort
 
+import android.os.Build
+
 data class DeviceInfo(
     val deviceSerial: String,
     val hardwareVersion: String,
@@ -7,13 +9,20 @@ data class DeviceInfo(
 ) {
     companion object {
         fun fromSettingsAndSystemProperties(
-            settingsProvider: SettingsProvider,
-            props: Map<String, String>
+            settings: DeviceInfoSettings,
+            props: Map<String, String>,
+            getBuildFingerprint: () -> String = { Build.FINGERPRINT }
         ): DeviceInfo {
+            val softwareVersion = when (settings.androidBuildFormat) {
+                AndroidBuildFormat.SYSTEM_PROPERTY_ONLY -> props[settings.androidBuildVersionKey] ?: "unknown"
+                AndroidBuildFormat.BUILD_FINGERPRINT_ONLY -> getBuildFingerprint()
+                AndroidBuildFormat.BUILD_FINGERPRINT_AND_SYSTEM_PROPERTY ->
+                    "${getBuildFingerprint()}::${props[settings.androidBuildVersionKey] ?: "unknown"}"
+            }
             return DeviceInfo(
-                props[settingsProvider.androidSerialNumberKey()] ?: "unknown",
-                hardwareVersionFromSettingsAndSystemProperties(settingsProvider, props),
-                props[settingsProvider.androidBuildVersionKey()] ?: "unknown"
+                props[settings.androidSerialNumberKey] ?: "unknown",
+                hardwareVersionFromSettingsAndSystemProperties(settings, props),
+                softwareVersion
             )
         }
 
@@ -23,10 +32,10 @@ data class DeviceInfo(
                 .joinToString("-")
 
         fun hardwareVersionFromSettingsAndSystemProperties(
-            settingsProvider: SettingsProvider,
+            settings: DeviceInfoSettings,
             props: Map<String, String>
         ): String =
-            settingsProvider.androidHardwareVersionKey().let { key ->
+            settings.androidHardwareVersionKey.let { key ->
                 if (key != "") {
                     props[key] ?: "unknown"
                 } else {

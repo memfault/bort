@@ -3,20 +3,20 @@ package com.memfault.bort.uploader
 import androidx.work.workDataOf
 import com.memfault.bort.FileUploader
 import com.memfault.bort.TaskResult
-import kotlinx.coroutines.runBlocking
-import org.junit.Assert
-import org.junit.Before
-import org.junit.Test
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.util.*
+import java.util.UUID
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
 class BugReportUploaderTest {
 
     lateinit var file: File
 
-    @Before
+    @BeforeEach
     fun loadFile() {
         file = File.createTempFile(UUID.randomUUID().toString(), "").apply {
             deleteOnExit()
@@ -45,7 +45,8 @@ class BugReportUploaderTest {
     fun maxUploadAttemptFails() {
         val worker = mockTaskRunnerWorker(
             makeBugreportUploadInputData(filePath = file.toString()),
-            runAttemptCount = 4)
+            runAttemptCount = 4
+        )
         val result = runBlocking {
             BugReportUploader(
                 delegate = fakeFileUploader(),

@@ -3,7 +3,11 @@ package com.memfault.bort.receivers
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.memfault.bort.*
+import com.memfault.bort.Bort
+import com.memfault.bort.BortEnabledProvider
+import com.memfault.bort.DeviceIdProvider
+import com.memfault.bort.ReporterServiceConnector
+import com.memfault.bort.SettingsProvider
 import com.memfault.bort.ingress.IngressService
 import com.memfault.bort.shared.Logger
 import okhttp3.OkHttpClient
@@ -11,7 +15,7 @@ import okhttp3.OkHttpClient
 /** A receiver that only runs if the SDK is enabled. */
 abstract class BortEnabledFilteringReceiver(
     actions: Set<String>
-): FilteringReceiver(actions) {
+) : FilteringReceiver(actions) {
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {
         if (!bortEnabledProvider.isEnabled()) {
             Logger.i("Bort not enabled, not running receiver")
@@ -26,7 +30,7 @@ abstract class BortEnabledFilteringReceiver(
 /** A receiver that filters intents for the specified actions. */
 abstract class FilteringReceiver(
     private val actions: Set<String>
-): BroadcastReceiver() {
+) : BroadcastReceiver() {
     protected lateinit var settingsProvider: SettingsProvider
     protected lateinit var bortEnabledProvider: BortEnabledProvider
     protected lateinit var okHttpClient: OkHttpClient

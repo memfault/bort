@@ -9,7 +9,7 @@ internal object ServiceManagerProxy {
     @JvmStatic
     fun getService(name: String): IBinder? {
         try {
-            return with (Class.forName("android.os.ServiceManager")) {
+            return with(Class.forName("android.os.ServiceManager")) {
                 this.getMethod(
                     "getService",
                     String::class.java

@@ -8,7 +8,9 @@ import androidx.preference.PreferenceManager
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import com.memfault.bort.*
+import com.memfault.bort.LastTrackedBootCountProvider
+import com.memfault.bort.PersistentProjectKeyProvider
+import com.memfault.bort.selfTesting.SelfTestWorker
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
 

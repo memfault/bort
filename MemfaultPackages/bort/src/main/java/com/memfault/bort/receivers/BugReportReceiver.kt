@@ -2,7 +2,9 @@ package com.memfault.bort.receivers
 
 import android.content.Context
 import android.content.Intent
-import com.memfault.bort.*
+import com.memfault.bort.INTENT_ACTION_BUGREPORT_FINISHED
+import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
+import com.memfault.bort.enqueueWorkOnce
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.uploader.BugReportUploader
 import com.memfault.bort.uploader.makeBugreportUploadInputData
@@ -25,7 +27,7 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
             context,
             makeBugreportUploadInputData(bugreportFile.toString())
         ) {
-            setConstraints(settingsProvider.uploadConstraints())
+            setConstraints(settingsProvider.httpApiSettings.uploadConstraints)
             addTag(WORK_TAG)
         }
     }

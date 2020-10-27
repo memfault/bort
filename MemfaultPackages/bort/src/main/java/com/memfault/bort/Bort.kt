@@ -8,7 +8,6 @@ import androidx.work.Configuration
 import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
-
 import com.memfault.bort.shared.Logger
 
 open class Bort : Application(), Configuration.Provider {
@@ -35,35 +34,50 @@ open class Bort : Application(), Configuration.Provider {
         Logger.logEventBortSdkEnabled(appComponents().isEnabled())
 
         with(appComponents().settingsProvider) {
-            Logger.minLevel = minLogLevel()
+            Logger.minLevel = minLogLevel
             Logger.logEvent(
+                "bort-oncreate",
                 "device=${appComponents().deviceIdProvider.deviceId()}",
-                "appVersionName=${appVersionName()}",
-                "appVersionCode=${appVersionCode()}",
-                "currentGitSha=${currentGitSha()}",
-                "upstreamGitSha${upstreamGitSha()}",
-                "upstreamVersionName=${upstreamVersionName()}",
-                "upstreamVersionCode=${upstreamVersionCode()}"
+                "appVersionName=${sdkVersionInfo.appVersionName}",
+                "appVersionCode=${sdkVersionInfo.appVersionCode}",
+                "currentGitSha=${sdkVersionInfo.currentGitSha}",
+                "upstreamGitSha${sdkVersionInfo.upstreamGitSha}",
+                "upstreamVersionName=${sdkVersionInfo.upstreamVersionName}",
+                "upstreamVersionCode=${sdkVersionInfo.upstreamVersionCode}",
+                "bugreport.enabled=${bugReportSettings.dataSourceEnabled}",
+                "dropbox.enabled=${dropBoxSettings.dataSourceEnabled}",
             )
             Logger.v(
                 """
-                Settings:
-                device=${appComponents().deviceIdProvider.deviceId()}
-                androidBuildVersionKey=${androidBuildVersionKey()}
-                androidHardwareVersionKey=${androidHardwareVersionKey()}
-                appVersionName=${appVersionName()}
-                appVersionCode=${appVersionCode()}
-                currentGitSha=${currentGitSha()}
-                upstreamGitSha=${upstreamGitSha()}
-                upstreamVersionName=${upstreamVersionName()}
-                upstreamVersionCode=${upstreamVersionCode()}
-                requestIntervalHours=${bugReportRequestIntervalHours()}
-                minLogLevel=${minLogLevel()}
-                networkConstraint=${bugReportNetworkConstraint()}
-                maxUploadAttempts=${maxUploadAttempts()}
-                isRuntimeEnableRequired=${isRuntimeEnableRequired()}
-                build=${Build.TYPE}
-            """.trimIndent()
+                |Settings:
+                |  device=${appComponents().deviceIdProvider.deviceId()}
+                |  minLogLevel=$minLogLevel
+                |  isRuntimeEnableRequired=$isRuntimeEnableRequired
+                |  build=${Build.TYPE}
+                |Http Api Settings:
+                |  filesBaseUrl=${httpApiSettings.filesBaseUrl}
+                |  ingressBaseUrl=${httpApiSettings.ingressBaseUrl}
+                |  uploadNetworkConstraint=${httpApiSettings.uploadNetworkConstraint}
+                |Device Info Settings:
+                |  androidBuildVersionKey=${deviceInfoSettings.androidBuildVersionKey}
+                |  androidHardwareVersionKey=${deviceInfoSettings.androidHardwareVersionKey}
+                |  androidSerialNumberKey=${deviceInfoSettings.androidSerialNumberKey}
+                |Bug Report Settings:
+                |  dataSourceEnabled=${bugReportSettings.dataSourceEnabled}
+                |  requestIntervalHours=${bugReportSettings.requestIntervalHours}
+                |  defaultOptions=${bugReportSettings.defaultOptions}
+                |  maxUploadAttempts=${bugReportSettings.maxUploadAttempts}
+                |  firstBugReportDelayAfterBootMinutes=${bugReportSettings.firstBugReportDelayAfterBootMinutes}
+                |DropBox Settings:
+                |  dataSourceEnabled=${dropBoxSettings.dataSourceEnabled}
+                |SDK Version Info:
+                |  appVersionName=${sdkVersionInfo.appVersionName}
+                |  appVersionCode=${sdkVersionInfo.appVersionCode}
+                |  currentGitSha=${sdkVersionInfo.currentGitSha}
+                |  upstreamGitSha=${sdkVersionInfo.upstreamGitSha}
+                |  upstreamVersionName=${sdkVersionInfo.upstreamVersionName}
+                |  upstreamVersionCode=${sdkVersionInfo.upstreamVersionCode}
+                """.trimMargin()
             )
         }
     }

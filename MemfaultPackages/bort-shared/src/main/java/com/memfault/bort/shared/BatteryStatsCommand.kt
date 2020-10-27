@@ -115,7 +115,7 @@ data class BatteryStatsCommand(
                 settings = getBoolean(SETTINGS),
                 cpu = getBoolean(CPU),
                 optionEnablement = getBooleanOrNull(ENABLED)?.let { enabled ->
-                    BatteryStatsOption.getById(getByte(OPTION))?.let {option ->
+                    BatteryStatsOption.getById(getByte(OPTION))?.let { option ->
                         BatteryStatsOptionEnablement(enabled, option)
                     }
                 },
@@ -127,17 +127,10 @@ data class BatteryStatsCommand(
 
 data class BatteryStatsOptionEnablement(val enabled: Boolean, val option: BatteryStatsOption)
 
-enum class BatteryStatsOption(val id: Byte) {
-    FULL_HISTORY(0) {
-        override val cliValue: String = "full-history"
-    },
-    NO_AUTO_RESET(1) {
-        override val cliValue: String = "no-auto-reset"
-    },
-    PRETEND_SCREEN_OFF(2) {
-        override val cliValue: String = "pretend-screen-off"
-    };
-    abstract val cliValue: String
+enum class BatteryStatsOption(val id: Byte, val cliValue: String) {
+    FULL_HISTORY(0, "full-history"),
+    NO_AUTO_RESET(1, "no-auto-reset"),
+    PRETEND_SCREEN_OFF(2, "pretend-screen-off");
 
     companion object {
         fun getById(id: Byte) = values().firstOrNull { it.id == id }

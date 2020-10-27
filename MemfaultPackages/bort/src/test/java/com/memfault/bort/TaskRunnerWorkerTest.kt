@@ -4,9 +4,9 @@ import androidx.work.Data
 import androidx.work.workDataOf
 import com.memfault.bort.uploader.mockTaskRunnerWorker
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.*
-import org.junit.Test
-
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
 private val SAMPLE_TASK_INPUT_DATA_KEY = "key"
 
@@ -55,9 +55,12 @@ class BaseTaskTest {
                 runAttemptCount = runAttemptCount
             ).let { worker ->
                 SampleTask(maxAttempts = 1, result = TaskResult.RETRY).let { task ->
-                    assertEquals(expectedResult, runBlocking {
-                        task.doWork(worker)
-                    })
+                    assertEquals(
+                        expectedResult,
+                        runBlocking {
+                            task.doWork(worker)
+                        }
+                    )
                     assertEquals(expectedFinallyCalled, task.finallyCalled)
                 }
             }

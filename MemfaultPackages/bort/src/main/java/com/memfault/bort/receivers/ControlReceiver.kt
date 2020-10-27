@@ -2,17 +2,20 @@ package com.memfault.bort.receivers
 
 import android.content.Context
 import android.content.Intent
-import com.memfault.bort.*
+import com.memfault.bort.INTENT_ACTION_BORT_ENABLE
+import com.memfault.bort.INTENT_ACTION_BUG_REPORT_REQUESTED
+import com.memfault.bort.INTENT_EXTRA_BORT_ENABLED
 import com.memfault.bort.requester.BugReportRequester
+import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.uploader.sendSdkEnabledEvent
 
 /** Base receiver to handle events that control the SDK. */
-abstract class BaseControlReceiver: FilteringReceiver(
+abstract class BaseControlReceiver : FilteringReceiver(
     setOf(INTENT_ACTION_BORT_ENABLE, INTENT_ACTION_BUG_REPORT_REQUESTED)
 ) {
 
-    private fun onBugReportRequested(context: Context) {
+    private fun onBugReportRequested(context: Context, options: BugReportOptions) {
         Logger.v("Received request for bug report")
         if (!bortEnabledProvider.isEnabled()) {
             Logger.w("Bort not enabled; not sending request")
@@ -20,13 +23,13 @@ abstract class BaseControlReceiver: FilteringReceiver(
         }
         BugReportRequester(
             context
-        ).request()
+        ).request(options)
     }
 
     private fun onBortEnabled(context: Context, intent: Intent) {
         val isNowEnabled = intent.getBooleanExtra(
             INTENT_EXTRA_BORT_ENABLED,
-            !settingsProvider.isRuntimeEnableRequired()
+            !settingsProvider.isRuntimeEnableRequired
         )
         val wasEnabled = bortEnabledProvider.isEnabled()
         Logger.test("wasEnabled=$wasEnabled isNowEnabled=$isNowEnabled")
@@ -40,7 +43,8 @@ abstract class BaseControlReceiver: FilteringReceiver(
         BugReportRequester(context).also {
             if (isNowEnabled) {
                 it.requestPeriodic(
-                    settingsProvider.bugReportRequestIntervalHours()
+                    settingsProvider.bugReportSettings.requestIntervalHours,
+                    settingsProvider.bugReportSettings.defaultOptions
                 )
             } else {
                 it.cancelPeriodic()
@@ -50,23 +54,23 @@ abstract class BaseControlReceiver: FilteringReceiver(
             ingressService,
             isNowEnabled,
             deviceIdProvider,
-            settingsProvider
+            settingsProvider.sdkVersionInfo
         )
     }
 
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {
         when (action) {
-            INTENT_ACTION_BUG_REPORT_REQUESTED -> onBugReportRequested(context)
+            INTENT_ACTION_BUG_REPORT_REQUESTED -> onBugReportRequested(context, BugReportOptions.fromIntent(intent))
             INTENT_ACTION_BORT_ENABLE -> onBortEnabled(context, intent)
         }
     }
 }
 
 @Deprecated("Please target ControlReceiver")
-class RequestBugReportReceiver: BaseControlReceiver()
+class RequestBugReportReceiver : BaseControlReceiver()
 
 @Deprecated("Please target ControlReceiver")
-class BortEnableReceiver: BaseControlReceiver()
+class BortEnableReceiver : BaseControlReceiver()
 
 class ShellControlReceiver : BaseControlReceiver()
 

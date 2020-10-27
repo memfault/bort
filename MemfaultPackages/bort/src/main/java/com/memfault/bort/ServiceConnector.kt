@@ -7,14 +7,12 @@ import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.RemoteException
 import com.memfault.bort.shared.Logger
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import java.lang.AssertionError
 import java.lang.Exception
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
-
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 typealias ServiceGetter<S> = suspend () -> S
 
@@ -55,13 +53,13 @@ abstract class ServiceConnector<S>(val context: Context, val componentName: Comp
         }
 
         override fun onBindingDied(name: ComponentName?) {
-            Logger.e("onBindingDied: ${name}")
+            Logger.e("onBindingDied: $name")
             service.completeExceptionally(RemoteException("Binding for $name died"))
             // Should never happen because the service is part of a system app.
         }
 
         override fun onNullBinding(name: ComponentName?) {
-            Logger.e("onNullBinding: ${name}")
+            Logger.e("onNullBinding: $name")
             service.completeExceptionally(RemoteException("Null binding for $name"))
             // Programmer error in the service. Don't bother trying to recover.
         }

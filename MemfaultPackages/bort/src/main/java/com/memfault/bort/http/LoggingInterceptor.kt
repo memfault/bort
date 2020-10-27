@@ -5,10 +5,8 @@ import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 
-
 private fun obfuscateProjectKey(projectKey: String) =
     "${projectKey.subSequence(0, 2)}...${projectKey.last()}"
-
 
 class LoggingNetworkInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -21,16 +19,17 @@ class LoggingNetworkInterceptor : Interceptor {
         Logger.v(
             """
 Sending request
-> ${request.url()}
+> ${request.url}
 > ID=$xRequestId
 > key=$obfuscatedProjectKey
-""".trimEnd())
+""".trimEnd()
+        )
         val response: Response = chain.proceed(request)
         val t2: Long = System.nanoTime()
         val delta = (t2 - t1) / 1e6
         Logger.v(
             """
-Received response for ${response.request().url()} in ${String.format("%.1f", delta)} ms
+Received response for ${response.request.url} in ${String.format("%.1f", delta)} ms
         """.trimEnd()
         )
 
@@ -38,10 +37,11 @@ Received response for ${response.request().url()} in ${String.format("%.1f", del
             Logger.w(
                 """
 Request failed
-> code=${response.code()}
+> code=${response.code}
 > ID=$xRequestId
-> message=${response.message()}
-""".trimEnd())
+> message=${response.message}
+""".trimEnd()
+            )
         }
         return response
     }

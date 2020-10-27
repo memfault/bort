@@ -1,0 +1,56 @@
+diff --git a/cmds/dumpstate/dumpstate.cpp b/cmds/dumpstate/dumpstate.cpp
+index 5de40776b..7a4cf1422 100644
+--- a/cmds/dumpstate/dumpstate.cpp
++++ b/cmds/dumpstate/dumpstate.cpp
+@@ -1791,6 +1791,42 @@ Dumpstate::RunStatus Dumpstate::DumpTraces(const char** path) {
+     return RunStatus::OK;
+ }
+ 
++static void DumpstateMemfaultMinimalMode() {
++    MYLOGI("Running Dumpstate in Memfault Minimal Mode...\n");
++
++    /* Run some operations that require root. */
++    ds.tombstone_data_ = GetDumpFds(TOMBSTONE_DIR, TOMBSTONE_FILE_PREFIX, !ds.IsZipping());
++    ds.anr_data_ = GetDumpFds(ANR_DIR, ANR_FILE_PREFIX, !ds.IsZipping());
++    ds.AddDir(RECOVERY_DIR, true);
++    ds.AddDir(RECOVERY_DATA_DIR, true);
++    ds.AddDir(UPDATE_ENGINE_LOG_DIR, true);
++    ds.AddDir(LOGPERSIST_DATA_DIR, false);
++
++    if (!DropRootUser()) {
++        return;
++    }
++    RunCommand("PRINTENV", {"printenv"});
++    if (__android_logger_property_get_bool(
++        "ro.logd.kernel", BOOL_DEFAULT_TRUE | BOOL_DEFAULT_FLAG_ENG | BOOL_DEFAULT_FLAG_SVELTE)) {
++        DoKernelLogcat();
++    } else {
++        do_dmesg();
++    }
++    DoLogcat();
++    AddAnrTraceFiles();
++    // NOTE: tombstones are always added as separate entries in the zip archive
++    // and are not interspersed with the main report.
++    const bool tombstones_dumped = AddDumps(ds.tombstone_data_.begin(), ds.tombstone_data_.end(),
++                                            "TOMBSTONE", true /* add_to_zip */);
++    if (!tombstones_dumped) {
++        printf("*** NO TOMBSTONES to dump in %s\n\n", TOMBSTONE_DIR.c_str());
++    }
++    DoKmsg();
++    RunCommand("SYSTEM PROPERTIES", {"getprop"});
++    RunDumpsysNormal();
++    RunDumpsys("CHECKIN BATTERYSTATS", {"batterystats", "-c"});
++}
++
+ void Dumpstate::DumpstateBoard() {
+     DurationReporter duration_reporter("dumpstate_board()");
+     printf("========================================================\n");
+@@ -2685,6 +2721,8 @@ Dumpstate::RunStatus Dumpstate::RunInternal(int32_t calling_uid,
+         DumpstateBoard();
+     } else if (options_->wifi_only) {
+         DumpstateWifiOnly();
++    } else if (android::base::GetBoolProperty("dumpstate.memfault.minimal", false)) {
++        DumpstateMemfaultMinimalMode();
+     } else {
+         // Dump state for the default case. This also drops root.
+         RunStatus s = DumpstateDefault();

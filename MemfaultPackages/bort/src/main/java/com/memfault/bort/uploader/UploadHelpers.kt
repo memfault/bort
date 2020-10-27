@@ -1,8 +1,8 @@
 package com.memfault.bort.uploader
 
 import androidx.work.CoroutineWorker
-import com.memfault.bort.shared.Logger
 import com.memfault.bort.TaskResult
+import com.memfault.bort.shared.Logger
 
 inline fun <W : CoroutineWorker> W.limitAttempts(
     maxAttempts: Int = 3,

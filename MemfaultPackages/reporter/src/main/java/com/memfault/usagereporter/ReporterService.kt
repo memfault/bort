@@ -3,10 +3,35 @@ package com.memfault.usagereporter
 import android.app.Service
 import android.content.Intent
 import android.content.SharedPreferences
-import android.os.*
+import android.os.DropBoxManager
+import android.os.Handler
+import android.os.HandlerThread
+import android.os.IBinder
+import android.os.Message
+import android.os.Messenger
 import android.os.Process.THREAD_PRIORITY_BACKGROUND
+import android.os.RemoteException
 import androidx.preference.PreferenceManager
-import com.memfault.bort.shared.*
+import com.memfault.bort.shared.BatteryStatsRequest
+import com.memfault.bort.shared.BatteryStatsResponse
+import com.memfault.bort.shared.Command
+import com.memfault.bort.shared.CommandRunnerOptions
+import com.memfault.bort.shared.DropBoxGetNextEntryRequest
+import com.memfault.bort.shared.DropBoxGetNextEntryResponse
+import com.memfault.bort.shared.DropBoxSetTagFilterRequest
+import com.memfault.bort.shared.DropBoxSetTagFilterResponse
+import com.memfault.bort.shared.ErrorResponse
+import com.memfault.bort.shared.LogcatRequest
+import com.memfault.bort.shared.LogcatResponse
+import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.PreferenceKeyProvider
+import com.memfault.bort.shared.REPORTER_SERVICE_VERSION
+import com.memfault.bort.shared.ReporterServiceMessage
+import com.memfault.bort.shared.RunCommandRequest
+import com.memfault.bort.shared.ServiceMessage
+import com.memfault.bort.shared.UnknownMessageException
+import com.memfault.bort.shared.VersionRequest
+import com.memfault.bort.shared.VersionResponse
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -30,14 +55,17 @@ class DropBoxMessageHandler(
     }
 
     fun handleGetNextEntryRequest(request: DropBoxGetNextEntryRequest, sendReply: SendReply) {
-        sendReply(when (val db = getDropBoxManager()) {
-            null -> ErrorResponse("Failed to get DropBoxManager")
-            else -> try {
-                DropBoxGetNextEntryResponse(findFirstMatchingEntry(db, request.lastTimeMillis))
-            } catch (e: Exception) {
-                ErrorResponse.fromException(e)
+        sendReply(
+            when (val db = getDropBoxManager()) {
+                null -> ErrorResponse("Failed to get DropBoxManager")
+                else ->
+                    try {
+                        DropBoxGetNextEntryResponse(findFirstMatchingEntry(db, request.lastTimeMillis))
+                    } catch (e: Exception) {
+                        ErrorResponse.fromException(e)
+                    }
             }
-        })
+        )
     }
 
     private fun findFirstMatchingEntry(db: DropBoxManager, lastTimeMillis: Long): DropBoxManager.Entry? {
@@ -62,6 +90,11 @@ class RunCommandMessageHandler(
         enqueueCommandRequest(request).also {
             sendReply(BatteryStatsResponse())
         }
+
+    fun handleLogcatRequest(request: LogcatRequest, sendReply: SendReply) =
+        enqueueCommandRequest(request).also {
+            sendReply(LogcatResponse())
+        }
 }
 
 // android.os.Message cannot be instantiated in unit tests. The odd code splitting & injecting is
@@ -85,7 +118,7 @@ class ReporterServiceMessageHandler(
         serviceMessage: ReporterServiceMessage?,
         message: Message
     ): Boolean {
-        Logger.v("Got serviceMessage: ${serviceMessage}")
+        Logger.v("Got serviceMessage: $serviceMessage")
 
         val sendReply: SendReply = {
             try {
@@ -97,16 +130,18 @@ class ReporterServiceMessageHandler(
         when (serviceMessage) {
             is BatteryStatsRequest ->
                 runCommandMessageHandler.handleBatteryStatsRequest(serviceMessage, sendReply)
+            is LogcatRequest ->
+                runCommandMessageHandler.handleLogcatRequest(serviceMessage, sendReply)
             is DropBoxSetTagFilterRequest ->
                 dropBoxMessageHandler.handleSetTagFilterMessage(serviceMessage, sendReply)
             is DropBoxGetNextEntryRequest ->
                 dropBoxMessageHandler.handleGetNextEntryRequest(serviceMessage, sendReply)
             is VersionRequest -> handleVersionRequest(sendReply)
-            null -> sendReply(ErrorResponse("Unknown Message: ${message}")).also {
-                Logger.e("Unknown Message: ${message}")
+            null -> sendReply(ErrorResponse("Unknown Message: $message")).also {
+                Logger.e("Unknown Message: $message")
             }
-            else -> sendReply(ErrorResponse("Cannot handle: ${serviceMessage}")).also {
-                Logger.e("Cannot handle: ${serviceMessage}")
+            else -> sendReply(ErrorResponse("Cannot handle: $serviceMessage")).also {
+                Logger.e("Cannot handle: $serviceMessage")
             }
         }
 
@@ -168,7 +203,7 @@ class ReporterService : Service() {
 
     private fun getSendReply(message: Message): SendReply {
         return { serviceMessage: ServiceMessage ->
-                message.replyTo.send(serviceMessage.toMessage())
+            message.replyTo.send(serviceMessage.toMessage())
         }
     }
 

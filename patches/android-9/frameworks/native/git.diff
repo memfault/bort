@@ -1,0 +1,56 @@
+diff --git a/cmds/dumpstate/dumpstate.cpp b/cmds/dumpstate/dumpstate.cpp
+index 1d951bed2..871f6bddb 100644
+--- a/cmds/dumpstate/dumpstate.cpp
++++ b/cmds/dumpstate/dumpstate.cpp
+@@ -1567,6 +1567,42 @@ static void DumpstateWifiOnly() {
+     printf("========================================================\n");
+ }
+ 
++static void DumpstateMemfaultMinimalMode() {
++    MYLOGI("Running Dumpstate in Memfault Minimal Mode...\n");
++
++    /* Run some operations that require root. */
++    ds.tombstone_data_ = GetDumpFds(TOMBSTONE_DIR, TOMBSTONE_FILE_PREFIX, !ds.IsZipping());
++    ds.anr_data_ = GetDumpFds(ANR_DIR, ANR_FILE_PREFIX, !ds.IsZipping());
++    ds.AddDir(RECOVERY_DIR, true);
++    ds.AddDir(RECOVERY_DATA_DIR, true);
++    ds.AddDir(UPDATE_ENGINE_LOG_DIR, true);
++    ds.AddDir(LOGPERSIST_DATA_DIR, false);
++
++    if (!DropRootUser()) {
++        return;
++    }
++    RunCommand("PRINTENV", {"printenv"});
++    if (__android_logger_property_get_bool(
++        "ro.logd.kernel", BOOL_DEFAULT_TRUE | BOOL_DEFAULT_FLAG_ENG | BOOL_DEFAULT_FLAG_SVELTE)) {
++        DoKernelLogcat();
++    } else {
++        do_dmesg();
++    }
++    DoLogcat();
++    AddAnrTraceFiles();
++    // NOTE: tombstones are always added as separate entries in the zip archive
++    // and are not interspersed with the main report.
++    const bool tombstones_dumped = AddDumps(ds.tombstone_data_.begin(), ds.tombstone_data_.end(),
++                                            "TOMBSTONE", true /* add_to_zip */);
++    if (!tombstones_dumped) {
++        printf("*** NO TOMBSTONES to dump in %s\n\n", TOMBSTONE_DIR.c_str());
++    }
++    DoKmsg();
++    RunCommand("SYSTEM PROPERTIES", {"getprop"});
++    RunDumpsysNormal();
++    RunDumpsys("CHECKIN BATTERYSTATS", {"batterystats", "-c"});
++}
++
+ void Dumpstate::DumpstateBoard() {
+     DurationReporter duration_reporter("dumpstate_board()");
+     printf("========================================================\n");
+@@ -2144,6 +2180,8 @@ int run_main(int argc, char* argv[]) {
+         ds.DumpstateBoard();
+     } else if (wifi_only) {
+         DumpstateWifiOnly();
++    } else if (android::base::GetBoolProperty("dumpstate.memfault.minimal", false)) {
++        DumpstateMemfaultMinimalMode();
+     } else {
+         // Dumps systrace right away, otherwise it will be filled with unnecessary events.
+         // First try to dump anrd trace if the daemon is running. Otherwise, dump

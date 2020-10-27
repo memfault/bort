@@ -17,18 +17,21 @@ import com.memfault.bort.http.DebugInfoInjectingInterceptor
 import com.memfault.bort.http.LoggingNetworkInterceptor
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.ingress.IngressService
-import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.PreferenceKeyProvider
-import com.memfault.bort.uploader.*
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonConfiguration
-import okhttp3.HttpUrl
+import com.memfault.bort.uploader.BugReportUploader
+import com.memfault.bort.uploader.HttpTask
+import com.memfault.bort.uploader.HttpTaskCallFactory
+import com.memfault.bort.uploader.MemfaultBugReportUploader
+import com.memfault.bort.uploader.PreparedUploadService
+import com.memfault.bort.uploader.PreparedUploader
+import java.util.UUID
+import kotlinx.serialization.ExperimentalSerializationApi
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
-import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import retrofit2.Converter
 import retrofit2.Retrofit
-import java.util.*
 
 // A simple holder for application components
 // This example uses a service locator pattern over a DI framework for simplicity and ease of use;
@@ -67,12 +70,14 @@ data class AppComponents(
             val settingsProvider = settingsProvider ?: BuildConfigSettingsProvider()
             val deviceIdProvider = deviceIdProvider ?: RandomUuidDeviceIdProvider(sharedPreferences)
             val fileUploaderFactory = fileUploaderFactory ?: MemfaultFileUploaderFactory()
-            val projectKeyInjectingInterceptor = ProjectKeyInjectingInterceptor(settingsProvider::projectKey)
+            val projectKeyInjectingInterceptor = ProjectKeyInjectingInterceptor(
+                settingsProvider.httpApiSettings::projectKey
+            )
             val okHttpClient = okHttpClient ?: OkHttpClient.Builder()
                 .addInterceptor(projectKeyInjectingInterceptor)
                 .addInterceptor(
                     debugInfoInjectingInterceptor ?: DebugInfoInjectingInterceptor(
-                        settingsProvider,
+                        settingsProvider.sdkVersionInfo,
                         deviceIdProvider
                     )
                 )
@@ -80,16 +85,16 @@ data class AppComponents(
                 .build()
             val retrofit = retrofit ?: Retrofit.Builder()
                 .client(okHttpClient)
-                .baseUrl(HttpUrl.get(settingsProvider.filesBaseUrl()))
+                .baseUrl(settingsProvider.httpApiSettings.filesBaseUrl.toHttpUrl())
                 .addConverterFactory(
                     kotlinxJsonConverterFactory()
                 )
                 .build()
             val bortEnabledProvider =
-                bortEnabledProvider ?: if (settingsProvider.isRuntimeEnableRequired()) {
+                bortEnabledProvider ?: if (settingsProvider.isRuntimeEnableRequired) {
                     PreferenceBortEnabledProvider(
                         sharedPreferences,
-                        defaultValue = !settingsProvider.isRuntimeEnableRequired()
+                        defaultValue = !settingsProvider.isRuntimeEnableRequired
                     )
                 } else {
                     BortAlwaysEnabledProvider()
@@ -108,14 +113,13 @@ data class AppComponents(
                 retrofit = retrofit,
                 fileUploaderFactory = fileUploaderFactory,
                 okHttpClient = okHttpClient,
-                deviceIdProvider = deviceIdProvider,
                 reporterServiceConnector = reporterServiceConnector,
                 dropBoxEntryProcessors = dropBoxEntryProcessors,
                 interceptingFactory = interceptingWorkerFactory
             )
 
             val httpTaskCallFactory = HttpTaskCallFactory.fromContextAndConstraints(
-                context, settingsProvider.uploadConstraints(), projectKeyInjectingInterceptor
+                context, settingsProvider.httpApiSettings.uploadConstraints, projectKeyInjectingInterceptor
             )
 
             return AppComponents(
@@ -127,7 +131,7 @@ data class AppComponents(
                 bortEnabledProvider = bortEnabledProvider,
                 deviceIdProvider = deviceIdProvider,
                 httpTaskCallFactory = httpTaskCallFactory,
-                ingressService = IngressService.create(settingsProvider, httpTaskCallFactory),
+                ingressService = IngressService.create(settingsProvider.httpApiSettings, httpTaskCallFactory),
                 reporterServiceConnector = reporterServiceConnector
             )
         }
@@ -136,9 +140,9 @@ data class AppComponents(
     fun isEnabled(): Boolean = bortEnabledProvider.isEnabled()
 }
 
+@OptIn(ExperimentalSerializationApi::class)
 fun kotlinxJsonConverterFactory(): Converter.Factory =
-    Json(JsonConfiguration.Stable)
-        .asConverterFactory(MediaType.get("application/json"))
+    BortJson.asConverterFactory("application/json".toMediaType())
 
 interface DeviceIdProvider {
     fun deviceId(): String
@@ -152,49 +156,6 @@ class RandomUuidDeviceIdProvider(
     preferenceKey = PREFERENCE_DEVICE_ID
 ) {
     override fun deviceId(): String = super.getValue()
-}
-
-open class BuildConfigSettingsProvider : SettingsProvider {
-    override fun bugReportRequestIntervalHours() =
-        BuildConfig.BUG_REPORT_REQUEST_INTERVAL_HOURS.toLong()
-
-    override fun firstBugReportDelayAfterBootMinutes(): Long =
-        BuildConfig.FIRST_BUG_REPORT_DELAY_AFTER_BOOT_MINUTES.toLong()
-
-    override fun minLogLevel(): LogLevel =
-        LogLevel.fromInt(BuildConfig.MINIMUM_LOG_LEVEL) ?: LogLevel.VERBOSE
-
-    override fun bugReportNetworkConstraint(): NetworkConstraint =
-        if (BuildConfig.UPLOAD_NETWORK_CONSTRAINT_ALLOW_METERED_CONNECTION) NetworkConstraint.CONNECTED
-        else NetworkConstraint.UNMETERED
-
-    override fun maxUploadAttempts(): Int = BuildConfig.BUG_REPORT_MAX_UPLOAD_ATTEMPTS
-
-    override fun isRuntimeEnableRequired(): Boolean = BuildConfig.RUNTIME_ENABLE_REQUIRED
-
-    override fun projectKey(): String = BuildConfig.MEMFAULT_PROJECT_API_KEY
-
-    override fun filesBaseUrl(): String = BuildConfig.MEMFAULT_FILES_BASE_URL
-
-    override fun ingressBaseUrl(): String = BuildConfig.MEMFAULT_INGRESS_BASE_URL
-
-    override fun appVersionName(): String = BuildConfig.VERSION_NAME
-
-    override fun appVersionCode(): Int = BuildConfig.VERSION_CODE
-
-    override fun upstreamVersionName(): String = BuildConfig.UPSTREAM_VERSION_NAME
-
-    override fun upstreamVersionCode(): Int = BuildConfig.UPSTREAM_VERSION_CODE
-
-    override fun upstreamGitSha(): String = BuildConfig.UPSTREAM_GIT_SHA
-
-    override fun currentGitSha(): String = BuildConfig.CURRENT_GIT_SHA
-
-    override fun androidBuildVersionKey(): String = BuildConfig.ANDROID_BUILD_VERSION_KEY
-
-    override fun androidHardwareVersionKey(): String = BuildConfig.ANDROID_HARDWARE_VERSION_KEY
-
-    override fun androidSerialNumberKey(): String = BuildConfig.ANDROID_DEVICE_SERIAL_KEY
 }
 
 interface InterceptingWorkerFactory {
@@ -214,7 +175,6 @@ class DefaultWorkerFactory(
     private val retrofit: Retrofit,
     private val fileUploaderFactory: FileUploaderFactory,
     private val okHttpClient: OkHttpClient,
-    private val deviceIdProvider: DeviceIdProvider,
     private val reporterServiceConnector: ReporterServiceConnector,
     private val dropBoxEntryProcessors: Map<String, EntryProcessor>,
     private val interceptingFactory: InterceptingWorkerFactory? = null
@@ -250,16 +210,17 @@ class DefaultWorkerFactory(
         return when (inputData.workDelegateClass) {
             HttpTask::class.qualifiedName -> HttpTask(okHttpClient = okHttpClient)
             BugReportUploader::class.qualifiedName -> BugReportUploader(
-                delegate = fileUploaderFactory.create(retrofit, settingsProvider.projectKey()),
+                delegate = fileUploaderFactory.create(retrofit, settingsProvider.httpApiSettings.projectKey),
                 bortEnabledProvider = bortEnabledProvider,
-                maxAttempts = settingsProvider.maxUploadAttempts()
+                maxAttempts = settingsProvider.bugReportSettings.maxUploadAttempts
             )
             DropBoxGetEntriesTask::class.qualifiedName -> DropBoxGetEntriesTask(
                 lastProcessedEntryProvider = RealDropBoxLastProcessedEntryProvider(
                     PreferenceManager.getDefaultSharedPreferences(context)
                 ),
                 reporterServiceConnector = reporterServiceConnector,
-                entryProcessors = dropBoxEntryProcessors
+                entryProcessors = dropBoxEntryProcessors,
+                settings = settingsProvider.dropBoxSettings,
             )
             else -> null
         }
@@ -295,7 +256,8 @@ class PreferenceBortEnabledProvider(
     sharedPreferences = sharedPreferences,
     defaultValue = defaultValue,
     preferenceKey = PREFERENCE_BORT_ENABLED
-), BortEnabledProvider {
+),
+    BortEnabledProvider {
     override fun setEnabled(isOptedIn: Boolean) = setValue(isOptedIn)
 
     override fun isEnabled(): Boolean = getValue()

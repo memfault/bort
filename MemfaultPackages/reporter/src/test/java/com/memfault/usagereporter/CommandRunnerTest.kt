@@ -2,14 +2,17 @@ package com.memfault.usagereporter
 
 import android.os.ParcelFileDescriptor
 import com.memfault.bort.shared.CommandRunnerOptions
-import io.mockk.*
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Before
-import org.junit.Test
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.spyk
+import io.mockk.verify
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.OutputStream
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
 val TRUE_COMMAND = listOf("true")
 val ECHO_COMMAND = listOf("echo", "hello")
@@ -20,7 +23,7 @@ class CommandRunnerTest {
     lateinit var outputStreamFactoryMock: (ParcelFileDescriptor) -> OutputStream
     lateinit var outputStreamMock: ByteArrayOutputStream
 
-    @Before
+    @BeforeEach
     fun setUp() {
         outputStreamMock = spyk(ByteArrayOutputStream(1024))
         outputStreamFactoryMock = mockk()

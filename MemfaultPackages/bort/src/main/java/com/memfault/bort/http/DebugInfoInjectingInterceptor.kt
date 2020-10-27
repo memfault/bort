@@ -1,11 +1,11 @@
 package com.memfault.bort.http
 
 import com.memfault.bort.DeviceIdProvider
-import com.memfault.bort.SettingsProvider
+import com.memfault.bort.shared.SdkVersionInfo
+import java.util.UUID
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
-import java.util.*
 
 internal const val QUERY_PARAM_UPSTREAM_VERSION_NAME = "upstreamVersionName"
 internal const val QUERY_PARAM_UPSTREAM_VERSION_CODE = "upstreamVersionCode"
@@ -17,14 +17,14 @@ internal const val X_REQUEST_ID = "X-Request-ID"
 
 /** Inject debug information for requests to memfault or to a local api server */
 class DebugInfoInjectingInterceptor(
-    private val settingsProvider: SettingsProvider,
+    private val sdkVersionInfo: SdkVersionInfo,
     private val deviceIdProvider: DeviceIdProvider
 ) : Interceptor {
 
     fun transformRequest(request: Request): Request {
-        val url = request.url()
+        val url = request.url
         when {
-            url.host() in setOf("127.0.0.1", "localhost") && url.encodedPathSegments().firstOrNull() == "api" -> {
+            url.host in setOf("127.0.0.1", "localhost") && url.encodedPathSegments.firstOrNull() == "api" -> {
                 // Fall through
             }
             url.topPrivateDomain().equals("memfault.com", ignoreCase = true) -> {
@@ -35,12 +35,12 @@ class DebugInfoInjectingInterceptor(
         val xRequestId = UUID.randomUUID().toString()
         val transformedUrl = url.newBuilder().apply {
             linkedMapOf(
-                QUERY_PARAM_UPSTREAM_VERSION_NAME to settingsProvider.upstreamVersionName(),
-                QUERY_PARAM_UPSTREAM_VERSION_CODE to settingsProvider.upstreamVersionCode()
+                QUERY_PARAM_UPSTREAM_VERSION_NAME to sdkVersionInfo.upstreamVersionName,
+                QUERY_PARAM_UPSTREAM_VERSION_CODE to sdkVersionInfo.upstreamVersionCode
                     .toString(),
-                QUERY_PARAM_UPSTREAM_GIT_SHA to settingsProvider.upstreamGitSha(),
-                QUERY_PARAM_VERSION_NAME to settingsProvider.appVersionName(),
-                QUERY_PARAM_VERSION_CODE to settingsProvider.appVersionCode().toString(),
+                QUERY_PARAM_UPSTREAM_GIT_SHA to sdkVersionInfo.upstreamGitSha,
+                QUERY_PARAM_VERSION_NAME to sdkVersionInfo.appVersionName,
+                QUERY_PARAM_VERSION_CODE to sdkVersionInfo.appVersionCode.toString(),
                 QUERY_PARAM_DEVICE_ID to deviceIdProvider.deviceId(),
                 X_REQUEST_ID to xRequestId
             ).forEach { key, value -> addQueryParameter(key, value) }

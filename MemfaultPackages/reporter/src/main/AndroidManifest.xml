@@ -29,7 +29,7 @@
         android:name=".UsageReporter"
         android:allowBackup="false"
         android:label="@string/app_name"
-        android:persistent="true"
+        android:persistent="${bortUsageReporterPersistent}"
 
         android:supportsRtl="true"
         tools:ignore="MissingApplicationIcon">

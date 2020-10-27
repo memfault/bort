@@ -6,15 +6,15 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertEquals
-import org.junit.Before
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
 class ReporterClientTest {
     lateinit var mockConnection: ReporterServiceConnection
     lateinit var client: ReporterClient
 
-    @Before
+    @BeforeEach
     fun setUp() {
         mockConnection = mockk()
         client = ReporterClient(mockConnection, mockk())
@@ -32,7 +32,7 @@ class ReporterClientTest {
                 assertEquals(123, client.getVersion())
             }
             // Version is cached for subsequent getVersion() calls:
-            coVerify(exactly = 1) {  mockConnection.sendAndReceive(VersionRequest()) }
+            coVerify(exactly = 1) { mockConnection.sendAndReceive(VersionRequest()) }
         }
     }
 

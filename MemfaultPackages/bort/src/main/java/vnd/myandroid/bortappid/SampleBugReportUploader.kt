@@ -1,16 +1,17 @@
 package vnd.myandroid.bortappid // Update to match your package
 
 import com.memfault.bort.FileUploader
-import com.memfault.bort.shared.Logger
 import com.memfault.bort.TaskResult
-import okhttp3.MediaType
+import com.memfault.bort.shared.Logger
+import java.io.File
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.HttpException
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.http.Body
 import retrofit2.http.POST
-import java.io.File
 
 private const val BASE_URL = "https://my.base.url"
 
@@ -22,7 +23,7 @@ interface SampleUploadService {
 class SampleBugReportUploader(
     private val retrofit: Retrofit,
     private val apiKey: String
-): FileUploader {
+) : FileUploader {
 
     override suspend fun upload(file: File): TaskResult {
         val customRetrofit = retrofit.newBuilder()
@@ -33,7 +34,7 @@ class SampleBugReportUploader(
 
         val uploadService = customRetrofit.create(SampleUploadService::class.java)
 
-        val requestBody = RequestBody.create(MediaType.get("application/octet-stream"), file)
+        val requestBody = file.asRequestBody("application/octet-stream".toMediaType())
         return try {
             val response = uploadService.upload(requestBody)
             when (response.code()) {

@@ -6,7 +6,7 @@ val USER_CURRENT = -2
 
 fun UserHandle(handle: Int): UserHandle {
     try {
-        return with (Class.forName("android.os.UserHandle")) {
+        return with(Class.forName("android.os.UserHandle")) {
             getConstructor(
                 Int::class.java
             ).newInstance(

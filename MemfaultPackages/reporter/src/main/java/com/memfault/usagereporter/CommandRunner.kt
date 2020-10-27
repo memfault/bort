@@ -1,7 +1,6 @@
 package com.memfault.usagereporter
 
 import android.os.ParcelFileDescriptor
-import com.memfault.bort.shared.Command
 import com.memfault.bort.shared.CommandRunnerOptions
 import com.memfault.bort.shared.Logger
 import java.io.Closeable
@@ -61,7 +60,7 @@ class CommandRunner(
             } catch (e: IllegalThreadStateException) {
                 null
             }
-            Logger.v("Done: ${this}, exited=$exited, exitValue=$exitValue")
+            Logger.v("Done: $this, exited=$exited, exitValue=$exitValue")
         }
     }
 }

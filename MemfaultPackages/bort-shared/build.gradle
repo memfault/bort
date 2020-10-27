@@ -13,6 +13,14 @@ android {
         versionCode loadVersionCode() as Integer
         versionName loadVersionName() as String
 
+        // Used by BuildConfigSdkVersionInfo:
+        buildConfigField "String", "APP_VERSION_NAME", "\"${loadVersionName()}\""
+        buildConfigField "int", "APP_VERSION_CODE", "${loadVersionCode()}"
+        buildConfigField "String", "UPSTREAM_VERSION_NAME", "\"${upstreamVersionName()}\""
+        buildConfigField "int", "UPSTREAM_VERSION_CODE", "${upstreamVersionCode()}"
+        buildConfigField "String", "UPSTREAM_GIT_SHA", "\"${upstreamGitSha()}\""
+        buildConfigField "String", "CURRENT_GIT_SHA", "\"${currentGitSha()}\""
+
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -28,6 +36,9 @@ android {
 
     testOptions {
         unitTests.returnDefaultValues = true
+        unitTests.all {
+            useJUnitPlatform()
+        }
     }
 }
 
@@ -37,7 +48,8 @@ dependencies {
 
     debugImplementation deps.debug.leakCanary
 
-    testImplementation deps.test.junit
+    testImplementation deps.test.junitApi
+    testImplementation deps.test.junitEngine
     testImplementation deps.test.coroutines
     testImplementation deps.test.mockk
     testImplementation deps.test.mockito

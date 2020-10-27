@@ -3,27 +3,30 @@
 buildscript {
     apply from: 'properties.gradle'
 
+    gradle.taskGraph.whenReady { graph -> verifyBortProperties() }
+
     ext.versions = [
-            'kotlin'                           : '1.3.72',
-            'kotlinCoroutines'                 : '1.3.8',
+            'kotlin'                           : '1.4.10',
+            'kotlinCoroutines'                 : '1.3.9',
             'minSdk'                           : bortProperty("MIN_SDK_VERSION") as Integer,
             'targetSdk'                        : bortProperty("TARGET_SDK_VERSION") as Integer,
             'compileSdk'                       : bortProperty("COMPILE_SDK_VERSION") as Integer,
             'buildTools'                       : bortProperty("BUILD_TOOLS_VERSION") as String,
-            'androidGradlePlugin'              : '4.0.1',
-            'coroutinesTest'                   : '1.3.7',
-            'retrofitKtxSerializationConverter': '0.5.0',
-            'ktxSerializationRuntime'          : '0.20.0',
-            'junit'                            : '4.13',
-            'leakCanary'                       : '2.4',
+            'androidGradlePlugin'              : '4.1.0',
+            'coroutinesTest'                   : '1.3.9',
+            'retrofitKtxSerializationConverter': '0.8.0',
+            'ktlintGradle'                     : '9.4.1',
+            'ktxSerializationJson'             : '1.0.0',
+            'junit'                            : '5.7.0',
+            'leakCanary'                       : '2.5',
             'mockk'                            : '1.10.2',
             'mockito'                          : '2.28.2',
             'mockitoKotlin'                    : '2.2.0',
-            'okhttp'                           : '3.14.9',
-            'okio'                             : '2.6.0',
+            'okhttp'                           : '4.9.0',
+            'okio'                             : '2.9.0',
             'preference'                       : '1.1.1',
             'retrofit'                         : '2.9.0',
-            'work'                             : '2.3.4'
+            'work'                             : '2.4.0'
     ]
     ext.deps = [
             'android'      : [
@@ -32,13 +35,14 @@ buildscript {
                     'work'            : "androidx.work:work-runtime-ktx:${versions.work}"
             ],
             'kotlin'       : [
+                    'ktlintGradle' : "org.jlleitschuh.gradle:ktlint-gradle:${versions.ktlintGradle}",
                     'gradlePlugin': "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.kotlin}",
                     'stdlib'      : "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${versions.kotlin}",
                     'coroutines'  : "org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions.kotlinCoroutines}"
             ],
             'serialization': [
                     'plugin'   : "org.jetbrains.kotlin:kotlin-serialization:${versions.kotlin}",
-                    'runtime'  : "org.jetbrains.kotlinx:kotlinx-serialization-runtime:${versions.ktxSerializationRuntime}",
+                    'json'     : "org.jetbrains.kotlinx:kotlinx-serialization-json:${versions.ktxSerializationJson}",
                     'converter': "com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:${versions.retrofitKtxSerializationConverter}",
             ],
             'debug'        : [
@@ -49,7 +53,8 @@ buildscript {
             'okio'         : "com.squareup.okio:okio:${versions.okio}",
             'test'         : [
                     'coroutines'   : "org.jetbrains.kotlinx:kotlinx-coroutines-test:${versions.coroutinesTest}",
-                    'junit'        : "junit:junit:${versions.junit}",
+                    'junitApi'     : "org.junit.jupiter:junit-jupiter-api:${versions.junit}",
+                    'junitEngine'  : "org.junit.jupiter:junit-jupiter-engine:${versions.junit}",
                     'mockk'        : "io.mockk:mockk:${versions.mockk}",
                     'mockito'      : "org.mockito:mockito-core:${versions.mockito}",
                     'mockitoKotlin': "com.nhaarman.mockitokotlin2:mockito-kotlin:${versions.mockitoKotlin}",
@@ -59,11 +64,15 @@ buildscript {
     repositories {
         google()
         jcenter()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
 
     }
     dependencies {
         classpath deps.android.gradlePlugin
         classpath deps.kotlin.gradlePlugin
+        classpath deps.kotlin.ktlintGradle
         classpath deps.serialization.plugin
     }
 }
@@ -72,10 +81,19 @@ allprojects {
     repositories {
         google()
         jcenter()
-
     }
 }
 
 task clean(type: Delete) {
     delete rootProject.buildDir
+}
+
+subprojects {
+    apply plugin: "org.jlleitschuh.gradle.ktlint"
+
+    ktlint {
+        version = "0.39.0"
+        android = true
+        outputColorName = "RED"
+    }
 }

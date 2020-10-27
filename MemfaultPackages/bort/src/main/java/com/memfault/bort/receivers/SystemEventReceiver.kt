@@ -4,7 +4,14 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import androidx.preference.PreferenceManager
-import com.memfault.bort.*
+import com.memfault.bort.AndroidBootReason
+import com.memfault.bort.BootCountTracker
+import com.memfault.bort.DeviceInfo
+import com.memfault.bort.DumpsterClient
+import com.memfault.bort.INTENT_ACTION_BOOT_COMPLETED
+import com.memfault.bort.INTENT_ACTION_MY_PACKAGE_REPLACED
+import com.memfault.bort.RealLastTrackedBootCountProvider
+import com.memfault.bort.RebootEventUploader
 import com.memfault.bort.requester.BugReportRequester
 import com.memfault.bort.shared.Logger
 
@@ -16,7 +23,8 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         BugReportRequester(
             context
         ).requestPeriodic(
-            settingsProvider.bugReportRequestIntervalHours()
+            settingsProvider.bugReportSettings.requestIntervalHours,
+            settingsProvider.bugReportSettings.defaultOptions
         )
     }
 
@@ -27,7 +35,9 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
             DumpsterClient().getprop()?.let { systemProperties ->
                 val rebootEventUploader = RebootEventUploader(
                     ingressService = ingressService,
-                    deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(settingsProvider, systemProperties),
+                    deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(
+                        settingsProvider.deviceInfoSettings, systemProperties
+                    ),
                     androidSysBootReason = systemProperties.get(AndroidBootReason.SYS_BOOT_REASON_KEY)
                 )
                 val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
@@ -43,8 +53,9 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         BugReportRequester(
             context
         ).requestPeriodic(
-            settingsProvider.bugReportRequestIntervalHours(),
-            settingsProvider.firstBugReportDelayAfterBootMinutes()
+            settingsProvider.bugReportSettings.requestIntervalHours,
+            settingsProvider.bugReportSettings.defaultOptions,
+            settingsProvider.bugReportSettings.firstBugReportDelayAfterBootMinutes
         )
     }
 

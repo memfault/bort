@@ -9,6 +9,10 @@ android {
 
     defaultConfig {
         applicationId "com.memfault.usagereporter"
+        manifestPlaceholders = [
+                // For development purposes (allows UsageReporter to be updated using `adb install`):
+                bortUsageReporterPersistent: bortProperty("BORT_USAGE_REPORTER_PERSISTENT") ?: "true",
+        ]
 
         minSdkVersion versions.minSdk
         targetSdkVersion versions.targetSdk
@@ -34,6 +38,9 @@ android {
 
     testOptions {
         unitTests.returnDefaultValues = true
+        unitTests.all {
+            useJUnitPlatform()
+        }
     }
 }
 
@@ -43,7 +50,8 @@ dependencies {
     implementation deps.kotlin.stdlib
     implementation deps.android.preference
 
-    testImplementation deps.test.junit
+    testImplementation deps.test.junitApi
+    testImplementation deps.test.junitEngine
     testImplementation deps.test.coroutines
     testImplementation deps.test.mockk
 }

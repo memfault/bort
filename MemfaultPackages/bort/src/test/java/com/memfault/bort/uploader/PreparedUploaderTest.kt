@@ -1,14 +1,16 @@
 package com.memfault.bort.uploader
 
 import com.memfault.bort.http.PROJECT_KEY_HEADER
+import java.nio.charset.Charset
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
-import org.junit.Assert.*
 import org.junit.Rule
-import org.junit.Test
-import java.nio.charset.Charset
-import java.util.concurrent.TimeUnit
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Test
 
 internal class PreparedUploaderTest {
     @get:Rule

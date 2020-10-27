@@ -1,12 +1,11 @@
 package com.memfault.bort.http
 
 import com.memfault.bort.DeviceIdProvider
-import com.memfault.bort.SettingsProvider
 import com.nhaarman.mockitokotlin2.doReturn
 import com.nhaarman.mockitokotlin2.mock
 import okhttp3.Request
 import org.junit.Assert
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class DebugInfoInjectingInterceptorTest {
     @Test
@@ -20,12 +19,12 @@ class DebugInfoInjectingInterceptorTest {
         ).forEach { url ->
             Request.Builder()
                 .url(url)
-                .build().also {request ->
+                .build().also { request ->
                     DebugInfoInjectingInterceptor(
-                        mock<SettingsProvider>(),
+                        mock(),
                         mock<DeviceIdProvider>()
                     ).transformRequest(request).let {
-                        Assert.assertEquals(url, it.url().toString())
+                        Assert.assertEquals(url, it.url.toString())
                     }
                 }
         }
@@ -41,20 +40,20 @@ class DebugInfoInjectingInterceptorTest {
         ).forEach { url ->
             Request.Builder()
                 .url(url)
-                .build().also {request ->
+                .build().also { request ->
                     DebugInfoInjectingInterceptor(
-                        mock<SettingsProvider>() {
-                            on { upstreamVersionName() } doReturn "version"
-                            on { upstreamVersionCode() } doReturn 1
-                            on { upstreamGitSha() } doReturn "sha"
-                            on { appVersionName() } doReturn "appVersion"
-                            on { appVersionCode() } doReturn 1
+                        mock {
+                            on { upstreamVersionName } doReturn "version"
+                            on { upstreamVersionCode } doReturn 1
+                            on { upstreamGitSha } doReturn "sha"
+                            on { appVersionName } doReturn "appVersion"
+                            on { appVersionCode } doReturn 1
                         },
                         mock<DeviceIdProvider>() {
                             on { deviceId() } doReturn "DEMO"
                         }
                     ).transformRequest(request).let { result ->
-                        result.url().queryParameterNames().also { queryParamNames ->
+                        result.url.queryParameterNames.also { queryParamNames ->
                             assert(queryParamNames.contains(QUERY_PARAM_UPSTREAM_VERSION_NAME))
                             assert(queryParamNames.contains(QUERY_PARAM_UPSTREAM_VERSION_CODE))
                             assert(queryParamNames.contains(QUERY_PARAM_UPSTREAM_GIT_SHA))

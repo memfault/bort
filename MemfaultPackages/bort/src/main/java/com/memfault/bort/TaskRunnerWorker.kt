@@ -1,11 +1,16 @@
 package com.memfault.bort
 
 import android.content.Context
-import androidx.work.*
+import androidx.work.CoroutineWorker
+import androidx.work.Data
 import androidx.work.ListenableWorker.Result
-import com.memfault.bort.uploader.limitAttempts
+import androidx.work.OneTimeWorkRequest
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkRequest
+import androidx.work.WorkerParameters
 import com.memfault.bort.shared.Logger
-import java.lang.Exception
+import com.memfault.bort.uploader.limitAttempts
 
 /**
  * Helpers around androidx.work that delegate the actual work to a Task, with
@@ -18,7 +23,7 @@ enum class TaskResult {
     RETRY;
 
     fun toWorkerResult() =
-        when(this) {
+        when (this) {
             SUCCESS -> Result.success()
             FAILURE -> Result.failure()
             RETRY -> Result.retry()
@@ -57,9 +62,9 @@ inline fun <reified K : Task<*>> enqueueWorkOnce(
     block: OneTimeWorkRequest.Builder.() -> Unit = {}
 ): WorkRequest =
     oneTimeWorkRequest<K>(inputData, block).also {
-            WorkManager.getInstance(context)
-                .enqueue(it)
-        }
+        WorkManager.getInstance(context)
+            .enqueue(it)
+    }
 
 inline fun <reified K : Task<*>> oneTimeWorkRequest(
     inputData: Data,
@@ -87,7 +92,7 @@ class TaskRunnerWorker(
     override suspend fun doWork(): Result =
         when (val task = taskFactory.create(inputData)) {
             null -> Result.failure().also {
-                Logger.e("Could not create task for inputData (id=${id})")
+                Logger.e("Could not create task for inputData (id=$id)")
             }
             else -> task.doWork(this).toWorkerResult()
         }
@@ -96,7 +101,7 @@ class TaskRunnerWorker(
 private const val WORK_DELEGATE_CLASS = "__WORK_DELEGATE_CLASS"
 
 val Data.workDelegateClass: String?
-        get() = getString(WORK_DELEGATE_CLASS)
+    get() = getString(WORK_DELEGATE_CLASS)
 
 fun addWorkDelegateClass(className: String, inputData: Data): Data =
     Data.Builder()

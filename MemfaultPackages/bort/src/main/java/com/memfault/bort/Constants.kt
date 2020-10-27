@@ -16,6 +16,5 @@ const val PREFERENCE_LAST_TRACKED_BOOT_COUNT = "com.memfault.preference.LAST_TRA
 const val PREFERENCE_LAST_PROCESSED_DROPBOX_ENTRY_TIME_MILLIS =
     "com.memfault.preference.LAST_PROCESSED_DROPBOX_ENTRY_TIME_MILLIS"
 
-
 // Keep in sync with DUMPSTER_SERVICE_NAME in MemfaultDumpster.cpp!
 const val DUMPSTER_SERVICE_NAME = "memfault_dumpster"

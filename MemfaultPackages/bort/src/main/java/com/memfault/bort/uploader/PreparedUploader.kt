@@ -1,14 +1,18 @@
 package com.memfault.bort.uploader
 
-import com.memfault.bort.shared.Logger
 import com.memfault.bort.http.ProjectKeyAuthenticated
-import kotlinx.serialization.Serializable
-import okhttp3.MediaType
-import okhttp3.RequestBody
-import retrofit2.Response
-import retrofit2.http.*
+import com.memfault.bort.shared.Logger
 import java.io.File
-import kotlin.String
+import kotlinx.serialization.Serializable
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Path
+import retrofit2.http.Url
 
 @Serializable
 data class PrepareResponseData(
@@ -64,14 +68,14 @@ internal class PreparedUploader(
      * Prepare a file upload.
      */
     suspend fun prepare(): Response<PrepareResult> = preparedUploadService.prepare().also {
-            eventLogger.log("prepare")
+        eventLogger.log("prepare")
     }
 
     /**
      * Upload a prepared file.
      */
     suspend fun upload(file: File, uploadUrl: String): Response<Unit> {
-        val requestBody = RequestBody.create(MediaType.get("application/octet-stream"), file)
+        val requestBody = file.asRequestBody("application/octet-stream".toMediaType())
         return preparedUploadService.upload(
             uploadUrl,
             requestBody

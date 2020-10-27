@@ -4,13 +4,27 @@ import android.content.Context
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.workDataOf
-import com.memfault.bort.*
+import com.memfault.bort.Task
+import com.memfault.bort.TaskResult
+import com.memfault.bort.TaskRunnerWorker
+import com.memfault.bort.asResult
+import com.memfault.bort.await
+import com.memfault.bort.enqueueWorkOnce
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.shared.Logger
-import okhttp3.*
+import java.io.IOException
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Headers
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import okio.Timeout
-import java.io.IOException
 
 private const val URL_KEY = "url"
 private const val METHOD_KEY = "method"
@@ -38,7 +52,8 @@ data class HttpTaskInput(
                 method = checkNotNull(inputData.getString(METHOD_KEY), { "method missing" }),
                 headers = checkNotNull(inputData.getString(HEADERS_KEY), { "headers missing" }),
                 body = checkNotNull(inputData.getByteArray(BODY_KEY), { "body missing" }),
-                bodyMediaType = checkNotNull(inputData.getString(BODY_MEDIA_TYPE_KEY),
+                bodyMediaType = checkNotNull(
+                    inputData.getString(BODY_MEDIA_TYPE_KEY),
                     { "body media type missing" }
                 ),
                 maxAttempts = inputData.getInt(MAX_ATTEMPTS_KEY, DEFAULT_MAX_ATTEMPTS),
@@ -63,7 +78,7 @@ data class HttpTaskInput(
             .url(url)
             .method(
                 method,
-                RequestBody.create(MediaType.get(bodyMediaType), body)
+                body.toRequestBody(bodyMediaType.toMediaType())
             )
             .headers(
                 Headers.Builder().also { headerBuilder ->
@@ -80,7 +95,6 @@ data class HttpTaskInput(
         taskTags.joinToString(", ")
 }
 
-
 class HttpTask(
     private val okHttpClient: OkHttpClient
 ) : Task<HttpTaskInput>() {
@@ -88,30 +102,33 @@ class HttpTask(
     override val maxAttempts: Int = DEFAULT_MAX_ATTEMPTS
     override fun getMaxAttempts(input: HttpTaskInput): Int = input.maxAttempts
 
-    override suspend fun doWork(worker: TaskRunnerWorker, input: HttpTaskInput): TaskResult =
-        try {
+    override suspend fun doWork(worker: TaskRunnerWorker, input: HttpTaskInput): TaskResult {
+        val response = try {
             okHttpClient.newCall(
                 input.toRequest()
-            ).await().let { response ->
-                response.asResult().also { result ->
-                    val resultString = when (result) {
-                        TaskResult.SUCCESS -> "success"
-                        else -> "error"
-                    }
-                    val codeString = response.code().toString()
-                    Logger.v("Request $resultString ($codeString) (tags=${input.taskTagsString()})")
-                    Logger.logEvent(
-                        "http-$resultString", codeString,
-                        *input.taskTags.toTypedArray()
-                    )
-                }
-            }
+            ).await()
         } catch (e: IOException) {
-            TaskResult.RETRY.also {
+            return TaskResult.RETRY.also {
                 Logger.e("Request failed (tags=${input.taskTagsString()})", e)
                 Logger.logEvent("http-error", "0", *input.taskTags.toTypedArray())
             }
         }
+
+        response.use {
+            return response.asResult().also { result ->
+                val resultString = when (result) {
+                    TaskResult.SUCCESS -> "success"
+                    else -> "error"
+                }
+                val codeString = response.code.toString()
+                Logger.v("Request $resultString ($codeString) (tags=${input.taskTagsString()})")
+                Logger.logEvent(
+                    "http-$resultString", codeString,
+                    *input.taskTags.toTypedArray()
+                )
+            }
+        }
+    }
 
     override fun convertAndValidateInputData(inputData: Data): HttpTaskInput =
         HttpTaskInput.fromInputData(inputData)
@@ -142,12 +159,15 @@ class HttpTaskCallFactory(
             uploadConstraints: Constraints,
             projectKeyInjectingInterceptor: ProjectKeyInjectingInterceptor
         ) =
-            HttpTaskCallFactory({ input ->
-                enqueueWorkOnce<HttpTask>(context, input.toWorkerInputData()) {
-                    setConstraints(uploadConstraints)
-                    input.taskTags.forEach { tag -> addTag(tag) }
-                }
-            }, projectKeyInjectingInterceptor)
+            HttpTaskCallFactory(
+                { input ->
+                    enqueueWorkOnce<HttpTask>(context, input.toWorkerInputData()) {
+                        setConstraints(uploadConstraints)
+                        input.taskTags.forEach { tag -> addTag(tag) }
+                    }
+                },
+                projectKeyInjectingInterceptor
+            )
     }
 
     override fun newCall(request: Request): Call = Call(
@@ -191,19 +211,19 @@ class HttpTaskCallFactory(
                     // prevent triggering response deserialization path in retrofit:
                     .code(204)
                     .message("No Content (Enqueued)")
-                    .body(ResponseBody.create(MediaType.get("application/json"), ""))
+                    .body("".toResponseBody("application/json".toMediaType()))
                     .build()
             }
         }
 
         private fun toHttpTaskInput() = with(request) {
-            val requestBody = body() ?: throw NullPointerException()
+            val requestBody = body ?: throw NullPointerException()
             val options = tag(HttpTaskOptions::class.java)
             HttpTaskInput(
-                url = url().toString(),
-                method = method(),
+                url = url.toString(),
+                method = method,
                 bodyMediaType = requestBody.contentType().toString(),
-                headers = headers().toString(),
+                headers = headers.toString(),
                 body = Buffer().also { requestBody.writeTo(it) }.readByteArray(),
                 maxAttempts = options?.maxAttempts ?: DEFAULT_MAX_ATTEMPTS,
                 taskTags = options?.taskTags ?: listOf()

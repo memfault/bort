@@ -1,22 +1,28 @@
 package com.memfault.bort
 
 import android.os.RemoteException
-import com.memfault.dumpster.*
-import com.nhaarman.mockitokotlin2.*
+import com.memfault.dumpster.IDumpster
+import com.memfault.dumpster.IDumpsterBasicCommandListener
+import com.nhaarman.mockitokotlin2.any
+import com.nhaarman.mockitokotlin2.doAnswer
+import com.nhaarman.mockitokotlin2.doReturn
+import com.nhaarman.mockitokotlin2.mock
+import com.nhaarman.mockitokotlin2.verify
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Test
-
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Test
 
 class DumpsterClientTest {
 
     @Test
     fun serviceNotAvailable() {
-        val client = DumpsterClient(serviceProvider = object : DumpsterServiceProvider {
-            override fun get(): IDumpster? = null
-        })
+        val client = DumpsterClient(
+            serviceProvider = object : DumpsterServiceProvider {
+                override fun get(): IDumpster? = null
+            }
+        )
         runBlocking {
             assertNull(client.getprop())
         }
@@ -27,9 +33,11 @@ class DumpsterClientTest {
         val service = mock<IDumpster> {
             on { getVersion() } doReturn 0
         }
-        val client = DumpsterClient(serviceProvider = object : DumpsterServiceProvider {
-            override fun get(): IDumpster? = service
-        })
+        val client = DumpsterClient(
+            serviceProvider = object : DumpsterServiceProvider {
+                override fun get(): IDumpster? = service
+            }
+        )
         runBlocking {
             assertNull(client.getprop())
         }
@@ -43,9 +51,11 @@ class DumpsterClientTest {
                 throw RemoteException()
             }
         }
-        val client = DumpsterClient(serviceProvider = object : DumpsterServiceProvider {
-            override fun get(): IDumpster? = service
-        })
+        val client = DumpsterClient(
+            serviceProvider = object : DumpsterServiceProvider {
+                override fun get(): IDumpster? = service
+            }
+        )
         runBlocking {
             assertNull(client.getprop())
         }
@@ -83,9 +93,11 @@ class DumpsterClientTest {
                     Unit
                 }
             }
-            val client = DumpsterClient(serviceProvider = object : DumpsterServiceProvider {
-                override fun get(): IDumpster? = service
-            })
+            val client = DumpsterClient(
+                serviceProvider = object : DumpsterServiceProvider {
+                    override fun get(): IDumpster? = service
+                }
+            )
             assertNull(client.getprop())
             verify(service).runBasicCommand(any(), any())
         }
@@ -104,9 +116,11 @@ class DumpsterClientTest {
                     Unit
                 }
             }
-            val client = DumpsterClient(serviceProvider = object : DumpsterServiceProvider {
-                override fun get(): IDumpster? = service
-            })
+            val client = DumpsterClient(
+                serviceProvider = object : DumpsterServiceProvider {
+                    override fun get(): IDumpster? = service
+                }
+            )
             assertEquals(client.getprop(), mapOf("Hello" to "World!"))
         }
     }

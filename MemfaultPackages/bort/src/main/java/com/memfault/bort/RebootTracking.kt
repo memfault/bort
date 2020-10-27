@@ -23,8 +23,8 @@ class RealLastTrackedBootCountProvider(
     preferenceKey = PREFERENCE_LAST_TRACKED_BOOT_COUNT
 ) {
     override var bootCount
-            get() = super.getValue()
-            set(value) = super.setValue(value)
+        get() = super.getValue()
+        set(value) = super.setValue(value)
 }
 
 internal class BootCountTracker(
@@ -46,7 +46,7 @@ internal class BootCountTracker(
 internal fun getBootInstant() =
     Instant.now().minusNanos(TimeUnit.MILLISECONDS.toNanos(SystemClock.elapsedRealtime()))
 
-data class AndroidBootReason (
+data class AndroidBootReason(
     val reason: String,
     val subreason: String? = null,
     val details: List<String>? = null

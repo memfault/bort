@@ -3,8 +3,7 @@ package com.memfault.bort.shared
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.os.ParcelUuid
-import java.util.*
-
+import java.util.UUID
 
 private const val OUT_FD = "OUT_FD"
 private const val REDIRECT_ERR = "REDIR"
@@ -34,7 +33,7 @@ data class CommandRunnerOptions(
             bundle.getParcelable(OUT_FD),
             bundle.getBoolean(REDIRECT_ERR),
             bundle.getInt(TIMEOUT),
-        bundle.getParcelable<ParcelUuid>(ID)?.uuid ?: UUID_NULL
+            bundle.getParcelable<ParcelUuid>(ID)?.uuid ?: UUID_NULL
         )
     }
 }

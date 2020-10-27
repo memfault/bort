@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.nhaarman.mockitokotlin2.doReturn
 import com.nhaarman.mockitokotlin2.mock
-import org.junit.Test
+import org.junit.jupiter.api.Test
 
 class AppComponentsTest {
 
@@ -14,21 +14,23 @@ class AppComponentsTest {
         val context = mock<Context>()
         val sharedPreferences = mock<SharedPreferences>()
         AppComponents.Builder(context, sharedPreferences).apply {
-            settingsProvider = mock<SettingsProvider> {
-                on { isRuntimeEnableRequired() } doReturn true
-                on { filesBaseUrl() } doReturn "https://test.com"
-                on { ingressBaseUrl() } doReturn "https://ingress.test.com"
-                on { bugReportNetworkConstraint() } doReturn NetworkConstraint.CONNECTED
-                on { projectKey() } doReturn "SECRET"
+            settingsProvider = mock {
+                on { isRuntimeEnableRequired } doReturn true
+                on { httpApiSettings } doReturn object : HttpApiSettings {
+                    override val filesBaseUrl = "https://test.com"
+                    override val ingressBaseUrl = "https://ingress.test.com"
+                    override val uploadNetworkConstraint = NetworkConstraint.CONNECTED
+                    override val projectKey = "SECRET"
+                }
+                on { sdkVersionInfo } doReturn mock()
             }
-            deviceIdProvider = mock<DeviceIdProvider>() {
+            deviceIdProvider = mock {
                 on { deviceId() } doReturn "abc"
             }
             dropBoxEntryProcessors = emptyMap()
-            reporterServiceConnector = mock<ReporterServiceConnector>()
+            reporterServiceConnector = mock()
         }.build().also {
             assert(it.bortEnabledProvider !is BortAlwaysEnabledProvider)
         }
-
     }
 }

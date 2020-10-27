@@ -17,12 +17,15 @@ class DropBoxEntryAddedForwardingReceiver : BroadcastReceiver() {
         intent ?: return
         Logger.v("Forwarding action=${intent.action}")
 
-        context.sendBroadcastAsUser(Intent(intent).apply {
-            action = INTENT_ACTION_DROPBOX_ENTRY_ADDED
-            component = ComponentName(
-                BuildConfig.BORT_APPLICATION_ID,
-                DROPBOX_ENTRY_ADDED_RECEIVER_QUALIFIED_NAME
-            )
-        }, UserHandle(USER_CURRENT))
+        context.sendBroadcastAsUser(
+            Intent(intent).apply {
+                action = INTENT_ACTION_DROPBOX_ENTRY_ADDED
+                component = ComponentName(
+                    BuildConfig.BORT_APPLICATION_ID,
+                    DROPBOX_ENTRY_ADDED_RECEIVER_QUALIFIED_NAME
+                )
+            },
+            UserHandle(USER_CURRENT)
+        )
     }
 }

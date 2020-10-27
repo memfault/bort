@@ -2,17 +2,22 @@ package com.memfault.bort.uploader
 
 import androidx.work.Data
 import androidx.work.workDataOf
-import com.memfault.bort.*
+import com.memfault.bort.BortEnabledProvider
+import com.memfault.bort.FileUploader
+import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
+import com.memfault.bort.Task
+import com.memfault.bort.TaskResult
+import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.shared.Logger
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 
 internal class BugReportUploader(
     private val delegate: FileUploader,
     private val bortEnabledProvider: BortEnabledProvider,
     override val maxAttempts: Int = 3
-): Task<String>() {
+) : Task<String>() {
     suspend fun upload(filePath: String): TaskResult {
         fun fail(message: String): TaskResult {
             Logger.e("$message file=($filePath)")

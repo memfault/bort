@@ -3,11 +3,23 @@ package com.memfault.usagereporter
 import android.os.Bundle
 import android.os.DropBoxManager
 import android.os.RemoteException
-import com.memfault.bort.shared.*
-import io.mockk.*
-import org.junit.Assert.assertEquals
-import org.junit.Before
-import org.junit.Test
+import com.memfault.bort.shared.DropBoxGetNextEntryRequest
+import com.memfault.bort.shared.DropBoxGetNextEntryResponse
+import com.memfault.bort.shared.DropBoxSetTagFilterRequest
+import com.memfault.bort.shared.DropBoxSetTagFilterResponse
+import com.memfault.bort.shared.ErrorResponse
+import com.memfault.bort.shared.ReporterServiceMessage
+import com.memfault.bort.shared.ServiceMessage
+import com.memfault.bort.shared.VersionRequest
+import com.memfault.bort.shared.VersionResponse
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkConstructor
+import io.mockk.verify
+import io.mockk.verifySequence
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
 data class FakeDropBoxFilterSettingsProvider(
     override var includedTags: Set<String>
@@ -27,7 +39,7 @@ class ReporterServiceTest {
     lateinit var replier: Replier
     var dropBoxManager: DropBoxManager? = null
 
-    @Before
+    @BeforeEach
     fun setUp() {
         mockkConstructor()
         dropBoxManager = mockk()

@@ -17,7 +17,10 @@ interface ServiceMessage {
 const val DEFAULT_REPLY_TIMEOUT_MILLIS: Long = 5000
 
 abstract class ServiceMessageConnection<SM : ServiceMessage> {
-    abstract suspend fun sendAndReceive(message: SM, timeoutMillis: Long = DEFAULT_REPLY_TIMEOUT_MILLIS): SM
+    abstract suspend fun sendAndReceive(
+        message: SM,
+        timeoutMillis: Long = DEFAULT_REPLY_TIMEOUT_MILLIS
+    ): SM
 }
 
 internal class ReplyMessageHandler<SM : ServiceMessage>(
@@ -39,9 +42,11 @@ class RealServiceMessageConnection<SM : ServiceMessage>(
     override suspend fun sendAndReceive(message: SM, timeoutMillis: Long): SM {
         val replyHandler = ReplyMessageHandler(inboundLooper, messageToServiceMessage)
         val inboundMessenger = Messenger(replyHandler)
-        outboundMessenger.send(message.toMessage().apply {
-            replyTo = inboundMessenger
-        })
+        outboundMessenger.send(
+            message.toMessage().apply {
+                replyTo = inboundMessenger
+            }
+        )
         return replyHandler.awaitReply()
     }
 }

@@ -1,12 +1,12 @@
 package com.memfault.bort
 
 import android.os.RemoteException
-import com.memfault.dumpster.*
 import com.memfault.bort.shared.Logger
+import com.memfault.dumpster.IDumpster
+import com.memfault.dumpster.IDumpsterBasicCommandListener
+import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.coroutines.resume
-
 
 interface DumpsterServiceProvider {
     fun get(): IDumpster?
@@ -18,7 +18,7 @@ internal class DefaultDumpsterServiceProvider : DumpsterServiceProvider {
             ServiceManagerProxy.getService(DUMPSTER_SERVICE_NAME)
         )
         if (dumpster == null) {
-            Logger.w("Failed to get ${DUMPSTER_SERVICE_NAME}")
+            Logger.w("Failed to get $DUMPSTER_SERVICE_NAME")
         }
         return dumpster
     }
@@ -40,7 +40,8 @@ private class WrappedService(val service: IDumpster, val basicCommandTimeout: Lo
     suspend fun runBasicCommand(cmdId: Int): String? = withTimeoutOrNull(basicCommandTimeout) {
         suspendCancellableCoroutine<String?> { cont ->
             try {
-                service.runBasicCommand(cmdId,
+                service.runBasicCommand(
+                    cmdId,
                     object : IDumpsterBasicCommandListener.Stub() {
                         override fun onFinished(statusCode: Int, output: String?) {
                             if (statusCode != 0) {
@@ -53,7 +54,8 @@ private class WrappedService(val service: IDumpster, val basicCommandTimeout: Lo
                             Logger.e("runBasicCommand $cmdId is not supported")
                             cont.resume(null)
                         }
-                    })
+                    }
+                )
             } catch (e: RemoteException) {
                 cont.resume(null)
             }
@@ -72,13 +74,18 @@ class DumpsterClient(
      * @return The value returned by block, or null in case the service could not be found or did
      * not satisty the given constraints.
      */
-    private inline fun <R> withService(minimumVersion: Int = MINIMUM_VALID_VERSION,
-                                       block: WrappedService.() -> R): R? =
+    private inline fun <R> withService(
+        minimumVersion: Int = MINIMUM_VALID_VERSION,
+        block: WrappedService.() -> R
+    ): R? =
         serviceProvider.get()?.let {
-            if (it.getVersion() >= minimumVersion) with(WrappedService(
-                service = it,
-                basicCommandTimeout = basicCommandTimeout
-            ), block) else null
+            if (it.getVersion() >= minimumVersion) with(
+                WrappedService(
+                    service = it,
+                    basicCommandTimeout = basicCommandTimeout
+                ),
+                block
+            ) else null
         }
 
     /**

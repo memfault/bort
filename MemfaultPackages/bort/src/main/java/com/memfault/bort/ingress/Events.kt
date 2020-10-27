@@ -2,14 +2,13 @@ package com.memfault.bort.ingress
 
 import com.memfault.bort.AndroidBootReason
 import com.memfault.bort.DeviceInfo
-import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.time.format.DateTimeFormatter
-
+import kotlinx.serialization.Serializable
 
 /**
- * Note: not using kotlinx.serialization's polymorphism support, because
- * retrofit2-kotlinx-serialization-converter does not support it
+ * TODO: use kotlinx.serialization's polymorphism support
+ * When this code was written, retrofit2-kotlinx-serialization-converter did not support it yet.
  * (https://github.com/JakeWharton/retrofit2-kotlinx-serialization-converter/issues/18).
  */
 @Serializable
@@ -55,7 +54,7 @@ class RebootEvent : Event<RebootEventInfo> {
 }
 
 @Serializable
-data class RebootEventInfo (
+data class RebootEventInfo(
     val boot_count: Int,
     val linux_boot_id: String,
     val reason: String,
@@ -63,7 +62,11 @@ data class RebootEventInfo (
     val details: List<String>? = null
 ) : EventInfo {
     companion object {
-        fun fromAndroidBootReason(bootCount: Int, linuxBootId: String, androidBootReason: AndroidBootReason) =
+        fun fromAndroidBootReason(
+            bootCount: Int,
+            linuxBootId: String,
+            androidBootReason: AndroidBootReason
+        ) =
             RebootEventInfo(
                 bootCount,
                 linuxBootId,

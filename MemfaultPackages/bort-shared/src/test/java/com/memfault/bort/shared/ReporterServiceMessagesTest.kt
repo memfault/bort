@@ -1,8 +1,8 @@
 package com.memfault.bort.shared
 
-import org.junit.Test
-
-import org.junit.Assert.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Test
 
 class ReporterServiceMessagesTest {
     @Test

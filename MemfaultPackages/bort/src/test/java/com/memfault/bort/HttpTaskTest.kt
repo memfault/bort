@@ -2,22 +2,33 @@ package com.memfault.bort
 
 import com.memfault.bort.http.ProjectKeyAuthenticated
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
-import com.memfault.bort.uploader.*
+import com.memfault.bort.uploader.HttpTask
+import com.memfault.bort.uploader.HttpTaskCallFactory
+import com.memfault.bort.uploader.HttpTaskInput
+import com.memfault.bort.uploader.HttpTaskOptions
+import com.memfault.bort.uploader.mockTaskRunnerWorker
 import com.nhaarman.mockitokotlin2.mock
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
-import okhttp3.mockwebserver.MockWebServer
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
-import org.junit.Assert.*
-import org.junit.Before
+import okhttp3.mockwebserver.MockWebServer
 import org.junit.Rule
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import retrofit2.Call
 import retrofit2.Response
 import retrofit2.Retrofit
-import retrofit2.http.*
+import retrofit2.http.Body
+import retrofit2.http.Header
+import retrofit2.http.POST
+import retrofit2.http.Path
+import retrofit2.http.Tag
 
 private const val HEADER_KEY = "header_key"
 
@@ -52,7 +63,7 @@ class HttpTaskCallFactoryTest {
     lateinit var service: HttpTaskTestService
     var input: HttpTaskInput? = null
 
-    @Before
+    @BeforeEach
     fun before() {
         val projectKeyInjector = ProjectKeyInjectingInterceptor({ "SECRET" })
         val client = OkHttpClient.Builder()
@@ -125,7 +136,7 @@ class HttpTaskTest {
     lateinit var httpTaskInput: HttpTaskInput
     lateinit var worker: TaskRunnerWorker
 
-    @Before
+    @BeforeEach
     fun before() {
         client = OkHttpClient()
         task = HttpTask(client)

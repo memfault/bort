@@ -9,16 +9,17 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import java.lang.Exception
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Before
-import org.junit.Test
-import java.lang.Exception
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class MockService(val binder: IBinder)
 
@@ -34,19 +35,20 @@ class ServiceConnectorTest {
     var connection: ServiceConnection? = null
 
     inner class TestServiceConnector(
-        context: Context, componentName: ComponentName
+        context: Context,
+        componentName: ComponentName
     ) : ServiceConnector<MockService>(context, componentName) {
         override fun createServiceWithBinder(binder: IBinder): MockService {
             return mockServiceFactory.createServiceWithBinder(binder)
         }
     }
 
-    @Before
+    @BeforeEach
     fun setUp() {
         mockContext = mockk {
             val connectionSlot = slot<ServiceConnection>()
             every {
-                bindService(any(), capture(connectionSlot), Context.BIND_AUTO_CREATE )
+                bindService(any(), capture(connectionSlot), Context.BIND_AUTO_CREATE)
             } answers {
                 connection = connectionSlot.captured
                 true
@@ -96,18 +98,14 @@ class ServiceConnectorTest {
         } throws RemoteException()
 
         var connectCalled = false
-        var caughtException = false
-        runBlocking {
-            try {
+        assertThrows<RemoteException> {
+            runBlocking {
                 serviceConnector.connect {
                     connectCalled = true
                 }
-            } catch (e: RemoteException) {
-                caughtException = true
             }
         }
         assertEquals(false, connectCalled)
-        assertEquals(true, caughtException)
         assertEquals(false, serviceConnector.hasClients)
         assertEquals(false, serviceConnector.bound)
     }
@@ -115,13 +113,13 @@ class ServiceConnectorTest {
     @Test
     fun handlesExceptionInConnectBlock() {
         var connectCalled = false
-        runBlocking {
-            try {
+        assertThrows<Exception> {
+            runBlocking {
                 serviceConnector.connect<Unit> {
                     connectCalled = true
                     throw Exception("Boom!")
                 }
-            } catch (e: Exception) {}
+            }
         }
         assertEquals(true, connectCalled)
         assertEquals(false, serviceConnector.hasClients)
