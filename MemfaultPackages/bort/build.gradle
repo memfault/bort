@@ -30,10 +30,10 @@ android {
         buildConfigField "int", "MINIMUM_LOG_LEVEL", bortProperty("MINIMUM_LOG_LEVEL")
         buildConfigField "Boolean", "RUNTIME_ENABLE_REQUIRED", bortProperty("RUNTIME_ENABLE_REQUIRED")
 
-        buildConfigField "String", "ANDROID_BUILD_VERSION_SOURCE", "\"" + bortProperty("ANDROID_BUILD_VERSION_SOURCE") + "\""
-        buildConfigField "String", "ANDROID_BUILD_VERSION_KEY", "\"" + bortProperty("ANDROID_BUILD_VERSION_KEY") + "\""
-        buildConfigField "String", "ANDROID_HARDWARE_VERSION_KEY", "\"" + bortProperty("ANDROID_HARDWARE_VERSION_KEY") + "\""
-        buildConfigField "String", "ANDROID_DEVICE_SERIAL_KEY", "\"" + bortProperty("ANDROID_DEVICE_SERIAL_KEY") + "\""
+        buildConfigField "String", "ANDROID_BUILD_VERSION_SOURCE", "\"" + bortSystemPropertyConfigProperty("ANDROID_BUILD_VERSION_SOURCE") + "\""
+        buildConfigField "String", "ANDROID_BUILD_VERSION_KEY", "\"" + bortSystemPropertyConfigProperty("ANDROID_BUILD_VERSION_KEY") + "\""
+        buildConfigField "String", "ANDROID_HARDWARE_VERSION_KEY", "\"" + bortSystemPropertyConfigProperty("ANDROID_HARDWARE_VERSION_KEY") + "\""
+        buildConfigField "String", "ANDROID_DEVICE_SERIAL_KEY", "\"" + bortSystemPropertyConfigProperty("ANDROID_DEVICE_SERIAL_KEY") + "\""
 
         // Data Sources
         buildConfigField "Boolean", "DATA_SOURCE_BUG_REPORTS_ENABLED", bortProperty("DATA_SOURCE_BUG_REPORTS_ENABLED")

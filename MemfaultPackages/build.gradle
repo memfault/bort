@@ -1,9 +1,30 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
+import static com.memfault.bort.buildsrc.BortConfigDownloaderKt.tryRefreshBortSystemPropertyConfig
+
+// Try to refresh bort_generated.properties before configuring the :bort project:
+gradle.beforeProject { project ->
+    if (project.path != ":bort") return
+    if (rootProject.properties["SKIP_DOWNLOAD_SYSTEM_PROPERTY_CONFIG"] == "1") {
+        project.logger.warn("> Skipping download of bort_generated.properties from server...")
+        return
+    }
+
+    tryRefreshBortSystemPropertyConfig(
+            rootProject.rootDir.absolutePath,
+            { msg, exc -> rootProject.logger.log(LogLevel.WARN, msg, exc) },
+            rootProject.properties["MEMFAULT_API_BASE_URL"],
+            bortProperty("MEMFAULT_PROJECT_API_KEY"),
+    )
+}
+
 buildscript {
     apply from: 'properties.gradle'
 
-    gradle.taskGraph.whenReady { graph -> verifyBortProperties() }
+    gradle.taskGraph.whenReady { graph ->
+        verifyBortProperties()
+        warnLegacyBortProperties()
+    }
 
     ext.versions = [
             'kotlin'                           : '1.4.10',

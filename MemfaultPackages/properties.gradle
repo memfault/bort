@@ -1,4 +1,5 @@
 import java.nio.file.Paths
+import static com.memfault.bort.buildsrc.BortConfigDownloaderKt.bortSystemPropertyConfig
 
 ext.bortProperty = { propName ->
     if (rootProject.hasProperty(propName)) {
@@ -8,6 +9,14 @@ ext.bortProperty = { propName ->
     def bortProperties = new Properties()
     bortProperties.load(new FileInputStream(bortPropertiesFile))
     return bortProperties[propName]
+}
+
+ext.bortSystemPropertyConfigProperty = { propName ->
+    if (rootProject.hasProperty(propName)) {
+        return rootProject.property(propName)
+    }
+    def properties = bortSystemPropertyConfig(rootProject.rootDir.absolutePath)
+    return properties[propName]
 }
 
 ext.loadKeystoreProperties = {
@@ -82,8 +91,8 @@ ext.getBortFeatureName = {
 }
 
 ext.verifyBortProperties = {
-    def verifyBortProperty = { key, pattern, checkNotNull=true, checkNotZeroLength=false ->
-        def value = bortProperty(key)
+    def verifyBortProperty = { getter, key, pattern, checkNotNull=true, checkNotZeroLength=false ->
+        def value = getter(key)
         if (checkNotNull && value == null) {
             throw new GradleException("${key} property missing! Please configure it in bort.properties")
         }
@@ -94,10 +103,32 @@ ext.verifyBortProperties = {
             throw new GradleException("${key} property '${value}' does not match ${pattern}! Please configure it in bort.properties")
         }
     }
-    verifyBortProperty("MEMFAULT_PROJECT_API_KEY", /^[A-Fa-f0-9]{32}$/, true, true)
-    verifyBortProperty("ANDROID_BUILD_VERSION_SOURCE", /^(build_fingerprint_and_system_property|build_fingerprint_only|system_property_only)$/)
+    verifyBortProperty(bortProperty, "MEMFAULT_PROJECT_API_KEY", /^[A-Fa-f0-9]{32}$/, true, true)
+    verifyBortProperty(bortSystemPropertyConfigProperty, "ANDROID_BUILD_VERSION_SOURCE", /^(build_fingerprint_and_system_property|build_fingerprint_only|system_property_only)$/)
     // https://cs.android.com/android/platform/superproject/+/master:system/core/toolbox/setprop.cpp;l=55;drc=65a1ee83a89a7bea595ff07a64c50d1e51b2d8e2
-    verifyBortProperty("ANDROID_BUILD_VERSION_KEY", /^[A-Za-z0-9:@_.-]*$/)
-    verifyBortProperty("ANDROID_HARDWARE_VERSION_KEY", /^[A-Za-z0-9:@_.-]+$/)
-    verifyBortProperty("ANDROID_DEVICE_SERIAL_KEY", /^[A-Za-z0-9:@_.-]+$/)
+    if (bortSystemPropertyConfigProperty("ANDROID_BUILD_VERSION_SOURCE") != "build_fingerprint_only") {
+        verifyBortProperty(bortSystemPropertyConfigProperty, "ANDROID_BUILD_VERSION_KEY", /^[A-Za-z0-9:@_.-]+$/)
+    }
+    verifyBortProperty(bortSystemPropertyConfigProperty, "ANDROID_HARDWARE_VERSION_KEY", /^[A-Za-z0-9:@_.-]+$/)
+    verifyBortProperty(bortSystemPropertyConfigProperty, "ANDROID_DEVICE_SERIAL_KEY", /^[A-Za-z0-9:@_.-]+$/)
+}
+
+ext.warnLegacyBortProperties = {
+    def keys = [
+            "ANDROID_BUILD_VERSION_SOURCE",
+            "ANDROID_BUILD_VERSION_KEY",
+            "ANDROID_HARDWARE_VERSION_KEY",
+            "ANDROID_DEVICE_SERIAL_KEY",
+    ]
+    def foundKeys = keys.findResults { key ->
+        if (bortProperty(key)) key
+        else null
+    }
+    if (!foundKeys.empty) {
+        project.logger.error([
+                "> Found legacy keys in bort.properties. These are now automatically downloaded from Memfault's services.",
+                "> Please remove them to avoid confusion:",
+                "> ${foundKeys.join(", ")}"
+        ].join(System.lineSeparator()))
+    }
 }

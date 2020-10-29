@@ -1,5 +1,18 @@
 # Memfault Bort Changelog
 
+## v2.7.0 - October 28, 2020
+
+#### :chart_with_upwards_trend: Improvements
+
+- Any custom configuration of Hardware and Software Versions as well as Device
+  Serial sources is now automatically retrieved by the SDK from the Memfault
+  backend during the build process by a gradle task. This means it is no longer
+  necessary to manually configure the following properties:
+  - `ANDROID_HARDWARE_VERSION_KEY`
+  - `ANDROID_DEVICE_SERIAL_KEY`
+  - `ANDROID_BUILD_VERSION_SOURCE`
+  - `ANDROID_BUILD_VERSION_KEY`
+
 ## v2.6.0 - October 27, 2020
 
 #### :chart_with_upwards_trend: Improvements
@@ -22,6 +35,15 @@
   - `ANDROID_DEVICE_SERIAL_KEY`
   - `ANDROID_BUILD_VERSION_SOURCE`
   - `ANDROID_BUILD_VERSION_KEY`
+- The `bort_cli.py` validation command now uses rotating log files and performs
+  additional checks to ensure the bort SDK integrated into the system image is
+  consistent with the APKs installed.
+
+#### :house: Internal
+
+- `ktlint` was applied to the codebase, resulting in reformatting of many files.
+- Logcat log fetching has been added to the experimental
+  `DATA_SOURCE_DROP_BOX_ENABLED` feature
 
 ## v2.5.0 - October 20, 2020
 
