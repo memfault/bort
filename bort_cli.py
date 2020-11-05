@@ -13,17 +13,11 @@ import shlex
 import shutil
 import subprocess
 import sys
-from typing import Callable, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Iterable, List, Optional, Tuple
 
 LOG_FILE = "validate-sdk-integration.log"
 
 logging.basicConfig(format="%(message)s", level=logging.INFO)
-should_rollover = os.path.exists(LOG_FILE) and os.path.getsize(LOG_FILE) > 0
-fh = logging.handlers.RotatingFileHandler(LOG_FILE, backupCount=5)
-if should_rollover:
-    fh.doRollover()
-fh.setLevel(logging.DEBUG)
-logging.getLogger("").addHandler(fh)
 
 DEFAULT_ENCODING = "utf-8"
 PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
@@ -321,8 +315,8 @@ def _multiline_search_matcher(pattern: str) -> Callable[[str], bool]:
     return _search
 
 
-def _format_error(description: str, *details: str) -> str:
-    return (2 * os.linesep).join(("", description, *details))
+def _format_error(description: str, *details: Any) -> str:
+    return (2 * os.linesep).join(map(str, ("", description, *details)))
 
 
 def _expect_or_errors(
@@ -359,11 +353,17 @@ def _run_adb_shell_cmd_and_expect(
 def _run_adb_shell_dumpsys_package(
     package_id: str, device: Optional[str] = None
 ) -> Tuple[Optional[str], List[str]]:
-    return _get_adb_shell_cmd_output_and_errors(
+    output, errors = _get_adb_shell_cmd_output_and_errors(
         description=f"Querying package info for {package_id}",
         cmd=("dumpsys", "package", package_id),
         device=device,
     )
+
+    unable_to_find_str = f"Unable to find package: {package_id}"
+    if unable_to_find_str in output:
+        return None, [_format_error(unable_to_find_str, output)]
+
+    return output, errors
 
 
 def _check_file_ownership_and_secontext(
@@ -664,6 +664,13 @@ class ValidateConnectedDevice(Command):
         logging.info("\tTest passed")
 
     def run(self):
+        should_rollover = os.path.exists(LOG_FILE) and os.path.getsize(LOG_FILE) > 0
+        fh = logging.handlers.RotatingFileHandler(LOG_FILE, backupCount=5)
+        if should_rollover:
+            fh.doRollover()
+        fh.setLevel(logging.DEBUG)
+        logging.getLogger("").addHandler(fh)
+
         _check_bort_app_id(self._bort_app_id)
         _check_feature_name(self._vendor_feature_name)
         logging.info(LOG_ENTRY_SEPARATOR)

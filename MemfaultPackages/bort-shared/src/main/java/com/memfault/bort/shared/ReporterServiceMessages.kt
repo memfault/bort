@@ -201,6 +201,6 @@ data class ErrorResponse(val error: String?) : ReporterServiceMessage() {
     companion object {
         fun fromBundle(bundle: Bundle) = ErrorResponse(bundle.getString(ERROR_MESSAGE))
 
-        fun fromException(e: Exception) = ErrorResponse(e.toString())
+        fun fromException(e: Exception) = ErrorResponse(e.stackTraceToString())
     }
 }

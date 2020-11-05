@@ -1,5 +1,17 @@
 # Memfault Bort Changelog
 
+## v2.7.1 - November 5, 2020
+
+#### :chart_with_upwards_trend: Improvements
+
+- The `bort_cli.py` tool now only writes to a validation log file when running
+  the validation command.
+
+#### :house: Internal
+
+- Add a backtrace when sending an error response in IPC between the
+  UsageReporter and Bort apps.
+
 ## v2.7.0 - October 28, 2020
 
 #### :chart_with_upwards_trend: Improvements
