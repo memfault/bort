@@ -4,7 +4,14 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.os.Messenger
-import kotlinx.coroutines.CompletableDeferred
+import com.github.michaelbull.result.Result
+import com.memfault.bort.shared.result.failure
+import com.memfault.bort.shared.result.success
+import kotlin.time.Duration
+import kotlin.time.seconds
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.withTimeout
 
 /**
  * Cannot instantiate Message / Messenger in a unit test environment,
@@ -14,24 +21,45 @@ interface ServiceMessage {
     fun toMessage(messageFactory: () -> Message = { Message.obtain() }): Message
 }
 
-const val DEFAULT_REPLY_TIMEOUT_MILLIS: Long = 5000
+val DEFAULT_REPLY_TIMEOUT: Duration = 5.seconds
+
+interface ServiceMessageReplyHandler<SM : ServiceMessage> {
+    val replyChannel: Channel<SM>
+}
 
 abstract class ServiceMessageConnection<SM : ServiceMessage> {
-    abstract suspend fun sendAndReceive(
+    abstract fun sendAndGetReplyHandler(message: SM): ServiceMessageReplyHandler<SM>
+    suspend fun sendAndReceive(
         message: SM,
-        timeoutMillis: Long = DEFAULT_REPLY_TIMEOUT_MILLIS
-    ): SM
+        timeout: Duration = DEFAULT_REPLY_TIMEOUT
+    ): Result<SM, Exception> = try {
+        Result.success(
+            withTimeout(timeout) {
+                sendAndGetReplyHandler(message).replyChannel.receive()
+            }
+        )
+    } catch (e: TimeoutCancellationException) {
+        Result.failure(e)
+    }
 }
+
+// RunCommandRequests have 2 replies per interaction:
+private const val REPLY_CHANNEL_CAPACITY = 2
 
 internal class ReplyMessageHandler<SM : ServiceMessage>(
     looper: Looper,
     private val messageToServiceMessage: (message: Message) -> SM
-) : Handler(looper) {
-    private val reply = CompletableDeferred<SM>()
+) : Handler(looper), ServiceMessageReplyHandler<SM> {
+
+    override val replyChannel = Channel<SM>(REPLY_CHANNEL_CAPACITY)
     override fun handleMessage(msg: Message) {
-        reply.complete(messageToServiceMessage(msg))
+        messageToServiceMessage(msg).also { serviceMessage ->
+            Logger.v("Got serviceMessage: $serviceMessage")
+            if (!replyChannel.offer(serviceMessage)) {
+                Logger.e("Failed to offer message to channel: $serviceMessage")
+            }
+        }
     }
-    suspend fun awaitReply() = reply.await()
 }
 
 class RealServiceMessageConnection<SM : ServiceMessage>(
@@ -39,7 +67,7 @@ class RealServiceMessageConnection<SM : ServiceMessage>(
     private val inboundLooper: Looper,
     private val messageToServiceMessage: (message: Message) -> SM
 ) : ServiceMessageConnection<SM>() {
-    override suspend fun sendAndReceive(message: SM, timeoutMillis: Long): SM {
+    override fun sendAndGetReplyHandler(message: SM): ServiceMessageReplyHandler<SM> {
         val replyHandler = ReplyMessageHandler(inboundLooper, messageToServiceMessage)
         val inboundMessenger = Messenger(replyHandler)
         outboundMessenger.send(
@@ -47,6 +75,6 @@ class RealServiceMessageConnection<SM : ServiceMessage>(
                 replyTo = inboundMessenger
             }
         )
-        return replyHandler.awaitReply()
+        return replyHandler
     }
 }

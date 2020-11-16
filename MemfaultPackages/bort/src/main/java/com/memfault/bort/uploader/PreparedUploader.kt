@@ -1,8 +1,14 @@
 package com.memfault.bort.uploader
 
+import com.memfault.bort.BugReportFileUploadMetadata
+import com.memfault.bort.DeviceInfoProvider
+import com.memfault.bort.FileUploadMetadata
+import com.memfault.bort.SOFTWARE_TYPE
+import com.memfault.bort.TombstoneFileUploadMetadata
 import com.memfault.bort.http.ProjectKeyAuthenticated
 import com.memfault.bort.shared.Logger
 import java.io.File
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody
@@ -35,6 +41,25 @@ data class CommitRequest(
     val file: CommitFileToken
 )
 
+@Serializable
+data class CommitRequestWithMetadata(
+    val file: CommitFileToken,
+
+    @SerialName("hardware_version")
+    val hardwareVersion: String,
+
+    @SerialName("device_serial")
+    val deviceSerial: String,
+
+    @SerialName("software_version")
+    val softwareVersion: String,
+
+    @SerialName("software_type")
+    val softwareType: String = SOFTWARE_TYPE,
+
+    val metadata: FileUploadMetadata,
+)
+
 interface PreparedUploadService {
     @POST("/api/v0/upload")
     @ProjectKeyAuthenticated
@@ -49,6 +74,13 @@ interface PreparedUploadService {
         @Path(value = "upload_type") uploadType: String,
         @Body commitRequest: CommitRequest
     ): Response<Unit>
+
+    @POST("/api/v0/upload/android-dropbox-manager-entry/{family}")
+    @ProjectKeyAuthenticated
+    suspend fun commitDropBoxEntry(
+        @Path(value = "family") entryFamily: String,
+        @Body commitRequest: CommitRequestWithMetadata
+    ): Response<Unit>
 }
 
 // Work around since vararg's can't be used in lambdas
@@ -61,6 +93,7 @@ internal interface UploadEventLogger {
  */
 internal class PreparedUploader(
     private val preparedUploadService: PreparedUploadService,
+    private val deviceInfoProvider: DeviceInfoProvider,
     private val eventLogger: UploadEventLogger = object : UploadEventLogger {}
 ) {
 
@@ -72,7 +105,7 @@ internal class PreparedUploader(
     }
 
     /**
-     * Upload a prepared file.
+     * Upload a prepared file from an FileInputStream or ByteArrayInputStream.
      */
     suspend fun upload(file: File, uploadUrl: String): Response<Unit> {
         val requestBody = file.asRequestBody("application/octet-stream".toMediaType())
@@ -87,15 +120,34 @@ internal class PreparedUploader(
     /**
      * Commit an uploaded bug report.
      */
-    suspend fun commitBugreport(token: String): Response<Unit> =
-        preparedUploadService.commit(
-            uploadType = "bugreport",
-            commitRequest = CommitRequest(
-                CommitFileToken(
-                    token
-                )
-            )
-        ).also {
-            eventLogger.log("commit", "done")
+    suspend fun commit(token: String, metadata: FileUploadMetadata): Response<Unit> {
+        return when (metadata) {
+            is BugReportFileUploadMetadata ->
+                preparedUploadService.commit(
+                    uploadType = "bugreport",
+                    commitRequest = CommitRequest(
+                        CommitFileToken(
+                            token
+                        )
+                    )
+                ).also {
+                    eventLogger.log("commit", "done", "bugreport")
+                }
+            is TombstoneFileUploadMetadata ->
+                deviceInfoProvider.getDeviceInfo().let { deviceInfo ->
+                    preparedUploadService.commitDropBoxEntry(
+                        entryFamily = "tombstone",
+                        commitRequest = CommitRequestWithMetadata(
+                            file = CommitFileToken(token),
+                            metadata = metadata,
+                            hardwareVersion = deviceInfo.hardwareVersion,
+                            deviceSerial = deviceInfo.deviceSerial,
+                            softwareVersion = deviceInfo.softwareVersion,
+                        )
+                    ).also {
+                        eventLogger.log("commit", "done", "tombstone")
+                    }
+                }
         }
+    }
 }

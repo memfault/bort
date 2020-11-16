@@ -27,11 +27,14 @@ internal class ReleaseTestComponentsBuilder(
             val response: Response = chain.proceed(request)
             val t2: Long = System.nanoTime()
             Logger.v(
-                """
-Received response for ${response.request.url} in ${String.format("%.1f", (t2 - t1) / 1e6)} ms
-${response.headers}
-            """
+                """Received response for ${response.request.url} in ${String.format("%.1f", (t2 - t1) / 1e6)} ms
+                   ${response.headers}
+                """.trimIndent()
             )
+            if (!response.isSuccessful) {
+                Logger.w("Request failed! code=${response.code}, message=${response.message}")
+            }
+
             response
         }
 
@@ -69,7 +72,7 @@ ${response.headers}
             )
         )
 
-        dropBoxEntryProcessors = testDropBoxEntryProcessors()
+        extraDropBoxEntryProcessors = testDropBoxEntryProcessors()
     }
 }
 

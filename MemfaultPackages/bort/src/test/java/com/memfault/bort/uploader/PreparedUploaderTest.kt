@@ -1,6 +1,11 @@
 package com.memfault.bort.uploader
 
+import com.memfault.bort.BootRelativeTime
+import com.memfault.bort.BugReportFileUploadMetadata
+import com.memfault.bort.FileUploadMetadata
+import com.memfault.bort.TombstoneFileUploadMetadata
 import com.memfault.bort.http.PROJECT_KEY_HEADER
+import com.memfault.bort.toAbsoluteTime
 import java.nio.charset.Charset
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
@@ -71,15 +76,61 @@ internal class PreparedUploaderTest {
     }
 
     @Test
-    fun commit() {
+    fun commitBugReport() {
         server.enqueue(MockResponse())
         runBlocking {
-            createUploader(server).commitBugreport("someToken")
+            createUploader(server).commit("someToken", BugReportFileUploadMetadata())
         }
         val recordedRequest = server.takeRequest(5, TimeUnit.MILLISECONDS)
         checkNotNull(recordedRequest)
         assertEquals("application/json; charset=utf-8", recordedRequest.getHeader("Content-Type"))
         assertEquals(SECRET_KEY, recordedRequest.getHeader(PROJECT_KEY_HEADER))
         assertEquals("""{"file":{"token":"someToken"}}""", recordedRequest.body.readUtf8())
+    }
+
+    @Test
+    fun commitTombstone() {
+        server.enqueue(MockResponse())
+        runBlocking {
+            createUploader(server).commit(
+                "someToken",
+                TombstoneFileUploadMetadata(
+                    tag = "SYSTEM_TOMBSTONE",
+                    fileTime = 1234.toLong().toAbsoluteTime(),
+                    entryTime = 4321.toLong().toAbsoluteTime(),
+                    packages = listOf(
+                        FileUploadMetadata.Package(
+                            id = "com.app",
+                            versionName = "1.0.0",
+                            versionCode = 1,
+                            userId = 1001,
+                            codePath = "/data/app/apk"
+                        )
+                    ),
+                    collectionTime = BootRelativeTime(
+                        uptime = 987,
+                        linuxBootId = "230295cb-04d4-40b8-8624-ec37089b9b75",
+                        bootCount = 67,
+                    )
+                )
+            )
+        }
+        val recordedRequest = server.takeRequest(5, TimeUnit.MILLISECONDS)
+        checkNotNull(recordedRequest)
+        assertEquals("/api/v0/upload/android-dropbox-manager-entry/tombstone", recordedRequest.path)
+        assertEquals("application/json; charset=utf-8", recordedRequest.getHeader("Content-Type"))
+        assertEquals(SECRET_KEY, recordedRequest.getHeader(PROJECT_KEY_HEADER))
+        assertEquals(
+            (
+                """{"file":{"token":"someToken"},"hardware_version":"HW-FOO","device_serial":"SN1234",""" +
+                    """"software_version":"1.0.0","software_type":"android-build","metadata":{"type":"tombstone",""" +
+                    """"tag":"SYSTEM_TOMBSTONE","file_time":{"timestamp":"1970-01-01T00:00:01.234Z"},""" +
+                    """"entry_time":{"timestamp":"1970-01-01T00:00:04.321Z"},"packages":[{"id":"com.app",""" +
+                    """"version_code":1,"version_name":"1.0.0","user_id":1001,"code_path":"/data/app/apk"}],""" +
+                    """"collection_time":{"uptime":987,"linux_boot_id":"230295cb-04d4-40b8-8624-ec37089b9b75",""" +
+                    """"boot_count":67}}}"""
+                ),
+            recordedRequest.body.readUtf8()
+        )
     }
 }

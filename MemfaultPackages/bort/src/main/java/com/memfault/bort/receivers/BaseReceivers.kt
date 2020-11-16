@@ -6,6 +6,7 @@ import android.content.Intent
 import com.memfault.bort.Bort
 import com.memfault.bort.BortEnabledProvider
 import com.memfault.bort.DeviceIdProvider
+import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.SettingsProvider
 import com.memfault.bort.ingress.IngressService
@@ -35,6 +36,7 @@ abstract class FilteringReceiver(
     protected lateinit var bortEnabledProvider: BortEnabledProvider
     protected lateinit var okHttpClient: OkHttpClient
     protected lateinit var deviceIdProvider: DeviceIdProvider
+    protected lateinit var deviceInfoProvider: DeviceInfoProvider
     protected lateinit var ingressService: IngressService
     protected lateinit var reporterServiceConnector: ReporterServiceConnector
 
@@ -58,6 +60,7 @@ abstract class FilteringReceiver(
         bortEnabledProvider = it.bortEnabledProvider
         okHttpClient = it.okHttpClient
         deviceIdProvider = it.deviceIdProvider
+        deviceInfoProvider = it.deviceInfoProvider
         ingressService = it.ingressService
         reporterServiceConnector = it.reporterServiceConnector
     }

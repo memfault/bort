@@ -2,6 +2,8 @@ package com.memfault.bort
 
 import android.os.Build
 
+internal const val SOFTWARE_TYPE = "android-build"
+
 data class DeviceInfo(
     val deviceSerial: String,
     val hardwareVersion: String,

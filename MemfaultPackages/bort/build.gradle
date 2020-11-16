@@ -84,6 +84,7 @@ android {
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_1_8.toString()
         freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
+        freeCompilerArgs += "-Xopt-in=kotlin.time.ExperimentalTime"
     }
 
     sourceSets {
@@ -113,6 +114,7 @@ dependencies {
     implementation deps.serialization.json
     implementation deps.serialization.converter
 
+    implementation deps.result
     implementation deps.retrofit
     implementation deps.okhttp
     implementation deps.okio

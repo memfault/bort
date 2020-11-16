@@ -1,5 +1,6 @@
 package com.memfault.bort.uploader
 
+import com.memfault.bort.FileUploadMetadata
 import com.memfault.bort.FileUploader
 import com.memfault.bort.TaskResult
 import com.memfault.bort.asResult
@@ -7,11 +8,10 @@ import com.memfault.bort.shared.Logger
 import java.io.File
 import retrofit2.HttpException
 
-internal class MemfaultBugReportUploader(
+internal class MemfaultFileUploader(
     private val preparedUploader: PreparedUploader
 ) : FileUploader {
-
-    override suspend fun upload(file: File): TaskResult {
+    override suspend fun upload(file: File, metadata: FileUploadMetadata): TaskResult {
         Logger.v("uploading $file")
 
         val prepareResponse = try {
@@ -46,7 +46,7 @@ internal class MemfaultBugReportUploader(
         }
 
         try {
-            when (val result = preparedUploader.commitBugreport(prepareData.token).asResult()) {
+            when (val result = preparedUploader.commit(prepareData.token, metadata).asResult()) {
                 TaskResult.RETRY -> return result
                 TaskResult.FAILURE -> return result
             }

@@ -3,6 +3,7 @@ package com.memfault.bort.uploader
 import androidx.work.Data
 import androidx.work.workDataOf
 import com.memfault.bort.BortEnabledProvider
+import com.memfault.bort.BugReportFileUploadMetadata
 import com.memfault.bort.FileUploader
 import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
 import com.memfault.bort.Task
@@ -34,7 +35,7 @@ internal class BugReportUploader(
             return fail("File does not exist")
         }
 
-        when (val result = delegate.upload(file)) {
+        when (val result = delegate.upload(file, BugReportFileUploadMetadata())) {
             TaskResult.RETRY -> return result
             TaskResult.FAILURE -> return fail("Upload failed")
         }

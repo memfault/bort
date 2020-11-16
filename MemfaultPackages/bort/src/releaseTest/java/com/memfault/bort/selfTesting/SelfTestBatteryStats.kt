@@ -1,11 +1,15 @@
 package com.memfault.bort.selfTesting
 
 import android.os.Build
+import com.github.michaelbull.result.andThen
+import com.github.michaelbull.result.map
+import com.github.michaelbull.result.toErrorIf
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.shared.BatteryStatsCommand
 import com.memfault.bort.shared.BatteryStatsOption
 import com.memfault.bort.shared.BatteryStatsOptionEnablement
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.result.isSuccess
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -45,20 +49,20 @@ class SelfTestBatteryStats(
         ).toList()
         return reporterServiceConnector.connect { getClient ->
             testCases.map { testCase ->
-                getClient().batteryStatsRun(testCase.cmd) { stream ->
-                    stream ?: return@batteryStatsRun false.also {
-                        Logger.e("Battery history stream was null for $testCase")
-                    }
-                    withContext(Dispatchers.IO) {
-                        val history = stream.bufferedReader().readText()
-                        history.contains(testCase.expectation).also { success ->
-                            if (!success) {
-                                Logger.d("Battery history text for $testCase:\n$history")
-                            }
+                getClient().batteryStatsRun(testCase.cmd) { invocation ->
+                    invocation.awaitInputStream().map { stream ->
+                        withContext(Dispatchers.IO) {
+                            stream.bufferedReader().readText()
+                        }
+                    }.toErrorIf({ !it.contains(testCase.expectation) }) {
+                        Exception("\"Battery history text for $testCase:\\n$it\"").also { Logger.e("$it") }
+                    }.andThen {
+                        invocation.awaitResponse().toErrorIf({ it.exitCode != 0 }) {
+                            Exception("Remote error while running battery stats! result=$it").also { Logger.e("$it") }
                         }
                     }
                 }
-            }.all { it }
+            }.all { it.isSuccess }
         }
     }
 }

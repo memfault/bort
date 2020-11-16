@@ -4,7 +4,8 @@ import com.memfault.bort.DeviceIdProvider
 import com.nhaarman.mockitokotlin2.doReturn
 import com.nhaarman.mockitokotlin2.mock
 import okhttp3.Request
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
 
 class DebugInfoInjectingInterceptorTest {
@@ -24,7 +25,7 @@ class DebugInfoInjectingInterceptorTest {
                         mock(),
                         mock<DeviceIdProvider>()
                     ).transformRequest(request).let {
-                        Assert.assertEquals(url, it.url.toString())
+                        assertEquals(url, it.url.toString())
                     }
                 }
         }
@@ -61,7 +62,7 @@ class DebugInfoInjectingInterceptorTest {
                             assert(queryParamNames.contains(QUERY_PARAM_VERSION_CODE))
                             assert(queryParamNames.contains(QUERY_PARAM_DEVICE_ID))
                         }
-                        Assert.assertNotNull(result.header(X_REQUEST_ID))
+                        assertNotNull(result.header(X_REQUEST_ID))
                     }
                 }
         }

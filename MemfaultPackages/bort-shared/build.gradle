@@ -34,6 +34,12 @@ android {
         }
     }
 
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8.toString()
+        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
+        freeCompilerArgs += "-Xopt-in=kotlin.time.ExperimentalTime"
+    }
+
     testOptions {
         unitTests.returnDefaultValues = true
         unitTests.all {
@@ -45,6 +51,7 @@ android {
 dependencies {
     implementation deps.kotlin.stdlib
     implementation deps.kotlin.coroutines
+    implementation deps.result
 
     debugImplementation deps.debug.leakCanary
 

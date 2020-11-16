@@ -46,6 +46,7 @@ buildscript {
             'okhttp'                           : '4.9.0',
             'okio'                             : '2.9.0',
             'preference'                       : '1.1.1',
+            'result'                           : '1.1.9',
             'retrofit'                         : '2.9.0',
             'work'                             : '2.4.0'
     ]
@@ -72,6 +73,7 @@ buildscript {
             'retrofit'     : "com.squareup.retrofit2:retrofit:${versions.retrofit}",
             'okhttp'       : "com.squareup.okhttp3:okhttp:${versions.okhttp}",
             'okio'         : "com.squareup.okio:okio:${versions.okio}",
+            'result'       : "com.michael-bull.kotlin-result:kotlin-result:${versions.result}",
             'test'         : [
                     'coroutines'   : "org.jetbrains.kotlinx:kotlinx-coroutines-test:${versions.coroutinesTest}",
                     'junitApi'     : "org.junit.jupiter:junit-jupiter-api:${versions.junit}",

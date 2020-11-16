@@ -13,7 +13,6 @@ import retrofit2.http.POST
 import retrofit2.http.Tag
 
 internal const val SDK_VERSION = "0.5.0"
-internal const val SOFTWARE_TYPE = "android-build"
 
 internal const val SDK_EVENT_WORK_TAG = "com.memfault.bort.work.tag.UPLOAD_SDK_EVENT"
 internal const val REBOOT_EVENT_WORK_TAG = "com.memfault.bort.work.tag.UPLOAD_REBOOT_EVENT"

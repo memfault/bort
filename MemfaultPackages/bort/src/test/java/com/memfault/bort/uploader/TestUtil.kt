@@ -2,6 +2,8 @@ package com.memfault.bort.uploader
 
 import androidx.work.Data
 import com.memfault.bort.BortEnabledProvider
+import com.memfault.bort.DeviceInfo
+import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.kotlinxJsonConverterFactory
@@ -30,6 +32,10 @@ const val SECRET_KEY = "secretKey"
 internal fun createUploader(server: MockWebServer) =
     PreparedUploader(
         createRetrofit(server).create(PreparedUploadService::class.java),
+        object : DeviceInfoProvider {
+            override suspend fun getDeviceInfo(): DeviceInfo =
+                DeviceInfo("SN1234", "HW-FOO", "1.0.0")
+        },
         eventLogger = object : UploadEventLogger {
             override fun log(vararg strings: String) {}
         }

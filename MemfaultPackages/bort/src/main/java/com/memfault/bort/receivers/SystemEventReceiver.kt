@@ -6,17 +6,14 @@ import android.provider.Settings
 import androidx.preference.PreferenceManager
 import com.memfault.bort.AndroidBootReason
 import com.memfault.bort.BootCountTracker
-import com.memfault.bort.DeviceInfo
 import com.memfault.bort.DumpsterClient
-import com.memfault.bort.INTENT_ACTION_BOOT_COMPLETED
-import com.memfault.bort.INTENT_ACTION_MY_PACKAGE_REPLACED
 import com.memfault.bort.RealLastTrackedBootCountProvider
 import com.memfault.bort.RebootEventUploader
 import com.memfault.bort.requester.BugReportRequester
 import com.memfault.bort.shared.Logger
 
 class SystemEventReceiver : BortEnabledFilteringReceiver(
-    setOf(INTENT_ACTION_BOOT_COMPLETED, INTENT_ACTION_MY_PACKAGE_REPLACED)
+    setOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED)
 ) {
 
     private fun onPackageReplaced(context: Context) {
@@ -35,9 +32,7 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
             DumpsterClient().getprop()?.let { systemProperties ->
                 val rebootEventUploader = RebootEventUploader(
                     ingressService = ingressService,
-                    deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(
-                        settingsProvider.deviceInfoSettings, systemProperties
-                    ),
+                    deviceInfo = deviceInfoProvider.getDeviceInfo(),
                     androidSysBootReason = systemProperties.get(AndroidBootReason.SYS_BOOT_REASON_KEY)
                 )
                 val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
@@ -61,8 +56,8 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
 
     override fun onReceivedAndEnabled(context: Context, intent: Intent, action: String) {
         when (action) {
-            INTENT_ACTION_MY_PACKAGE_REPLACED -> onPackageReplaced(context)
-            INTENT_ACTION_BOOT_COMPLETED -> onBootCompleted(context)
+            Intent.ACTION_MY_PACKAGE_REPLACED -> onPackageReplaced(context)
+            Intent.ACTION_BOOT_COMPLETED -> onBootCompleted(context)
         }
     }
 }

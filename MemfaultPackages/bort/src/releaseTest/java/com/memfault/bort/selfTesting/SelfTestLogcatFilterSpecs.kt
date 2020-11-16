@@ -1,6 +1,10 @@
 package com.memfault.bort.selfTesting
 
 import android.util.Log
+import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.andThen
+import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.toErrorIf
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.shared.LogcatBufferId
 import com.memfault.bort.shared.LogcatCommand
@@ -9,11 +13,12 @@ import com.memfault.bort.shared.LogcatFormat
 import com.memfault.bort.shared.LogcatFormatModifier
 import com.memfault.bort.shared.LogcatPriority
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.result.failure
+import com.memfault.bort.shared.result.isSuccess
+import com.memfault.bort.shared.result.success
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.UUID
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 class SelfTestLogcatFilterSpecs(val reporterServiceConnector: ReporterServiceConnector) : SelfTester.Case {
     override suspend fun test(): Boolean {
@@ -125,20 +130,24 @@ private suspend fun ReporterServiceConnector.testLogcatRun(
     block: (ByteArray) -> Boolean
 ): Boolean =
     this.connect { getClient ->
-        getClient().logcatRun(cmd) { stream ->
-            stream ?: return@logcatRun false.also {
+        getClient().logcatRun(cmd) { invocation ->
+            invocation.awaitInputStream().onFailure {
                 Logger.e("Logcat stream was null")
-            }
-            withContext(Dispatchers.IO) {
-                val output = stream.readBytes()
-                block(output).also { success ->
-                    if (!success) {
-                        Logger.d("Logcat text:")
-                        for (line in output.toString(Charsets.UTF_8).lines()) {
-                            Logger.d(line)
-                        }
+            }.andThen {
+                val output = it.readBytes()
+                if (block(output)) {
+                    Result.success(Unit)
+                } else {
+                    Logger.d("Logcat text:")
+                    for (line in output.toString(Charsets.UTF_8).lines()) {
+                        Logger.d(line)
                     }
+                    Result.failure(Exception("Validation on output failed!"))
+                }
+            }.andThen {
+                invocation.awaitResponse().toErrorIf({ it.exitCode != 0 }) {
+                    Exception("Remote error while running logcat! result=$it").also { Logger.e("$it") }
                 }
             }
-        }
+        }.isSuccess
     }

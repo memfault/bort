@@ -48,8 +48,6 @@
         <receiver android:name=".receivers.SystemEventReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-            <intent-filter>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
@@ -59,8 +57,6 @@
             android:permission="${bortControlPermission}">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.BORT_ENABLE" />
-            </intent-filter>
-            <intent-filter>
                 <action android:name="com.memfault.intent.action.REQUEST_BUG_REPORT" />
             </intent-filter>
         </receiver>
@@ -71,8 +67,6 @@
             android:permission="android.permission.DUMP">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.BORT_ENABLE" />
-            </intent-filter>
-            <intent-filter>
                 <action android:name="com.memfault.intent.action.REQUEST_BUG_REPORT" />
             </intent-filter>
         </receiver>

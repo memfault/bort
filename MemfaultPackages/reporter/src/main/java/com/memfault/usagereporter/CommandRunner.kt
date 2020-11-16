@@ -9,18 +9,33 @@ import java.util.concurrent.TimeUnit
 
 private const val EXIT_TIMEOUT_SECS: Long = 5
 
+typealias CommandRunnerReportResult = (exitCode: Int?, didTimeout: Boolean) -> Unit
+
 class CommandRunner(
     val command: List<String>,
     val options: CommandRunnerOptions,
+    val reportResult: CommandRunnerReportResult,
     val outputStreamFactory: (ParcelFileDescriptor) -> OutputStream = ParcelFileDescriptor::AutoCloseOutputStream
-) : Runnable {
+) : TimeoutRunnable {
     var process: Process? = null
         private set
+    var didTimeout: Boolean = false
+        private set
+    var exitCode: Int? = null
+        protected set
 
     override fun toString() =
         "`${command.joinToString(" ")}` (id=${options.id})"
 
     override fun run() {
+        try {
+            executeCommand()
+        } finally {
+            reportResult(exitCode, didTimeout)
+        }
+    }
+
+    private fun executeCommand() {
         val outFd = options.outFd
         if (outFd == null) {
             Logger.e("Failed to run command $this. outFd was null!")
@@ -38,13 +53,21 @@ class CommandRunner(
 
                 ProcessResource(p).use {
                     p.inputStream.use {
-                        it.copyTo(outputStream)
+                        // Skip copy in the unlikely case where the process got created just after handleTimeout() ran:
+                        if (!didTimeout) {
+                            it.copyTo(outputStream)
+                        }
                     }
                 }
             }
         } catch (e: Exception) {
             Logger.e("Exception: $this", e)
         }
+    }
+
+    override fun handleTimeout() {
+        didTimeout = true
+        process?.destroy()
     }
 
     private inner class ProcessResource(val process: Process) : Closeable {
@@ -55,12 +78,12 @@ class CommandRunner(
             } catch (e: InterruptedException) {
                 false
             }
-            val exitValue = try {
+            exitCode = try {
                 process.exitValue()
             } catch (e: IllegalThreadStateException) {
                 null
             }
-            Logger.v("Done: $this, exited=$exited, exitValue=$exitValue")
+            Logger.v("Done: $this, exited=$exited, exitCode=$exitCode, didTimeout=$didTimeout")
         }
     }
 }

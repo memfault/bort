@@ -1,31 +1,42 @@
 package vnd.myandroid.bortappid // Update to match your package
 
+import com.memfault.bort.FileUploadMetadata
 import com.memfault.bort.FileUploader
 import com.memfault.bort.TaskResult
 import com.memfault.bort.shared.Logger
 import java.io.File
+import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.HttpException
 import retrofit2.Response
 import retrofit2.Retrofit
-import retrofit2.http.Body
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 
 private const val BASE_URL = "https://my.base.url"
 
 interface SampleUploadService {
+    @Multipart
     @POST("api/v0/upload")
-    suspend fun upload(@Body file: RequestBody): Response<Unit>
+    suspend fun upload(@Part file: RequestBody, @Part metadata: RequestBody): Response<Unit>
 }
+
+fun FileUploadMetadata.asRequestBody() =
+    Json.encodeToString(
+        FileUploadMetadata.serializer(),
+        this
+    ).toRequestBody("application/json".toMediaType())
 
 class SampleBugReportUploader(
     private val retrofit: Retrofit,
     private val apiKey: String
 ) : FileUploader {
 
-    override suspend fun upload(file: File): TaskResult {
+    override suspend fun upload(file: File, metadata: FileUploadMetadata): TaskResult {
         val customRetrofit = retrofit.newBuilder()
             .baseUrl(BASE_URL)
             .build()
@@ -34,9 +45,10 @@ class SampleBugReportUploader(
 
         val uploadService = customRetrofit.create(SampleUploadService::class.java)
 
-        val requestBody = file.asRequestBody("application/octet-stream".toMediaType())
+        val fileBody = file.asRequestBody("application/octet-stream".toMediaType())
+        val metadataBody = metadata.asRequestBody()
         return try {
-            val response = uploadService.upload(requestBody)
+            val response = uploadService.upload(fileBody, metadataBody)
             when (response.code()) {
                 in 500..599 -> TaskResult.RETRY
                 408 -> TaskResult.RETRY

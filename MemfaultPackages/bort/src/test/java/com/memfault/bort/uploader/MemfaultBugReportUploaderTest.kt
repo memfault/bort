@@ -1,5 +1,6 @@
 package com.memfault.bort.uploader
 
+import com.memfault.bort.BugReportFileUploadMetadata
 import com.memfault.bort.TaskResult
 import java.io.File
 import java.nio.file.Files
@@ -35,9 +36,9 @@ class MemfaultBugReportUploaderTest {
     fun prepareFailsOnBadCode() {
         server.enqueue(MockResponse().setResponseCode(400))
         val result = runBlocking {
-            MemfaultBugReportUploader(
+            MemfaultFileUploader(
                 preparedUploader = createUploader(server)
-            ).upload(file)
+            ).upload(file, BugReportFileUploadMetadata())
         }
         assert(result == TaskResult.FAILURE)
     }
@@ -46,9 +47,9 @@ class MemfaultBugReportUploaderTest {
     fun prepareRetriesOn500() {
         server.enqueue(MockResponse().setResponseCode(500))
         val result = runBlocking {
-            MemfaultBugReportUploader(
+            MemfaultFileUploader(
                 preparedUploader = createUploader(server)
-            ).upload(file)
+            ).upload(file, BugReportFileUploadMetadata())
         }
         assert(result == TaskResult.RETRY)
     }
@@ -57,9 +58,9 @@ class MemfaultBugReportUploaderTest {
     fun prepareWithNoResponseBodyRetries() {
         server.enqueue(MockResponse())
         val result = runBlocking {
-            MemfaultBugReportUploader(
+            MemfaultFileUploader(
                 preparedUploader = createUploader(server)
-            ).upload(file)
+            ).upload(file, BugReportFileUploadMetadata())
         }
         assert(result == TaskResult.RETRY)
     }

@@ -262,11 +262,11 @@ data class LogcatCommand(
             LogcatCommand(
                 filterSpecs = getParcelableArray(FILTER_SPECS)?.mapNotNull {
                     LogcatFilterSpec.fromBundle(it as Bundle)
-                }?.toList() ?: emptyList(),
+                }.listify(),
                 format = getByteOrNull(FORMAT)?.let { LogcatFormat.getById(it) },
                 formatModifiers = getByteArray(FORMAT_MODIFIERS)?.map {
                     LogcatFormatModifier.getById(it)
-                }?.filterNotNull() ?: emptyList(),
+                }?.filterNotNull().listify(),
                 dividers = getBoolean(DIVIDERS),
                 clear = getBoolean(CLEAR),
                 dumpAndExit = getBoolean(DUMP_AND_EXIT),
@@ -283,7 +283,7 @@ data class LogcatCommand(
                 last = getBoolean(LAST),
                 buffers = getByteArray(BUFFERS)?.map {
                     LogcatBufferId.getById(it)
-                }?.filterNotNull() ?: emptyList(),
+                }?.filterNotNull().listify(),
                 binary = getBoolean(BINARY),
                 statistics = getBoolean(STATISTICS),
                 getPrune = getBoolean(GET_PRUNE),

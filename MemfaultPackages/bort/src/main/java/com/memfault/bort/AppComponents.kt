@@ -21,9 +21,10 @@ import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.uploader.BugReportUploader
 import com.memfault.bort.uploader.HttpTask
 import com.memfault.bort.uploader.HttpTaskCallFactory
-import com.memfault.bort.uploader.MemfaultBugReportUploader
+import com.memfault.bort.uploader.MemfaultFileUploader
 import com.memfault.bort.uploader.PreparedUploadService
 import com.memfault.bort.uploader.PreparedUploader
+import java.io.File
 import java.util.UUID
 import kotlinx.serialization.ExperimentalSerializationApi
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -44,6 +45,7 @@ data class AppComponents(
     val fileUploaderFactory: FileUploaderFactory,
     val bortEnabledProvider: BortEnabledProvider,
     val deviceIdProvider: DeviceIdProvider,
+    val deviceInfoProvider: DeviceInfoProvider,
     val httpTaskCallFactory: HttpTaskCallFactory,
     val ingressService: IngressService,
     val reporterServiceConnector: ReporterServiceConnector
@@ -64,12 +66,14 @@ data class AppComponents(
         var bortEnabledProvider: BortEnabledProvider? = null
         var deviceIdProvider: DeviceIdProvider? = null
         var reporterServiceConnector: ReporterServiceConnector? = null
-        var dropBoxEntryProcessors: Map<String, EntryProcessor>? = null
+        var extraDropBoxEntryProcessors: Map<String, EntryProcessor> = emptyMap()
 
         fun build(): AppComponents {
             val settingsProvider = settingsProvider ?: BuildConfigSettingsProvider()
             val deviceIdProvider = deviceIdProvider ?: RandomUuidDeviceIdProvider(sharedPreferences)
-            val fileUploaderFactory = fileUploaderFactory ?: MemfaultFileUploaderFactory()
+            val deviceInfoProvider = RealDeviceInfoProvider(settingsProvider.deviceInfoSettings)
+            val fileUploaderFactory =
+                fileUploaderFactory ?: MemfaultFileUploaderFactory(deviceInfoProvider)
             val projectKeyInjectingInterceptor = ProjectKeyInjectingInterceptor(
                 settingsProvider.httpApiSettings::projectKey
             )
@@ -104,7 +108,20 @@ data class AppComponents(
                 context = context,
                 inboundLooper = Looper.getMainLooper()
             )
-            val dropBoxEntryProcessors = dropBoxEntryProcessors ?: realDropBoxEntryProcessors()
+
+            val tempFileFactory = object : TemporaryFileFactory {
+                override val temporaryFileDirectory: File = context.cacheDir
+            }
+            val bootRelativeTimeProvider = RealBootRelativeTimeProvider(context)
+            val packageManagerClient = PackageManagerClient(reporterServiceConnector)
+            val dropBoxEntryProcessors = realDropBoxEntryProcessors(
+                tempFileFactory = tempFileFactory,
+                bootRelativeTimeProvider = bootRelativeTimeProvider,
+                fileUploaderSimpleFactory = {
+                    fileUploaderFactory.create(retrofit, settingsProvider.httpApiSettings.projectKey)
+                },
+                packageManagerClient = packageManagerClient,
+            ) + extraDropBoxEntryProcessors
 
             val workerFactory = DefaultWorkerFactory(
                 context = context,
@@ -130,6 +147,7 @@ data class AppComponents(
                 fileUploaderFactory = fileUploaderFactory,
                 bortEnabledProvider = bortEnabledProvider,
                 deviceIdProvider = deviceIdProvider,
+                deviceInfoProvider = deviceInfoProvider,
                 httpTaskCallFactory = httpTaskCallFactory,
                 ingressService = IngressService.create(settingsProvider.httpApiSettings, httpTaskCallFactory),
                 reporterServiceConnector = reporterServiceConnector
@@ -227,11 +245,12 @@ class DefaultWorkerFactory(
     }
 }
 
-class MemfaultFileUploaderFactory : FileUploaderFactory {
+class MemfaultFileUploaderFactory(private val deviceInfoProvider: DeviceInfoProvider) : FileUploaderFactory {
     override fun create(retrofit: Retrofit, projectApiKey: String): FileUploader =
-        MemfaultBugReportUploader(
+        MemfaultFileUploader(
             preparedUploader = PreparedUploader(
-                retrofit.create(PreparedUploadService::class.java)
+                preparedUploadService = retrofit.create(PreparedUploadService::class.java),
+                deviceInfoProvider = deviceInfoProvider,
             )
         )
 }

@@ -36,6 +36,12 @@ android {
         }
     }
 
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8.toString()
+        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
+        freeCompilerArgs += "-Xopt-in=kotlin.time.ExperimentalTime"
+    }
+
     testOptions {
         unitTests.returnDefaultValues = true
         unitTests.all {
@@ -49,6 +55,7 @@ dependencies {
 
     implementation deps.kotlin.stdlib
     implementation deps.android.preference
+    implementation deps.result
 
     testImplementation deps.test.junitApi
     testImplementation deps.test.junitEngine

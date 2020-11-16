@@ -23,11 +23,13 @@ class SelfTester(
 
     suspend fun run(): Boolean =
         listOf(
+            SelfTestReporterServiceTimeouts(reporterServiceConnector),
             SelfTestDumpster(settingsProvider.deviceInfoSettings),
             SelfTestBatteryStats(reporterServiceConnector),
             SelfTestLogcatFilterSpecs(reporterServiceConnector),
             SelfTestLogcatFormat(reporterServiceConnector),
-            SelfTestLogcatCommandSerialization()
+            SelfTestLogcatCommandSerialization(),
+            SelfTestPackageManager(reporterServiceConnector),
         ).map { case ->
             try {
                 Logger.test("Running $case...")

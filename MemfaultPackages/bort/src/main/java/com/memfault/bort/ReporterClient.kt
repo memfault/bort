@@ -6,27 +6,40 @@ import android.os.DropBoxManager
 import android.os.IBinder
 import android.os.Looper
 import android.os.Messenger
+import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.fold
+import com.github.michaelbull.result.runCatching
 import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import com.memfault.bort.shared.BatteryStatsCommand
 import com.memfault.bort.shared.BatteryStatsRequest
-import com.memfault.bort.shared.BatteryStatsResponse
+import com.memfault.bort.shared.DEFAULT_REPLY_TIMEOUT
 import com.memfault.bort.shared.DropBoxGetNextEntryRequest
 import com.memfault.bort.shared.DropBoxGetNextEntryResponse
 import com.memfault.bort.shared.DropBoxSetTagFilterRequest
 import com.memfault.bort.shared.DropBoxSetTagFilterResponse
 import com.memfault.bort.shared.ErrorResponse
+import com.memfault.bort.shared.ErrorResponseException
 import com.memfault.bort.shared.LogcatCommand
 import com.memfault.bort.shared.LogcatRequest
-import com.memfault.bort.shared.LogcatResponse
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.PackageManagerCommand
+import com.memfault.bort.shared.PackageManagerRequest
 import com.memfault.bort.shared.REPORTER_SERVICE_QUALIFIED_NAME
 import com.memfault.bort.shared.RealServiceMessageConnection
 import com.memfault.bort.shared.ReporterServiceMessage
 import com.memfault.bort.shared.ServiceMessage
 import com.memfault.bort.shared.ServiceMessageConnection
+import com.memfault.bort.shared.ServiceMessageReplyHandler
+import com.memfault.bort.shared.SleepCommand
+import com.memfault.bort.shared.SleepRequest
+import com.memfault.bort.shared.UnexpectedResponseException
 import com.memfault.bort.shared.VersionRequest
 import com.memfault.bort.shared.VersionResponse
-import java.io.FileInputStream
+import com.memfault.bort.shared.result.StdResult
+import com.memfault.bort.shared.result.failure
+import com.memfault.bort.shared.result.mapCatching
+import com.memfault.bort.shared.result.success
+import kotlin.time.Duration
 
 typealias ReporterServiceConnection = ServiceMessageConnection<ReporterServiceMessage>
 typealias ReporterServiceConnector = ServiceConnector<ReporterClient>
@@ -50,7 +63,7 @@ class RealReporterServiceConnector(
         )
 }
 
-private const val MINIMUM_VALID_VERSION = 1
+private const val MINIMUM_VALID_VERSION = 3
 
 class ReporterClient(
     val connection: ReporterServiceConnection,
@@ -59,87 +72,113 @@ class ReporterClient(
     private var cachedVersion: Int? = null
 
     suspend fun getVersion(): Int? =
-        cachedVersion
-            ?: sendWithoutVersionCheck(
-                VersionRequest(),
-                { response: VersionResponse -> response.version }, { null }
-            ).also { version ->
-                cachedVersion = version
+        cachedVersion ?: sendWithoutVersionCheck(VersionRequest()) { response: VersionResponse ->
+            response.version
+        }.fold({ it }, { null }).also {
+            version ->
+            cachedVersion = version
+        }
+
+    suspend fun dropBoxSetTagFilter(includedTags: List<String>): StdResult<Unit> =
+        send(DropBoxSetTagFilterRequest(includedTags)) { _: DropBoxSetTagFilterResponse -> Result.success(Unit) }
+
+    /**
+     * Note: make sure to .close() the entry when you are done with it!
+     */
+    suspend fun dropBoxGetNextEntry(lastTimeMillis: Long): StdResult<DropBoxManager.Entry?> =
+        send(DropBoxGetNextEntryRequest(lastTimeMillis)) { response: DropBoxGetNextEntryResponse -> response.entry }
+
+    suspend fun <R> sleep(
+        delaySeconds: Int,
+        timeout: Duration,
+        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>
+    ): StdResult<R> =
+        withVersion(context = "sleep") {
+            commandRunnerClientFactory.create(timeout = timeout).run(block) { options ->
+                sendAndGetReplyHandler(SleepRequest(SleepCommand(delaySeconds), options))
             }
-
-    suspend fun dropBoxSetTagFilter(includedTags: List<String>): Boolean =
-        send(
-            DropBoxSetTagFilterRequest(includedTags),
-            { _: DropBoxSetTagFilterResponse -> true },
-            { false }
-        )
-
-    suspend fun dropBoxGetNextEntry(lastTimeMillis: Long): Pair<DropBoxManager.Entry?, Boolean> =
-        send(
-            DropBoxGetNextEntryRequest(lastTimeMillis),
-            { response: DropBoxGetNextEntryResponse -> Pair(response.entry, true) },
-            { Pair(null, false) }
-        )
+        }
 
     suspend fun <R> batteryStatsRun(
         cmd: BatteryStatsCommand,
-        block: suspend (FileInputStream?) -> R
-    ): R =
-        commandRunnerClientFactory.create().use { client ->
-            send(
-                BatteryStatsRequest(cmd, client.options),
-                { _: BatteryStatsResponse -> block(client.handOffAndGetInputStream()) },
-                { block(null) }
-            )
+        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>
+    ): StdResult<R> =
+        withVersion(context = "battery stats") {
+            commandRunnerClientFactory.create().run(block) { options ->
+                sendAndGetReplyHandler(BatteryStatsRequest(cmd, options))
+            }
         }
 
-    suspend fun <R> batteryStatsGetHistory(
-        lastTimeMillis: Long,
-        block: suspend (FileInputStream?) -> R
-    ): R =
-        batteryStatsRun(BatteryStatsCommand(c = true, historyStart = lastTimeMillis), block)
+    suspend fun <R> logcatRun(
+        cmd: LogcatCommand,
+        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>
+    ): StdResult<R> =
+        withVersion(context = "logcat") {
+            commandRunnerClientFactory.create().run(block) { options ->
+                sendAndGetReplyHandler(LogcatRequest(cmd, options))
+            }
+        }
 
-    suspend fun <R> logcatRun(cmd: LogcatCommand, block: suspend (FileInputStream?) -> R): R =
-        commandRunnerClientFactory.create().use { client ->
-            send(
-                LogcatRequest(cmd, client.options),
-                { _: LogcatResponse -> block(client.handOffAndGetInputStream()) },
-                { block(null) }
-            )
+    suspend fun <R> packageManagerRun(
+        cmd: PackageManagerCommand,
+        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>
+    ): StdResult<R> =
+        withVersion(context = "package manager") {
+            commandRunnerClientFactory.create().run(block) { options ->
+                sendAndGetReplyHandler(PackageManagerRequest(cmd, options))
+            }
+        }
+
+    private suspend inline fun <R> withVersion(
+        context: Any,
+        minimumVersion: Int = MINIMUM_VALID_VERSION,
+        block: () -> StdResult<R>
+    ): StdResult<R> =
+        getVersion().let { version ->
+            if (version ?: 0 >= minimumVersion) {
+                block()
+            } else {
+                Result.failure(
+                    UnsupportedOperationException(
+                        "Unsupported request for $context ($version < $minimumVersion)".also { Logger.v(it) }
+                    )
+                )
+            }
         }
 
     private suspend inline fun <reified RS, RV> send(
         request: ReporterServiceMessage,
+        minimumVersion: Int = MINIMUM_VALID_VERSION,
+        timeout: Duration = DEFAULT_REPLY_TIMEOUT,
         responseBlock: (RS) -> RV,
-        errorBlock: () -> RV,
+    ): StdResult<RV> =
+        withVersion(request, minimumVersion) {
+            sendWithoutVersionCheck(request, timeout, responseBlock)
+        }
+
+    private suspend fun sendAndGetReplyHandler(
+        message: ReporterServiceMessage,
         minimumVersion: Int = MINIMUM_VALID_VERSION
-    ): RV =
-        getVersion().let { version ->
-            if (version ?: 0 >= minimumVersion) {
-                sendWithoutVersionCheck(request, responseBlock, errorBlock)
-            } else {
-                errorBlock().also {
-                    Logger.d("Unsupported request $request ($version < $minimumVersion)")
+    ): StdResult<ServiceMessageReplyHandler<ReporterServiceMessage>> =
+        withVersion(message, minimumVersion) { runCatching { connection.sendAndGetReplyHandler(message) } }
+
+    private suspend inline fun <reified RS : ReporterServiceMessage, RV> sendWithoutVersionCheck(
+        request: ReporterServiceMessage,
+        timeout: Duration = DEFAULT_REPLY_TIMEOUT,
+        responseBlock: (RS) -> RV,
+    ): StdResult<RV> =
+        connection.sendAndReceive(request, timeout).mapCatching { response ->
+            when (response) {
+                is RS -> responseBlock(response)
+                else -> throw errorOrUnexpectedResponseException(request, response).also {
+                    Logger.e("Request failed", it)
                 }
             }
         }
 
-    private suspend inline fun <reified RS, RV> sendWithoutVersionCheck(
-        request: ReporterServiceMessage,
-        responseBlock: (RS) -> RV,
-        errorBlock: () -> RV
-    ): RV =
-        when (val response = connection.sendAndReceive(request)) {
-            is RS -> responseBlock(response)
-            else -> errorBlock().also {
-                logErrorOrUnexpectedResponse(request, response)
-            }
-        }
-
-    private fun logErrorOrUnexpectedResponse(request: ServiceMessage, response: ServiceMessage) {
+    private fun errorOrUnexpectedResponseException(request: ServiceMessage, response: ServiceMessage?): Throwable =
         when (response) {
-            is ErrorResponse -> Logger.e("Error response to $request: ${response.error}")
-            else -> Logger.e("Unexpected response to $request: $response")
+            is ErrorResponse -> ErrorResponseException("Error response to $request: ${response.error}")
+            else -> UnexpectedResponseException("Unexpected response to $request: $response")
         }
-    }
 }

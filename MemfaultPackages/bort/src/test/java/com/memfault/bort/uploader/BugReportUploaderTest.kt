@@ -1,6 +1,7 @@
 package com.memfault.bort.uploader
 
 import androidx.work.workDataOf
+import com.memfault.bort.FileUploadMetadata
 import com.memfault.bort.FileUploader
 import com.memfault.bort.TaskResult
 import java.io.File
@@ -8,7 +9,7 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -55,7 +56,7 @@ class BugReportUploaderTest {
             ).doWork(worker)
         }
         assert(result == TaskResult.FAILURE)
-        Assert.assertFalse(file.exists())
+        assertFalse(file.exists())
     }
 
     @Test
@@ -80,7 +81,7 @@ class BugReportUploaderTest {
             ).doWork(worker)
         }
         assert(result == TaskResult.SUCCESS)
-        Assert.assertFalse(file.exists())
+        assertFalse(file.exists())
     }
 
     @Test
@@ -93,11 +94,14 @@ class BugReportUploaderTest {
             ).doWork(worker)
         }
         assert(result == TaskResult.FAILURE)
-        Assert.assertFalse(file.exists())
+        assertFalse(file.exists())
     }
 }
 
 internal fun fakeFileUploader(result: TaskResult = TaskResult.SUCCESS): FileUploader =
     object : FileUploader {
-        override suspend fun upload(file: File): TaskResult = result
+        override suspend fun upload(
+            file: File,
+            metadata: FileUploadMetadata
+        ): TaskResult = result
     }

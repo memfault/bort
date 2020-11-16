@@ -1,52 +1,52 @@
 package com.memfault.bort.dropbox
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.os.DropBoxManager
 import android.os.RemoteException
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.github.michaelbull.result.onFailure
+import com.memfault.bort.BootRelativeTimeProvider
 import com.memfault.bort.DropBoxSettings
-import com.memfault.bort.PREFERENCE_LAST_PROCESSED_DROPBOX_ENTRY_TIME_MILLIS
+import com.memfault.bort.FileUploaderSimpleFactory
+import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.ReporterClient
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.ServiceGetter
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
+import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.oneTimeWorkRequest
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.shared.PreferenceKeyProvider
 import kotlinx.coroutines.delay
 
+private const val WORK_TAG = "DROPBOX_QUERY"
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.DROPBOX_QUERY"
 private const val DEFAULT_RETRY_DELAY_MILLIS: Long = 5000
 
-interface DropBoxLastProcessedEntryProvider {
-    var timeMillis: Long
-}
-
-class RealDropBoxLastProcessedEntryProvider(
-    sharedPreferences: SharedPreferences
-) : DropBoxLastProcessedEntryProvider, PreferenceKeyProvider<Long>(
-    sharedPreferences = sharedPreferences,
-    defaultValue = 0,
-    preferenceKey = PREFERENCE_LAST_PROCESSED_DROPBOX_ENTRY_TIME_MILLIS
-) {
-    override var timeMillis
-        get() = super.getValue()
-        set(value) = super.setValue(value)
-}
-
-fun realDropBoxEntryProcessors(): Map<String, EntryProcessor> {
-    return mapOf()
+fun realDropBoxEntryProcessors(
+    bootRelativeTimeProvider: BootRelativeTimeProvider,
+    tempFileFactory: TemporaryFileFactory,
+    fileUploaderSimpleFactory: FileUploaderSimpleFactory,
+    packageManagerClient: PackageManagerClient,
+): Map<String, EntryProcessor> {
+    val tombstoneEntryProcessor = TombstoneEntryProcessor(
+        tempFileFactory = tempFileFactory,
+        fileUploaderSimpleFactory = fileUploaderSimpleFactory,
+        bootRelativeTimeProvider = bootRelativeTimeProvider,
+        packageManagerClient = packageManagerClient,
+    )
+    return mapOf(
+        *tombstoneEntryProcessor.tagPairs()
+    )
 }
 
 class DropBoxGetEntriesTask(
     private val reporterServiceConnector: ReporterServiceConnector,
-    private val lastProcessedEntryProvider: DropBoxLastProcessedEntryProvider,
+    lastProcessedEntryProvider: DropBoxLastProcessedEntryProvider,
     private val entryProcessors: Map<String, EntryProcessor>,
     private val settings: DropBoxSettings,
     private val retryDelayMillis: Long = DEFAULT_RETRY_DELAY_MILLIS
@@ -54,12 +54,13 @@ class DropBoxGetEntriesTask(
     override val maxAttempts: Int = 1
     override fun convertAndValidateInputData(inputData: Data): Unit = Unit
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult = doWork()
+    private val cursorProvider: ProcessedEntryCursorProvider = ProcessedEntryCursorProvider(lastProcessedEntryProvider)
 
     suspend fun doWork() =
         if (!settings.dataSourceEnabled or entryProcessors.isEmpty()) TaskResult.SUCCESS
         else try {
             reporterServiceConnector.connect { getConnection ->
-                if (!getConnection().dropBoxSetTagFilter(entryProcessors.keys.toList())) {
+                getConnection().dropBoxSetTagFilter(entryProcessors.keys.toList()).onFailure {
                     return@connect TaskResult.FAILURE
                 }
 
@@ -71,9 +72,10 @@ class DropBoxGetEntriesTask(
 
     private suspend fun process(getConnection: ServiceGetter<ReporterClient>): Boolean {
         var previousWasNull = false
+        var cursor = cursorProvider.makeCursor()
         while (true) {
-            val (entry, success) = getConnection().dropBoxGetNextEntry(lastProcessedEntryProvider.timeMillis)
-            if (!success) return false
+            val (entry, error) = getConnection().dropBoxGetNextEntry(cursor.timeMillis)
+            if (error != null) return false
 
             // In case entries are added in quick succession, we'd end up with one worker
             // task and one service create/destroy for *each* DropBox entry. To avoid the
@@ -89,12 +91,14 @@ class DropBoxGetEntriesTask(
             }
             previousWasNull = false
 
-            processEntry(entry)
-            lastProcessedEntryProvider.timeMillis = entry.timeMillis
+            entry.use {
+                processEntry(entry)
+                cursor = cursor.next(entry.timeMillis)
+            }
         }
     }
 
-    private fun processEntry(entry: DropBoxManager.Entry) {
+    private suspend fun processEntry(entry: DropBoxManager.Entry) {
         Logger.v("Processing DropBox entry... tag=${entry.tag}, timeMillis=${entry.timeMillis}")
         try {
             entryProcessors[entry.tag]?.process(entry)
@@ -108,7 +112,9 @@ class DropBoxGetEntriesTask(
 fun enqueueDropBoxQueryTask(context: Context) {
     oneTimeWorkRequest<DropBoxGetEntriesTask>(
         workDataOf()
-    ).also { workRequest ->
+    ) {
+        addTag(WORK_TAG)
+    }.also { workRequest ->
         WorkManager.getInstance(context)
             .enqueueUniqueWork(
                 WORK_UNIQUE_NAME_PERIODIC,

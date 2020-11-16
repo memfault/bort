@@ -5,8 +5,10 @@ import android.os.DropBoxManager
 import android.os.Message
 
 class UnknownMessageException(message: String) : Exception(message)
+class ErrorResponseException(message: String) : Exception(message)
+class UnexpectedResponseException(message: String) : Exception(message)
 
-val REPORTER_SERVICE_VERSION: Int = 1
+val REPORTER_SERVICE_VERSION: Int = 3
 
 // Generic responses:
 val ERROR_RSP = -1
@@ -22,13 +24,13 @@ val DROPBOX_SET_TAG_FILTER_RSP: Int = 101
 val DROPBOX_GET_NEXT_ENTRY_REQ: Int = 102
 val DROPBOX_GET_NEXT_ENTRY_RSP: Int = 103
 
-// Batterystats related messages:
-val BATTERYSTATS_REQ: Int = 200
-val BATTERYSTATS_RSP: Int = 201
-
-// Logcat related messages:
-val LOGCAT_REQ: Int = 300
-val LOGCAT_RSP: Int = 301
+// Command Runner messages:
+val RUN_COMMAND_BATTERYSTATS_REQ: Int = 500
+val RUN_COMMAND_LOGCAT_REQ: Int = 501
+val RUN_COMMAND_SLEEP_REQ: Int = 502
+val RUN_COMMAND_PACKAGE_MANAGER_REQ: Int = 503
+val RUN_COMMAND_CONT: Int = 600
+val RUN_COMMAND_RSP: Int = 601
 
 abstract class ReporterServiceMessage : ServiceMessage {
     abstract val messageId: Int
@@ -52,11 +54,12 @@ abstract class ReporterServiceMessage : ServiceMessage {
                 DROPBOX_GET_NEXT_ENTRY_REQ -> DropBoxGetNextEntryRequest.fromBundle(message.data)
                 DROPBOX_GET_NEXT_ENTRY_RSP -> DropBoxGetNextEntryResponse.fromBundle(message.data)
 
-                BATTERYSTATS_REQ -> BatteryStatsRequest.fromBundle(message.data)
-                BATTERYSTATS_RSP -> BatteryStatsResponse()
-
-                LOGCAT_REQ -> LogcatRequest.fromBundle(message.data)
-                LOGCAT_RSP -> LogcatResponse()
+                RUN_COMMAND_BATTERYSTATS_REQ -> BatteryStatsRequest.fromBundle(message.data)
+                RUN_COMMAND_LOGCAT_REQ -> LogcatRequest.fromBundle(message.data)
+                RUN_COMMAND_SLEEP_REQ -> SleepRequest.fromBundle(message.data)
+                RUN_COMMAND_PACKAGE_MANAGER_REQ -> PackageManagerRequest.fromBundle(message.data)
+                RUN_COMMAND_CONT -> RunCommandContinue()
+                RUN_COMMAND_RSP -> RunCommandResponse.fromBundle(message.data)
 
                 ERROR_RSP -> ErrorResponse.fromBundle(message.data)
                 else -> throw UnknownMessageException("Unknown ReporterServiceMessage ID: ${message.what}")
@@ -106,7 +109,7 @@ data class DropBoxSetTagFilterRequest(val includedTags: List<String>) : Reporter
     companion object {
         fun fromBundle(bundle: Bundle) =
             DropBoxSetTagFilterRequest(
-                bundle.getStringArray(INCLUDED_TAGS)?.toList() ?: emptyList()
+                bundle.getStringArray(INCLUDED_TAGS).listify()
             )
     }
 }
@@ -143,12 +146,37 @@ data class DropBoxGetNextEntryResponse(val entry: DropBoxManager.Entry?) : Repor
 private const val COMMAND = "ARGS"
 private const val RUN_OPTS = "RUN_OPTS"
 
-abstract class RunCommandRequest<C : Command>() : ReporterServiceMessage() {
+abstract class RunCommandRequest<C : Command> : ReporterServiceMessage() {
     abstract val command: C
     abstract val runnerOptions: CommandRunnerOptions
     final override fun toBundle(): Bundle = Bundle().apply {
         putParcelable(COMMAND, command.toBundle())
         putParcelable(RUN_OPTS, runnerOptions.toBundle())
+    }
+}
+
+/**
+ * Message that is sent by the ReporterService after the RunCommandRequest command
+ * has started executing and Bort can start reading from the read end of the pipe.
+ */
+class RunCommandContinue : SimpleReporterServiceMessage(RUN_COMMAND_CONT)
+
+private const val EXIT_CODE = "EXIT_CODE"
+private const val DID_TIMEOUT = "DID_TIMEOUT"
+
+data class RunCommandResponse(val exitCode: Int?, val didTimeout: Boolean) : ReporterServiceMessage() {
+    override val messageId: Int = RUN_COMMAND_RSP
+    override fun toBundle(): Bundle = Bundle().apply {
+        exitCode?.let { putInt(EXIT_CODE, it) }
+        putBoolean(DID_TIMEOUT, didTimeout)
+    }
+    companion object {
+        fun fromBundle(bundle: Bundle) = with(bundle) {
+            RunCommandResponse(
+                getIntOrNull(EXIT_CODE),
+                getBoolean(DID_TIMEOUT)
+            )
+        }
     }
 }
 
@@ -164,7 +192,7 @@ data class BatteryStatsRequest(
     override val command: BatteryStatsCommand,
     override val runnerOptions: CommandRunnerOptions
 ) : RunCommandRequest<BatteryStatsCommand>() {
-    override val messageId: Int = BATTERYSTATS_REQ
+    override val messageId: Int = RUN_COMMAND_BATTERYSTATS_REQ
     companion object {
         fun fromBundle(bundle: Bundle) = BatteryStatsRequest(
             bundle.getCommandRunnerCommand()?.let { BatteryStatsCommand.fromBundle(it) } ?: BatteryStatsCommand(),
@@ -173,13 +201,11 @@ data class BatteryStatsRequest(
     }
 }
 
-class BatteryStatsResponse : SimpleReporterServiceMessage(BATTERYSTATS_RSP)
-
 data class LogcatRequest(
     override val command: LogcatCommand,
     override val runnerOptions: CommandRunnerOptions
 ) : RunCommandRequest<LogcatCommand>() {
-    override val messageId: Int = LOGCAT_REQ
+    override val messageId: Int = RUN_COMMAND_LOGCAT_REQ
     companion object {
         fun fromBundle(bundle: Bundle) = LogcatRequest(
             bundle.getCommandRunnerCommand()?.let { LogcatCommand.fromBundle(it) } ?: LogcatCommand(),
@@ -188,7 +214,31 @@ data class LogcatRequest(
     }
 }
 
-class LogcatResponse : SimpleReporterServiceMessage(LOGCAT_RSP)
+data class SleepRequest(
+    override val command: SleepCommand,
+    override val runnerOptions: CommandRunnerOptions
+) : RunCommandRequest<SleepCommand>() {
+    override val messageId: Int = RUN_COMMAND_SLEEP_REQ
+    companion object {
+        fun fromBundle(bundle: Bundle) = SleepRequest(
+            bundle.getCommandRunnerCommand()?.let { SleepCommand.fromBundle(it) } ?: SleepCommand(0),
+            bundle.getCommandRunnerOptions()
+        )
+    }
+}
+
+data class PackageManagerRequest(
+    override val command: PackageManagerCommand,
+    override val runnerOptions: CommandRunnerOptions
+) : RunCommandRequest<PackageManagerCommand>() {
+    override val messageId: Int = RUN_COMMAND_PACKAGE_MANAGER_REQ
+    companion object {
+        fun fromBundle(bundle: Bundle) = PackageManagerRequest(
+            bundle.getCommandRunnerCommand()?.let { PackageManagerCommand.fromBundle(it) } ?: PackageManagerCommand(),
+            bundle.getCommandRunnerOptions()
+        )
+    }
+}
 
 private const val ERROR_MESSAGE = "MSG"
 

@@ -7,7 +7,6 @@ import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.RemoteException
 import com.memfault.bort.shared.Logger
-import java.lang.Exception
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlinx.coroutines.CompletableDeferred

@@ -1,5 +1,17 @@
 # Memfault Bort Changelog
 
+## v2.8.0 - November 13, 2020
+
+#### :house: Internal
+
+- Experimental DropBoxManager API based data source:
+  - Refactored parts of the infrastructure in UsageReporter and Bort apps to
+    collect DropBox entries, logcat logs, etc.
+  - Added infra to collect installed package metadata.
+  - Added a preliminary uploader for DropBox-sourced tombstones.
+  - Fixed a bug where the DropBox entry collection process would miss entries
+    after a backwards RTC time change.
+
 ## v2.7.1 - November 5, 2020
 
 #### :chart_with_upwards_trend: Improvements

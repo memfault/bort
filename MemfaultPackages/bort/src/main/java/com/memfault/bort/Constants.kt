@@ -2,10 +2,7 @@ package com.memfault.bort
 
 const val INTENT_ACTION_BUG_REPORT_REQUESTED = "com.memfault.intent.action.REQUEST_BUG_REPORT"
 const val INTENT_ACTION_BUGREPORT_FINISHED = "com.memfault.intent.action.BUGREPORT_FINISHED"
-const val INTENT_ACTION_BOOT_COMPLETED = "android.intent.action.BOOT_COMPLETED"
-const val INTENT_ACTION_MY_PACKAGE_REPLACED = "android.intent.action.MY_PACKAGE_REPLACED"
 const val INTENT_EXTRA_BUGREPORT_PATH = "com.memfault.intent.extra.BUGREPORT_PATH"
-const val INTENT_EXTRA_SDK_EVENT_NAME = "com.memfault.intent.extra.SDK_EVENT_NAME"
 
 const val INTENT_ACTION_BORT_ENABLE = "com.memfault.intent.action.BORT_ENABLE"
 const val INTENT_EXTRA_BORT_ENABLED = "com.memfault.intent.extra.BORT_ENABLED"
