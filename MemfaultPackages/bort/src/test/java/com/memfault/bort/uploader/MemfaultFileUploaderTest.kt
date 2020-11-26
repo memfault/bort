@@ -13,7 +13,7 @@ import org.junit.Rule
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-class MemfaultBugReportUploaderTest {
+class MemfaultFileUploaderTest {
     @get:Rule
     val server = MockWebServer()
 

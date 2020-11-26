@@ -10,7 +10,7 @@ import androidx.work.workDataOf
 import com.github.michaelbull.result.onFailure
 import com.memfault.bort.BootRelativeTimeProvider
 import com.memfault.bort.DropBoxSettings
-import com.memfault.bort.FileUploaderSimpleFactory
+import com.memfault.bort.FileUploadMetadata
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.ReporterClient
 import com.memfault.bort.ReporterServiceConnector
@@ -21,26 +21,51 @@ import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.oneTimeWorkRequest
 import com.memfault.bort.shared.Logger
+import java.io.File
 import kotlinx.coroutines.delay
 
 private const val WORK_TAG = "DROPBOX_QUERY"
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.DROPBOX_QUERY"
 private const val DEFAULT_RETRY_DELAY_MILLIS: Long = 5000
 
+typealias EnqueueFileUpload = (
+    file: File,
+    metadata: FileUploadMetadata,
+    debugTag: String,
+) -> Unit
+
 fun realDropBoxEntryProcessors(
     bootRelativeTimeProvider: BootRelativeTimeProvider,
     tempFileFactory: TemporaryFileFactory,
-    fileUploaderSimpleFactory: FileUploaderSimpleFactory,
+    enqueueFileUpload: EnqueueFileUpload,
     packageManagerClient: PackageManagerClient,
 ): Map<String, EntryProcessor> {
     val tombstoneEntryProcessor = TombstoneEntryProcessor(
         tempFileFactory = tempFileFactory,
-        fileUploaderSimpleFactory = fileUploaderSimpleFactory,
+        enqueueFileUpload = enqueueFileUpload,
         bootRelativeTimeProvider = bootRelativeTimeProvider,
         packageManagerClient = packageManagerClient,
     )
+    val javaExceptionEntryProcessor = JavaExceptionEntryProcessor(
+        tempFileFactory = tempFileFactory,
+        enqueueFileUpload = enqueueFileUpload,
+        bootRelativeTimeProvider = bootRelativeTimeProvider,
+    )
+    val anrEntryProcessor = AnrEntryProcessor(
+        tempFileFactory = tempFileFactory,
+        enqueueFileUpload = enqueueFileUpload,
+        bootRelativeTimeProvider = bootRelativeTimeProvider,
+    )
+    val kmsgEntryProcessor = KmsgEntryProcessor(
+        tempFileFactory = tempFileFactory,
+        enqueueFileUpload = enqueueFileUpload,
+        bootRelativeTimeProvider = bootRelativeTimeProvider,
+    )
     return mapOf(
-        *tombstoneEntryProcessor.tagPairs()
+        *tombstoneEntryProcessor.tagPairs(),
+        *javaExceptionEntryProcessor.tagPairs(),
+        *anrEntryProcessor.tagPairs(),
+        *kmsgEntryProcessor.tagPairs(),
     )
 }
 

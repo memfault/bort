@@ -21,7 +21,6 @@ import com.memfault.bort.shared.result.success
 import io.mockk.MockKAnnotations
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
 import io.mockk.unmockkAll
@@ -32,14 +31,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-private const val TEST_TAG = "TEST"
 private const val TEST_SERVICE_VERSION = 3
-
-fun mockEntry(timeMillis_: Long, tag_: String = TEST_TAG) = mockk<DropBoxManager.Entry> {
-    every { tag } returns tag_
-    every { timeMillis } returns timeMillis_
-    every { close() } returns Unit
-}
 
 class DropBoxGetEntriesTaskTest {
     lateinit var mockServiceConnection: ReporterServiceConnection

@@ -1,65 +1,67 @@
 package com.memfault.bort.dropbox
 
-import android.os.DropBoxManager
+import com.memfault.bort.AbsoluteTime
+import com.memfault.bort.BootRelativeTime
 import com.memfault.bort.BootRelativeTimeProvider
-import com.memfault.bort.FileUploaderSimpleFactory
+import com.memfault.bort.FileUploadMetadata
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.TombstoneFileUploadMetadata
-import com.memfault.bort.parsers.InvalidTombstoneException
+import com.memfault.bort.parsers.NativeBacktraceParser
 import com.memfault.bort.parsers.TombstoneParser
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.shared.listify
-import com.memfault.bort.toAbsoluteTime
+import java.io.File
+import java.io.InputStream
 
 class TombstoneEntryProcessor(
-    private val tempFileFactory: TemporaryFileFactory,
-    private val fileUploaderSimpleFactory: FileUploaderSimpleFactory,
-    private val bootRelativeTimeProvider: BootRelativeTimeProvider,
+    tempFileFactory: TemporaryFileFactory,
+    enqueueFileUpload: EnqueueFileUpload,
+    bootRelativeTimeProvider: BootRelativeTimeProvider,
     private val packageManagerClient: PackageManagerClient,
-) : EntryProcessor() {
+) : UploadingEntryProcessor(tempFileFactory, enqueueFileUpload, bootRelativeTimeProvider) {
     override val tags = listOf("SYSTEM_TOMBSTONE")
 
-    override suspend fun process(entry: DropBoxManager.Entry) {
-        tempFileFactory.createTemporaryFile("tombstone", ".txt").useFile { tempFile ->
-            // Call fstat() before entry.inputStream.use() because it will invalidate the file descriptor!
-            val fileTime = entry.fstat()?.st_mtime?.toAbsoluteTime()
+    override val debugTag: String
+        get() = "UPLOAD_TOMBSTONE"
 
-            tempFile.outputStream().use { outStream ->
-                entry.inputStream.use {
-                    inStream ->
-                    inStream.copyTo(outStream)
-                }
-            }
+    override suspend fun createMetadata(
+        tempFile: File,
+        tag: String,
+        fileTime: AbsoluteTime?,
+        entryTime: AbsoluteTime,
+        collectionTime: BootRelativeTime
+    ) = TombstoneFileUploadMetadata(
+        tag = tag,
+        fileTime = fileTime,
+        entryTime = entryTime,
+        packages = getPackages(tempFile),
+        collectionTime = collectionTime,
+    )
 
-            val tombstone = try {
+    private fun findProcessName(tempFile: File) =
+        listOf(
+            { it: InputStream -> TombstoneParser(it).parse().processName },
+            { it: InputStream -> NativeBacktraceParser(it).parse().processes[0].cmdLine }
+        ).asSequence().map { parse ->
+            try {
                 tempFile.inputStream().use {
-                    TombstoneParser(it).parse()
+                    parse(it)
                 }
-            } catch (e: InvalidTombstoneException) {
-                Logger.e("Tombstone failed to parse", e)
+            } catch (e: Exception) {
                 null
             }
+        }.filterNotNull().firstOrNull()
 
-            val packageInfo = tombstone?.processName?.let {
-                packageManagerClient.findPackagesByProcessName(it)
-            }
-            val packages = packageInfo?.toUploaderPackage().listify().also {
-                if (it.isEmpty()) Logger.e(
-                    "Missing package info: processName=${tombstone?.processName}, packageInfo=$packageInfo"
-                )
-            }
-
-            fileUploaderSimpleFactory().upload(
-                tempFile,
-                TombstoneFileUploadMetadata(
-                    tag = entry.tag,
-                    fileTime = fileTime,
-                    entryTime = entry.timeMillis.toAbsoluteTime(),
-                    packages = packages,
-                    collectionTime = bootRelativeTimeProvider.now()
-                )
-            )
+    private suspend fun getPackages(tempFile: File): List<FileUploadMetadata.Package> {
+        val processName = findProcessName(tempFile) ?: return emptyList<FileUploadMetadata.Package>().also {
+            Logger.e("Tombstone failed to parse")
         }
+
+        val packageInfo = packageManagerClient.findPackagesByProcessName(processName)
+        val uploaderPackage =
+            packageInfo?.toUploaderPackage() ?: return emptyList<FileUploadMetadata.Package>().also {
+                Logger.e("Failed to resolve package: processName=$processName packageInfo=$packageInfo")
+            }
+        return listOf(uploaderPackage)
     }
 }

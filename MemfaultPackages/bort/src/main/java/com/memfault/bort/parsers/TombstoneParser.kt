@@ -1,6 +1,5 @@
 package com.memfault.bort.parsers
 
-import java.io.BufferedReader
 import java.io.InputStream
 
 class InvalidTombstoneException(message: String? = null, cause: Throwable? = null) : Exception(message, cause)
@@ -9,7 +8,7 @@ data class Tombstone(val pid: Int, val tid: Int, val threadName: String, val pro
 
 class TombstoneParser(val inputStream: InputStream) {
     fun parse(): Tombstone {
-        val lines = inputStream.bufferedReader().lineSequence().iterator()
+        val lines = Lines(inputStream.bufferedReader().lineSequence().asIterable())
         parsePrologueAndHeader(lines)
         return with(parseThreadHeader(lines)) {
             Tombstone(pid, tid, threadName, processName)
@@ -18,7 +17,7 @@ class TombstoneParser(val inputStream: InputStream) {
 
     private data class ThreadHeader(val pid: Int, val tid: Int, val threadName: String, val processName: String)
 
-    private fun parseThreadHeader(lines: Iterator<String>): ThreadHeader {
+    private fun parseThreadHeader(lines: Lines): ThreadHeader {
         for (line in lines) {
             val (pid, tid, threadName, processName) =
                 THREAD_HEADER_REGEX.matchEntire(line)?.destructured ?: continue
@@ -31,17 +30,14 @@ class TombstoneParser(val inputStream: InputStream) {
         throw InvalidTombstoneException("Failed to find thread header")
     }
 
-    private fun parsePrologueAndHeader(lines: Iterator<String>) {
-        for ((index, line) in lines.withIndex()) {
-            if (line.startsWith(FILE_START_TOKEN)) return
-            if ((index == 0) and line.isBlank()) throw InvalidTombstoneException()
-            if ("failed to dump process" in line) throw InvalidTombstoneException()
+    private fun parsePrologueAndHeader(lines: Lines) {
+        lines.until { it.startsWith(FILE_START_TOKEN) }.use { prologueLines ->
+            for (line in prologueLines) {
+                if ("failed to dump process" in line) throw InvalidTombstoneException()
+            }
         }
-        throw InvalidTombstoneException()
+        if (lines.peek() == null) throw InvalidTombstoneException()
     }
-
-    private fun BufferedReader.safeReadLine(): String =
-        readLine() ?: throw InvalidTombstoneException()
 }
 
 private const val FILE_START_TOKEN = "*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***"

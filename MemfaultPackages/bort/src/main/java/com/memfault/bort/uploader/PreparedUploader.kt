@@ -2,9 +2,9 @@ package com.memfault.bort.uploader
 
 import com.memfault.bort.BugReportFileUploadMetadata
 import com.memfault.bort.DeviceInfoProvider
+import com.memfault.bort.DropBoxEntryFileUploadMetadata
 import com.memfault.bort.FileUploadMetadata
 import com.memfault.bort.SOFTWARE_TYPE
-import com.memfault.bort.TombstoneFileUploadMetadata
 import com.memfault.bort.http.ProjectKeyAuthenticated
 import com.memfault.bort.shared.Logger
 import java.io.File
@@ -133,10 +133,10 @@ internal class PreparedUploader(
                 ).also {
                     eventLogger.log("commit", "done", "bugreport")
                 }
-            is TombstoneFileUploadMetadata ->
+            is DropBoxEntryFileUploadMetadata ->
                 deviceInfoProvider.getDeviceInfo().let { deviceInfo ->
                     preparedUploadService.commitDropBoxEntry(
-                        entryFamily = "tombstone",
+                        entryFamily = metadata.family,
                         commitRequest = CommitRequestWithMetadata(
                             file = CommitFileToken(token),
                             metadata = metadata,

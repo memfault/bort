@@ -1,6 +1,7 @@
 package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
+import com.memfault.bort.AbsoluteTime
 import com.memfault.bort.shared.Logger
 
 fun testDropBoxEntryProcessors(): Map<String, EntryProcessor> {
@@ -13,7 +14,7 @@ fun testDropBoxEntryProcessors(): Map<String, EntryProcessor> {
 class TestEntryProcessor : EntryProcessor() {
     override val tags = listOf("BORT_TEST")
 
-    override suspend fun process(entry: DropBoxManager.Entry) {
+    override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
         Logger.test("Processing test entry with text: ${entry.getText(1024)}")
     }
 }

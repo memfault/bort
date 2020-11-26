@@ -1,6 +1,7 @@
 package com.memfault.bort
 
 import java.io.File
+import java.util.TimeZone
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import retrofit2.Retrofit
@@ -52,20 +53,20 @@ sealed class DropBoxEntryFileUploadMetadata : FileUploadMetadata() {
     abstract val entryTime: AbsoluteTime
 
     /**
-     * Information on packages pertinent to the entry.
-     */
-    abstract val packages: List<Package>
-
-    /**
      * The time when the DropBox Entry was collected.
      */
     @SerialName("collection_time")
     abstract val collectionTime: BootRelativeTime
+
+    /**
+     * DropBox Entry family
+     */
+    abstract val family: String
 }
 
 @Serializable
 @SerialName("tombstone")
-class TombstoneFileUploadMetadata(
+data class TombstoneFileUploadMetadata(
     override val tag: String,
 
     @SerialName("file_time")
@@ -74,11 +75,79 @@ class TombstoneFileUploadMetadata(
     @SerialName("entry_time")
     override val entryTime: AbsoluteTime,
 
-    override val packages: List<Package>,
+    val packages: List<Package>,
 
     @SerialName("collection_time")
     override val collectionTime: BootRelativeTime
-) : DropBoxEntryFileUploadMetadata()
+) : DropBoxEntryFileUploadMetadata() {
+    override val family: String
+        get() = "tombstone"
+}
+
+@Serializable
+@SerialName("java_exception")
+data class JavaExceptionFileUploadMetadata(
+    override val tag: String,
+
+    @SerialName("file_time")
+    override val fileTime: AbsoluteTime?,
+
+    @SerialName("entry_time")
+    override val entryTime: AbsoluteTime,
+
+    @SerialName("collection_time")
+    override val collectionTime: BootRelativeTime
+) : DropBoxEntryFileUploadMetadata() {
+    override val family: String
+        get() = "java_exception"
+}
+
+@Serializable
+data class TimezoneWithId(val id: String) {
+    companion object {
+        val deviceDefault: TimezoneWithId?
+            get() = TimeZone.getDefault()?.toZoneId()?.id?.let { TimezoneWithId(it) }
+    }
+}
+
+@Serializable
+@SerialName("anr")
+data class AnrFileUploadMetadata(
+    override val tag: String,
+
+    @SerialName("file_time")
+    override val fileTime: AbsoluteTime?,
+
+    @SerialName("entry_time")
+    override val entryTime: AbsoluteTime,
+
+    @SerialName("collection_time")
+    override val collectionTime: BootRelativeTime,
+
+    @SerialName("timezone")
+    val timezone: TimezoneWithId?,
+) : DropBoxEntryFileUploadMetadata() {
+    override val family: String
+        get() = "anr"
+}
+
+@Serializable
+@SerialName("kmsg")
+data class KmsgFileUploadMetadata(
+    override val tag: String,
+
+    @SerialName("file_time")
+    override val fileTime: AbsoluteTime?,
+
+    @SerialName("entry_time")
+    override val entryTime: AbsoluteTime,
+
+    @SerialName("collection_time")
+    override val collectionTime: BootRelativeTime
+) : DropBoxEntryFileUploadMetadata() {
+    override val family: String
+        get() = "kmsg"
+}
 
 interface FileUploader {
     suspend fun upload(file: File, metadata: FileUploadMetadata): TaskResult
@@ -90,5 +159,3 @@ interface FileUploaderFactory {
         projectApiKey: String
     ): FileUploader
 }
-
-typealias FileUploaderSimpleFactory = () -> FileUploader

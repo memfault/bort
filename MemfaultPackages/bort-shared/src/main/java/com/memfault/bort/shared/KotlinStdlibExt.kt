@@ -8,3 +8,7 @@ fun <T> List<T>?.listify(): List<T> =
 
 fun <T : Any> T?.listify(): List<T> =
     this?.let(::listOf) ?: emptyList()
+
+fun Iterator<Any>.consume() {
+    while (this.hasNext()) this.next()
+}

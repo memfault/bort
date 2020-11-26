@@ -12,8 +12,6 @@ internal class MemfaultFileUploader(
     private val preparedUploader: PreparedUploader
 ) : FileUploader {
     override suspend fun upload(file: File, metadata: FileUploadMetadata): TaskResult {
-        Logger.v("uploading $file")
-
         val prepareResponse = try {
             preparedUploader.prepare()
         } catch (e: HttpException) {

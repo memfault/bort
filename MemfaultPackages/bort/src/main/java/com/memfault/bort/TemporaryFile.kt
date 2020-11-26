@@ -4,7 +4,7 @@ import com.memfault.bort.shared.Logger
 import java.io.File
 
 interface TemporaryFileFactory {
-    val temporaryFileDirectory: File
+    val temporaryFileDirectory: File?
     fun createTemporaryFile(prefix: String = "tmp", suffix: String?) =
         TemporaryFile(prefix, suffix, temporaryFileDirectory)
 }
@@ -14,13 +14,13 @@ class TemporaryFile(
     val suffix: String? = null,
     val directory: File? = null
 ) {
-
-    suspend fun <R> useFile(block: suspend (File) -> R): R {
+    suspend fun <R> useFile(block: suspend (file: File, preventDeletion: () -> Unit) -> R): R {
         val file = createTempFile(prefix, suffix, directory)
+        var shouldDelete = true
         return try {
-            block(file)
+            block(file) { shouldDelete = false }
         } finally {
-            if (!file.delete()) {
+            if (shouldDelete && !file.delete()) {
                 Logger.w("Failed to delete $file")
             }
         }

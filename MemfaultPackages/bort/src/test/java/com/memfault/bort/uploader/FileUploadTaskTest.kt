@@ -1,9 +1,12 @@
 package com.memfault.bort.uploader
 
 import androidx.work.workDataOf
+import com.memfault.bort.BugReportFileUploadMetadata
 import com.memfault.bort.FileUploadMetadata
 import com.memfault.bort.FileUploader
 import com.memfault.bort.TaskResult
+import io.mockk.coVerify
+import io.mockk.spyk
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -13,7 +16,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-class BugReportUploaderTest {
+class FileUploadTaskTest {
 
     lateinit var file: File
 
@@ -34,7 +37,7 @@ class BugReportUploaderTest {
     fun missingPathFails() {
         val worker = mockTaskRunnerWorker(workDataOf())
         val result = runBlocking {
-            BugReportUploader(
+            FileUploadTask(
                 delegate = fakeFileUploader(),
                 bortEnabledProvider = BortEnabledTestProvider()
             ).doWork(worker)
@@ -45,11 +48,11 @@ class BugReportUploaderTest {
     @Test
     fun maxUploadAttemptFails() {
         val worker = mockTaskRunnerWorker(
-            makeBugreportUploadInputData(filePath = file.toString()),
+            FileUploadTaskInput(file, BugReportFileUploadMetadata()).toWorkerInputData(),
             runAttemptCount = 4
         )
         val result = runBlocking {
-            BugReportUploader(
+            FileUploadTask(
                 delegate = fakeFileUploader(),
                 bortEnabledProvider = BortEnabledTestProvider(),
                 maxAttempts = 3
@@ -61,9 +64,28 @@ class BugReportUploaderTest {
 
     @Test
     fun badPathFails() {
-        val worker = mockTaskRunnerWorker(makeBugreportUploadInputData(filePath = "abcd"))
+        val worker = mockTaskRunnerWorker(
+            FileUploadTaskInput(File("abcd"), BugReportFileUploadMetadata()).toWorkerInputData()
+        )
         val result = runBlocking {
-            BugReportUploader(
+            FileUploadTask(
+                delegate = fakeFileUploader(),
+                bortEnabledProvider = BortEnabledTestProvider()
+            ).doWork(worker)
+        }
+        assert(result == TaskResult.FAILURE)
+    }
+
+    @Test
+    fun failureToDeserializeMetadata() {
+        val worker = mockTaskRunnerWorker(
+            workDataOf(
+                "PATH" to file.path,
+                "METADATA" to "{}",
+            )
+        )
+        val result = runBlocking {
+            FileUploadTask(
                 delegate = fakeFileUploader(),
                 bortEnabledProvider = BortEnabledTestProvider()
             ).doWork(worker)
@@ -73,22 +95,28 @@ class BugReportUploaderTest {
 
     @Test
     fun fileDeletedOnSuccess() {
-        val worker = mockTaskRunnerWorker(makeBugreportUploadInputData(filePath = file.toString()))
+        val mockUploader = spyk(fakeFileUploader())
+        val worker = mockTaskRunnerWorker(
+            FileUploadTaskInput(file, BugReportFileUploadMetadata()).toWorkerInputData()
+        )
         val result = runBlocking {
-            BugReportUploader(
-                delegate = fakeFileUploader(),
+            FileUploadTask(
+                delegate = mockUploader,
                 bortEnabledProvider = BortEnabledTestProvider()
             ).doWork(worker)
         }
         assert(result == TaskResult.SUCCESS)
         assertFalse(file.exists())
+        coVerify { mockUploader.upload(file, ofType(BugReportFileUploadMetadata::class)) }
     }
 
     @Test
     fun fileDeletedWhenBortDisabled() {
-        val worker = mockTaskRunnerWorker(makeBugreportUploadInputData(filePath = file.toString()))
+        val worker = mockTaskRunnerWorker(
+            FileUploadTaskInput(file, BugReportFileUploadMetadata()).toWorkerInputData()
+        )
         val result = runBlocking {
-            BugReportUploader(
+            FileUploadTask(
                 delegate = fakeFileUploader(),
                 bortEnabledProvider = BortEnabledTestProvider(enabled = false)
             ).doWork(worker)

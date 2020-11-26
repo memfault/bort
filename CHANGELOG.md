@@ -1,5 +1,15 @@
 # Memfault Bort Changelog
 
+## v2.9.0 - November 26, 2020
+
+#### :house: Internal
+
+- Experimental DropBoxManager API based data source:
+  - Added uploading of DropBox-sourced ANRs, Java exceptions, WTFs, last kmsg
+    logs and Tombstones with "native backtrace" style dumps.
+  - Improved DropBox file upload, reusing existing upload worker task that is
+    also used to upload bug reports.
+
 ## v2.8.0 - November 13, 2020
 
 #### :house: Internal

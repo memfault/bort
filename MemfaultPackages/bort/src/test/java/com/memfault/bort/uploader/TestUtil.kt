@@ -7,9 +7,10 @@ import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.kotlinxJsonConverterFactory
-import com.nhaarman.mockitokotlin2.doReturn
-import com.nhaarman.mockitokotlin2.mock
+import io.mockk.every
+import io.mockk.mockk
 import java.io.File
+import java.util.UUID
 import kotlin.String
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockWebServer
@@ -57,9 +58,11 @@ fun loadTestFileFromResources() = File(
 )
 
 fun mockTaskRunnerWorker(inputData: Data, runAttemptCount: Int = 1) =
-    mock<TaskRunnerWorker> {
-        on { getRunAttemptCount() } doReturn runAttemptCount
-        on { getInputData() } doReturn inputData
+    mockk<TaskRunnerWorker> {
+        every { getRunAttemptCount() } returns runAttemptCount
+        every { getInputData() } returns inputData
+        every { id } returns UUID.randomUUID()
+        every { tags } returns emptySet()
     }
 
 class BortEnabledTestProvider(private var enabled: Boolean = true) : BortEnabledProvider {

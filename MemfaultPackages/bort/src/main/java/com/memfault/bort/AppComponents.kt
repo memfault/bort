@@ -18,12 +18,13 @@ import com.memfault.bort.http.LoggingNetworkInterceptor
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.ingress.IngressService
 import com.memfault.bort.shared.PreferenceKeyProvider
-import com.memfault.bort.uploader.BugReportUploader
+import com.memfault.bort.uploader.FileUploadTask
 import com.memfault.bort.uploader.HttpTask
 import com.memfault.bort.uploader.HttpTaskCallFactory
 import com.memfault.bort.uploader.MemfaultFileUploader
 import com.memfault.bort.uploader.PreparedUploadService
 import com.memfault.bort.uploader.PreparedUploader
+import com.memfault.bort.uploader.enqueueFileUploadTask
 import java.io.File
 import java.util.UUID
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -117,8 +118,10 @@ data class AppComponents(
             val dropBoxEntryProcessors = realDropBoxEntryProcessors(
                 tempFileFactory = tempFileFactory,
                 bootRelativeTimeProvider = bootRelativeTimeProvider,
-                fileUploaderSimpleFactory = {
-                    fileUploaderFactory.create(retrofit, settingsProvider.httpApiSettings.projectKey)
+                enqueueFileUpload = { file, metadata, debugTag ->
+                    enqueueFileUploadTask(
+                        context, file, metadata, settingsProvider.httpApiSettings.uploadConstraints, debugTag
+                    )
                 },
                 packageManagerClient = packageManagerClient,
             ) + extraDropBoxEntryProcessors
@@ -227,7 +230,7 @@ class DefaultWorkerFactory(
 
         return when (inputData.workDelegateClass) {
             HttpTask::class.qualifiedName -> HttpTask(okHttpClient = okHttpClient)
-            BugReportUploader::class.qualifiedName -> BugReportUploader(
+            FileUploadTask::class.qualifiedName -> FileUploadTask(
                 delegate = fileUploaderFactory.create(retrofit, settingsProvider.httpApiSettings.projectKey),
                 bortEnabledProvider = bortEnabledProvider,
                 maxAttempts = settingsProvider.bugReportSettings.maxUploadAttempts

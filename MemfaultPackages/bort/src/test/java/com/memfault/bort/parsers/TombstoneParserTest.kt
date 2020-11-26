@@ -15,15 +15,6 @@ class TombstoneParserTest {
     }
 
     @Test
-    fun firstLineEmpty() {
-        assertThrows<InvalidTombstoneException> {
-            TombstoneParser(
-                "\n*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***".byteInputStream()
-            ).parse()
-        }
-    }
-
-    @Test
     fun failedToDump() {
         assertThrows<InvalidTombstoneException> {
             TombstoneParser("failed to dump process".byteInputStream()).parse()
