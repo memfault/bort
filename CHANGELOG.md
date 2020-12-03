@@ -1,5 +1,12 @@
 # Memfault Bort Changelog
 
+## v2.9.1 - December 3, 2020
+
+#### :chart_with_upwards_trend: Improvements
+
+- The `bort_src_gen.py` tool used to require Python 3.6 to run, but it is now
+  compatible down to Python 3.4.
+
 ## v2.9.0 - November 26, 2020
 
 #### :house: Internal

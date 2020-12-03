@@ -116,7 +116,7 @@ def _generate_cpp_header(replacements):
     for placeholder in sorted(replacements.keys()):
         define_name = re.sub(r"^\$+", "", placeholder)
         define_value = replacements[placeholder].value
-        content += f"#define {define_name} {define_value}\n"
+        content += "#define {} {}\n".format(define_name, define_value)
     return content
 
 
