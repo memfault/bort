@@ -1,8 +1,8 @@
 package com.memfault.bort.uploader
 
 import androidx.work.workDataOf
-import com.memfault.bort.BugReportFileUploadMetadata
-import com.memfault.bort.FileUploadMetadata
+import com.memfault.bort.BugReportFileUploadPayload
+import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploader
 import com.memfault.bort.TaskResult
 import io.mockk.coVerify
@@ -48,7 +48,7 @@ class FileUploadTaskTest {
     @Test
     fun maxUploadAttemptFails() {
         val worker = mockTaskRunnerWorker(
-            FileUploadTaskInput(file, BugReportFileUploadMetadata()).toWorkerInputData(),
+            FileUploadTaskInput(file, BugReportFileUploadPayload()).toWorkerInputData(),
             runAttemptCount = 4
         )
         val result = runBlocking {
@@ -65,7 +65,7 @@ class FileUploadTaskTest {
     @Test
     fun badPathFails() {
         val worker = mockTaskRunnerWorker(
-            FileUploadTaskInput(File("abcd"), BugReportFileUploadMetadata()).toWorkerInputData()
+            FileUploadTaskInput(File("abcd"), BugReportFileUploadPayload()).toWorkerInputData()
         )
         val result = runBlocking {
             FileUploadTask(
@@ -97,7 +97,7 @@ class FileUploadTaskTest {
     fun fileDeletedOnSuccess() {
         val mockUploader = spyk(fakeFileUploader())
         val worker = mockTaskRunnerWorker(
-            FileUploadTaskInput(file, BugReportFileUploadMetadata()).toWorkerInputData()
+            FileUploadTaskInput(file, BugReportFileUploadPayload()).toWorkerInputData()
         )
         val result = runBlocking {
             FileUploadTask(
@@ -107,13 +107,13 @@ class FileUploadTaskTest {
         }
         assert(result == TaskResult.SUCCESS)
         assertFalse(file.exists())
-        coVerify { mockUploader.upload(file, ofType(BugReportFileUploadMetadata::class)) }
+        coVerify { mockUploader.upload(file, ofType(BugReportFileUploadPayload::class)) }
     }
 
     @Test
     fun fileDeletedWhenBortDisabled() {
         val worker = mockTaskRunnerWorker(
-            FileUploadTaskInput(file, BugReportFileUploadMetadata()).toWorkerInputData()
+            FileUploadTaskInput(file, BugReportFileUploadPayload()).toWorkerInputData()
         )
         val result = runBlocking {
             FileUploadTask(
@@ -130,6 +130,6 @@ internal fun fakeFileUploader(result: TaskResult = TaskResult.SUCCESS): FileUplo
     object : FileUploader {
         override suspend fun upload(
             file: File,
-            metadata: FileUploadMetadata
+            payload: FileUploadPayload
         ): TaskResult = result
     }

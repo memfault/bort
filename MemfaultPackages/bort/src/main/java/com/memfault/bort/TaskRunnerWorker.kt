@@ -6,11 +6,15 @@ import androidx.work.Data
 import androidx.work.ListenableWorker.Result
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequest
+import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
 import androidx.work.WorkerParameters
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.uploader.limitAttempts
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
 
 /**
  * Helpers around androidx.work that delegate the actual work to a Task, with
@@ -71,6 +75,23 @@ inline fun <reified K : Task<*>> oneTimeWorkRequest(
     block: OneTimeWorkRequest.Builder.() -> Unit = {}
 ): OneTimeWorkRequest =
     OneTimeWorkRequestBuilder<TaskRunnerWorker>()
+        .setInputData(
+            addWorkDelegateClass(
+                checkNotNull(K::class.qualifiedName), inputData
+            )
+        )
+        .apply(block)
+        .build()
+
+inline fun <reified K : Task<*>> periodicWorkRequest(
+    repeatInterval: Duration,
+    inputData: Data,
+    block: PeriodicWorkRequest.Builder.() -> Unit = {}
+): PeriodicWorkRequest =
+    PeriodicWorkRequestBuilder<TaskRunnerWorker>(
+        repeatInterval.inMilliseconds.toLong(),
+        TimeUnit.MILLISECONDS,
+    )
         .setInputData(
             addWorkDelegateClass(
                 checkNotNull(K::class.qualifiedName), inputData

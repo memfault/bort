@@ -10,6 +10,7 @@ import com.memfault.bort.DumpsterClient
 import com.memfault.bort.RealLastTrackedBootCountProvider
 import com.memfault.bort.RebootEventUploader
 import com.memfault.bort.requester.BugReportRequester
+import com.memfault.bort.requester.MetricsCollectionRequester
 import com.memfault.bort.shared.Logger
 
 class SystemEventReceiver : BortEnabledFilteringReceiver(
@@ -17,16 +18,17 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
 ) {
 
     private fun onPackageReplaced(context: Context) {
-        BugReportRequester(
-            context
-        ).requestPeriodic(
-            settingsProvider.bugReportSettings.requestIntervalHours,
-            settingsProvider.bugReportSettings.defaultOptions
-        )
+        listOf(
+            MetricsCollectionRequester(context, settingsProvider.metricsSettings),
+            BugReportRequester(context, settingsProvider.bugReportSettings),
+        ).forEach {
+            it.startPeriodic()
+        }
     }
 
     private fun onBootCompleted(context: Context) {
         Logger.logEvent("boot")
+        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
 
         goAsync {
             DumpsterClient().getprop()?.let { systemProperties ->
@@ -38,20 +40,19 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
                 val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
                 BootCountTracker(
                     lastTrackedBootCountProvider = RealLastTrackedBootCountProvider(
-                        PreferenceManager.getDefaultSharedPreferences(context)
+                        sharedPreferences = sharedPreferences
                     ),
                     untrackedBootCountHandler = rebootEventUploader::handleUntrackedBootCount
                 ).trackIfNeeded(bootCount)
             }
         }
 
-        BugReportRequester(
-            context
-        ).requestPeriodic(
-            settingsProvider.bugReportSettings.requestIntervalHours,
-            settingsProvider.bugReportSettings.defaultOptions,
-            settingsProvider.bugReportSettings.firstBugReportDelayAfterBootMinutes
-        )
+        listOf(
+            MetricsCollectionRequester(context, settingsProvider.metricsSettings),
+            BugReportRequester(context, settingsProvider.bugReportSettings),
+        ).forEach {
+            it.startPeriodic(justBooted = true)
+        }
     }
 
     override fun onReceivedAndEnabled(context: Context, intent: Intent, action: String) {

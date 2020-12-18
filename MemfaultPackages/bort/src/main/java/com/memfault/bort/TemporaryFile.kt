@@ -14,7 +14,7 @@ class TemporaryFile(
     val suffix: String? = null,
     val directory: File? = null
 ) {
-    suspend fun <R> useFile(block: suspend (file: File, preventDeletion: () -> Unit) -> R): R {
+    inline fun <R> useFile(block: (file: File, preventDeletion: () -> Unit) -> R): R {
         val file = createTempFile(prefix, suffix, directory)
         var shouldDelete = true
         return try {

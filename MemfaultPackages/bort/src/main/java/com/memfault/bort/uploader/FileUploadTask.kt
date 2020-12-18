@@ -6,7 +6,7 @@ import androidx.work.Data
 import androidx.work.workDataOf
 import com.memfault.bort.BortEnabledProvider
 import com.memfault.bort.BortJson
-import com.memfault.bort.FileUploadMetadata
+import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploader
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
@@ -22,20 +22,20 @@ private const val METADATA_KEY = "METADATA"
 
 data class FileUploadTaskInput(
     val file: File,
-    val metadata: FileUploadMetadata,
+    val payload: FileUploadPayload,
 ) {
     fun toWorkerInputData(): Data =
         workDataOf(
             PATH_KEY to file.path,
-            METADATA_KEY to BortJson.encodeToString(FileUploadMetadata.serializer(), metadata)
+            METADATA_KEY to BortJson.encodeToString(FileUploadPayload.serializer(), payload)
         )
 
     companion object {
         fun fromData(inputData: Data) =
             FileUploadTaskInput(
                 file = File(checkNotNull(inputData.getString(PATH_KEY), { "File path missing" })),
-                metadata = BortJson.decodeFromString(
-                    FileUploadMetadata.serializer(),
+                payload = BortJson.decodeFromString(
+                    FileUploadPayload.serializer(),
                     checkNotNull(inputData.getString(METADATA_KEY)) { "Metadata missing" }
                 ),
             )
@@ -47,7 +47,7 @@ internal class FileUploadTask(
     private val bortEnabledProvider: BortEnabledProvider,
     override val maxAttempts: Int = 3
 ) : Task<FileUploadTaskInput>() {
-    suspend fun upload(file: File, metadata: FileUploadMetadata): TaskResult {
+    suspend fun upload(file: File, payload: FileUploadPayload): TaskResult {
         fun fail(message: String): TaskResult {
             Logger.e("$message file=(${file.path})")
             return TaskResult.FAILURE
@@ -62,7 +62,7 @@ internal class FileUploadTask(
             return fail("File does not exist")
         }
 
-        when (val result = delegate.upload(file, metadata)) {
+        when (val result = delegate.upload(file, payload)) {
             TaskResult.RETRY -> return result
             TaskResult.FAILURE -> return fail("Upload failed")
         }
@@ -80,7 +80,7 @@ internal class FileUploadTask(
     override suspend fun doWork(worker: TaskRunnerWorker, input: FileUploadTaskInput): TaskResult =
         withContext(Dispatchers.IO) {
             Logger.logEvent("upload", "start", worker.runAttemptCount.toString())
-            upload(input.file, input.metadata).also {
+            upload(input.file, input.payload).also {
                 Logger.logEvent("upload", "result", it.toString())
                 "UploadWorker result: $it".also { message ->
                     Logger.v(message)
@@ -96,15 +96,21 @@ internal class FileUploadTask(
 fun enqueueFileUploadTask(
     context: Context,
     file: File,
-    metadata: FileUploadMetadata,
+    payload: FileUploadPayload,
     uploadConstraints: Constraints,
     debugTag: String
 ) {
     enqueueWorkOnce<FileUploadTask>(
         context,
-        FileUploadTaskInput(file, metadata).toWorkerInputData()
+        FileUploadTaskInput(file, payload).toWorkerInputData()
     ) {
         setConstraints(uploadConstraints)
         addTag(debugTag)
     }
 }
+
+typealias EnqueueFileUpload = (
+    file: File,
+    payload: FileUploadPayload,
+    debugTag: String,
+) -> Unit

@@ -224,7 +224,7 @@ class PatchAOSPCommand(Command):
             logging.warning(error)
             if repo_subdir == "device/google/cuttlefish":
                 logging.warning(
-                    "Failed to apply %r (only needed for Cuttlefish/AVD)", patch_relpath,
+                    "Failed to apply %r (only needed for Cuttlefish/AVD)", patch_relpath
                 )
                 self._warnings.append(patch_relpath)
             else:
@@ -290,7 +290,10 @@ def _get_shell_cmd_output_and_errors(
 
     try:
         output = subprocess.check_output(_shell_command(), stderr=sys.stderr)
-        result = output.decode("utf-8")[:-1]  # Trim trailing newline
+        result: str = output.decode("utf-8")[:-1]  # Trim trailing newline
+        # In case the host system is Windows, adb will used \r\n as line endings,
+        # replace them with Unix-style line endings:
+        result.replace("\r\n", "\n")
         return result, []
     except subprocess.CalledProcessError as error:
         return None, [str(error)]
@@ -534,7 +537,7 @@ class ValidateConnectedDevice(Command):
 
     def _getprop(self, key: str) -> Optional[str]:
         output, errors = _get_adb_shell_cmd_output_and_errors(
-            description=f"Querying {key}", cmd=("getprop", key), device=self._device,
+            description=f"Querying {key}", cmd=("getprop", key), device=self._device
         )
         if errors:
             self._errors.extend(errors)

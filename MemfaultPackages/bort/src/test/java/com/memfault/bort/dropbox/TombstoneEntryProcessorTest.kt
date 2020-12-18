@@ -1,13 +1,16 @@
 package com.memfault.bort.dropbox
 
+import com.memfault.bort.DropBoxEntryFileUploadPayload
 import com.memfault.bort.FakeBootRelativeTimeProvider
-import com.memfault.bort.FileUploadMetadata
+import com.memfault.bort.FakeDeviceInfoProvider
+import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.TombstoneFileUploadMetadata
 import com.memfault.bort.parsers.EXAMPLE_NATIVE_BACKTRACE
 import com.memfault.bort.parsers.EXAMPLE_TOMBSTONE
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.test.util.TestTemporaryFileFactory
+import com.memfault.bort.uploader.EnqueueFileUpload
 import io.mockk.CapturingSlot
 import io.mockk.coEvery
 import io.mockk.every
@@ -24,16 +27,16 @@ import org.junit.jupiter.api.TestFactory
 class TombstoneEntryProcessorTest {
     lateinit var processor: TombstoneEntryProcessor
     lateinit var mockEnqueueFileUpload: EnqueueFileUpload
-    lateinit var fileUploadMetadataSlot: CapturingSlot<FileUploadMetadata>
+    lateinit var fileUploadPayloadSlot: CapturingSlot<FileUploadPayload>
     lateinit var mockPackageManagerClient: PackageManagerClient
 
     @BeforeEach
     fun setUp() {
         mockEnqueueFileUpload = mockk(relaxed = true)
 
-        fileUploadMetadataSlot = slot<FileUploadMetadata>()
+        fileUploadPayloadSlot = slot<FileUploadPayload>()
         every {
-            mockEnqueueFileUpload(any(), capture(fileUploadMetadataSlot), any())
+            mockEnqueueFileUpload(any(), capture(fileUploadPayloadSlot), any())
         } returns Unit
 
         mockPackageManagerClient = mockk()
@@ -42,6 +45,7 @@ class TombstoneEntryProcessorTest {
             enqueueFileUpload = mockEnqueueFileUpload,
             bootRelativeTimeProvider = FakeBootRelativeTimeProvider,
             packageManagerClient = mockPackageManagerClient,
+            deviceInfoProvider = FakeDeviceInfoProvider,
         )
     }
 
@@ -56,7 +60,8 @@ class TombstoneEntryProcessorTest {
             } returns PACKAGE_FIXTURE
             runBlocking {
                 processor.process(mockEntry(text = text))
-                val metadata = fileUploadMetadataSlot.captured as TombstoneFileUploadMetadata
+                val payload = fileUploadPayloadSlot.captured as DropBoxEntryFileUploadPayload
+                val metadata = payload.metadata as TombstoneFileUploadMetadata
                 assertEquals(listOf(PACKAGE_FIXTURE.toUploaderPackage()), metadata.packages)
             }
         }
@@ -67,7 +72,8 @@ class TombstoneEntryProcessorTest {
         // Even though Bort's parsing failed to parse out the processName, ensure it's uploaded it anyway:
         runBlocking {
             processor.process(mockEntry(text = ""))
-            val metadata = fileUploadMetadataSlot.captured as TombstoneFileUploadMetadata
+            val payload = fileUploadPayloadSlot.captured as DropBoxEntryFileUploadPayload
+            val metadata = payload.metadata as TombstoneFileUploadMetadata
             assertTrue(metadata.packages.isEmpty())
         }
     }

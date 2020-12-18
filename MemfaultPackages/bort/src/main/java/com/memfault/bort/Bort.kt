@@ -64,12 +64,17 @@ open class Bort : Application(), Configuration.Provider {
                 |  androidSerialNumberKey=${deviceInfoSettings.androidSerialNumberKey}
                 |Bug Report Settings:
                 |  dataSourceEnabled=${bugReportSettings.dataSourceEnabled}
-                |  requestIntervalHours=${bugReportSettings.requestIntervalHours}
+                |  requestInterval=${bugReportSettings.requestInterval.inHours}h
                 |  defaultOptions=${bugReportSettings.defaultOptions}
                 |  maxUploadAttempts=${bugReportSettings.maxUploadAttempts}
-                |  firstBugReportDelayAfterBootMinutes=${bugReportSettings.firstBugReportDelayAfterBootMinutes}
+                |  firstBugReportDelayAfterBoot=${bugReportSettings.firstBugReportDelayAfterBoot}
                 |DropBox Settings:
                 |  dataSourceEnabled=${dropBoxSettings.dataSourceEnabled}
+                |Metrics Settings:
+                |  dataSourceEnabled=${metricsSettings.dataSourceEnabled}
+                |  collectionInterval=${metricsSettings.collectionInterval}
+                |BatteryStats Settings:
+                |  dataSourceEnabled=${batteryStatsSettings.dataSourceEnabled}
                 |SDK Version Info:
                 |  appVersionName=${sdkVersionInfo.appVersionName}
                 |  appVersionCode=${sdkVersionInfo.appVersionCode}

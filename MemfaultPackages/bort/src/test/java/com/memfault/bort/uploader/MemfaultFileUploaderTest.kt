@@ -1,6 +1,6 @@
 package com.memfault.bort.uploader
 
-import com.memfault.bort.BugReportFileUploadMetadata
+import com.memfault.bort.BugReportFileUploadPayload
 import com.memfault.bort.TaskResult
 import java.io.File
 import java.nio.file.Files
@@ -38,7 +38,7 @@ class MemfaultFileUploaderTest {
         val result = runBlocking {
             MemfaultFileUploader(
                 preparedUploader = createUploader(server)
-            ).upload(file, BugReportFileUploadMetadata())
+            ).upload(file, BugReportFileUploadPayload())
         }
         assert(result == TaskResult.FAILURE)
     }
@@ -49,7 +49,7 @@ class MemfaultFileUploaderTest {
         val result = runBlocking {
             MemfaultFileUploader(
                 preparedUploader = createUploader(server)
-            ).upload(file, BugReportFileUploadMetadata())
+            ).upload(file, BugReportFileUploadPayload())
         }
         assert(result == TaskResult.RETRY)
     }
@@ -60,7 +60,7 @@ class MemfaultFileUploaderTest {
         val result = runBlocking {
             MemfaultFileUploader(
                 preparedUploader = createUploader(server)
-            ).upload(file, BugReportFileUploadMetadata())
+            ).upload(file, BugReportFileUploadPayload())
         }
         assert(result == TaskResult.RETRY)
     }

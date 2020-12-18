@@ -17,7 +17,15 @@ import com.memfault.bort.http.DebugInfoInjectingInterceptor
 import com.memfault.bort.http.LoggingNetworkInterceptor
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.ingress.IngressService
+import com.memfault.bort.metrics.BatteryStatsHistoryCollector
+import com.memfault.bort.metrics.MetricsCollectionTask
+import com.memfault.bort.metrics.RealLastHeartbeatEndTimeProvider
+import com.memfault.bort.metrics.RealNextBatteryStatsHistoryStartProvider
+import com.memfault.bort.metrics.runBatteryStats
 import com.memfault.bort.shared.PreferenceKeyProvider
+import com.memfault.bort.time.RealBootRelativeTimeProvider
+import com.memfault.bort.time.RealCombinedTimeProvider
+import com.memfault.bort.uploader.EnqueueFileUpload
 import com.memfault.bort.uploader.FileUploadTask
 import com.memfault.bort.uploader.HttpTask
 import com.memfault.bort.uploader.HttpTaskCallFactory
@@ -74,7 +82,7 @@ data class AppComponents(
             val deviceIdProvider = deviceIdProvider ?: RandomUuidDeviceIdProvider(sharedPreferences)
             val deviceInfoProvider = RealDeviceInfoProvider(settingsProvider.deviceInfoSettings)
             val fileUploaderFactory =
-                fileUploaderFactory ?: MemfaultFileUploaderFactory(deviceInfoProvider)
+                fileUploaderFactory ?: MemfaultFileUploaderFactory()
             val projectKeyInjectingInterceptor = ProjectKeyInjectingInterceptor(
                 settingsProvider.httpApiSettings::projectKey
             )
@@ -110,20 +118,22 @@ data class AppComponents(
                 inboundLooper = Looper.getMainLooper()
             )
 
-            val tempFileFactory = object : TemporaryFileFactory {
+            val temporaryFileFactory = object : TemporaryFileFactory {
                 override val temporaryFileDirectory: File = context.cacheDir
             }
             val bootRelativeTimeProvider = RealBootRelativeTimeProvider(context)
             val packageManagerClient = PackageManagerClient(reporterServiceConnector)
+            val enqueueFileUpload: EnqueueFileUpload = { file, metadata, debugTag ->
+                enqueueFileUploadTask(
+                    context, file, metadata, settingsProvider.httpApiSettings.uploadConstraints, debugTag
+                )
+            }
             val dropBoxEntryProcessors = realDropBoxEntryProcessors(
-                tempFileFactory = tempFileFactory,
+                tempFileFactory = temporaryFileFactory,
                 bootRelativeTimeProvider = bootRelativeTimeProvider,
-                enqueueFileUpload = { file, metadata, debugTag ->
-                    enqueueFileUploadTask(
-                        context, file, metadata, settingsProvider.httpApiSettings.uploadConstraints, debugTag
-                    )
-                },
+                enqueueFileUpload = enqueueFileUpload,
                 packageManagerClient = packageManagerClient,
+                deviceInfoProvider = deviceInfoProvider,
             ) + extraDropBoxEntryProcessors
 
             val workerFactory = DefaultWorkerFactory(
@@ -135,7 +145,9 @@ data class AppComponents(
                 okHttpClient = okHttpClient,
                 reporterServiceConnector = reporterServiceConnector,
                 dropBoxEntryProcessors = dropBoxEntryProcessors,
-                interceptingFactory = interceptingWorkerFactory
+                enqueueFileUpload = enqueueFileUpload,
+                temporaryFileFactory = temporaryFileFactory,
+                interceptingFactory = interceptingWorkerFactory,
             )
 
             val httpTaskCallFactory = HttpTaskCallFactory.fromContextAndConstraints(
@@ -198,6 +210,8 @@ class DefaultWorkerFactory(
     private val okHttpClient: OkHttpClient,
     private val reporterServiceConnector: ReporterServiceConnector,
     private val dropBoxEntryProcessors: Map<String, EntryProcessor>,
+    private val enqueueFileUpload: EnqueueFileUpload,
+    private val temporaryFileFactory: TemporaryFileFactory,
     private val interceptingFactory: InterceptingWorkerFactory? = null
 ) : WorkerFactory(), TaskFactory {
     override fun createWorker(
@@ -227,6 +241,7 @@ class DefaultWorkerFactory(
     }
 
     override fun create(inputData: Data): Task<*>? {
+        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
 
         return when (inputData.workDelegateClass) {
             HttpTask::class.qualifiedName -> HttpTask(okHttpClient = okHttpClient)
@@ -236,24 +251,32 @@ class DefaultWorkerFactory(
                 maxAttempts = settingsProvider.bugReportSettings.maxUploadAttempts
             )
             DropBoxGetEntriesTask::class.qualifiedName -> DropBoxGetEntriesTask(
-                lastProcessedEntryProvider = RealDropBoxLastProcessedEntryProvider(
-                    PreferenceManager.getDefaultSharedPreferences(context)
-                ),
+                lastProcessedEntryProvider = RealDropBoxLastProcessedEntryProvider(sharedPreferences),
                 reporterServiceConnector = reporterServiceConnector,
                 entryProcessors = dropBoxEntryProcessors,
                 settings = settingsProvider.dropBoxSettings,
+            )
+            MetricsCollectionTask::class.qualifiedName -> MetricsCollectionTask(
+                batteryStatsHistoryCollector = BatteryStatsHistoryCollector(
+                    temporaryFileFactory = temporaryFileFactory,
+                    nextBatteryStatsHistoryStartProvider = RealNextBatteryStatsHistoryStartProvider(sharedPreferences),
+                    runBatteryStats = reporterServiceConnector::runBatteryStats,
+                ),
+                enqueueFileUpload = enqueueFileUpload,
+                combinedTimeProvider = RealCombinedTimeProvider(context),
+                lastHeartbeatEndTimeProvider = RealLastHeartbeatEndTimeProvider(sharedPreferences),
+                deviceInfoProvider = RealDeviceInfoProvider(settingsProvider.deviceInfoSettings),
             )
             else -> null
         }
     }
 }
 
-class MemfaultFileUploaderFactory(private val deviceInfoProvider: DeviceInfoProvider) : FileUploaderFactory {
+class MemfaultFileUploaderFactory : FileUploaderFactory {
     override fun create(retrofit: Retrofit, projectApiKey: String): FileUploader =
         MemfaultFileUploader(
             preparedUploader = PreparedUploader(
                 preparedUploadService = retrofit.create(PreparedUploadService::class.java),
-                deviceInfoProvider = deviceInfoProvider,
             )
         )
 }

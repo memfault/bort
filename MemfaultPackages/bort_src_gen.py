@@ -185,22 +185,21 @@ def test_generate_cpp_header():
 
 def test_get_replacements():
     assert _get_replacements(
-        {"REPL": ("VAR1", "VAR2"),}, JavaProperties.from_string("VAR2=FOO")
+        {"REPL": ("VAR1", "VAR2")}, JavaProperties.from_string("VAR2=FOO")
     ) == {"REPL": Replacement("VAR2", "FOO")}
 
     with pytest.raises(
-        Exception, match="Missing value for REPL. Please define VAR1 or VAR2 in bort.properties!",
+        Exception,
+        match="Missing value for REPL. Please define VAR1 or VAR2 in bort.properties!",
     ):
-        assert _get_replacements(
-            {"REPL": ("VAR1", "VAR2"),}, JavaProperties.from_string("VAR3=FOO")
-        )
+        assert _get_replacements({"REPL": ("VAR1", "VAR2")}, JavaProperties.from_string("VAR3=FOO"))
 
     with pytest.raises(
         Exception,
         match="Invalid value 'vnd.myandroid.bortappid' for 'VAR1'. Please change in bort.properties!",
     ):
         assert _get_replacements(
-            {"REPL": ("VAR1", "VAR2"),}, JavaProperties.from_string("VAR1=vnd.myandroid.bortappid")
+            {"REPL": ("VAR1", "VAR2")}, JavaProperties.from_string("VAR1=vnd.myandroid.bortappid")
         )
 
 

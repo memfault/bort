@@ -1,6 +1,6 @@
 package vnd.myandroid.bortappid // Update to match your package
 
-import com.memfault.bort.FileUploadMetadata
+import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploader
 import com.memfault.bort.TaskResult
 import com.memfault.bort.shared.Logger
@@ -25,9 +25,9 @@ interface SampleUploadService {
     suspend fun upload(@Part file: RequestBody, @Part metadata: RequestBody): Response<Unit>
 }
 
-fun FileUploadMetadata.asRequestBody() =
+fun FileUploadPayload.asRequestBody() =
     Json.encodeToString(
-        FileUploadMetadata.serializer(),
+        FileUploadPayload.serializer(),
         this
     ).toRequestBody("application/json".toMediaType())
 
@@ -36,7 +36,7 @@ class SampleBugReportUploader(
     private val apiKey: String
 ) : FileUploader {
 
-    override suspend fun upload(file: File, metadata: FileUploadMetadata): TaskResult {
+    override suspend fun upload(file: File, payload: FileUploadPayload): TaskResult {
         val customRetrofit = retrofit.newBuilder()
             .baseUrl(BASE_URL)
             .build()
@@ -46,7 +46,7 @@ class SampleBugReportUploader(
         val uploadService = customRetrofit.create(SampleUploadService::class.java)
 
         val fileBody = file.asRequestBody("application/octet-stream".toMediaType())
-        val metadataBody = metadata.asRequestBody()
+        val metadataBody = payload.asRequestBody()
         return try {
             val response = uploadService.upload(fileBody, metadataBody)
             when (response.code()) {

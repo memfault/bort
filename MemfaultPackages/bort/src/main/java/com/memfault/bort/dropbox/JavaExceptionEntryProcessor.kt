@@ -1,18 +1,22 @@
 package com.memfault.bort.dropbox
 
-import com.memfault.bort.AbsoluteTime
-import com.memfault.bort.BootRelativeTime
-import com.memfault.bort.BootRelativeTimeProvider
+import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DropBoxEntryFileUploadMetadata
 import com.memfault.bort.JavaExceptionFileUploadMetadata
 import com.memfault.bort.TemporaryFileFactory
+import com.memfault.bort.TimezoneWithId
+import com.memfault.bort.time.AbsoluteTime
+import com.memfault.bort.time.BootRelativeTime
+import com.memfault.bort.time.BootRelativeTimeProvider
+import com.memfault.bort.uploader.EnqueueFileUpload
 import java.io.File
 
 class JavaExceptionEntryProcessor(
     tempFileFactory: TemporaryFileFactory,
     enqueueFileUpload: EnqueueFileUpload,
     bootRelativeTimeProvider: BootRelativeTimeProvider,
-) : UploadingEntryProcessor(tempFileFactory, enqueueFileUpload, bootRelativeTimeProvider) {
+    deviceInfoProvider: DeviceInfoProvider
+) : UploadingEntryProcessor(tempFileFactory, enqueueFileUpload, bootRelativeTimeProvider, deviceInfoProvider) {
     override val tags = listOf(
         "data_app_crash",
         "data_app_wtf",
@@ -31,5 +35,5 @@ class JavaExceptionEntryProcessor(
         entryTime: AbsoluteTime,
         collectionTime: BootRelativeTime
     ): DropBoxEntryFileUploadMetadata =
-        JavaExceptionFileUploadMetadata(tag, fileTime, entryTime, collectionTime)
+        JavaExceptionFileUploadMetadata(tag, fileTime, entryTime, collectionTime, TimezoneWithId.deviceDefault)
 }

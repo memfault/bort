@@ -1,5 +1,20 @@
 # Memfault Bort Changelog
 
+## v3.0.0 - December 17, 2020
+
+#### :chart_with_upwards_trend: Improvements
+
+- Have you ever wondered how the metrics in your device timelines are trending
+  across your whole fleet? With the 3.0.0 version of Bort, now you can view
+  visualizations of these metrics aggregated across all your devices! See
+  https://mflt.io/fleet-wide-metrics for details.
+- The aforementioned "experimental" data source is now ready for prime time! It
+  can be used to collect traces and metrics, with additional data sources coming
+  in future SDK releases. See https://mflt.io/memfault-caliper for details.
+- Reboot events were added in an earlier version of the SDK but didn't make it
+  into the changelog. Let's call that a 3.0 feature too! See
+  https://mflt.io/android-reboot-reasons to learn more.
+
 ## v2.9.1 - December 3, 2020
 
 #### :chart_with_upwards_trend: Improvements

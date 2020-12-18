@@ -11,13 +11,14 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.memfault.bort.Bort
+import com.memfault.bort.BugReportSettings
 import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.INTENT_ACTION_BUG_REPORT_START
 import com.memfault.bort.shared.Logger
 import java.util.concurrent.TimeUnit
 
-private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.REQUEST_PERIODIC"
+private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.REQUEST_PERIODIC_BUGREPORT"
 
 private const val MINIMAL_INPUT_DATA_KEY = "minimal"
 
@@ -51,35 +52,36 @@ internal fun requestBugReport(
 }
 
 class BugReportRequester(
-    private val context: Context
-) {
+    private val context: Context,
+    private val bugReportSettings: BugReportSettings,
+) : PeriodicWorkRequester() {
+    override fun startPeriodic(justBooted: Boolean) {
+        if (!bugReportSettings.dataSourceEnabled) return
 
-    fun request(options: BugReportOptions) = requestBugReport(context, options)
+        val requestInterval = bugReportSettings.requestInterval
+        val initialDelay = if (justBooted) bugReportSettings.firstBugReportDelayAfterBoot else null
 
-    fun requestPeriodic(
-        requestIntervalHours: Long,
-        options: BugReportOptions,
-        initialDelayMinutes: Long? = null
-    ) = PeriodicWorkRequestBuilder<BugReportRequestWorker>(
-        requestIntervalHours,
-        TimeUnit.HOURS
-    ).also { builder ->
-        initialDelayMinutes?.let { delay ->
-            builder.setInitialDelay(delay, TimeUnit.MINUTES)
-            builder.setInputData(options.toInputData())
+        PeriodicWorkRequestBuilder<BugReportRequestWorker>(
+            requestInterval.inHours.toLong(),
+            TimeUnit.HOURS
+        ).also { builder ->
+            initialDelay?.let { delay ->
+                builder.setInitialDelay(delay.inMinutes.toLong(), TimeUnit.MINUTES)
+                builder.setInputData(bugReportSettings.defaultOptions.toInputData())
+            }
+            Logger.test("Requesting bug report every ${requestInterval.inHours} hours")
+        }.build().also {
+            WorkManager.getInstance(context)
+                .enqueueUniquePeriodicWork(
+                    WORK_UNIQUE_NAME_PERIODIC,
+                    ExistingPeriodicWorkPolicy.KEEP,
+                    it
+                )
         }
-        Logger.test("Requesting bug report every $requestIntervalHours hours")
-    }.build().also {
-        WorkManager.getInstance(context)
-            .enqueueUniquePeriodicWork(
-                WORK_UNIQUE_NAME_PERIODIC,
-                ExistingPeriodicWorkPolicy.KEEP,
-                it
-            )
     }
 
-    fun cancelPeriodic() {
-        Logger.test("Cancelling periodic work $WORK_UNIQUE_NAME_PERIODIC")
+    override fun cancelPeriodic() {
+        Logger.test("Cancelling $WORK_UNIQUE_NAME_PERIODIC")
         WorkManager.getInstance(context)
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }

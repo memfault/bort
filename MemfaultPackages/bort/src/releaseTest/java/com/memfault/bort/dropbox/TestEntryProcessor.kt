@@ -1,8 +1,8 @@
 package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
-import com.memfault.bort.AbsoluteTime
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.time.AbsoluteTime
 
 fun testDropBoxEntryProcessors(): Map<String, EntryProcessor> {
     val testEntryProcessor = TestEntryProcessor()

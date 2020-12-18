@@ -12,6 +12,10 @@ const val PREFERENCE_DEVICE_ID = "com.memfault.preference.DEVICE_ID"
 const val PREFERENCE_LAST_TRACKED_BOOT_COUNT = "com.memfault.preference.LAST_TRACKED_BOOT_COUNT"
 const val PREFERENCE_LAST_PROCESSED_DROPBOX_ENTRY_TIME_MILLIS =
     "com.memfault.preference.LAST_PROCESSED_DROPBOX_ENTRY_TIME_MILLIS"
+const val PREFERENCE_LAST_HEARTBEAT_END_TIME_JSON =
+    "com.memfault.preference.PREFERENCE_LAST_HEARTBEAT_END_TIME_JSON"
+const val PREFERENCE_NEXT_BATTERYSTATS_HISTORY_START_TIME =
+    "com.memfault.preference.PREFERENCE_NEXT_BATTERYSTATS_HISTORY_START_TIME"
 
 // Keep in sync with DUMPSTER_SERVICE_NAME in MemfaultDumpster.cpp!
 const val DUMPSTER_SERVICE_NAME = "memfault_dumpster"

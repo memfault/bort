@@ -1,15 +1,18 @@
 package com.memfault.bort.dropbox
 
-import com.memfault.bort.AbsoluteTime
-import com.memfault.bort.BootRelativeTime
-import com.memfault.bort.BootRelativeTimeProvider
-import com.memfault.bort.FileUploadMetadata
+import com.memfault.bort.DeviceInfoProvider
+import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.TemporaryFileFactory
+import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.TombstoneFileUploadMetadata
 import com.memfault.bort.parsers.NativeBacktraceParser
 import com.memfault.bort.parsers.TombstoneParser
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.time.AbsoluteTime
+import com.memfault.bort.time.BootRelativeTime
+import com.memfault.bort.time.BootRelativeTimeProvider
+import com.memfault.bort.uploader.EnqueueFileUpload
 import java.io.File
 import java.io.InputStream
 
@@ -17,8 +20,9 @@ class TombstoneEntryProcessor(
     tempFileFactory: TemporaryFileFactory,
     enqueueFileUpload: EnqueueFileUpload,
     bootRelativeTimeProvider: BootRelativeTimeProvider,
+    deviceInfoProvider: DeviceInfoProvider,
     private val packageManagerClient: PackageManagerClient,
-) : UploadingEntryProcessor(tempFileFactory, enqueueFileUpload, bootRelativeTimeProvider) {
+) : UploadingEntryProcessor(tempFileFactory, enqueueFileUpload, bootRelativeTimeProvider, deviceInfoProvider) {
     override val tags = listOf("SYSTEM_TOMBSTONE")
 
     override val debugTag: String
@@ -36,6 +40,7 @@ class TombstoneEntryProcessor(
         entryTime = entryTime,
         packages = getPackages(tempFile),
         collectionTime = collectionTime,
+        timezone = TimezoneWithId.deviceDefault,
     )
 
     private fun findProcessName(tempFile: File) =
@@ -52,14 +57,14 @@ class TombstoneEntryProcessor(
             }
         }.filterNotNull().firstOrNull()
 
-    private suspend fun getPackages(tempFile: File): List<FileUploadMetadata.Package> {
-        val processName = findProcessName(tempFile) ?: return emptyList<FileUploadMetadata.Package>().also {
+    private suspend fun getPackages(tempFile: File): List<FileUploadPayload.Package> {
+        val processName = findProcessName(tempFile) ?: return emptyList<FileUploadPayload.Package>().also {
             Logger.e("Tombstone failed to parse")
         }
 
         val packageInfo = packageManagerClient.findPackagesByProcessName(processName)
         val uploaderPackage =
-            packageInfo?.toUploaderPackage() ?: return emptyList<FileUploadMetadata.Package>().also {
+            packageInfo?.toUploaderPackage() ?: return emptyList<FileUploadPayload.Package>().also {
                 Logger.e("Failed to resolve package: processName=$processName packageInfo=$packageInfo")
             }
         return listOf(uploaderPackage)

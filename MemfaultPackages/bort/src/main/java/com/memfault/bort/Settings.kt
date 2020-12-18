@@ -5,6 +5,7 @@ import androidx.work.NetworkType
 import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.SdkVersionInfo
+import kotlin.time.Duration
 
 enum class NetworkConstraint(
     val networkType: NetworkType
@@ -15,14 +16,23 @@ enum class NetworkConstraint(
 
 interface BugReportSettings {
     val dataSourceEnabled: Boolean
-    val requestIntervalHours: Long
+    val requestInterval: Duration
     val defaultOptions: BugReportOptions
     val maxUploadAttempts: Int
-    val firstBugReportDelayAfterBootMinutes: Long
+    val firstBugReportDelayAfterBoot: Duration
 }
 
 interface DropBoxSettings {
     val dataSourceEnabled: Boolean
+}
+
+interface BatteryStatsSettings {
+    val dataSourceEnabled: Boolean
+}
+
+interface MetricsSettings {
+    val dataSourceEnabled: Boolean
+    val collectionInterval: Duration
 }
 
 enum class AndroidBuildFormat(val id: String) {
@@ -63,6 +73,8 @@ interface SettingsProvider {
     val deviceInfoSettings: DeviceInfoSettings
     val bugReportSettings: BugReportSettings
     val dropBoxSettings: DropBoxSettings
+    val metricsSettings: MetricsSettings
+    val batteryStatsSettings: BatteryStatsSettings
 }
 
 interface BortEnabledProvider {

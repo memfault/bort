@@ -6,6 +6,8 @@ import com.memfault.bort.INTENT_ACTION_BORT_ENABLE
 import com.memfault.bort.INTENT_ACTION_BUG_REPORT_REQUESTED
 import com.memfault.bort.INTENT_EXTRA_BORT_ENABLED
 import com.memfault.bort.requester.BugReportRequester
+import com.memfault.bort.requester.MetricsCollectionRequester
+import com.memfault.bort.requester.requestBugReport
 import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.uploader.sendSdkEnabledEvent
@@ -21,9 +23,7 @@ abstract class BaseControlReceiver : FilteringReceiver(
             Logger.w("Bort not enabled; not sending request")
             return
         }
-        BugReportRequester(
-            context
-        ).request(options)
+        requestBugReport(context, options)
     }
 
     private fun onBortEnabled(context: Context, intent: Intent) {
@@ -40,16 +40,17 @@ abstract class BaseControlReceiver : FilteringReceiver(
 
         bortEnabledProvider.setEnabled(isNowEnabled)
 
-        BugReportRequester(context).also {
+        listOf(
+            MetricsCollectionRequester(context, settingsProvider.metricsSettings),
+            BugReportRequester(context, settingsProvider.bugReportSettings),
+        ).forEach {
             if (isNowEnabled) {
-                it.requestPeriodic(
-                    settingsProvider.bugReportSettings.requestIntervalHours,
-                    settingsProvider.bugReportSettings.defaultOptions
-                )
+                it.startPeriodic()
             } else {
                 it.cancelPeriodic()
             }
         }
+
         sendSdkEnabledEvent(
             ingressService,
             isNowEnabled,

@@ -37,13 +37,18 @@ android {
 
         // Data Sources
         buildConfigField "Boolean", "DATA_SOURCE_BUG_REPORTS_ENABLED", bortProperty("DATA_SOURCE_BUG_REPORTS_ENABLED")
-        buildConfigField "Boolean", "DATA_SOURCE_DROP_BOX_ENABLED", bortProperty("DATA_SOURCE_DROP_BOX_ENABLED")
+        buildConfigField "Boolean", "DATA_SOURCE_DROP_BOX_ENABLED", bortProperty("DATA_SOURCE_CALIPER_DROP_BOX_TRACES_ENABLED")
+        buildConfigField "Boolean", "DATA_SOURCE_METRICS_ENABLED", bortProperty("DATA_SOURCE_CALIPER_METRICS_ENABLED")
+        buildConfigField "Boolean", "DATA_SOURCE_BATTERY_STATS_ENABLED", bortProperty("DATA_SOURCE_CALIPER_BATTERYSTATS_ENABLED")
 
         // Bug Report Settings
         buildConfigField "int", "BUG_REPORT_REQUEST_INTERVAL_HOURS", bortProperty("BUG_REPORT_REQUEST_INTERVAL_HOURS")
         buildConfigField "int", "FIRST_BUG_REPORT_DELAY_AFTER_BOOT_MINUTES", bortProperty("FIRST_BUG_REPORT_DELAY_AFTER_BOOT_MINUTES")
         buildConfigField "int", "BUG_REPORT_MAX_UPLOAD_ATTEMPTS", bortProperty("BUG_REPORT_MAX_UPLOAD_ATTEMPTS")
         buildConfigField "Boolean", "BUG_REPORT_MINIMAL_MODE", bortProperty("BUG_REPORT_MINIMAL_MODE")
+
+        // Metrics Settings
+        buildConfigField "int", "METRICS_HEARTBEAT_INTERVAL_MINUTES", bortProperty("METRICS_HEARTBEAT_INTERVAL_MINUTES")
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

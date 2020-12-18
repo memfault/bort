@@ -1,14 +1,13 @@
 package com.memfault.bort.uploader
 
-import com.memfault.bort.BugReportFileUploadMetadata
-import com.memfault.bort.DeviceInfoProvider
-import com.memfault.bort.DropBoxEntryFileUploadMetadata
-import com.memfault.bort.FileUploadMetadata
-import com.memfault.bort.SOFTWARE_TYPE
+import com.memfault.bort.BugReportFileUploadPayload
+import com.memfault.bort.DropBoxEntryFileUploadPayload
+import com.memfault.bort.FileUploadPayload
+import com.memfault.bort.FileUploadToken
+import com.memfault.bort.HeartbeatFileUploadPayload
 import com.memfault.bort.http.ProjectKeyAuthenticated
 import com.memfault.bort.shared.Logger
 import java.io.File
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody
@@ -31,35 +30,6 @@ data class PrepareResult(
     val data: PrepareResponseData
 )
 
-@Serializable
-data class CommitFileToken(
-    val token: String
-)
-
-@Serializable
-data class CommitRequest(
-    val file: CommitFileToken
-)
-
-@Serializable
-data class CommitRequestWithMetadata(
-    val file: CommitFileToken,
-
-    @SerialName("hardware_version")
-    val hardwareVersion: String,
-
-    @SerialName("device_serial")
-    val deviceSerial: String,
-
-    @SerialName("software_version")
-    val softwareVersion: String,
-
-    @SerialName("software_type")
-    val softwareType: String = SOFTWARE_TYPE,
-
-    val metadata: FileUploadMetadata,
-)
-
 interface PreparedUploadService {
     @POST("/api/v0/upload")
     @ProjectKeyAuthenticated
@@ -72,14 +42,20 @@ interface PreparedUploadService {
     @ProjectKeyAuthenticated
     suspend fun commit(
         @Path(value = "upload_type") uploadType: String,
-        @Body commitRequest: CommitRequest
+        @Body payload: BugReportFileUploadPayload
     ): Response<Unit>
 
     @POST("/api/v0/upload/android-dropbox-manager-entry/{family}")
     @ProjectKeyAuthenticated
     suspend fun commitDropBoxEntry(
         @Path(value = "family") entryFamily: String,
-        @Body commitRequest: CommitRequestWithMetadata
+        @Body payload: DropBoxEntryFileUploadPayload
+    ): Response<Unit>
+
+    @POST("/api/v0/events/android-heartbeat")
+    @ProjectKeyAuthenticated
+    suspend fun commitHeartbeat(
+        @Body commitRequest: HeartbeatFileUploadPayload
     ): Response<Unit>
 }
 
@@ -93,7 +69,6 @@ internal interface UploadEventLogger {
  */
 internal class PreparedUploader(
     private val preparedUploadService: PreparedUploadService,
-    private val deviceInfoProvider: DeviceInfoProvider,
     private val eventLogger: UploadEventLogger = object : UploadEventLogger {}
 ) {
 
@@ -120,34 +95,37 @@ internal class PreparedUploader(
     /**
      * Commit an uploaded bug report.
      */
-    suspend fun commit(token: String, metadata: FileUploadMetadata): Response<Unit> {
-        return when (metadata) {
-            is BugReportFileUploadMetadata ->
+    suspend fun commit(token: String, payload: FileUploadPayload): Response<Unit> {
+        return when (payload) {
+            is BugReportFileUploadPayload ->
                 preparedUploadService.commit(
                     uploadType = "bugreport",
-                    commitRequest = CommitRequest(
-                        CommitFileToken(
-                            token
-                        )
-                    )
+                    payload = payload.copy(file = FileUploadToken(token))
                 ).also {
                     eventLogger.log("commit", "done", "bugreport")
                 }
-            is DropBoxEntryFileUploadMetadata ->
-                deviceInfoProvider.getDeviceInfo().let { deviceInfo ->
-                    preparedUploadService.commitDropBoxEntry(
-                        entryFamily = metadata.family,
-                        commitRequest = CommitRequestWithMetadata(
-                            file = CommitFileToken(token),
-                            metadata = metadata,
-                            hardwareVersion = deviceInfo.hardwareVersion,
-                            deviceSerial = deviceInfo.deviceSerial,
-                            softwareVersion = deviceInfo.softwareVersion,
-                        )
-                    ).also {
-                        eventLogger.log("commit", "done", "tombstone")
-                    }
+            is DropBoxEntryFileUploadPayload ->
+                preparedUploadService.commitDropBoxEntry(
+                    entryFamily = payload.metadata.family,
+                    payload = payload.copy(file = FileUploadToken(token)),
+                ).also {
+                    eventLogger.log("commit", "done", payload.metadata.family)
                 }
+            is HeartbeatFileUploadPayload -> {
+                preparedUploadService.commitHeartbeat(
+                    payload.copy(
+                        attachments = payload.attachments.copy(
+                            batteryStats = payload.attachments.batteryStats.copy(
+                                file = payload.attachments.batteryStats.file.copy(
+                                    token = token,
+                                )
+                            )
+                        )
+                    )
+                ).also {
+                    eventLogger.log("commit", "done", "heartbeat")
+                }
+            }
         }
     }
 }

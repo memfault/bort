@@ -1,8 +1,8 @@
 package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
-import com.memfault.bort.AbsoluteTime
-import com.memfault.bort.toAbsoluteTime
+import com.memfault.bort.time.AbsoluteTime
+import com.memfault.bort.time.toAbsoluteTime
 
 abstract class EntryProcessor {
     abstract val tags: List<String>

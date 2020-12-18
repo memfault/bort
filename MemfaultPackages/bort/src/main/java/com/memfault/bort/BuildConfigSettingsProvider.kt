@@ -3,6 +3,8 @@ package com.memfault.bort
 import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.BuildConfigSdkVersionInfo
 import com.memfault.bort.shared.LogLevel
+import kotlin.time.hours
+import kotlin.time.minutes
 
 open class BuildConfigSettingsProvider : SettingsProvider {
 
@@ -31,14 +33,23 @@ open class BuildConfigSettingsProvider : SettingsProvider {
 
     override val bugReportSettings = object : BugReportSettings {
         override val dataSourceEnabled = BuildConfig.DATA_SOURCE_BUG_REPORTS_ENABLED
-        override val requestIntervalHours = BuildConfig.BUG_REPORT_REQUEST_INTERVAL_HOURS.toLong()
+        override val requestInterval = BuildConfig.BUG_REPORT_REQUEST_INTERVAL_HOURS.hours
         override val defaultOptions = BugReportOptions(minimal = BuildConfig.BUG_REPORT_MINIMAL_MODE)
         override val maxUploadAttempts = BuildConfig.BUG_REPORT_MAX_UPLOAD_ATTEMPTS
-        override val firstBugReportDelayAfterBootMinutes =
-            BuildConfig.FIRST_BUG_REPORT_DELAY_AFTER_BOOT_MINUTES.toLong()
+        override val firstBugReportDelayAfterBoot =
+            BuildConfig.FIRST_BUG_REPORT_DELAY_AFTER_BOOT_MINUTES.minutes
     }
 
     override val dropBoxSettings = object : DropBoxSettings {
         override val dataSourceEnabled = BuildConfig.DATA_SOURCE_DROP_BOX_ENABLED
+    }
+
+    override val metricsSettings = object : MetricsSettings {
+        override val dataSourceEnabled = BuildConfig.DATA_SOURCE_METRICS_ENABLED
+        override val collectionInterval = BuildConfig.METRICS_HEARTBEAT_INTERVAL_MINUTES.minutes
+    }
+
+    override val batteryStatsSettings = object : BatteryStatsSettings {
+        override val dataSourceEnabled = BuildConfig.DATA_SOURCE_BATTERY_STATS_ENABLED
     }
 }

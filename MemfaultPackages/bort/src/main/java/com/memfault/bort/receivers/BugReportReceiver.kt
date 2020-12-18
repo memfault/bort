@@ -2,7 +2,7 @@ package com.memfault.bort.receivers
 
 import android.content.Context
 import android.content.Intent
-import com.memfault.bort.BugReportFileUploadMetadata
+import com.memfault.bort.BugReportFileUploadPayload
 import com.memfault.bort.INTENT_ACTION_BUGREPORT_FINISHED
 import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
 import com.memfault.bort.shared.Logger
@@ -20,10 +20,19 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
         Logger.logEvent("bugreport", "received")
         bugreportPath ?: return
 
+        val dropBoxDataSourceEnabled = settingsProvider.dropBoxSettings.dataSourceEnabled
         enqueueFileUploadTask(
             context = context,
             file = File(bugreportPath),
-            metadata = BugReportFileUploadMetadata(),
+            payload = BugReportFileUploadPayload(
+                processingOptions = BugReportFileUploadPayload.ProcessingOptions(
+                    processAnrs = !dropBoxDataSourceEnabled,
+                    processJavaExceptions = !dropBoxDataSourceEnabled,
+                    processLastKmsg = !dropBoxDataSourceEnabled,
+                    processRecoveryKmsg = !dropBoxDataSourceEnabled,
+                    processTombstones = !dropBoxDataSourceEnabled,
+                )
+            ),
             uploadConstraints = settingsProvider.httpApiSettings.uploadConstraints,
             debugTag = WORK_TAG,
         )

@@ -10,9 +10,16 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.memfault.bort.LastTrackedBootCountProvider
 import com.memfault.bort.PersistentProjectKeyProvider
+import com.memfault.bort.requester.restartPeriodicMetricsCollection
 import com.memfault.bort.selfTesting.SelfTestWorker
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
+import com.memfault.bort.time.BootRelativeTime
+import com.memfault.bort.time.BoxedDuration
+import com.memfault.bort.time.RealBootRelativeTimeProvider
+import kotlin.time.Duration
+import kotlin.time.days
+import kotlin.time.hours
 
 private const val INTENT_EXTRA_ECHO_STRING = "echo"
 private const val WORK_UNIQUE_NAME_SELF_TEST = "com.memfault.bort.work.SELF_TEST"
@@ -35,7 +42,8 @@ class TestReceiver : FilteringReceiver(
         "com.memfault.intent.action.TEST_QUERY_BOOT_COMPLETED",
         "com.memfault.intent.action.TEST_BORT_ECHO",
         "com.memfault.intent.action.TEST_SETTING_SET",
-        "com.memfault.intent.action.TEST_SELF_TEST"
+        "com.memfault.intent.action.TEST_SELF_TEST",
+        "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION",
     )
 ) {
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {
@@ -63,6 +71,16 @@ class TestReceiver : FilteringReceiver(
                     )
                 }
             }
+            "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION" -> {
+                restartPeriodicMetricsCollection(
+                    context = context,
+                    // Something long to ensure it does not re-run & interfere with tests:
+                    collectionInterval = 1.days,
+                    // Pretend the heartbeat started an hour ago:
+                    lastHeartbeatEnd = RealBootRelativeTimeProvider(context).now() - 1.hours,
+                    collectImmediately = true,
+                )
+            }
             "android.intent.action.BOOT_COMPLETED" -> {
                 TestLastTrackedBootCountProvider(
                     PreferenceManager.getDefaultSharedPreferences(context)
@@ -78,3 +96,10 @@ class TestReceiver : FilteringReceiver(
         }
     }
 }
+
+private operator fun BootRelativeTime.minus(duration: Duration): BootRelativeTime =
+    this.copy(
+        // Note: this is incorrect, but for the purpose of the test it does not matter:
+        uptime = BoxedDuration(this.uptime.duration - duration),
+        elapsedRealtime = BoxedDuration(this.elapsedRealtime.duration - duration),
+    )

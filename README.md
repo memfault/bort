@@ -2,9 +2,9 @@
 
 ## Overview
 
-The purpose of this SDK is to make it really easy to periodically capture bug
-reports on AOSP devices and get them uploaded automatically to Memfault.
+The purpose of the Bort SDK is to make it really easy to collect detailed
+diagnostics from your entire Android device, from low-level or hardware issues
+to high-level application crashes, and upload them automatically to Memfault.
 
-See
-[Memfault Bort Documentation](http://docs.memfault.com/docs/android/android-bort)
-for more information.
+See [Memfault Bort SDK Reference](https://mflt.io/android-bort-sdk) for more
+information.
