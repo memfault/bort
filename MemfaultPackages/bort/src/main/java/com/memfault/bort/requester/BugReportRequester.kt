@@ -65,9 +65,9 @@ class BugReportRequester(
             requestInterval.inHours.toLong(),
             TimeUnit.HOURS
         ).also { builder ->
+            builder.setInputData(bugReportSettings.defaultOptions.toInputData())
             initialDelay?.let { delay ->
                 builder.setInitialDelay(delay.inMinutes.toLong(), TimeUnit.MINUTES)
-                builder.setInputData(bugReportSettings.defaultOptions.toInputData())
             }
             Logger.test("Requesting bug report every ${requestInterval.inHours} hours")
         }.build().also {

@@ -1,5 +1,14 @@
 # Memfault Bort Changelog
 
+## v3.0.1 - January 4, 2021
+
+#### :house: Internal
+
+- Fixed a bug that caused `BUG_REPORT_MINIMAL_MODE=true` to only enable minimal
+  mode bug reports to get captured after rebooting but not after enabling the
+  SDK at run-time.
+- Remove a spammy log message.
+
 ## v3.0.0 - December 17, 2020
 
 #### :chart_with_upwards_trend: Improvements

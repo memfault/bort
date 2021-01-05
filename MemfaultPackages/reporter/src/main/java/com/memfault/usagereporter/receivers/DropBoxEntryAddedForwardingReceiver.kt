@@ -7,7 +7,6 @@ import android.content.Intent
 import android.os.DropBoxManager
 import com.memfault.bort.shared.DROPBOX_ENTRY_ADDED_RECEIVER_QUALIFIED_NAME
 import com.memfault.bort.shared.INTENT_ACTION_DROPBOX_ENTRY_ADDED
-import com.memfault.bort.shared.Logger
 import com.memfault.usagereporter.BuildConfig
 import com.memfault.usagereporter.USER_CURRENT
 import com.memfault.usagereporter.UserHandle
@@ -17,8 +16,6 @@ class DropBoxEntryAddedForwardingReceiver : BroadcastReceiver() {
         context ?: return
         intent ?: return
         if (intent.action != DropBoxManager.ACTION_DROPBOX_ENTRY_ADDED) return
-
-        Logger.v("Forwarding action=${intent.action}")
 
         context.sendBroadcastAsUser(
             Intent(intent).apply {
