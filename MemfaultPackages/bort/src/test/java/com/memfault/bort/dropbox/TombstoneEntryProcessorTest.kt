@@ -10,12 +10,18 @@ import com.memfault.bort.parsers.EXAMPLE_NATIVE_BACKTRACE
 import com.memfault.bort.parsers.EXAMPLE_TOMBSTONE
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.test.util.TestTemporaryFileFactory
+import com.memfault.bort.tokenbucket.MockTokenBucketFactory
+import com.memfault.bort.tokenbucket.MockTokenBucketStorage
+import com.memfault.bort.tokenbucket.StoredTokenBucketMap
+import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueFileUpload
 import io.mockk.CapturingSlot
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
+import kotlin.time.milliseconds
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -23,6 +29,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
+
+val TEST_BUCKET_CAPACITY = 3
 
 class TombstoneEntryProcessorTest {
     lateinit var processor: TombstoneEntryProcessor
@@ -46,6 +54,14 @@ class TombstoneEntryProcessorTest {
             bootRelativeTimeProvider = FakeBootRelativeTimeProvider,
             packageManagerClient = mockPackageManagerClient,
             deviceInfoProvider = FakeDeviceInfoProvider,
+            tokenBucketStore = TokenBucketStore(
+                storage = MockTokenBucketStorage(StoredTokenBucketMap()),
+                maxBuckets = 1,
+                tokenBucketFactory = MockTokenBucketFactory(
+                    defaultCapacity = TEST_BUCKET_CAPACITY,
+                    defaultPeriod = 1.milliseconds,
+                ),
+            ),
         )
     }
 
@@ -75,6 +91,20 @@ class TombstoneEntryProcessorTest {
             val payload = fileUploadPayloadSlot.captured as DropBoxEntryFileUploadPayload
             val metadata = payload.metadata as TombstoneFileUploadMetadata
             assertTrue(metadata.packages.isEmpty())
+        }
+    }
+
+    @Test
+    fun rateLimiting() {
+        coEvery {
+            mockPackageManagerClient.findPackagesByProcessName(any())
+        } returns PACKAGE_FIXTURE
+
+        runBlocking {
+            (0..15).forEach {
+                processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "SYSTEM_TOMBSTONE"))
+            }
+            verify(exactly = TEST_BUCKET_CAPACITY) { mockEnqueueFileUpload(any(), any(), any()) }
         }
     }
 }

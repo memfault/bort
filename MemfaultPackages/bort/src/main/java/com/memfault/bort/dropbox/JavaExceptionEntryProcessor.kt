@@ -1,13 +1,17 @@
 package com.memfault.bort.dropbox
 
+import android.os.DropBoxManager
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DropBoxEntryFileUploadMetadata
 import com.memfault.bort.JavaExceptionFileUploadMetadata
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.TimezoneWithId
+import com.memfault.bort.parsers.JavaExceptionParser
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
+import com.memfault.bort.tokenbucket.TokenBucketStore
+import com.memfault.bort.tokenbucket.tokenBucketKey
 import com.memfault.bort.uploader.EnqueueFileUpload
 import java.io.File
 
@@ -15,8 +19,15 @@ class JavaExceptionEntryProcessor(
     tempFileFactory: TemporaryFileFactory,
     enqueueFileUpload: EnqueueFileUpload,
     bootRelativeTimeProvider: BootRelativeTimeProvider,
-    deviceInfoProvider: DeviceInfoProvider
-) : UploadingEntryProcessor(tempFileFactory, enqueueFileUpload, bootRelativeTimeProvider, deviceInfoProvider) {
+    deviceInfoProvider: DeviceInfoProvider,
+    tokenBucketStore: TokenBucketStore,
+) : UploadingEntryProcessor(
+    tempFileFactory,
+    enqueueFileUpload,
+    bootRelativeTimeProvider,
+    deviceInfoProvider,
+    tokenBucketStore,
+) {
     override val tags = listOf(
         "data_app_crash",
         "data_app_wtf",
@@ -27,6 +38,15 @@ class JavaExceptionEntryProcessor(
     )
     override val debugTag: String
         get() = "UPLOAD_JAVA_EXCEPTION"
+
+    override fun getTokenBucketKey(entry: DropBoxManager.Entry, entryFile: File): String =
+        try {
+            entryFile.inputStream().use {
+                JavaExceptionParser(it).parse().tokenBucketKey()
+            }
+        } catch (e: Exception) {
+            entry.tag
+        }
 
     override suspend fun createMetadata(
         tempFile: File,

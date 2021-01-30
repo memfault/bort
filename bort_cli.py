@@ -13,7 +13,7 @@ import shlex
 import shutil
 import subprocess
 import sys
-from typing import Any, Callable, Iterable, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple
 
 LOG_FILE = "validate-sdk-integration.log"
 
@@ -311,31 +311,85 @@ def _get_adb_shell_cmd_output_and_errors(
     )
 
 
-def _multiline_search_matcher(pattern: str) -> Callable[[str], bool]:
-    def _search(output: str) -> bool:
-        return re.search(pattern, output, re.RegexFlag.MULTILINE)
+class _Matcher(abc.ABC):
+    @abc.abstractmethod
+    def __call__(self, adb_output: str) -> Tuple[bool, str]:
+        pass
 
-    return _search
+
+class _RegexMatcher(_Matcher):
+    def __init__(self, pattern: str) -> None:
+        self._re = re.compile(pattern, flags=re.RegexFlag.MULTILINE)
+
+    def __call__(self, adb_output: str) -> Tuple[bool, str]:
+        return bool(self._re.search(adb_output)), f"Expected pattern: {self._re.pattern}"
+
+
+class _IdleWhitelistMatcher(_Matcher):
+    def __init__(self, bort_app_id: str) -> None:
+        self._bort_app_id = bort_app_id
+
+    def __call__(self, output: str) -> Tuple[bool, str]:
+        lines = output.splitlines()
+        for idx, line in enumerate(lines):
+            if "Whitelist system apps:" in line:
+                whitelist_start = idx
+                break
+        else:
+            return False, "Failed to find 'Whitelist system apps' in output"
+        for line in lines[whitelist_start:]:
+            if self._bort_app_id in line:
+                return True, f"Found '{self._bort_app_id}'"
+        return False, f"Failed to find '{self._bort_app_id}' in 'Whitelist system apps' list"
+
+
+class _ConnectedDeviceMatcher(_Matcher):
+    def __init__(self, device: Optional[str]) -> None:
+        self._device = device
+
+    def __call__(self, output: str) -> Tuple[bool, str]:
+        lines = output.splitlines()
+        if len(lines) < 2:
+            return False, "Too few output lines from 'adb devices'"
+        if "List of devices attached" not in lines[0]:
+            return False, "Unexpected output from 'adb devices'"
+        # If a device was provided, verify it's connected
+        if self._device:
+            for line in lines[1:]:
+                if self._device in line:
+                    return True, f"Found '{self._device}'"
+            return False, f"Failed to find '{self._device}'"
+
+        # Otherwise, verify any device is connected
+        # Entries look like 'XXX device'
+        for line in lines[1:]:
+            if "device" in line:
+                return True, "Found a device"
+        return False, "No connected devices"
+
+
+class _AlwaysMatcher(_Matcher):
+    def __call__(self, output: str) -> Tuple[bool, str]:
+        return True, "OK"
 
 
 def _format_error(description: str, *details: Any) -> str:
     return (2 * os.linesep).join(map(str, ("", description, *details)))
 
 
-def _expect_or_errors(
-    *, output: str, description: str, matcher: Callable[[str], bool]
-) -> List[str]:
-    if not output or not matcher(output):
+def _expect_or_errors(*, output: Optional[str], description: str, matcher: _Matcher) -> List[str]:
+    if output is None:
+        return [_format_error(description, "No output to match")]
+    passed, reason = matcher(output)
+    if not passed:
         logging.info("\t Test failed")
-        return [_format_error(description, "Output did not match:", output)]
+        return [_format_error(description, "Output did not match:", output, reason)]
 
     logging.info("\tTest passed")
     return []
 
 
-def _run_shell_cmd_and_expect(
-    *, description: str, cmd: Tuple, matcher: Callable[[str], bool]
-) -> List[str]:
+def _run_shell_cmd_and_expect(*, description: str, cmd: Tuple, matcher: _Matcher) -> List[str]:
     output, errors = _get_shell_cmd_output_and_errors(description=description, cmd=cmd)
     if errors:
         return errors
@@ -343,7 +397,7 @@ def _run_shell_cmd_and_expect(
 
 
 def _run_adb_shell_cmd_and_expect(
-    *, description: str, cmd: Tuple, matcher: Callable[[str], bool], device: Optional[str] = None
+    *, description: str, cmd: Tuple, matcher: _Matcher, device: Optional[str] = None
 ) -> List[str]:
     output, errors = _get_adb_shell_cmd_output_and_errors(
         description=description, cmd=cmd, device=device
@@ -363,7 +417,7 @@ def _run_adb_shell_dumpsys_package(
     )
 
     unable_to_find_str = f"Unable to find package: {package_id}"
-    if unable_to_find_str in output:
+    if output and unable_to_find_str in output:
         return None, [_format_error(unable_to_find_str, output)]
 
     return output, errors
@@ -382,14 +436,12 @@ def _check_file_ownership_and_secontext(
     return _run_adb_shell_cmd_and_expect(
         description=f"Verifying {path} is installed correctly",
         cmd=("ls", "-lZd" if directory else "-lZ", path),
-        matcher=_multiline_search_matcher(
-            rf"^{mode}\s[0-9]+\s{owner}\s{group}\s{secontext}.*{path}$"
-        ),
+        matcher=_RegexMatcher(rf"^{mode}\s[0-9]+\s{owner}\s{group}\s{secontext}.*{path}$"),
         device=device,
     )
 
 
-def _log_errors(errors: Iterable[str]):
+def _log_errors(errors: Iterable[str]) -> None:
     for error in errors:
         logging.info(LOG_ENTRY_SEPARATOR)
         logging.info(error)
@@ -401,28 +453,10 @@ def _verify_device_connected(device: Optional[str] = None) -> List[str]:
     If there are multiple devices, `-s` (thus `--device`) must be used as well.
     """
 
-    def _matcher(output: str) -> bool:
-        lines = output.splitlines()
-        if len(lines) < 2:
-            return False
-        if "List of devices attached" not in lines[0]:
-            return False
-        # If a device was provided, verify it's connected
-        if device:
-            for line in lines[1:]:
-                if device in line:
-                    return True
-            return False
-
-        # Otherwise, verify any device is connected
-        # Entries look like 'XXX device'
-        for line in lines[1:]:
-            if "device" in line:
-                return True
-        return False
-
     return _run_shell_cmd_and_expect(
-        description="Verifying device is connected", cmd=("adb", "devices"), matcher=_matcher
+        description="Verifying device is connected",
+        cmd=("adb", "devices"),
+        matcher=_ConnectedDeviceMatcher(device),
     )
 
 
@@ -556,7 +590,7 @@ class ValidateConnectedDevice(Command):
         _run_shell_cmd_and_expect(
             description="Restarting ADB with root permissions",
             cmd=_create_adb_command(("root",), device=self._device),
-            matcher=lambda x: True,
+            matcher=_AlwaysMatcher(),
         )
 
         self._errors.extend(
@@ -638,7 +672,7 @@ class ValidateConnectedDevice(Command):
                 _expect_or_errors(
                     output=bort_package_info,
                     description=description,
-                    matcher=_multiline_search_matcher(rf"{permission}: granted=true"),
+                    matcher=_RegexMatcher(rf"{permission}: granted=true"),
                 )
             )
 
@@ -699,7 +733,7 @@ class ValidateConnectedDevice(Command):
             _run_adb_shell_cmd_and_expect(
                 description="Verifying MemfaultUsageReporter app is installed",
                 cmd=("pm", "path", USAGE_REPORTER_APPLICATION_ID),
-                matcher=_multiline_search_matcher(USAGE_REPORTER_APK_PATH),
+                matcher=_RegexMatcher(USAGE_REPORTER_APK_PATH),
                 device=self._device,
             )
         )
@@ -707,7 +741,7 @@ class ValidateConnectedDevice(Command):
             _run_adb_shell_cmd_and_expect(
                 description="Verifying MemfaultBort app is installed",
                 cmd=("pm", "path", self._bort_app_id),
-                matcher=_multiline_search_matcher(BORT_APK_PATH),
+                matcher=_RegexMatcher(BORT_APK_PATH),
                 device=self._device,
             )
         )
@@ -715,7 +749,7 @@ class ValidateConnectedDevice(Command):
             _run_adb_shell_cmd_and_expect(
                 description=f"Verifying device has feature {self._vendor_feature_name}",
                 cmd=("pm", "list", "features"),
-                matcher=_multiline_search_matcher(rf"^feature\:{self._vendor_feature_name}$"),
+                matcher=_RegexMatcher(rf"^feature\:{self._vendor_feature_name}$"),
                 device=self._device,
             )
         )
@@ -732,25 +766,11 @@ class ValidateConnectedDevice(Command):
         self._check_bort_permissions(bort_package_info, sdk_version)
         self._check_package_versions(bort_package_info, usage_reporter_package_info)
 
-        def _idle_whitelist_matcher(output: str) -> bool:
-            lines = output.splitlines()
-            whitelist_start = 0
-            for idx, line in enumerate(lines):
-                if "Whitelist system apps:" in line:
-                    whitelist_start = idx
-                    break
-            if not whitelist_start:
-                return False
-            for line in lines[whitelist_start:]:
-                if self._bort_app_id in line:
-                    return True
-            return False
-
         self._errors.extend(
             _run_adb_shell_cmd_and_expect(
                 description="Verifying MemfaultBort is on device idle whitelist",
                 cmd=("dumpsys", "deviceidle"),
-                matcher=_idle_whitelist_matcher,
+                matcher=_IdleWhitelistMatcher(self._bort_app_id),
                 device=self._device,
             )
         )

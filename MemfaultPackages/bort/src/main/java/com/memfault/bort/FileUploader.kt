@@ -43,6 +43,9 @@ data class BugReportFileUploadPayload(
 
     @SerialName("processing_options")
     val processingOptions: ProcessingOptions = ProcessingOptions(),
+
+    @SerialName("request_id")
+    val requestId: String? = null,
 ) : FileUploadPayload() {
     @Serializable
     data class ProcessingOptions(

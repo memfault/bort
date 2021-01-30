@@ -1,6 +1,7 @@
 package com.memfault.bort.uploader
 
 import android.content.Context
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.workDataOf
@@ -13,6 +14,10 @@ import com.memfault.bort.enqueueWorkOnce
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.shared.Logger
 import java.io.IOException
+import kotlin.time.Duration
+import kotlin.time.milliseconds
+import kotlin.time.minutes
+import kotlin.time.toJavaDuration
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Headers
@@ -33,8 +38,10 @@ private const val BODY_MEDIA_TYPE_KEY = "bodyMediaType"
 private const val BODY_KEY = "body"
 private const val MAX_ATTEMPTS_KEY = "maxAttempts"
 private const val TASK_TAGS_KEY = "taskTags"
+private const val BACKOFF_MILLISECONDS_KEY = "backoffMillis"
 
 private const val DEFAULT_MAX_ATTEMPTS = 3
+private val DEFAULT_BACKOFF_DURATION = 5.minutes
 
 data class HttpTaskInput(
     val url: String,
@@ -43,7 +50,8 @@ data class HttpTaskInput(
     val bodyMediaType: String,
     val body: ByteArray,
     val maxAttempts: Int = DEFAULT_MAX_ATTEMPTS,
-    val taskTags: List<String> = listOf()
+    val taskTags: List<String> = listOf(),
+    val backoffDuration: Duration = DEFAULT_BACKOFF_DURATION,
 ) {
     companion object {
         fun fromInputData(inputData: Data) =
@@ -57,7 +65,11 @@ data class HttpTaskInput(
                     { "body media type missing" }
                 ),
                 maxAttempts = inputData.getInt(MAX_ATTEMPTS_KEY, DEFAULT_MAX_ATTEMPTS),
-                taskTags = inputData.getStringArray(TASK_TAGS_KEY)?.asList() ?: listOf()
+                taskTags = inputData.getStringArray(TASK_TAGS_KEY)?.asList() ?: listOf(),
+                backoffDuration = inputData.getLong(
+                    BACKOFF_MILLISECONDS_KEY,
+                    DEFAULT_BACKOFF_DURATION.toLongMilliseconds()
+                ).milliseconds
             )
     }
 
@@ -70,7 +82,8 @@ data class HttpTaskInput(
             BODY_MEDIA_TYPE_KEY to bodyMediaType,
             BODY_KEY to body,
             MAX_ATTEMPTS_KEY to maxAttempts,
-            TASK_TAGS_KEY to taskTags.toTypedArray()
+            TASK_TAGS_KEY to taskTags.toTypedArray(),
+            BACKOFF_MILLISECONDS_KEY to backoffDuration.toLongMilliseconds(),
         )
 
     fun toRequest() =
@@ -163,6 +176,7 @@ class HttpTaskCallFactory(
                 { input ->
                     enqueueWorkOnce<HttpTask>(context, input.toWorkerInputData()) {
                         setConstraints(uploadConstraints)
+                        setBackoffCriteria(BackoffPolicy.EXPONENTIAL, input.backoffDuration.toJavaDuration())
                         input.taskTags.forEach { tag -> addTag(tag) }
                     }
                 },

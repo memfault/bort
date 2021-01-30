@@ -1,8 +1,10 @@
 package com.memfault.bort.uploader
 
 import android.content.Context
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.Data
+import androidx.work.WorkRequest
 import androidx.work.workDataOf
 import com.memfault.bort.BortEnabledProvider
 import com.memfault.bort.BortJson
@@ -14,20 +16,27 @@ import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.enqueueWorkOnce
 import com.memfault.bort.shared.Logger
 import java.io.File
+import kotlin.time.minutes
+import kotlin.time.toJavaDuration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+private val BACKOFF_DURATION = 5.minutes
+
 private const val PATH_KEY = "PATH"
 private const val METADATA_KEY = "METADATA"
+private const val CONTINUATION_KEY = "CONTINUATION"
 
 data class FileUploadTaskInput(
     val file: File,
     val payload: FileUploadPayload,
+    val continuation: FileUploadContinuation? = null,
 ) {
     fun toWorkerInputData(): Data =
         workDataOf(
             PATH_KEY to file.path,
-            METADATA_KEY to BortJson.encodeToString(FileUploadPayload.serializer(), payload)
+            METADATA_KEY to BortJson.encodeToString(FileUploadPayload.serializer(), payload),
+            CONTINUATION_KEY to continuation?.let { BortJson.encodeToString(FileUploadContinuation.serializer(), it) },
         )
 
     companion object {
@@ -38,6 +47,9 @@ data class FileUploadTaskInput(
                     FileUploadPayload.serializer(),
                     checkNotNull(inputData.getString(METADATA_KEY)) { "Metadata missing" }
                 ),
+                continuation = inputData.getString(CONTINUATION_KEY)?.let {
+                    BortJson.decodeFromString(FileUploadContinuation.serializer(), it)
+                },
             )
     }
 }
@@ -82,9 +94,17 @@ internal class FileUploadTask(
             Logger.logEvent("upload", "start", worker.runAttemptCount.toString())
             upload(input.file, input.payload).also {
                 Logger.logEvent("upload", "result", it.toString())
-                "UploadWorker result: $it".also { message ->
+                "UploadWorker result=$it payloadClass=${input.payload.javaClass.simpleName}".also { message ->
                     Logger.v(message)
                     Logger.test(message)
+                }
+            }.also { result ->
+                input.continuation?.let {
+                    when (result) {
+                        TaskResult.SUCCESS -> it.success(worker.applicationContext)
+                        TaskResult.FAILURE -> it.failure(worker.applicationContext)
+                        TaskResult.RETRY -> Unit
+                    }
                 }
             }
         }
@@ -98,16 +118,17 @@ fun enqueueFileUploadTask(
     file: File,
     payload: FileUploadPayload,
     uploadConstraints: Constraints,
-    debugTag: String
-) {
+    debugTag: String,
+    continuation: FileUploadContinuation? = null,
+): WorkRequest =
     enqueueWorkOnce<FileUploadTask>(
         context,
-        FileUploadTaskInput(file, payload).toWorkerInputData()
+        FileUploadTaskInput(file, payload, continuation).toWorkerInputData()
     ) {
         setConstraints(uploadConstraints)
+        setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())
         addTag(debugTag)
     }
-}
 
 typealias EnqueueFileUpload = (
     file: File,

@@ -9,6 +9,7 @@ import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
 import com.memfault.bort.time.toAbsoluteTime
+import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueFileUpload
 import java.io.File
 
@@ -17,6 +18,7 @@ abstract class UploadingEntryProcessor(
     private val enqueueFileUpload: EnqueueFileUpload,
     private val bootRelativeTimeProvider: BootRelativeTimeProvider,
     private val deviceInfoProvider: DeviceInfoProvider,
+    private val tokenBucketStore: TokenBucketStore,
 ) : EntryProcessor() {
     abstract val debugTag: String
 
@@ -28,6 +30,14 @@ abstract class UploadingEntryProcessor(
         collectionTime: BootRelativeTime
     ): DropBoxEntryFileUploadMetadata
 
+    open fun getTokenBucketKey(entry: DropBoxManager.Entry, entryFile: File): String = entry.tag
+
+    private fun allowedByRateLimit(entry: DropBoxManager.Entry, entryFile: File): Boolean =
+        tokenBucketStore.edit { map ->
+            val bucket = map.upsertBucket(getTokenBucketKey(entry, entryFile)) ?: return@edit false
+            bucket.take()
+        }
+
     override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
         tempFileFactory.createTemporaryFile(entry.tag, ".txt").useFile { tempFile, preventDeletion ->
             tempFile.outputStream().use { outStream ->
@@ -35,6 +45,10 @@ abstract class UploadingEntryProcessor(
                     inStream ->
                     inStream.copyTo(outStream)
                 }
+            }
+
+            if (!allowedByRateLimit(entry, tempFile)) {
+                return
             }
 
             val deviceInfo = deviceInfoProvider.getDeviceInfo()

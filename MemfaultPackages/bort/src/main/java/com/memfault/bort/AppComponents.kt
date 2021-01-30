@@ -22,6 +22,7 @@ import com.memfault.bort.metrics.MetricsCollectionTask
 import com.memfault.bort.metrics.RealLastHeartbeatEndTimeProvider
 import com.memfault.bort.metrics.RealNextBatteryStatsHistoryStartProvider
 import com.memfault.bort.metrics.runBatteryStats
+import com.memfault.bort.requester.BugReportRequestWorker
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.time.RealBootRelativeTimeProvider
 import com.memfault.bort.time.RealCombinedTimeProvider
@@ -57,7 +58,8 @@ data class AppComponents(
     val deviceInfoProvider: DeviceInfoProvider,
     val httpTaskCallFactory: HttpTaskCallFactory,
     val ingressService: IngressService,
-    val reporterServiceConnector: ReporterServiceConnector
+    val reporterServiceConnector: ReporterServiceConnector,
+    val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
 ) {
     open class Builder(
         private val context: Context,
@@ -134,7 +136,12 @@ data class AppComponents(
                 enqueueFileUpload = enqueueFileUpload,
                 packageManagerClient = packageManagerClient,
                 deviceInfoProvider = deviceInfoProvider,
+                sharedPreferences = sharedPreferences,
             ) + extraDropBoxEntryProcessors
+
+            val pendingBugReportRequestAccessor = PendingBugReportRequestAccessor(
+                storage = RealPendingBugReportRequestStorage(sharedPreferences),
+            )
 
             val workerFactory = DefaultWorkerFactory(
                 context = context,
@@ -147,6 +154,7 @@ data class AppComponents(
                 dropBoxEntryProcessors = dropBoxEntryProcessors,
                 enqueueFileUpload = enqueueFileUpload,
                 temporaryFileFactory = temporaryFileFactory,
+                pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
                 interceptingFactory = interceptingWorkerFactory,
             )
 
@@ -165,7 +173,8 @@ data class AppComponents(
                 deviceInfoProvider = deviceInfoProvider,
                 httpTaskCallFactory = httpTaskCallFactory,
                 ingressService = IngressService.create(settingsProvider.httpApiSettings, httpTaskCallFactory),
-                reporterServiceConnector = reporterServiceConnector
+                reporterServiceConnector = reporterServiceConnector,
+                pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
             )
         }
     }
@@ -197,7 +206,8 @@ interface InterceptingWorkerFactory {
         workerClassName: String,
         workerParameters: WorkerParameters,
         settingsProvider: SettingsProvider,
-        reporterServiceConnector: ReporterServiceConnector
+        reporterServiceConnector: ReporterServiceConnector,
+        pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
     ): ListenableWorker?
 }
 
@@ -212,6 +222,7 @@ class DefaultWorkerFactory(
     private val dropBoxEntryProcessors: Map<String, EntryProcessor>,
     private val enqueueFileUpload: EnqueueFileUpload,
     private val temporaryFileFactory: TemporaryFileFactory,
+    private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
     private val interceptingFactory: InterceptingWorkerFactory? = null
 ) : WorkerFactory(), TaskFactory {
     override fun createWorker(
@@ -224,7 +235,8 @@ class DefaultWorkerFactory(
             workerClassName,
             workerParameters,
             settingsProvider,
-            reporterServiceConnector
+            reporterServiceConnector,
+            pendingBugReportRequestAccessor,
         )?.let {
             return it
         }
@@ -236,6 +248,11 @@ class DefaultWorkerFactory(
                     workerParameters = workerParameters,
                     taskFactory = this
                 )
+            BugReportRequestWorker::class.qualifiedName -> BugReportRequestWorker(
+                appContext = appContext,
+                workerParameters = workerParameters,
+                pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
+            )
             else -> null
         }
     }
@@ -266,6 +283,10 @@ class DefaultWorkerFactory(
                 combinedTimeProvider = RealCombinedTimeProvider(context),
                 lastHeartbeatEndTimeProvider = RealLastHeartbeatEndTimeProvider(sharedPreferences),
                 deviceInfoProvider = RealDeviceInfoProvider(settingsProvider.deviceInfoSettings),
+            )
+            BugReportRequestTimeoutTask::class.qualifiedName -> BugReportRequestTimeoutTask(
+                context = context,
+                pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
             )
             else -> null
         }

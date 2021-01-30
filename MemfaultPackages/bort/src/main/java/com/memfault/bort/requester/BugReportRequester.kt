@@ -5,46 +5,72 @@ import android.content.Context
 import android.content.Intent
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.memfault.bort.Bort
+import com.memfault.bort.BugReportRequestStatus
+import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.BugReportSettings
+import com.memfault.bort.PendingBugReportRequestAccessor
+import com.memfault.bort.broadcastReply
 import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import com.memfault.bort.shared.BugReportOptions
+import com.memfault.bort.shared.BugReportRequest
 import com.memfault.bort.shared.INTENT_ACTION_BUG_REPORT_START
 import com.memfault.bort.shared.Logger
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
 
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.REQUEST_PERIODIC_BUGREPORT"
 
 private const val MINIMAL_INPUT_DATA_KEY = "minimal"
 
-private fun BugReportOptions.toInputData(): Data = workDataOf(
-    MINIMAL_INPUT_DATA_KEY to minimal
+private fun BugReportRequest.toInputData(): Data = workDataOf(
+    MINIMAL_INPUT_DATA_KEY to options.minimal,
 )
 
-private fun Data.toBugReportOptions(): BugReportOptions = BugReportOptions(
-    minimal = getBoolean(MINIMAL_INPUT_DATA_KEY, false)
+private fun Data.toBugReportOptions(): BugReportRequest = BugReportRequest(
+    options = BugReportOptions(minimal = getBoolean(MINIMAL_INPUT_DATA_KEY, false)),
 )
 
 internal fun requestBugReport(
     context: Context,
-    options: BugReportOptions
+    pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
+    request: BugReportRequest,
+    requestTimeout: Duration = BugReportRequestTimeoutTask.DEFAULT_TIMEOUT,
 ): Boolean {
-    if (!Bort.appComponents().isEnabled()) {
+    val (success, _) = pendingBugReportRequestAccessor.compareAndSwap(request) { it == null }
+    if (!success) {
+        Logger.w("Ignoring bug report request: already one pending")
+        // Re-schedule timeout in case it has not been scheduled AND bug report capturing is not running.
+        // This could happen in the odd case where a request was written to pendingBugReportRequestAccessor but Bort
+        // killed/crashed before it was able to schedule the timeout and kick off MemfaultDumpstateRunner.
+        // If we would not schedule a timeout in that scenario, the pendingBugReportRequestAccessor state would never
+        // get cleared.
+        pendingBugReportRequestAccessor.get()?.requestId.let {
+            BugReportRequestTimeoutTask.schedule(context, it, ExistingWorkPolicy.KEEP, requestTimeout)
+        }
+        request.broadcastReply(context, BugReportRequestStatus.ERROR_ALREADY_PENDING)
         return false
     }
+    request.requestId.let {
+        BugReportRequestTimeoutTask.schedule(context, it, ExistingWorkPolicy.REPLACE, requestTimeout)
+    }
 
-    Logger.v("Sending $INTENT_ACTION_BUG_REPORT_START to $APPLICATION_ID_MEMFAULT_USAGE_REPORTER")
+    Logger.v(
+        "Sending $INTENT_ACTION_BUG_REPORT_START to " +
+            "$APPLICATION_ID_MEMFAULT_USAGE_REPORTER (requestId=${request.requestId}"
+    )
     Intent(INTENT_ACTION_BUG_REPORT_START).apply {
         component = ComponentName(
             APPLICATION_ID_MEMFAULT_USAGE_REPORTER,
             "$APPLICATION_ID_MEMFAULT_USAGE_REPORTER.BugReportStartReceiver"
         )
-        options.applyToIntent(this)
+        request.applyToIntent(this)
     }.also {
         context.sendBroadcast(it)
     }
@@ -65,7 +91,13 @@ class BugReportRequester(
             requestInterval.inHours.toLong(),
             TimeUnit.HOURS
         ).also { builder ->
-            builder.setInputData(bugReportSettings.defaultOptions.toInputData())
+            builder.setInputData(
+                BugReportRequest(
+                    options = bugReportSettings.defaultOptions,
+                    requestId = null,
+                    replyReceiver = null,
+                ).toInputData()
+            )
             initialDelay?.let { delay ->
                 builder.setInitialDelay(delay.inMinutes.toLong(), TimeUnit.MINUTES)
             }
@@ -89,10 +121,13 @@ class BugReportRequester(
 
 internal open class BugReportRequestWorker(
     appContext: Context,
-    workerParameters: WorkerParameters
+    workerParameters: WorkerParameters,
+    private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
 ) : Worker(appContext, workerParameters) {
 
     override fun doWork(): Result =
-        if (requestBugReport(applicationContext, inputData.toBugReportOptions()))
+        if (Bort.appComponents().isEnabled() &&
+            requestBugReport(applicationContext, pendingBugReportRequestAccessor, inputData.toBugReportOptions())
+        )
             Result.success() else Result.failure()
 }

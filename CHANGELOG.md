@@ -1,5 +1,31 @@
 # Memfault Bort Changelog
 
+## v3.1.0 - January 29, 2021
+
+#### :chart_with_upwards_trend: Improvements
+
+- A new option is available to label a bug report that is manually triggered via
+  the intent-based API (the action
+  `com.memfault.intent.action.REQUEST_BUG_REPORT`). When the optional ID is
+  provided, the `dumpstate.memfault.requestid` system property is set to the
+  value provided. Additionally, a BroadcastReceiver can be specified to which
+  the status of the bug report request will be reported by Bort. See
+  https://mflt.io/android-bort-sdk for details.
+  > NOTE: in order to use this feature, the AOSP system image has to be updated
+  > (merely updating MemfaultBort.apk is not sufficient, because this feature
+  > also involved a change in the MemfaultDumpstateRunner system component).
+- Added a build-time check that runs as part of the AOSP build, to ensure the
+  MemfaultBort.x509.pem signing certificate matches the signature of
+  MemfaultBort.apk.
+- Improved `bort_cli.py`'s SDK validation by also printing more details about
+  the reason of a failed validation.
+
+#### :house: Internal
+
+- Rate limiting: Bort will now rate limit uploads to the Memfault web service,
+  to avoid faulty devices from uploading too much data.
+- Bug fix: avoid uploading empty trace files.
+
 ## v3.0.1 - January 4, 2021
 
 #### :house: Internal

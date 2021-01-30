@@ -8,6 +8,7 @@ import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
+import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueFileUpload
 import java.io.File
 
@@ -16,7 +17,14 @@ class AnrEntryProcessor(
     enqueueFileUpload: EnqueueFileUpload,
     bootRelativeTimeProvider: BootRelativeTimeProvider,
     deviceInfoProvider: DeviceInfoProvider,
-) : UploadingEntryProcessor(tempFileFactory, enqueueFileUpload, bootRelativeTimeProvider, deviceInfoProvider) {
+    tokenBucketStore: TokenBucketStore,
+) : UploadingEntryProcessor(
+    tempFileFactory,
+    enqueueFileUpload,
+    bootRelativeTimeProvider,
+    deviceInfoProvider,
+    tokenBucketStore,
+) {
     override val tags = listOf(
         "data_app_anr",
         "system_app_anr",

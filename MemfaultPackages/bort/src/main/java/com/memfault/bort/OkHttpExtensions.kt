@@ -14,6 +14,7 @@ suspend fun Call.await(): Response =
             override fun onFailure(call: Call, e: IOException) {
                 continuation.resumeWithException(e)
             }
+
             override fun onResponse(call: Call, response: Response) {
                 continuation.resume(response)
             }
@@ -23,7 +24,8 @@ suspend fun Call.await(): Response =
 fun resultForHttpStatusCode(code: Int): TaskResult =
     when (code) {
         in 500..599 -> TaskResult.RETRY
-        408 -> TaskResult.RETRY
+        408 -> TaskResult.RETRY // Request Timeout
+        429 -> TaskResult.RETRY // Too Many Requests
         in 200..299 -> TaskResult.SUCCESS
         else -> TaskResult.FAILURE
     }

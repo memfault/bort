@@ -12,6 +12,7 @@ import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
+import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueFileUpload
 import java.io.File
 import java.io.InputStream
@@ -22,7 +23,14 @@ class TombstoneEntryProcessor(
     bootRelativeTimeProvider: BootRelativeTimeProvider,
     deviceInfoProvider: DeviceInfoProvider,
     private val packageManagerClient: PackageManagerClient,
-) : UploadingEntryProcessor(tempFileFactory, enqueueFileUpload, bootRelativeTimeProvider, deviceInfoProvider) {
+    tokenBucketStore: TokenBucketStore,
+) : UploadingEntryProcessor(
+    tempFileFactory,
+    enqueueFileUpload,
+    bootRelativeTimeProvider,
+    deviceInfoProvider,
+    tokenBucketStore,
+) {
     override val tags = listOf("SYSTEM_TOMBSTONE")
 
     override val debugTag: String

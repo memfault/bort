@@ -7,6 +7,7 @@ import com.memfault.bort.Bort
 import com.memfault.bort.BortEnabledProvider
 import com.memfault.bort.DeviceIdProvider
 import com.memfault.bort.DeviceInfoProvider
+import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.SettingsProvider
 import com.memfault.bort.ingress.IngressService
@@ -39,6 +40,7 @@ abstract class FilteringReceiver(
     protected lateinit var deviceInfoProvider: DeviceInfoProvider
     protected lateinit var ingressService: IngressService
     protected lateinit var reporterServiceConnector: ReporterServiceConnector
+    protected lateinit var pendingBugReportRequestAccessor: PendingBugReportRequestAccessor
 
     override fun onReceive(context: Context?, intent: Intent?) {
         Logger.v("Received action=${intent?.action}")
@@ -63,6 +65,7 @@ abstract class FilteringReceiver(
         deviceInfoProvider = it.deviceInfoProvider
         ingressService = it.ingressService
         reporterServiceConnector = it.reporterServiceConnector
+        pendingBugReportRequestAccessor = it.pendingBugReportRequestAccessor
     }
 
     abstract fun onIntentReceived(context: Context, intent: Intent, action: String)

@@ -2,6 +2,7 @@ package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
 import android.os.RemoteException
+import android.system.StructStat
 import com.github.michaelbull.result.Result
 import com.memfault.bort.DropBoxSettings
 import com.memfault.bort.ReporterClient
@@ -21,8 +22,10 @@ import com.memfault.bort.shared.result.success
 import io.mockk.MockKAnnotations
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
@@ -177,6 +180,30 @@ class DropBoxGetEntriesTaskTest {
             mockServiceConnection.sendAndReceive(ofType(DropBoxGetNextEntryRequest::class))
         }
         coVerify(exactly = 0) {
+            mockEntryProcessor.process(any())
+        }
+        assertEquals(TaskResult.SUCCESS, result)
+        assertEquals(10, lastProcessedEntryProvider.timeMillis)
+        verifyCloseCalled()
+    }
+
+    @Test
+    fun ignoreEmptyEntry() {
+        // fstat() is an extension function defined in DropBoxEntryExt.Kt
+        mockkStatic("com.memfault.bort.dropbox.DropBoxEntryExtKt")
+        val entry = mockEntry(10, tag_ = TEST_TAG)
+        every {
+            entry.fstat()
+        } returns StructStat(
+            0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0
+        )
+        val verifyCloseCalled = mockGetNextEntryReponses(entry, null)
+        val result = runBlocking {
+            task.doWork()
+        }
+
+        coVerify(exactly = 1) {
             mockEntryProcessor.process(any())
         }
         assertEquals(TaskResult.SUCCESS, result)

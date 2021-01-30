@@ -2,6 +2,18 @@ LOCAL_PATH := $(call my-dir)
 
 include $(LOCAL_PATH)/bort_src_gen.mk
 
+
+# Check that ensures MemfaultBort.x509.pem matches signature of MemfaultBort.apk
+################################################################################
+include $(CLEAR_VARS)
+LOCAL_MODULE := CheckMemfaultBortSignature
+LOCAL_MODULE_PATH := $(TARGET_OUT_INTERMEDIATES)/memfault/bort
+BORT_CHECK_OUTPUT_TARGET := $(LOCAL_MODULE_PATH)/signature-check.txt
+$(call bort_check_signature,$(BORT_CHECK_OUTPUT_TARGET),$(LOCAL_PATH)/MemfaultBort.apk,$(LOCAL_PATH)/MemfaultBort.x509.pem)
+LOCAL_ADDITIONAL_DEPENDENCIES := $(BORT_CHECK_OUTPUT_TARGET)
+include $(BUILD_PHONY_PACKAGE)
+
+
 # MemfaultBort.apk
 ################################################################################
 
@@ -27,7 +39,7 @@ LOCAL_MODULE_SUFFIX := $(COMMON_ANDROID_PACKAGE_SUFFIX)
 LOCAL_PACKAGE_NAME := MemfaultBort
 LOCAL_CERTIFICATE := PRESIGNED
 LOCAL_PRIVILEGED_MODULE := true
-LOCAL_REQUIRED_MODULES := com.memfault.bort.xml
+LOCAL_REQUIRED_MODULES := com.memfault.bort.xml CheckMemfaultBortSignature
 
 # The priv-app folder
 TARGET_OUT_DATA_APPS_PRIVILEGED := $(TARGET_OUT_DATA)/priv-app

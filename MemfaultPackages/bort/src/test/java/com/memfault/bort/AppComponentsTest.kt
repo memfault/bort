@@ -2,8 +2,9 @@ package com.memfault.bort
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.nhaarman.mockitokotlin2.doReturn
-import com.nhaarman.mockitokotlin2.mock
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.slot
 import java.io.File
 import org.junit.jupiter.api.Test
 
@@ -12,27 +13,33 @@ class AppComponentsTest {
     @Test
     fun alwaysEnabledProvider() {
         // Test that the stub provider isn't used when runtime enable is required
-        val context: Context = mock {
-            on { cacheDir } doReturn File("/tmp")
+        val context: Context = mockk {
+            every { cacheDir } returns File("/tmp")
         }
-        val sharedPreferences = mock<SharedPreferences>()
+
+        val getStringDefaultSlot = slot<String>()
+        val sharedPreferences = mockk<SharedPreferences>()
+        every {
+            sharedPreferences.getString(any(), capture(getStringDefaultSlot))
+        } answers { getStringDefaultSlot.captured }
+
         AppComponents.Builder(context, sharedPreferences).apply {
-            settingsProvider = mock {
-                on { isRuntimeEnableRequired } doReturn true
-                on { httpApiSettings } doReturn object : HttpApiSettings {
+            settingsProvider = mockk {
+                every { isRuntimeEnableRequired } returns true
+                every { httpApiSettings } returns object : HttpApiSettings {
                     override val filesBaseUrl = "https://test.com"
                     override val ingressBaseUrl = "https://ingress.test.com"
                     override val uploadNetworkConstraint = NetworkConstraint.CONNECTED
                     override val projectKey = "SECRET"
                 }
-                on { sdkVersionInfo } doReturn mock()
-                on { deviceInfoSettings } doReturn mock()
+                every { sdkVersionInfo } returns mockk()
+                every { deviceInfoSettings } returns mockk()
             }
-            deviceIdProvider = mock {
-                on { deviceId() } doReturn "abc"
+            deviceIdProvider = mockk {
+                every { deviceId() } returns "abc"
             }
             extraDropBoxEntryProcessors = emptyMap()
-            reporterServiceConnector = mock()
+            reporterServiceConnector = mockk()
         }.build().also {
             assert(it.bortEnabledProvider !is BortAlwaysEnabledProvider)
         }

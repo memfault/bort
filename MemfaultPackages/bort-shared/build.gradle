@@ -1,6 +1,7 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
+apply plugin: 'kotlinx-serialization'
 apply from: "../properties.gradle"
 
 android {
@@ -52,6 +53,8 @@ dependencies {
     implementation deps.kotlin.stdlib
     implementation deps.kotlin.coroutines
     implementation deps.result
+    implementation deps.serialization.json
+    implementation deps.serialization.converter
 
     debugImplementation deps.debug.leakCanary
 

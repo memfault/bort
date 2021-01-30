@@ -44,12 +44,14 @@ internal class ReleaseTestComponentsBuilder(
                 workerClassName: String,
                 workerParameters: WorkerParameters,
                 settingsProvider: SettingsProvider,
-                reporterServiceConnector: ReporterServiceConnector
+                reporterServiceConnector: ReporterServiceConnector,
+                pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
             ): ListenableWorker? = when (workerClassName) {
                 BugReportRequestWorker::class.qualifiedName ->
                     object : BugReportRequestWorker(
                         appContext,
-                        workerParameters
+                        workerParameters,
+                        pendingBugReportRequestAccessor,
                     ) {
                         override fun doWork(): Result {
                             Logger.i("** MFLT-TEST ** Periodic Bug Report Request")

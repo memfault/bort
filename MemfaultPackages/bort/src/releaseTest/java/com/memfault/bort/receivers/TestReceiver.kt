@@ -9,6 +9,11 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.memfault.bort.LastTrackedBootCountProvider
+import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_ANRS
+import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_BUGREPORT_REQUESTS
+import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_JAVA_EXCEPTIONS
+import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_KMSG
+import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_TOMBSTONES
 import com.memfault.bort.PersistentProjectKeyProvider
 import com.memfault.bort.requester.restartPeriodicMetricsCollection
 import com.memfault.bort.selfTesting.SelfTestWorker
@@ -17,6 +22,8 @@ import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BoxedDuration
 import com.memfault.bort.time.RealBootRelativeTimeProvider
+import com.memfault.bort.tokenbucket.RealTokenBucketStorage
+import com.memfault.bort.tokenbucket.StoredTokenBucketMap
 import kotlin.time.Duration
 import kotlin.time.days
 import kotlin.time.hours
@@ -44,6 +51,7 @@ class TestReceiver : FilteringReceiver(
         "com.memfault.intent.action.TEST_SETTING_SET",
         "com.memfault.intent.action.TEST_SELF_TEST",
         "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION",
+        "com.memfault.intent.action.TEST_SETUP",
     )
 ) {
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {
@@ -92,6 +100,22 @@ class TestReceiver : FilteringReceiver(
                     PreferenceManager.getDefaultSharedPreferences(context)
                 ).bootCount
                 Logger.test("BOOT_COMPLETED handled: ${bootCount == lastTrackedBootCount}")
+            }
+            // Sent before each E2E test:
+            "com.memfault.intent.action.TEST_SETUP" -> {
+                val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
+                listOf(
+                    PREFERENCE_TOKEN_BUCKET_TOMBSTONES,
+                    PREFERENCE_TOKEN_BUCKET_JAVA_EXCEPTIONS,
+                    PREFERENCE_TOKEN_BUCKET_ANRS,
+                    PREFERENCE_TOKEN_BUCKET_KMSG,
+                    PREFERENCE_TOKEN_BUCKET_BUGREPORT_REQUESTS,
+                ).forEach { preferenceKey ->
+                    RealTokenBucketStorage(
+                        sharedPreferences = sharedPreferences,
+                        preferenceKey = preferenceKey,
+                    ).writeMap(StoredTokenBucketMap())
+                }
             }
         }
     }

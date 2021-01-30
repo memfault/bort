@@ -206,7 +206,10 @@ void cleanupFile(const char *path) {
     }
 }
 
-void SendBroadcast(const std::string& bugreportPath) {
+void SendBroadcast(
+    const std::string& bugreportPath,
+    const std::string& requestId
+) {
     std::vector<std::string> am = {
         "/system/bin/cmd", "activity", "broadcast", "--user", "all",
         "--receiver-foreground", "--receiver-include-background",
@@ -214,6 +217,12 @@ void SendBroadcast(const std::string& bugreportPath) {
         "--es", "com.memfault.intent.extra.BUGREPORT_PATH", bugreportPath,
         "-n", TARGET_COMPONENT
     };
+
+    if (!requestId.empty()) {
+        am.push_back("--es");
+        am.push_back("com.memfault.intent.extra.BUG_REPORT_REQUEST_ID");
+        am.push_back(requestId);
+    }
 
     RunCommandToFd(STDOUT_FILENO, "", am,
                CommandOptions::WithTimeout(20)
@@ -325,6 +334,9 @@ int main(void) {
     // Start the dumpstatez service.
     android::base::SetProperty("ctl.start", "memfault_dumpstatez");
 
+    // See DUMPSTATE_MEMFAULT_REQUEST_ID in BugReportStartReceiver.kt:
+    std::string requestId = android::base::GetProperty("dumpstate.memfault.requestid", "");
+
     size_t bytesWritten = 0;
 
     std::string zipPath;
@@ -356,7 +368,7 @@ int main(void) {
         goto cleanup;
     }
 
-    SendBroadcast(targetPath);
+    SendBroadcast(targetPath, requestId);
     CleanupDumpstateLogs();
 
 cleanup:

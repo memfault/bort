@@ -34,10 +34,10 @@ class UsageReporter : Application() {
             )
         }
 
-        Logger.v("Registering for DropBoxManager intents")
         registerReceiver(
             DropBoxEntryAddedForwardingReceiver(),
             IntentFilter(DropBoxManager.ACTION_DROPBOX_ENTRY_ADDED)
         )
+        Logger.test("UsageReporter started")
     }
 }

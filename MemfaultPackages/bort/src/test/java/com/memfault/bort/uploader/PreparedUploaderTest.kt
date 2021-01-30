@@ -92,7 +92,7 @@ internal class PreparedUploaderTest {
         assertEquals(
             """{"file":{"token":"someToken"},"processing_options":{"process_anrs":true,""" +
                 """"process_java_exceptions":true,"process_last_kmsg":true,"process_recovery_kmsg":true,""" +
-                """"process_tombstones":true}}""",
+                """"process_tombstones":true},"request_id":null}""",
             recordedRequest.body.readUtf8()
         )
     }
