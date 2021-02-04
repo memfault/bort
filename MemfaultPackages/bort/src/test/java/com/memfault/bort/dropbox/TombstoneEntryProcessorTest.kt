@@ -6,6 +6,10 @@ import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.TombstoneFileUploadMetadata
+import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.metrics.DROP_BOX_TRACES_DROP_COUNT
+import com.memfault.bort.metrics.makeFakeMetricRegistry
+import com.memfault.bort.metrics.metricForTraceTag
 import com.memfault.bort.parsers.EXAMPLE_NATIVE_BACKTRACE
 import com.memfault.bort.parsers.EXAMPLE_TOMBSTONE
 import com.memfault.bort.parsers.Package
@@ -37,6 +41,7 @@ class TombstoneEntryProcessorTest {
     lateinit var mockEnqueueFileUpload: EnqueueFileUpload
     lateinit var fileUploadPayloadSlot: CapturingSlot<FileUploadPayload>
     lateinit var mockPackageManagerClient: PackageManagerClient
+    lateinit var builtInMetricsStore: BuiltinMetricsStore
 
     @BeforeEach
     fun setUp() {
@@ -48,6 +53,7 @@ class TombstoneEntryProcessorTest {
         } returns Unit
 
         mockPackageManagerClient = mockk()
+        builtInMetricsStore = BuiltinMetricsStore(makeFakeMetricRegistry())
         processor = TombstoneEntryProcessor(
             tempFileFactory = TestTemporaryFileFactory,
             enqueueFileUpload = mockEnqueueFileUpload,
@@ -62,6 +68,7 @@ class TombstoneEntryProcessorTest {
                     defaultPeriod = 1.milliseconds,
                 ),
             ),
+            builtinMetricsStore = builtInMetricsStore,
         )
     }
 
@@ -101,10 +108,53 @@ class TombstoneEntryProcessorTest {
         } returns PACKAGE_FIXTURE
 
         runBlocking {
-            (0..15).forEach {
+            val runs = 15
+            (0..runs).forEach {
                 processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "SYSTEM_TOMBSTONE"))
             }
             verify(exactly = TEST_BUCKET_CAPACITY) { mockEnqueueFileUpload(any(), any(), any()) }
+
+            // Check that dropped items are counted correctly
+            assert(
+                (runs - TEST_BUCKET_CAPACITY + 1).toFloat()
+                    == builtInMetricsStore.collect(DROP_BOX_TRACES_DROP_COUNT)
+            )
+        }
+    }
+
+    @Test
+    fun testMetricEntryCounting() {
+        coEvery {
+            mockPackageManagerClient.findPackagesByProcessName(any())
+        } returns PACKAGE_FIXTURE
+
+        runBlocking {
+            val processTags = mapOf(
+                "TEST_TAG_1" to 10,
+                "TEST_TAG_2" to 5,
+                "TEST_TAG_3" to 3,
+            )
+
+            processTags.forEach { (tag, count) ->
+                repeat(count) {
+                    processor.process(mockEntry(text = EXAMPLE_NATIVE_BACKTRACE, tag_ = tag))
+                }
+            }
+
+            val expectedMap = processTags
+                .map { (tag, count) ->
+                    metricForTraceTag(tag) to count.toFloat()
+                }
+                .toMap()
+
+            // Check that it contains all expected keys, it might (and does) contain at least another
+            // key regarding rate limiting.
+            assert(
+                builtInMetricsStore
+                    .collectMetrics()
+                    .entries
+                    .containsAll(expectedMap.entries)
+            )
         }
     }
 }

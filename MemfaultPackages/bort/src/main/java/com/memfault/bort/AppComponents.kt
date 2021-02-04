@@ -14,13 +14,16 @@ import com.memfault.bort.dropbox.EntryProcessor
 import com.memfault.bort.dropbox.RealDropBoxLastProcessedEntryProvider
 import com.memfault.bort.dropbox.realDropBoxEntryProcessors
 import com.memfault.bort.http.DebugInfoInjectingInterceptor
+import com.memfault.bort.http.GzipRequestInterceptor
 import com.memfault.bort.http.LoggingNetworkInterceptor
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.ingress.IngressService
 import com.memfault.bort.metrics.BatteryStatsHistoryCollector
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.MetricsCollectionTask
 import com.memfault.bort.metrics.RealLastHeartbeatEndTimeProvider
 import com.memfault.bort.metrics.RealNextBatteryStatsHistoryStartProvider
+import com.memfault.bort.metrics.SharedPreferencesMetricRegistry
 import com.memfault.bort.metrics.runBatteryStats
 import com.memfault.bort.requester.BugReportRequestWorker
 import com.memfault.bort.shared.PreferenceKeyProvider
@@ -65,7 +68,11 @@ data class AppComponents(
         private val context: Context,
         private val sharedPreferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(
             context
-        )
+        ),
+        private val metricsSharedPreferences: SharedPreferences = context.getSharedPreferences(
+            METRICS_PREFERENCE_FILE_NAME,
+            Context.MODE_PRIVATE
+        ),
     ) {
         var settingsProvider: SettingsProvider? = null
         var loggingInterceptor: Interceptor? = null
@@ -97,6 +104,7 @@ data class AppComponents(
                     )
                 )
                 .addInterceptor(loggingInterceptor ?: LoggingNetworkInterceptor())
+                .addInterceptor(GzipRequestInterceptor())
                 .build()
             val retrofit = retrofit ?: Retrofit.Builder()
                 .client(okHttpClient)
@@ -130,6 +138,9 @@ data class AppComponents(
                     context, file, metadata, settingsProvider.httpApiSettings.uploadConstraints, debugTag
                 )
             }
+            val builtinMetricsStore = BuiltinMetricsStore(
+                registry = SharedPreferencesMetricRegistry(metricsSharedPreferences)
+            )
             val dropBoxEntryProcessors = realDropBoxEntryProcessors(
                 tempFileFactory = temporaryFileFactory,
                 bootRelativeTimeProvider = bootRelativeTimeProvider,
@@ -137,6 +148,7 @@ data class AppComponents(
                 packageManagerClient = packageManagerClient,
                 deviceInfoProvider = deviceInfoProvider,
                 sharedPreferences = sharedPreferences,
+                builtinMetricsStore = builtinMetricsStore,
             ) + extraDropBoxEntryProcessors
 
             val pendingBugReportRequestAccessor = PendingBugReportRequestAccessor(
@@ -155,6 +167,7 @@ data class AppComponents(
                 enqueueFileUpload = enqueueFileUpload,
                 temporaryFileFactory = temporaryFileFactory,
                 pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
+                builtinMetricsStore = builtinMetricsStore,
                 interceptingFactory = interceptingWorkerFactory,
             )
 
@@ -223,7 +236,8 @@ class DefaultWorkerFactory(
     private val enqueueFileUpload: EnqueueFileUpload,
     private val temporaryFileFactory: TemporaryFileFactory,
     private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
-    private val interceptingFactory: InterceptingWorkerFactory? = null
+    private val builtinMetricsStore: BuiltinMetricsStore,
+    private val interceptingFactory: InterceptingWorkerFactory? = null,
 ) : WorkerFactory(), TaskFactory {
     override fun createWorker(
         appContext: Context,
@@ -265,7 +279,8 @@ class DefaultWorkerFactory(
             FileUploadTask::class.qualifiedName -> FileUploadTask(
                 delegate = fileUploaderFactory.create(retrofit, settingsProvider.httpApiSettings.projectKey),
                 bortEnabledProvider = bortEnabledProvider,
-                maxAttempts = settingsProvider.bugReportSettings.maxUploadAttempts
+                maxAttempts = settingsProvider.bugReportSettings.maxUploadAttempts,
+                getUploadCompressionEnabled = { settingsProvider.httpApiSettings.uploadCompressionEnabled },
             )
             DropBoxGetEntriesTask::class.qualifiedName -> DropBoxGetEntriesTask(
                 lastProcessedEntryProvider = RealDropBoxLastProcessedEntryProvider(sharedPreferences),
@@ -283,6 +298,7 @@ class DefaultWorkerFactory(
                 combinedTimeProvider = RealCombinedTimeProvider(context),
                 lastHeartbeatEndTimeProvider = RealLastHeartbeatEndTimeProvider(sharedPreferences),
                 deviceInfoProvider = RealDeviceInfoProvider(settingsProvider.deviceInfoSettings),
+                builtinMetricsStore = builtinMetricsStore,
             )
             BugReportRequestTimeoutTask::class.qualifiedName -> BugReportRequestTimeoutTask(
                 context = context,

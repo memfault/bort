@@ -15,6 +15,7 @@ class AppComponentsTest {
         // Test that the stub provider isn't used when runtime enable is required
         val context: Context = mockk {
             every { cacheDir } returns File("/tmp")
+            every { getSharedPreferences(any(), any()) } returns makeFakeSharedPreferences()
         }
 
         val getStringDefaultSlot = slot<String>()
@@ -30,6 +31,7 @@ class AppComponentsTest {
                     override val filesBaseUrl = "https://test.com"
                     override val ingressBaseUrl = "https://ingress.test.com"
                     override val uploadNetworkConstraint = NetworkConstraint.CONNECTED
+                    override val uploadCompressionEnabled = true
                     override val projectKey = "SECRET"
                 }
                 every { sdkVersionInfo } returns mockk()

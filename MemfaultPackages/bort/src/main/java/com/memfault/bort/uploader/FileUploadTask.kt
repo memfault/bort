@@ -26,17 +26,20 @@ private val BACKOFF_DURATION = 5.minutes
 private const val PATH_KEY = "PATH"
 private const val METADATA_KEY = "METADATA"
 private const val CONTINUATION_KEY = "CONTINUATION"
+private const val SHOULD_COMPRESS_KEY = "SHOULD_COMPRESS"
 
 data class FileUploadTaskInput(
     val file: File,
     val payload: FileUploadPayload,
     val continuation: FileUploadContinuation? = null,
+    val shouldCompress: Boolean = true,
 ) {
     fun toWorkerInputData(): Data =
         workDataOf(
             PATH_KEY to file.path,
             METADATA_KEY to BortJson.encodeToString(FileUploadPayload.serializer(), payload),
             CONTINUATION_KEY to continuation?.let { BortJson.encodeToString(FileUploadContinuation.serializer(), it) },
+            SHOULD_COMPRESS_KEY to shouldCompress,
         )
 
     companion object {
@@ -50,6 +53,7 @@ data class FileUploadTaskInput(
                 continuation = inputData.getString(CONTINUATION_KEY)?.let {
                     BortJson.decodeFromString(FileUploadContinuation.serializer(), it)
                 },
+                shouldCompress = inputData.getBoolean(SHOULD_COMPRESS_KEY, false),
             )
     }
 }
@@ -57,9 +61,10 @@ data class FileUploadTaskInput(
 internal class FileUploadTask(
     private val delegate: FileUploader,
     private val bortEnabledProvider: BortEnabledProvider,
+    private val getUploadCompressionEnabled: () -> Boolean,
     override val maxAttempts: Int = 3
 ) : Task<FileUploadTaskInput>() {
-    suspend fun upload(file: File, payload: FileUploadPayload): TaskResult {
+    suspend fun upload(file: File, payload: FileUploadPayload, shouldCompress: Boolean): TaskResult {
         fun fail(message: String): TaskResult {
             Logger.e("$message file=(${file.path})")
             return TaskResult.FAILURE
@@ -74,7 +79,11 @@ internal class FileUploadTask(
             return fail("File does not exist")
         }
 
-        when (val result = delegate.upload(file, payload)) {
+        when (
+            val result = delegate.upload(
+                file, payload, shouldCompress && getUploadCompressionEnabled()
+            )
+        ) {
             TaskResult.RETRY -> return result
             TaskResult.FAILURE -> return fail("Upload failed")
         }
@@ -92,7 +101,7 @@ internal class FileUploadTask(
     override suspend fun doWork(worker: TaskRunnerWorker, input: FileUploadTaskInput): TaskResult =
         withContext(Dispatchers.IO) {
             Logger.logEvent("upload", "start", worker.runAttemptCount.toString())
-            upload(input.file, input.payload).also {
+            upload(input.file, input.payload, input.shouldCompress).also {
                 Logger.logEvent("upload", "result", it.toString())
                 "UploadWorker result=$it payloadClass=${input.payload.javaClass.simpleName}".also { message ->
                     Logger.v(message)
@@ -120,10 +129,11 @@ fun enqueueFileUploadTask(
     uploadConstraints: Constraints,
     debugTag: String,
     continuation: FileUploadContinuation? = null,
+    shouldCompress: Boolean = true,
 ): WorkRequest =
     enqueueWorkOnce<FileUploadTask>(
         context,
-        FileUploadTaskInput(file, payload, continuation).toWorkerInputData()
+        FileUploadTaskInput(file, payload, continuation, shouldCompress).toWorkerInputData()
     ) {
         setConstraints(uploadConstraints)
         setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())

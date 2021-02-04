@@ -103,7 +103,7 @@ ext.verifyBortProperties = {
             throw new GradleException("${key} property '${value}' does not match ${pattern}! Please configure it in bort.properties")
         }
     }
-    verifyBortProperty(bortProperty, "MEMFAULT_PROJECT_API_KEY", /^[A-Fa-f0-9]{32}$/, true, true)
+    verifyBortProperty(bortProperty, "MEMFAULT_PROJECT_API_KEY", /^[A-Za-z0-9]{32}$/, true, true)
     verifyBortProperty(bortSystemPropertyConfigProperty, "ANDROID_BUILD_VERSION_SOURCE", /^(build_fingerprint_and_system_property|build_fingerprint_only|system_property_only)$/)
     // https://cs.android.com/android/platform/superproject/+/master:system/core/toolbox/setprop.cpp;l=55;drc=65a1ee83a89a7bea595ff07a64c50d1e51b2d8e2
     if (bortSystemPropertyConfigProperty("ANDROID_BUILD_VERSION_SOURCE") != "build_fingerprint_only") {

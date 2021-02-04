@@ -27,8 +27,12 @@ const val PREFERENCE_TOKEN_BUCKET_KMSG =
     "com.memfault.preference.PREFERENCE_TOKEN_BUCKET_KMSG"
 const val PREFERENCE_TOKEN_BUCKET_BUGREPORT_REQUESTS =
     "com.memfault.preference.PREFERENCE_TOKEN_BUCKET_BUGREPORT_REQUESTS"
+const val PREFERENCE_TOKEN_BUCKET_REBOOT_EVENT =
+    "com.memfault.preference.PREFERENCE_TOKEN_BUCKET_REBOOT_EVENT"
 
 const val PREFERENCE_PENDING_BUG_REPORT_REQUEST_OPTIONS = "com.memfault.preference.PENDING_BUG_REPORT_REQUEST_OPTIONS"
 
 // Keep in sync with DUMPSTER_SERVICE_NAME in MemfaultDumpster.cpp!
 const val DUMPSTER_SERVICE_NAME = "memfault_dumpster"
+
+const val METRICS_PREFERENCE_FILE_NAME = "metrics"

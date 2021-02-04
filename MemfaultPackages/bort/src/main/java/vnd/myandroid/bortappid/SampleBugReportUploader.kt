@@ -36,7 +36,7 @@ class SampleBugReportUploader(
     private val apiKey: String
 ) : FileUploader {
 
-    override suspend fun upload(file: File, payload: FileUploadPayload): TaskResult {
+    override suspend fun upload(file: File, payload: FileUploadPayload, shouldCompress: Boolean): TaskResult {
         val customRetrofit = retrofit.newBuilder()
             .baseUrl(BASE_URL)
             .build()

@@ -25,6 +25,7 @@ class MetricsCollectionTask(
     private val combinedTimeProvider: CombinedTimeProvider,
     private val lastHeartbeatEndTimeProvider: LastHeartbeatEndTimeProvider,
     private val deviceInfoProvider: DeviceInfoProvider,
+    private val builtinMetricsStore: BuiltinMetricsStore,
 ) : Task<Unit>() {
     override val maxAttempts: Int = 1
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -52,7 +53,7 @@ class MetricsCollectionTask(
                 collectionTime = now,
                 heartbeatIntervalMs = heartbeatInterval.toLongMilliseconds(),
                 customMetrics = emptyMap(),
-                builtinMetrics = emptyMap(),
+                builtinMetrics = builtinMetricsStore.collectMetrics(),
                 attachments = HeartbeatFileUploadPayload.Attachments(
                     batteryStats = HeartbeatFileUploadPayload.Attachments.BatteryStats(
                         file = HeartbeatFileUploadPayload.Attachments.FileEntry(

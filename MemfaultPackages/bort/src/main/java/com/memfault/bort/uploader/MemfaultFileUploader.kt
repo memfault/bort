@@ -11,7 +11,7 @@ import retrofit2.HttpException
 internal class MemfaultFileUploader(
     private val preparedUploader: PreparedUploader
 ) : FileUploader {
-    override suspend fun upload(file: File, payload: FileUploadPayload): TaskResult {
+    override suspend fun upload(file: File, payload: FileUploadPayload, shouldCompress: Boolean): TaskResult {
         val prepareResponse = try {
             preparedUploader.prepare()
         } catch (e: HttpException) {
@@ -31,7 +31,7 @@ internal class MemfaultFileUploader(
         val prepareData = prepareResponse.body()?.data ?: return TaskResult.RETRY
 
         try {
-            when (val result = preparedUploader.upload(file, prepareData.upload_url).asResult()) {
+            when (val result = preparedUploader.upload(file, prepareData.upload_url, shouldCompress).asResult()) {
                 TaskResult.RETRY -> return result
                 TaskResult.FAILURE -> return result
             }

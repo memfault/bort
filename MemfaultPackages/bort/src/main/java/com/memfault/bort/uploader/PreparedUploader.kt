@@ -6,6 +6,7 @@ import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploadToken
 import com.memfault.bort.HeartbeatFileUploadPayload
 import com.memfault.bort.http.ProjectKeyAuthenticated
+import com.memfault.bort.http.gzip
 import com.memfault.bort.shared.Logger
 import java.io.File
 import kotlinx.serialization.Serializable
@@ -14,6 +15,7 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -36,7 +38,11 @@ interface PreparedUploadService {
     suspend fun prepare(): Response<PrepareResult>
 
     @PUT
-    suspend fun upload(@Url url: String, @Body file: RequestBody): Response<Unit>
+    suspend fun upload(
+        @Url url: String,
+        @Body file: RequestBody,
+        @Header("Content-Encoding") contentEncoding: String? = null,
+    ): Response<Unit>
 
     @POST("/api/v0/upload/{upload_type}")
     @ProjectKeyAuthenticated
@@ -82,11 +88,13 @@ internal class PreparedUploader(
     /**
      * Upload a prepared file from an FileInputStream or ByteArrayInputStream.
      */
-    suspend fun upload(file: File, uploadUrl: String): Response<Unit> {
-        val requestBody = file.asRequestBody("application/octet-stream".toMediaType())
+    suspend fun upload(file: File, uploadUrl: String, shouldCompress: Boolean = true): Response<Unit> {
         return preparedUploadService.upload(
-            uploadUrl,
-            requestBody
+            url = uploadUrl,
+            file = file.asRequestBody("application/octet-stream".toMediaType()).let {
+                if (shouldCompress) it.gzip() else it
+            },
+            contentEncoding = if (shouldCompress) "gzip" else null,
         ).also {
             eventLogger.log("upload", "done")
         }

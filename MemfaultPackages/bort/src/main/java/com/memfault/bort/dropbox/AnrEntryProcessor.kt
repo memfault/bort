@@ -5,6 +5,7 @@ import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DropBoxEntryFileUploadMetadata
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.TimezoneWithId
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
@@ -18,12 +19,14 @@ class AnrEntryProcessor(
     bootRelativeTimeProvider: BootRelativeTimeProvider,
     deviceInfoProvider: DeviceInfoProvider,
     tokenBucketStore: TokenBucketStore,
+    builtinMetricsStore: BuiltinMetricsStore
 ) : UploadingEntryProcessor(
     tempFileFactory,
     enqueueFileUpload,
     bootRelativeTimeProvider,
     deviceInfoProvider,
     tokenBucketStore,
+    builtinMetricsStore
 ) {
     override val tags = listOf(
         "data_app_anr",

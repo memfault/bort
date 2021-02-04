@@ -52,7 +52,9 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
                 BugReportFileUploadContinuation(
                     request = it,
                 )
-            }
+            },
+            /* Already a .zip file, not much to gain by recompressing */
+            shouldCompress = false,
         )
     }
 

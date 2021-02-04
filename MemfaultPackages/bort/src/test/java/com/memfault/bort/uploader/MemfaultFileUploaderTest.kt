@@ -38,7 +38,7 @@ class MemfaultFileUploaderTest {
         val result = runBlocking {
             MemfaultFileUploader(
                 preparedUploader = createUploader(server)
-            ).upload(file, BugReportFileUploadPayload())
+            ).upload(file, BugReportFileUploadPayload(), shouldCompress = true)
         }
         assert(result == TaskResult.FAILURE)
     }
@@ -49,7 +49,7 @@ class MemfaultFileUploaderTest {
         val result = runBlocking {
             MemfaultFileUploader(
                 preparedUploader = createUploader(server)
-            ).upload(file, BugReportFileUploadPayload())
+            ).upload(file, BugReportFileUploadPayload(), shouldCompress = true)
         }
         assert(result == TaskResult.RETRY)
     }
@@ -60,7 +60,7 @@ class MemfaultFileUploaderTest {
         val result = runBlocking {
             MemfaultFileUploader(
                 preparedUploader = createUploader(server)
-            ).upload(file, BugReportFileUploadPayload())
+            ).upload(file, BugReportFileUploadPayload(), shouldCompress = true)
         }
         assert(result == TaskResult.RETRY)
     }

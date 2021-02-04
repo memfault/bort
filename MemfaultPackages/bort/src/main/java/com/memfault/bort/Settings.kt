@@ -57,6 +57,7 @@ interface HttpApiSettings {
     val filesBaseUrl: String
     val ingressBaseUrl: String
     val uploadNetworkConstraint: NetworkConstraint
+    val uploadCompressionEnabled: Boolean
 
     val uploadConstraints: Constraints
         get() = Constraints.Builder()

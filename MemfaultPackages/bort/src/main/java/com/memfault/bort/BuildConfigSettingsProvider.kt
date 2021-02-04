@@ -17,6 +17,7 @@ open class BuildConfigSettingsProvider : SettingsProvider {
         override val uploadNetworkConstraint: NetworkConstraint =
             if (BuildConfig.UPLOAD_NETWORK_CONSTRAINT_ALLOW_METERED_CONNECTION) NetworkConstraint.CONNECTED
             else NetworkConstraint.UNMETERED
+        override val uploadCompressionEnabled = BuildConfig.UPLOAD_COMPRESSION_ENABLED
         override val projectKey = BuildConfig.MEMFAULT_PROJECT_API_KEY
         override val filesBaseUrl = BuildConfig.MEMFAULT_FILES_BASE_URL
         override val ingressBaseUrl = BuildConfig.MEMFAULT_INGRESS_BASE_URL

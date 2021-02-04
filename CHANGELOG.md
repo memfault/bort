@@ -1,5 +1,21 @@
 # Memfault Bort Changelog
 
+## v3.2.0 - February 4, 2021
+
+#### :chart_with_upwards_trend: Improvements
+
+- New built-in metrics have been added that count the number of traces by tag.
+  The naming format is `drop_box_trace_%s_count` where `%s` is filled with the
+  tag, i.e. `system_tombstone`.
+- A new built-in metric called `drop_box_traces_drop_count` has been added that
+  counts the number of dropped traces due to rate-limiting.
+
+#### :house: Internal
+
+- Rate limiting: Bort will now also rate limit reboot event uploads.
+- A bug has been fixed that caused project keys for newly created projects to
+  fail the gradle build.
+
 ## v3.1.0 - January 29, 2021
 
 #### :chart_with_upwards_trend: Improvements

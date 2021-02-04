@@ -8,6 +8,7 @@ import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_KMSG
 import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_TOMBSTONES
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.TemporaryFileFactory
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.time.BootRelativeTimeProvider
 import com.memfault.bort.tokenbucket.RealTokenBucketFactory
 import com.memfault.bort.tokenbucket.RealTokenBucketStorage
@@ -22,6 +23,7 @@ fun realDropBoxEntryProcessors(
     packageManagerClient: PackageManagerClient,
     deviceInfoProvider: DeviceInfoProvider,
     sharedPreferences: SharedPreferences,
+    builtinMetricsStore: BuiltinMetricsStore,
 ): Map<String, EntryProcessor> {
     val tombstoneEntryProcessor = TombstoneEntryProcessor(
         tempFileFactory = tempFileFactory,
@@ -40,6 +42,7 @@ fun realDropBoxEntryProcessors(
                 defaultPeriod = 15.minutes,
             ),
         ),
+        builtinMetricsStore = builtinMetricsStore,
     )
     val javaExceptionEntryProcessor = JavaExceptionEntryProcessor(
         tempFileFactory = tempFileFactory,
@@ -58,6 +61,7 @@ fun realDropBoxEntryProcessors(
                 defaultPeriod = 15.minutes,
             ),
         ),
+        builtinMetricsStore = builtinMetricsStore,
     )
     val anrEntryProcessor = AnrEntryProcessor(
         tempFileFactory = tempFileFactory,
@@ -75,6 +79,7 @@ fun realDropBoxEntryProcessors(
                 defaultPeriod = 15.minutes,
             ),
         ),
+        builtinMetricsStore = builtinMetricsStore,
     )
     val kmsgEntryProcessor = KmsgEntryProcessor(
         tempFileFactory = tempFileFactory,
@@ -92,6 +97,7 @@ fun realDropBoxEntryProcessors(
                 defaultPeriod = 15.minutes,
             ),
         ),
+        builtinMetricsStore = builtinMetricsStore,
     )
     return mapOf(
         *tombstoneEntryProcessor.tagPairs(),

@@ -29,6 +29,7 @@ android {
         buildConfigField "Boolean", "UPLOAD_NETWORK_CONSTRAINT_ALLOW_METERED_CONNECTION", bortProperty("UPLOAD_NETWORK_CONSTRAINT_ALLOW_METERED_CONNECTION")
         buildConfigField "int", "MINIMUM_LOG_LEVEL", bortProperty("MINIMUM_LOG_LEVEL")
         buildConfigField "Boolean", "RUNTIME_ENABLE_REQUIRED", bortProperty("RUNTIME_ENABLE_REQUIRED")
+        buildConfigField "Boolean", "UPLOAD_COMPRESSION_ENABLED", bortProperty("UPLOAD_COMPRESSION_ENABLED")
 
         buildConfigField "String", "ANDROID_BUILD_VERSION_SOURCE", "\"" + bortSystemPropertyConfigProperty("ANDROID_BUILD_VERSION_SOURCE") + "\""
         buildConfigField "String", "ANDROID_BUILD_VERSION_KEY", "\"" + bortSystemPropertyConfigProperty("ANDROID_BUILD_VERSION_KEY") + "\""

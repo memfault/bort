@@ -7,11 +7,16 @@ import androidx.preference.PreferenceManager
 import com.memfault.bort.AndroidBootReason
 import com.memfault.bort.BootCountTracker
 import com.memfault.bort.DumpsterClient
+import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_REBOOT_EVENT
 import com.memfault.bort.RealLastTrackedBootCountProvider
 import com.memfault.bort.RebootEventUploader
 import com.memfault.bort.requester.BugReportRequester
 import com.memfault.bort.requester.MetricsCollectionRequester
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.tokenbucket.RealTokenBucketFactory
+import com.memfault.bort.tokenbucket.RealTokenBucketStorage
+import com.memfault.bort.tokenbucket.TokenBucketStore
+import kotlin.time.minutes
 
 class SystemEventReceiver : BortEnabledFilteringReceiver(
     setOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED)
@@ -32,11 +37,22 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
 
         goAsync {
             DumpsterClient().getprop()?.let { systemProperties ->
+                val tokenBucketStore = TokenBucketStore(
+                    storage = RealTokenBucketStorage(
+                        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context),
+                        preferenceKey = PREFERENCE_TOKEN_BUCKET_REBOOT_EVENT,
+                    ),
+                    maxBuckets = 1,
+                    tokenBucketFactory = RealTokenBucketFactory(defaultCapacity = 5, defaultPeriod = 15.minutes),
+                )
+
                 val rebootEventUploader = RebootEventUploader(
                     ingressService = ingressService,
                     deviceInfo = deviceInfoProvider.getDeviceInfo(),
-                    androidSysBootReason = systemProperties.get(AndroidBootReason.SYS_BOOT_REASON_KEY)
+                    androidSysBootReason = systemProperties.get(AndroidBootReason.SYS_BOOT_REASON_KEY),
+                    tokenBucketStore = tokenBucketStore,
                 )
+
                 val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
                 BootCountTracker(
                     lastTrackedBootCountProvider = RealLastTrackedBootCountProvider(

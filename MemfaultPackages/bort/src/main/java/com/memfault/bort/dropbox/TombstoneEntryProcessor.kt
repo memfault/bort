@@ -6,6 +6,7 @@ import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.TombstoneFileUploadMetadata
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.parsers.NativeBacktraceParser
 import com.memfault.bort.parsers.TombstoneParser
 import com.memfault.bort.shared.Logger
@@ -24,12 +25,14 @@ class TombstoneEntryProcessor(
     deviceInfoProvider: DeviceInfoProvider,
     private val packageManagerClient: PackageManagerClient,
     tokenBucketStore: TokenBucketStore,
+    builtinMetricsStore: BuiltinMetricsStore,
 ) : UploadingEntryProcessor(
     tempFileFactory,
     enqueueFileUpload,
     bootRelativeTimeProvider,
     deviceInfoProvider,
     tokenBucketStore,
+    builtinMetricsStore,
 ) {
     override val tags = listOf("SYSTEM_TOMBSTONE")
 

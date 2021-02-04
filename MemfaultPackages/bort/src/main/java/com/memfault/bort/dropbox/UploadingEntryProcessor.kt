@@ -5,6 +5,9 @@ import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DropBoxEntryFileUploadMetadata
 import com.memfault.bort.DropBoxEntryFileUploadPayload
 import com.memfault.bort.TemporaryFileFactory
+import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.metrics.DROP_BOX_TRACES_DROP_COUNT
+import com.memfault.bort.metrics.metricForTraceTag
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
@@ -19,6 +22,7 @@ abstract class UploadingEntryProcessor(
     private val bootRelativeTimeProvider: BootRelativeTimeProvider,
     private val deviceInfoProvider: DeviceInfoProvider,
     private val tokenBucketStore: TokenBucketStore,
+    private val builtinMetricsStore: BuiltinMetricsStore,
 ) : EntryProcessor() {
     abstract val debugTag: String
 
@@ -47,7 +51,10 @@ abstract class UploadingEntryProcessor(
                 }
             }
 
+            builtinMetricsStore.increment(metricForTraceTag(entry.tag))
+
             if (!allowedByRateLimit(entry, tempFile)) {
+                builtinMetricsStore.increment(DROP_BOX_TRACES_DROP_COUNT)
                 return
             }
 

@@ -7,6 +7,7 @@ import com.memfault.bort.ingress.RebootEvent
 import com.memfault.bort.ingress.RebootEventInfo
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
+import com.memfault.bort.tokenbucket.TokenBucketStore
 import java.io.File
 import java.time.Instant
 import java.util.concurrent.TimeUnit
@@ -77,9 +78,19 @@ fun readLinuxBootId(): String =
 internal class RebootEventUploader(
     val ingressService: IngressService,
     val deviceInfo: DeviceInfo,
-    val androidSysBootReason: String?
+    val androidSysBootReason: String?,
+    val tokenBucketStore: TokenBucketStore,
 ) {
     private fun createAndUploadCurrentRebootEvent(bootCount: Int) {
+        val allowedByRateLimit = tokenBucketStore.edit { map ->
+            map.upsertBucket("reboot-event")?.take() ?: false
+        }
+
+        if (!allowedByRateLimit) {
+            // TODO: maybe add a metric for dropped reboot events
+            return
+        }
+
         val rebootEvent = RebootEvent(
             capturedDate = getBootInstant(),
             deviceInfo = deviceInfo,

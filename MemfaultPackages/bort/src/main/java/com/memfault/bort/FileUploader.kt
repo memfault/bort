@@ -265,7 +265,7 @@ data class KmsgFileUploadMetadata(
 }
 
 interface FileUploader {
-    suspend fun upload(file: File, payload: FileUploadPayload): TaskResult
+    suspend fun upload(file: File, payload: FileUploadPayload, shouldCompress: Boolean): TaskResult
 }
 
 interface FileUploaderFactory {
