@@ -2,6 +2,7 @@ package com.memfault.bort.metrics
 
 import android.content.SharedPreferences
 import androidx.annotation.VisibleForTesting
+import com.memfault.bort.BuildConfig
 import java.util.Locale
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
@@ -9,6 +10,7 @@ import kotlin.concurrent.write
 
 const val DROP_BOX_TRACES_DROP_COUNT = "drop_box_traces_drop_count"
 private const val DROP_BOX_TRACE_TAG_COUNT_PER_HOUR_TEMPLATE = "drop_box_trace_%s_count"
+private const val BORT_VERSION_CODE = "bort_version_code"
 
 /**
  * An abstraction for metric storage.
@@ -120,3 +122,7 @@ class BuiltinMetricsStore(
 
 fun metricForTraceTag(tag: String) = DROP_BOX_TRACE_TAG_COUNT_PER_HOUR_TEMPLATE
     .format(tag.toLowerCase(Locale.ROOT))
+
+val constantBuiltinMetrics = mapOf(
+    BORT_VERSION_CODE to BuildConfig.VERSION_CODE.toFloat()
+)

@@ -2,41 +2,36 @@ package com.memfault.bort.metrics
 
 import androidx.work.Data
 import com.memfault.bort.DeviceInfoProvider
+import com.memfault.bort.FileUploadToken
 import com.memfault.bort.HeartbeatFileUploadPayload
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
+import com.memfault.bort.fileExt.md5Hex
+import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.CombinedTimeProvider
+import com.memfault.bort.tokenbucket.TokenBucketStore
+import com.memfault.bort.tokenbucket.takeSimple
 import com.memfault.bort.uploader.EnqueueFileUpload
 import java.io.File
 import kotlin.time.Duration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okio.HashingSource
-import okio.blackholeSink
-import okio.buffer
-import okio.source
 
 class MetricsCollectionTask(
     private val batteryStatsHistoryCollector: BatteryStatsHistoryCollector,
     private val enqueueFileUpload: EnqueueFileUpload,
+    private val nextLogcatCidProvider: NextLogcatCidProvider,
     private val combinedTimeProvider: CombinedTimeProvider,
     private val lastHeartbeatEndTimeProvider: LastHeartbeatEndTimeProvider,
     private val deviceInfoProvider: DeviceInfoProvider,
     private val builtinMetricsStore: BuiltinMetricsStore,
+    private val tokenBucketStore: TokenBucketStore,
 ) : Task<Unit>() {
-    override val maxAttempts: Int = 1
+    override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data) = Unit
-
-    private fun calculateMd5Hex(file: File): String =
-        HashingSource.md5(file.source()).use { hashingSource ->
-            hashingSource.buffer().use { source ->
-                source.readAll(blackholeSink())
-                hashingSource.hash.hex()
-            }
-        }
 
     private suspend fun enqueueHeartbeatUpload(
         now: CombinedTime,
@@ -53,23 +48,26 @@ class MetricsCollectionTask(
                 collectionTime = now,
                 heartbeatIntervalMs = heartbeatInterval.toLongMilliseconds(),
                 customMetrics = emptyMap(),
-                builtinMetrics = builtinMetricsStore.collectMetrics(),
+                builtinMetrics = builtinMetricsStore.collectMetrics() + constantBuiltinMetrics,
                 attachments = HeartbeatFileUploadPayload.Attachments(
                     batteryStats = HeartbeatFileUploadPayload.Attachments.BatteryStats(
-                        file = HeartbeatFileUploadPayload.Attachments.FileEntry(
+                        file = FileUploadToken(
                             md5 = withContext(Dispatchers.IO) {
-                                calculateMd5Hex(batteryStatsFile)
+                                batteryStatsFile.md5Hex()
                             },
                             name = "batterystats.txt",
                         )
                     )
-                )
+                ),
+                cidReference = nextLogcatCidProvider.cid,
             ),
             DEBUG_TAG
         )
     }
 
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult {
+        if (!tokenBucketStore.takeSimple()) return TaskResult.FAILURE
+
         val now = combinedTimeProvider.now()
         val heartbeatInterval =
             (now.elapsedRealtime.duration - lastHeartbeatEndTimeProvider.lastEnd.elapsedRealtime.duration)

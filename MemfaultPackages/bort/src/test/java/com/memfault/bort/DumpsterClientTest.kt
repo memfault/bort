@@ -3,11 +3,9 @@ package com.memfault.bort
 import android.os.RemoteException
 import com.memfault.dumpster.IDumpster
 import com.memfault.dumpster.IDumpsterBasicCommandListener
-import com.nhaarman.mockitokotlin2.any
-import com.nhaarman.mockitokotlin2.doAnswer
-import com.nhaarman.mockitokotlin2.doReturn
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.verify
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -30,8 +28,8 @@ class DumpsterClientTest {
 
     @Test
     fun minimumVersionNotSatisfied() {
-        val service = mock<IDumpster> {
-            on { getVersion() } doReturn 0
+        val service = mockk<IDumpster> {
+            every { getVersion() } returns 0
         }
         val client = DumpsterClient(
             serviceProvider = object : DumpsterServiceProvider {
@@ -45,11 +43,9 @@ class DumpsterClientTest {
 
     @Test
     fun binderRemoteExeption() {
-        val service = mock<IDumpster> {
-            on { getVersion() } doReturn 1
-            on { runBasicCommand(any(), any()) } doAnswer {
-                throw RemoteException()
-            }
+        val service = mockk<IDumpster> {
+            every { getVersion() } returns 1
+            every { runBasicCommand(any(), any()) } throws RemoteException()
         }
         val client = DumpsterClient(
             serviceProvider = object : DumpsterServiceProvider {
@@ -59,14 +55,16 @@ class DumpsterClientTest {
         runBlocking {
             assertNull(client.getprop())
         }
-        verify(service).runBasicCommand(any(), any())
+        verify {
+            service.runBasicCommand(any(), any())
+        }
     }
 
     @Test
     fun responseTimeout() {
-        val service = mock<IDumpster> {
-            on { getVersion() } doReturn 1
-            on { runBasicCommand(any(), any()) } doAnswer {}
+        val service = mockk<IDumpster> {
+            every { getVersion() } returns 1
+            every { runBasicCommand(any(), any()) } returns Unit
         }
         val client = DumpsterClient(
             serviceProvider = object : DumpsterServiceProvider {
@@ -77,16 +75,18 @@ class DumpsterClientTest {
         runBlocking {
             assertNull(client.getprop())
         }
-        verify(service).runBasicCommand(any(), any())
+        verify {
+            service.runBasicCommand(any(), any())
+        }
     }
 
     @Test
     fun basicCommandUnsupported() {
         runBlocking {
-            val service = mock<IDumpster> {
-                on { getVersion() } doReturn 1
-                on { runBasicCommand(any(), any()) } doAnswer {
-                    val listener: IDumpsterBasicCommandListener = it.arguments[1] as IDumpsterBasicCommandListener
+            val service = mockk<IDumpster> {
+                every { getVersion() } returns 1
+                every { runBasicCommand(any(), any()) } answers {
+                    val listener: IDumpsterBasicCommandListener = secondArg()
                     launch {
                         listener.onUnsupported()
                     }
@@ -99,17 +99,19 @@ class DumpsterClientTest {
                 }
             )
             assertNull(client.getprop())
-            verify(service).runBasicCommand(any(), any())
+            verify {
+                service.runBasicCommand(any(), any())
+            }
         }
     }
 
     @Test
     fun getprop() {
         runBlocking {
-            val service = mock<IDumpster> {
-                on { getVersion() } doReturn 1
-                on { runBasicCommand(any(), any()) } doAnswer {
-                    val listener: IDumpsterBasicCommandListener = it.arguments[1] as IDumpsterBasicCommandListener
+            val service = mockk<IDumpster> {
+                every { getVersion() } returns 1
+                every { runBasicCommand(any(), any()) } answers {
+                    val listener: IDumpsterBasicCommandListener = secondArg()
                     launch {
                         listener.onFinished(0, "[Hello]: [World!]")
                     }

@@ -5,10 +5,10 @@ import androidx.preference.PreferenceManager
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import com.memfault.bort.MetricsSettings
 import com.memfault.bort.metrics.MetricsCollectionTask
 import com.memfault.bort.metrics.RealLastHeartbeatEndTimeProvider
 import com.memfault.bort.periodicWorkRequest
+import com.memfault.bort.settings.MetricsSettings
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.RealBootRelativeTimeProvider
@@ -69,5 +69,13 @@ class MetricsCollectionRequester(
         Logger.test("Cancelling $WORK_UNIQUE_NAME_PERIODIC")
         WorkManager.getInstance(context)
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
+    }
+
+    override fun evaluateSettingsChange() {
+        if (!metricsSettings.dataSourceEnabled) {
+            cancelPeriodic()
+        } else {
+            startPeriodic()
+        }
     }
 }

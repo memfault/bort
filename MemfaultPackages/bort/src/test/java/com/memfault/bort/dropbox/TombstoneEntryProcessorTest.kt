@@ -6,6 +6,7 @@ import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.TombstoneFileUploadMetadata
+import com.memfault.bort.logcat.FakeNextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.DROP_BOX_TRACES_DROP_COUNT
 import com.memfault.bort.metrics.makeFakeMetricRegistry
@@ -14,12 +15,14 @@ import com.memfault.bort.parsers.EXAMPLE_NATIVE_BACKTRACE
 import com.memfault.bort.parsers.EXAMPLE_TOMBSTONE
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.test.util.TestTemporaryFileFactory
+import com.memfault.bort.time.BaseBootRelativeTime
 import com.memfault.bort.tokenbucket.MockTokenBucketFactory
 import com.memfault.bort.tokenbucket.MockTokenBucketStorage
 import com.memfault.bort.tokenbucket.StoredTokenBucketMap
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueFileUpload
 import io.mockk.CapturingSlot
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -37,15 +40,17 @@ import org.junit.jupiter.api.TestFactory
 val TEST_BUCKET_CAPACITY = 3
 
 class TombstoneEntryProcessorTest {
-    lateinit var processor: TombstoneEntryProcessor
+    lateinit var processor: UploadingEntryProcessor
     lateinit var mockEnqueueFileUpload: EnqueueFileUpload
     lateinit var fileUploadPayloadSlot: CapturingSlot<FileUploadPayload>
     lateinit var mockPackageManagerClient: PackageManagerClient
     lateinit var builtInMetricsStore: BuiltinMetricsStore
+    lateinit var mockHandleEventOfInterest: (BaseBootRelativeTime) -> Unit
 
     @BeforeEach
     fun setUp() {
         mockEnqueueFileUpload = mockk(relaxed = true)
+        mockHandleEventOfInterest = mockk(relaxed = true)
 
         fileUploadPayloadSlot = slot<FileUploadPayload>()
         every {
@@ -54,21 +59,27 @@ class TombstoneEntryProcessorTest {
 
         mockPackageManagerClient = mockk()
         builtInMetricsStore = BuiltinMetricsStore(makeFakeMetricRegistry())
-        processor = TombstoneEntryProcessor(
+        processor = UploadingEntryProcessor(
+            delegate = TombstoneUploadingEntryProcessorDelegate(
+                packageManagerClient = mockPackageManagerClient,
+            ),
             tempFileFactory = TestTemporaryFileFactory,
             enqueueFileUpload = mockEnqueueFileUpload,
+            nextLogcatCidProvider = FakeNextLogcatCidProvider.incrementing(),
             bootRelativeTimeProvider = FakeBootRelativeTimeProvider,
-            packageManagerClient = mockPackageManagerClient,
             deviceInfoProvider = FakeDeviceInfoProvider,
             tokenBucketStore = TokenBucketStore(
                 storage = MockTokenBucketStorage(StoredTokenBucketMap()),
-                maxBuckets = 1,
-                tokenBucketFactory = MockTokenBucketFactory(
-                    defaultCapacity = TEST_BUCKET_CAPACITY,
-                    defaultPeriod = 1.milliseconds,
-                ),
+                getMaxBuckets = { 1 },
+                getTokenBucketFactory = {
+                    MockTokenBucketFactory(
+                        defaultCapacity = TEST_BUCKET_CAPACITY,
+                        defaultPeriod = 1.milliseconds,
+                    )
+                }
             ),
             builtinMetricsStore = builtInMetricsStore,
+            handleEventOfInterest = mockHandleEventOfInterest,
         )
     }
 
@@ -78,6 +89,9 @@ class TombstoneEntryProcessorTest {
         Triple("tombstone", EXAMPLE_TOMBSTONE, "com.android.chrome"),
     ).map { (name, text, expectedProcessName) ->
         DynamicTest.dynamicTest("enqueuesFileWithPackageInfo for $name") {
+            // @BeforeEach doesn't work with DynamicTest... :/
+            clearMocks(mockHandleEventOfInterest)
+
             coEvery {
                 mockPackageManagerClient.findPackagesByProcessName(expectedProcessName)
             } returns PACKAGE_FIXTURE
@@ -86,6 +100,7 @@ class TombstoneEntryProcessorTest {
                 val payload = fileUploadPayloadSlot.captured as DropBoxEntryFileUploadPayload
                 val metadata = payload.metadata as TombstoneFileUploadMetadata
                 assertEquals(listOf(PACKAGE_FIXTURE.toUploaderPackage()), metadata.packages)
+                verify(exactly = 1) { mockHandleEventOfInterest(any()) }
             }
         }
     }
@@ -119,6 +134,7 @@ class TombstoneEntryProcessorTest {
                 (runs - TEST_BUCKET_CAPACITY + 1).toFloat()
                     == builtInMetricsStore.collect(DROP_BOX_TRACES_DROP_COUNT)
             )
+            verify(exactly = TEST_BUCKET_CAPACITY) { mockHandleEventOfInterest(any()) }
         }
     }
 

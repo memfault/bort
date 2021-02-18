@@ -1,9 +1,10 @@
-package com.memfault.bort
+package com.memfault.bort.settings
 
 import androidx.work.Constraints
 import androidx.work.NetworkType
 import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.LogLevel
+import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.shared.SdkVersionInfo
 import kotlin.time.Duration
 
@@ -20,10 +21,15 @@ interface BugReportSettings {
     val defaultOptions: BugReportOptions
     val maxUploadAttempts: Int
     val firstBugReportDelayAfterBoot: Duration
+    val rateLimitingSettings: RateLimitingSettings
 }
 
 interface DropBoxSettings {
     val dataSourceEnabled: Boolean
+    val anrRateLimitingSettings: RateLimitingSettings
+    val javaExceptionsRateLimitingSettings: RateLimitingSettings
+    val kmsgsRateLimitingSettings: RateLimitingSettings
+    val tombstonesRateLimitingSettings: RateLimitingSettings
 }
 
 interface BatteryStatsSettings {
@@ -33,6 +39,17 @@ interface BatteryStatsSettings {
 interface MetricsSettings {
     val dataSourceEnabled: Boolean
     val collectionInterval: Duration
+}
+
+interface LogcatSettings {
+    val dataSourceEnabled: Boolean
+    val collectionInterval: Duration
+    val filterSpecs: List<LogcatFilterSpec>
+}
+
+interface FileUploadHoldingAreaSettings {
+    val trailingMargin: Duration
+    val maxStoredEventsOfInterest: Int
 }
 
 enum class AndroidBuildFormat(val id: String) {
@@ -55,6 +72,7 @@ interface DeviceInfoSettings {
 interface HttpApiSettings {
     val projectKey: String
     val filesBaseUrl: String
+    val deviceBaseUrl: String
     val ingressBaseUrl: String
     val uploadNetworkConstraint: NetworkConstraint
     val uploadCompressionEnabled: Boolean
@@ -65,9 +83,14 @@ interface HttpApiSettings {
             .build()
 }
 
+interface RebootEventsSettings {
+    val rateLimitingSettings: RateLimitingSettings
+}
+
 interface SettingsProvider {
     val minLogLevel: LogLevel
     val isRuntimeEnableRequired: Boolean
+    val settingsUpdateInterval: Duration
 
     val httpApiSettings: HttpApiSettings
     val sdkVersionInfo: SdkVersionInfo
@@ -76,9 +99,16 @@ interface SettingsProvider {
     val dropBoxSettings: DropBoxSettings
     val metricsSettings: MetricsSettings
     val batteryStatsSettings: BatteryStatsSettings
+    val logcatSettings: LogcatSettings
+    val fileUploadHoldingAreaSettings: FileUploadHoldingAreaSettings
+    val rebootEventsSettings: RebootEventsSettings
+
+    fun invalidate()
 }
 
 interface BortEnabledProvider {
     fun setEnabled(isOptedIn: Boolean)
     fun isEnabled(): Boolean
 }
+
+typealias ConfigValue<T> = () -> T

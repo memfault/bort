@@ -6,7 +6,6 @@ import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.WorkRequest
 import androidx.work.workDataOf
-import com.memfault.bort.BortEnabledProvider
 import com.memfault.bort.BortJson
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploader
@@ -14,6 +13,7 @@ import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.enqueueWorkOnce
+import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.shared.Logger
 import java.io.File
 import kotlin.time.minutes
@@ -62,7 +62,7 @@ internal class FileUploadTask(
     private val delegate: FileUploader,
     private val bortEnabledProvider: BortEnabledProvider,
     private val getUploadCompressionEnabled: () -> Boolean,
-    override val maxAttempts: Int = 3
+    override val getMaxAttempts: () -> Int = { 3 },
 ) : Task<FileUploadTaskInput>() {
     suspend fun upload(file: File, payload: FileUploadPayload, shouldCompress: Boolean): TaskResult {
         fun fail(message: String): TaskResult {
@@ -126,7 +126,7 @@ fun enqueueFileUploadTask(
     context: Context,
     file: File,
     payload: FileUploadPayload,
-    uploadConstraints: Constraints,
+    getUploadConstraints: () -> Constraints,
     debugTag: String,
     continuation: FileUploadContinuation? = null,
     shouldCompress: Boolean = true,
@@ -135,7 +135,7 @@ fun enqueueFileUploadTask(
         context,
         FileUploadTaskInput(file, payload, continuation, shouldCompress).toWorkerInputData()
     ) {
-        setConstraints(uploadConstraints)
+        setConstraints(getUploadConstraints())
         setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())
         addTag(debugTag)
     }

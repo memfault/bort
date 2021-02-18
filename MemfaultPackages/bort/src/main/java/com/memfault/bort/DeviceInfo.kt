@@ -1,6 +1,8 @@
 package com.memfault.bort
 
 import android.os.Build
+import com.memfault.bort.settings.AndroidBuildFormat
+import com.memfault.bort.settings.DeviceInfoSettings
 
 internal const val SOFTWARE_TYPE = "android-build"
 

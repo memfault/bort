@@ -3,25 +3,28 @@ package com.memfault.bort.buildsrc
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import java.io.File
 import java.nio.file.Files
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
-class BortSystemPropertyConfigRefresherTest {
-    lateinit var mockRootDir: String
+const val SUCCESS_FIXTURE = """{"valid": "true"}"""
+
+class BortSettingsDownloaderTest {
+    lateinit var mockRootDir: File
     lateinit var mockWarn: (String, Exception?) -> Unit
     lateinit var mockGetConfig: () -> String
 
     @BeforeEach
     fun setUp() {
-        mockRootDir = Files.createTempDirectory("bortBuildSrcTest").toString()
+        mockRootDir = Files.createTempDirectory("bortBuildSrcTest").toFile()
         mockWarn = mockk(relaxed = true)
         mockGetConfig = mockk()
         every {
             mockGetConfig()
-        } returns """FOO=BAR"""
+        } returns SUCCESS_FIXTURE
     }
 
     @Test
@@ -29,19 +32,19 @@ class BortSystemPropertyConfigRefresherTest {
         every {
             mockGetConfig()
         } throws Exception()
-        assertThrows<BortConfigDownloadException> {
-            BortSystemPropertyConfigRefresher(mockRootDir, mockWarn, mockGetConfig).tryRefresh()
+        assertThrows<BortSettingsDownloaderException> {
+            refreshSettings(mockRootDir, mockWarn, mockGetConfig)
         }
     }
 
     @Test
     fun warnsButUsesExistingConfigIfDownloadFails() {
-        BortSystemPropertyConfigRefresher(mockRootDir, mockWarn, mockGetConfig).tryRefresh()
+        refreshSettings(mockRootDir, mockWarn, mockGetConfig)
 
         every {
             mockGetConfig()
         } throws Exception()
-        BortSystemPropertyConfigRefresher(mockRootDir, mockWarn, mockGetConfig).tryRefresh()
+        refreshSettings(mockRootDir, mockWarn, mockGetConfig)
         verify(exactly = 1) {
             mockWarn(
                 match { it.contains("reusing existing") },
@@ -52,10 +55,12 @@ class BortSystemPropertyConfigRefresherTest {
 
     @Test
     fun writesGeneratedFileIfDownloadSucceeds() {
-        assertEquals(false, getBortSystemPropertyConfigFile(mockRootDir).isFile)
-        BortSystemPropertyConfigRefresher(mockRootDir, mockWarn, mockGetConfig).tryRefresh()
-        assertEquals(true, getBortSystemPropertyConfigFile(mockRootDir).isFile)
-        val properties = bortSystemPropertyConfig(mockRootDir)
-        assertEquals("BAR", properties["FOO"])
+        assertEquals(false, getBortSettingsAssetsFile(mockRootDir).isFile)
+        refreshSettings(mockRootDir, mockWarn, mockGetConfig)
+        assertEquals(true, getBortSettingsAssetsFile(mockRootDir).isFile)
+
+        getBortSettingsAssetsFile(mockRootDir)
+            .inputStream()
+            .use { it.bufferedReader().readText() }
     }
 }

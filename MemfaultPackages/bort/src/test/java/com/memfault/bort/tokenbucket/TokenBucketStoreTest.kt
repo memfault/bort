@@ -45,8 +45,8 @@ class TokenBucketStoreTest {
             blockResult,
             TokenBucketStore(
                 storage = storageProvider,
-                maxBuckets = 1,
-                tokenBucketFactory = tokenBucketFactory,
+                getMaxBuckets = { 1 },
+                getTokenBucketFactory = { tokenBucketFactory },
             ).edit {
                 // not making any changes to the map here
                 blockResult
@@ -77,8 +77,8 @@ class TokenBucketStoreTest {
             blockResult,
             TokenBucketStore(
                 storage = storage,
-                maxBuckets = 1,
-                tokenBucketFactory = tokenBucketFactory,
+                getMaxBuckets = { 1 },
+                getTokenBucketFactory = { tokenBucketFactory },
             ).edit { map ->
                 val bucket = map.upsertBucket(key = key, capacity = capacity, period = period)
                 assertNotNull(bucket)
@@ -123,9 +123,9 @@ class TokenBucketStoreTest {
 
         TokenBucketStore(
             storage = storage,
-            maxBuckets = 1,
-            tokenBucketFactory = tokenBucketFactory,
-        ).handleBoot()
+            getMaxBuckets = { 1 },
+            getTokenBucketFactory = { tokenBucketFactory },
+        ).handleLinuxReboot()
 
         verify(exactly = 1) {
             storage.writeMap(
@@ -145,12 +145,39 @@ class TokenBucketStoreTest {
         val storageProvider = spyk(MockTokenBucketStorage(map = StoredTokenBucketMap()))
         val store = TokenBucketStore(
             storage = storageProvider,
-            maxBuckets = 1,
-            tokenBucketFactory = tokenBucketFactory,
+            getMaxBuckets = { 1 },
+            getTokenBucketFactory = { tokenBucketFactory },
         )
         store.edit { }
         store.edit { }
         // Only read once from store:
         verify(exactly = 1) { storageProvider.readMap() }
+    }
+
+    @Test
+    fun reset() {
+        val storage = MockTokenBucketStorage(
+            map = StoredTokenBucketMap(
+                mapOf(
+                    key to StoredTokenBucket(
+                        count = 0,
+                        capacity = capacity,
+                        period = BoxedDuration(period),
+                        periodStartElapsedRealtime = BoxedDuration(mockElapsedRealtime.now)
+                    )
+                )
+            )
+        )
+        val store = TokenBucketStore(
+            storage = storage,
+            getMaxBuckets = { 1 },
+            getTokenBucketFactory = { tokenBucketFactory },
+        )
+        assertEquals(true, store.edit { it.isFull })
+        assertEquals(false, store.edit { it.upsertBucket(key)?.take() })
+        store.reset()
+        assertEquals(StoredTokenBucketMap(), storage.map)
+        assertEquals(false, store.edit { it.isFull })
+        assertEquals(true, store.edit { it.upsertBucket(key)?.take() })
     }
 }

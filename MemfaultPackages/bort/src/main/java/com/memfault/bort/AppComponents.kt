@@ -2,6 +2,7 @@ package com.memfault.bort
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.res.Resources
 import android.os.Looper
 import androidx.preference.PreferenceManager
 import androidx.work.Data
@@ -18,6 +19,12 @@ import com.memfault.bort.http.GzipRequestInterceptor
 import com.memfault.bort.http.LoggingNetworkInterceptor
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.ingress.IngressService
+import com.memfault.bort.logcat.LogcatCollectionTask
+import com.memfault.bort.logcat.LogcatCollector
+import com.memfault.bort.logcat.NextLogcatCidProvider
+import com.memfault.bort.logcat.RealNextLogcatCidProvider
+import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
+import com.memfault.bort.logcat.runLogcat
 import com.memfault.bort.metrics.BatteryStatsHistoryCollector
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.MetricsCollectionTask
@@ -26,10 +33,29 @@ import com.memfault.bort.metrics.RealNextBatteryStatsHistoryStartProvider
 import com.memfault.bort.metrics.SharedPreferencesMetricRegistry
 import com.memfault.bort.metrics.runBatteryStats
 import com.memfault.bort.requester.BugReportRequestWorker
+import com.memfault.bort.requester.BugReportRequester
+import com.memfault.bort.requester.LogcatCollectionRequester
+import com.memfault.bort.requester.MetricsCollectionRequester
+import com.memfault.bort.requester.PeriodicWorkRequester
+import com.memfault.bort.settings.BortEnabledProvider
+import com.memfault.bort.settings.DynamicSettingsProvider
+import com.memfault.bort.settings.PeriodicRequesterRestartTask
+import com.memfault.bort.settings.RealStoredSettingsPreferenceProvider
+import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.SettingsUpdateRequester
+import com.memfault.bort.settings.SettingsUpdateService
+import com.memfault.bort.settings.SettingsUpdateTask
+import com.memfault.bort.settings.StoredSettingsPreferenceProvider
+import com.memfault.bort.settings.realSettingsUpdateCallback
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.time.RealBootRelativeTimeProvider
 import com.memfault.bort.time.RealCombinedTimeProvider
+import com.memfault.bort.tokenbucket.RealTokenBucketFactory
+import com.memfault.bort.tokenbucket.TokenBucketStore
+import com.memfault.bort.tokenbucket.TokenBucketStoreRegistry
+import com.memfault.bort.tokenbucket.createAndRegisterStore
 import com.memfault.bort.uploader.EnqueueFileUpload
+import com.memfault.bort.uploader.FileUploadHoldingArea
 import com.memfault.bort.uploader.FileUploadTask
 import com.memfault.bort.uploader.HttpTask
 import com.memfault.bort.uploader.HttpTaskCallFactory
@@ -63,9 +89,16 @@ data class AppComponents(
     val ingressService: IngressService,
     val reporterServiceConnector: ReporterServiceConnector,
     val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
+    val fileUploadHoldingArea: FileUploadHoldingArea,
+    val settingsUpdateServiceFactory: () -> SettingsUpdateService,
+    val periodicWorkRequesters: List<PeriodicWorkRequester>,
+    val tokenBucketStoreRegistry: TokenBucketStoreRegistry,
+    val bugReportRequestsTokenBucketStore: TokenBucketStore,
+    val rebootEventTokenBucketStore: TokenBucketStore,
 ) {
     open class Builder(
         private val context: Context,
+        private val resources: Resources = context.resources,
         private val sharedPreferences: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(
             context
         ),
@@ -87,7 +120,17 @@ data class AppComponents(
         var extraDropBoxEntryProcessors: Map<String, EntryProcessor> = emptyMap()
 
         fun build(): AppComponents {
-            val settingsProvider = settingsProvider ?: BuildConfigSettingsProvider()
+            val storedSettingsPreferenceProvider = RealStoredSettingsPreferenceProvider(
+                sharedPreferences = sharedPreferences,
+                getBundledConfig = {
+                    resources.assets
+                        .open(DEFAULT_SETTINGS_ASSET_FILENAME)
+                        .use {
+                            it.bufferedReader().readText()
+                        }
+                }
+            )
+            val settingsProvider = settingsProvider ?: DynamicSettingsProvider(storedSettingsPreferenceProvider)
             val deviceIdProvider = deviceIdProvider ?: RandomUuidDeviceIdProvider(sharedPreferences)
             val deviceInfoProvider = RealDeviceInfoProvider(settingsProvider.deviceInfoSettings)
             val fileUploaderFactory =
@@ -135,24 +178,125 @@ data class AppComponents(
             val packageManagerClient = PackageManagerClient(reporterServiceConnector)
             val enqueueFileUpload: EnqueueFileUpload = { file, metadata, debugTag ->
                 enqueueFileUploadTask(
-                    context, file, metadata, settingsProvider.httpApiSettings.uploadConstraints, debugTag
+                    context, file, metadata, settingsProvider.httpApiSettings::uploadConstraints, debugTag
                 )
             }
             val builtinMetricsStore = BuiltinMetricsStore(
                 registry = SharedPreferencesMetricRegistry(metricsSharedPreferences)
             )
+            val fileUploadHoldingArea = FileUploadHoldingArea(
+                sharedPreferences = context.getSharedPreferences(
+                    FILE_UPLOAD_HOLDING_AREA_PREFERENCE_FILE_NAME,
+                    Context.MODE_PRIVATE
+                ),
+                enqueueFileUpload = enqueueFileUpload,
+                resetEventTimeout = { FileUploadHoldingAreaTimeoutTask.reschedule(context) },
+                getTrailingMargin = settingsProvider.fileUploadHoldingAreaSettings::trailingMargin,
+                getEventOfInterestTTL = settingsProvider.logcatSettings::collectionInterval,
+                getMaxStoredEventsOfInterest = settingsProvider
+                    .fileUploadHoldingAreaSettings::maxStoredEventsOfInterest,
+            )
+
+            val tokenBucketStoreRegistry = TokenBucketStoreRegistry()
+            val bugReportRequestsTokenBucketStore = tokenBucketStoreRegistry.createAndRegisterStore(
+                context, "bug_report_requests"
+            ) { storage ->
+                TokenBucketStore(
+                    storage = storage,
+                    getMaxBuckets = { settingsProvider.bugReportSettings.rateLimitingSettings.maxBuckets },
+                    getTokenBucketFactory = {
+                        RealTokenBucketFactory.from(settingsProvider.bugReportSettings.rateLimitingSettings)
+                    },
+                )
+            }
+            val rebootEventTokenBucketStore = tokenBucketStoreRegistry.createAndRegisterStore(
+                context, "reboot_events"
+            ) { storage ->
+                TokenBucketStore(
+                    storage = storage,
+                    getMaxBuckets = { settingsProvider.rebootEventsSettings.rateLimitingSettings.maxBuckets },
+                    getTokenBucketFactory = {
+                        RealTokenBucketFactory.from(settingsProvider.rebootEventsSettings.rateLimitingSettings)
+                    },
+                )
+            }
+            val dropBoxSettings = settingsProvider.dropBoxSettings
+            val nextLogcatCidProvider = RealNextLogcatCidProvider(sharedPreferences)
             val dropBoxEntryProcessors = realDropBoxEntryProcessors(
                 tempFileFactory = temporaryFileFactory,
                 bootRelativeTimeProvider = bootRelativeTimeProvider,
                 enqueueFileUpload = enqueueFileUpload,
+                nextLogcatCidProvider = nextLogcatCidProvider,
                 packageManagerClient = packageManagerClient,
                 deviceInfoProvider = deviceInfoProvider,
-                sharedPreferences = sharedPreferences,
                 builtinMetricsStore = builtinMetricsStore,
+                handleEventOfInterest = fileUploadHoldingArea::handleEventOfInterest,
+                tombstoneTokenBucketStore = tokenBucketStoreRegistry.createAndRegisterStore(
+                    context, "tombstones"
+                ) {
+                    storage ->
+                    TokenBucketStore(
+                        storage = storage,
+                        getMaxBuckets = { dropBoxSettings.tombstonesRateLimitingSettings.maxBuckets },
+                        getTokenBucketFactory = {
+                            RealTokenBucketFactory.from(dropBoxSettings.tombstonesRateLimitingSettings)
+                        },
+                    )
+                },
+                javaExceptionTokenBucketStore = tokenBucketStoreRegistry.createAndRegisterStore(
+                    context, "java_execeptions"
+                ) { storage ->
+                    TokenBucketStore(
+                        storage = storage,
+                        // Note: the backtrace signature is used as key, so one bucket per issue basically.
+                        getMaxBuckets = { dropBoxSettings.javaExceptionsRateLimitingSettings.maxBuckets },
+                        getTokenBucketFactory = {
+                            RealTokenBucketFactory.from(dropBoxSettings.javaExceptionsRateLimitingSettings)
+                        },
+                    )
+                },
+                anrTokenBucketStore =
+                    tokenBucketStoreRegistry.createAndRegisterStore(context, "anrs") { storage ->
+                        TokenBucketStore(
+                            storage = storage,
+                            getMaxBuckets = { dropBoxSettings.anrRateLimitingSettings.maxBuckets },
+                            getTokenBucketFactory = {
+                                RealTokenBucketFactory.from(dropBoxSettings.anrRateLimitingSettings)
+                            },
+                        )
+                    },
+                kmsgTokenBucketStore =
+                    tokenBucketStoreRegistry.createAndRegisterStore(context, "kmsgs") { storage ->
+                        TokenBucketStore(
+                            storage = storage,
+                            getMaxBuckets = { dropBoxSettings.kmsgsRateLimitingSettings.maxBuckets },
+                            getTokenBucketFactory = {
+                                RealTokenBucketFactory.from(dropBoxSettings.kmsgsRateLimitingSettings)
+                            },
+                        )
+                    },
             ) + extraDropBoxEntryProcessors
 
             val pendingBugReportRequestAccessor = PendingBugReportRequestAccessor(
                 storage = RealPendingBugReportRequestStorage(sharedPreferences),
+            )
+
+            val settingsUpdateServiceFactory = {
+                SettingsUpdateService.create(
+                    okHttpClient = okHttpClient,
+                    deviceBaseUrl = settingsProvider.httpApiSettings.deviceBaseUrl
+                )
+            }
+
+            val periodicWorkRequesters = listOf(
+                SettingsUpdateRequester(
+                    context = context,
+                    httpApiSettings = settingsProvider.httpApiSettings,
+                    getUpdateInterval = settingsProvider::settingsUpdateInterval
+                ),
+                MetricsCollectionRequester(context, settingsProvider.metricsSettings),
+                BugReportRequester(context, settingsProvider.bugReportSettings),
+                LogcatCollectionRequester(context, settingsProvider.logcatSettings),
             )
 
             val workerFactory = DefaultWorkerFactory(
@@ -165,14 +309,77 @@ data class AppComponents(
                 reporterServiceConnector = reporterServiceConnector,
                 dropBoxEntryProcessors = dropBoxEntryProcessors,
                 enqueueFileUpload = enqueueFileUpload,
+                nextLogcatCidProvider = nextLogcatCidProvider,
                 temporaryFileFactory = temporaryFileFactory,
                 pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
                 builtinMetricsStore = builtinMetricsStore,
+                fileUploadHoldingArea = fileUploadHoldingArea,
+                settingsUpdateServiceFactory = settingsUpdateServiceFactory,
+                deviceInfoProvider = deviceInfoProvider,
+                storedSettingsPreferenceProvider = storedSettingsPreferenceProvider,
+                periodicWorkRequesters = periodicWorkRequesters,
+                // Rate limiting for periodic tasks:
+                // The periodic tasks are driven by the WorkManager and should be low frequency (> 15 min intervals), but
+                // when the SDK is disabled/re-enabled or when dynamic settings change, the tasks are restarted and immediately
+                // run. The period is half the task's interval, to make it highly unlikely the bucket will be empty when the
+                // task is run under normal conditions.
+                bugReportPeriodicTaskTokenBucketStore =
+                    tokenBucketStoreRegistry.createAndRegisterStore(context, "bug_report_periodic") { storage ->
+                        TokenBucketStore(
+                            storage = storage,
+                            getMaxBuckets = { 1 },
+                            getTokenBucketFactory = {
+                                RealTokenBucketFactory(
+                                    defaultCapacity = 2,
+                                    defaultPeriod = settingsProvider.bugReportSettings.requestInterval / 2,
+                                )
+                            },
+                        )
+                    },
+                logcatPeriodicTaskTokenBucketStore =
+                    tokenBucketStoreRegistry.createAndRegisterStore(context, "logcat_periodic") { storage ->
+                        TokenBucketStore(
+                            storage = storage,
+                            getMaxBuckets = { 1 },
+                            getTokenBucketFactory = {
+                                RealTokenBucketFactory(
+                                    defaultCapacity = 2,
+                                    defaultPeriod = settingsProvider.logcatSettings.collectionInterval / 2,
+                                )
+                            },
+                        )
+                    },
+                metricsPeriodicTaskTokenBucketStore =
+                    tokenBucketStoreRegistry.createAndRegisterStore(context, "metrics_periodic") { storage ->
+                        TokenBucketStore(
+                            storage = storage,
+                            getMaxBuckets = { 1 },
+                            getTokenBucketFactory = {
+                                RealTokenBucketFactory(
+                                    defaultCapacity = 2,
+                                    defaultPeriod = settingsProvider.metricsSettings.collectionInterval / 2,
+                                )
+                            },
+                        )
+                    },
+                settingsUpdatePeriodicTaskTokenBucketStore =
+                    tokenBucketStoreRegistry.createAndRegisterStore(context, "settings_update_periodic") { storage ->
+                        TokenBucketStore(
+                            storage = storage,
+                            getMaxBuckets = { 1 },
+                            getTokenBucketFactory = {
+                                RealTokenBucketFactory(
+                                    defaultCapacity = 2,
+                                    defaultPeriod = settingsProvider.settingsUpdateInterval / 2,
+                                )
+                            },
+                        )
+                    },
                 interceptingFactory = interceptingWorkerFactory,
             )
 
             val httpTaskCallFactory = HttpTaskCallFactory.fromContextAndConstraints(
-                context, settingsProvider.httpApiSettings.uploadConstraints, projectKeyInjectingInterceptor
+                context, settingsProvider.httpApiSettings::uploadConstraints, projectKeyInjectingInterceptor
             )
 
             return AppComponents(
@@ -188,6 +395,12 @@ data class AppComponents(
                 ingressService = IngressService.create(settingsProvider.httpApiSettings, httpTaskCallFactory),
                 reporterServiceConnector = reporterServiceConnector,
                 pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
+                fileUploadHoldingArea = fileUploadHoldingArea,
+                settingsUpdateServiceFactory = settingsUpdateServiceFactory,
+                periodicWorkRequesters = periodicWorkRequesters,
+                tokenBucketStoreRegistry = tokenBucketStoreRegistry,
+                bugReportRequestsTokenBucketStore = bugReportRequestsTokenBucketStore,
+                rebootEventTokenBucketStore = rebootEventTokenBucketStore,
             )
         }
     }
@@ -221,6 +434,7 @@ interface InterceptingWorkerFactory {
         settingsProvider: SettingsProvider,
         reporterServiceConnector: ReporterServiceConnector,
         pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
+        bugReportPeriodicTaskTokenBucketStore: TokenBucketStore,
     ): ListenableWorker?
 }
 
@@ -234,9 +448,19 @@ class DefaultWorkerFactory(
     private val reporterServiceConnector: ReporterServiceConnector,
     private val dropBoxEntryProcessors: Map<String, EntryProcessor>,
     private val enqueueFileUpload: EnqueueFileUpload,
+    private val nextLogcatCidProvider: NextLogcatCidProvider,
     private val temporaryFileFactory: TemporaryFileFactory,
     private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
     private val builtinMetricsStore: BuiltinMetricsStore,
+    private val fileUploadHoldingArea: FileUploadHoldingArea,
+    private val settingsUpdateServiceFactory: () -> SettingsUpdateService,
+    private val deviceInfoProvider: DeviceInfoProvider,
+    private val storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider,
+    private val periodicWorkRequesters: List<PeriodicWorkRequester>,
+    private val bugReportPeriodicTaskTokenBucketStore: TokenBucketStore,
+    private val logcatPeriodicTaskTokenBucketStore: TokenBucketStore,
+    private val metricsPeriodicTaskTokenBucketStore: TokenBucketStore,
+    private val settingsUpdatePeriodicTaskTokenBucketStore: TokenBucketStore,
     private val interceptingFactory: InterceptingWorkerFactory? = null,
 ) : WorkerFactory(), TaskFactory {
     override fun createWorker(
@@ -251,6 +475,7 @@ class DefaultWorkerFactory(
             settingsProvider,
             reporterServiceConnector,
             pendingBugReportRequestAccessor,
+            bugReportPeriodicTaskTokenBucketStore,
         )?.let {
             return it
         }
@@ -266,6 +491,7 @@ class DefaultWorkerFactory(
                 appContext = appContext,
                 workerParameters = workerParameters,
                 pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
+                tokenBucketStore = bugReportPeriodicTaskTokenBucketStore,
             )
             else -> null
         }
@@ -279,7 +505,7 @@ class DefaultWorkerFactory(
             FileUploadTask::class.qualifiedName -> FileUploadTask(
                 delegate = fileUploaderFactory.create(retrofit, settingsProvider.httpApiSettings.projectKey),
                 bortEnabledProvider = bortEnabledProvider,
-                maxAttempts = settingsProvider.bugReportSettings.maxUploadAttempts,
+                getMaxAttempts = { settingsProvider.bugReportSettings.maxUploadAttempts },
                 getUploadCompressionEnabled = { settingsProvider.httpApiSettings.uploadCompressionEnabled },
             )
             DropBoxGetEntriesTask::class.qualifiedName -> DropBoxGetEntriesTask(
@@ -295,14 +521,48 @@ class DefaultWorkerFactory(
                     runBatteryStats = reporterServiceConnector::runBatteryStats,
                 ),
                 enqueueFileUpload = enqueueFileUpload,
+                nextLogcatCidProvider = nextLogcatCidProvider,
                 combinedTimeProvider = RealCombinedTimeProvider(context),
                 lastHeartbeatEndTimeProvider = RealLastHeartbeatEndTimeProvider(sharedPreferences),
                 deviceInfoProvider = RealDeviceInfoProvider(settingsProvider.deviceInfoSettings),
                 builtinMetricsStore = builtinMetricsStore,
+                tokenBucketStore = metricsPeriodicTaskTokenBucketStore,
             )
             BugReportRequestTimeoutTask::class.qualifiedName -> BugReportRequestTimeoutTask(
                 context = context,
                 pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
+            )
+            LogcatCollectionTask::class.qualifiedName -> LogcatCollectionTask(
+                logcatSettings = settingsProvider.logcatSettings,
+                logcatCollector = LogcatCollector(
+                    temporaryFileFactory = temporaryFileFactory,
+                    nextLogcatStartTimeProvider = RealNextLogcatStartTimeProvider(sharedPreferences),
+                    nextLogcatCidProvider = RealNextLogcatCidProvider(sharedPreferences),
+                    runLogcat = reporterServiceConnector::runLogcat,
+                    filterSpecsConfig = settingsProvider.logcatSettings::filterSpecs,
+                ),
+                fileUploadHoldingArea = fileUploadHoldingArea,
+                combinedTimeProvider = RealCombinedTimeProvider(context),
+                deviceInfoProvider = RealDeviceInfoProvider(settingsProvider.deviceInfoSettings),
+                tokenBucketStore = logcatPeriodicTaskTokenBucketStore,
+            )
+            FileUploadHoldingAreaTimeoutTask::class.qualifiedName -> FileUploadHoldingAreaTimeoutTask(
+                fileUploadHoldingArea = fileUploadHoldingArea,
+            )
+            SettingsUpdateTask::class.qualifiedName -> SettingsUpdateTask(
+                deviceInfoProvider = deviceInfoProvider,
+                settingsUpdateServiceFactory = settingsUpdateServiceFactory,
+                settingsProvider = settingsProvider,
+                storedSettingsPreferenceProvider = storedSettingsPreferenceProvider,
+                settingsUpdateCallback = realSettingsUpdateCallback(
+                    context,
+                    reporterServiceConnector,
+                ),
+                tokenBucketStore = settingsUpdatePeriodicTaskTokenBucketStore,
+            )
+            PeriodicRequesterRestartTask::class.qualifiedName -> PeriodicRequesterRestartTask(
+                getMaxAttempts = { 1 },
+                periodicWorkRequesters = periodicWorkRequesters,
             )
             else -> null
         }

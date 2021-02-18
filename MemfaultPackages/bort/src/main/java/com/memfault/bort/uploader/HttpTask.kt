@@ -112,7 +112,7 @@ class HttpTask(
     private val okHttpClient: OkHttpClient
 ) : Task<HttpTaskInput>() {
 
-    override val maxAttempts: Int = DEFAULT_MAX_ATTEMPTS
+    override val getMaxAttempts: () -> Int = { DEFAULT_MAX_ATTEMPTS }
     override fun getMaxAttempts(input: HttpTaskInput): Int = input.maxAttempts
 
     override suspend fun doWork(worker: TaskRunnerWorker, input: HttpTaskInput): TaskResult {
@@ -169,13 +169,13 @@ class HttpTaskCallFactory(
     companion object {
         fun fromContextAndConstraints(
             context: Context,
-            uploadConstraints: Constraints,
+            getUploadConstraints: () -> Constraints,
             projectKeyInjectingInterceptor: ProjectKeyInjectingInterceptor
         ) =
             HttpTaskCallFactory(
                 { input ->
                     enqueueWorkOnce<HttpTask>(context, input.toWorkerInputData()) {
-                        setConstraints(uploadConstraints)
+                        setConstraints(getUploadConstraints())
                         setBackoffCriteria(BackoffPolicy.EXPONENTIAL, input.backoffDuration.toJavaDuration())
                         input.taskTags.forEach { tag -> addTag(tag) }
                     }

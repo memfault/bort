@@ -6,6 +6,7 @@ import com.memfault.bort.BugReportFileUploadPayload
 import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.INTENT_ACTION_BUGREPORT_FINISHED
 import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
+import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.shared.INTENT_EXTRA_BUG_REPORT_REQUEST_ID
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.uploader.BugReportFileUploadContinuation
@@ -28,7 +29,7 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
         val file = File(bugreportPath)
         if (!success) {
             Logger.w("Bug report request timed out, not uploading!")
-            try { file.delete() } catch (e: Exception) {}
+            file.deleteSilently()
             return
         }
 
@@ -46,7 +47,7 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
                 ),
                 requestId = requestId,
             ),
-            uploadConstraints = settingsProvider.httpApiSettings.uploadConstraints,
+            getUploadConstraints = settingsProvider.httpApiSettings::uploadConstraints,
             debugTag = WORK_TAG,
             continuation = request?.let {
                 BugReportFileUploadContinuation(

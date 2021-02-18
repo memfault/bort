@@ -5,16 +5,24 @@ import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.CombinedTime
 import java.io.File
 import java.util.TimeZone
+import java.util.UUID
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import retrofit2.Retrofit
 
 @Serializable
-data class FileUploadToken(
+data class FileUploadTokenOnly(
     val token: String
 )
 
-val FILE_UPLOAD_TOKEN_EMPTY = FileUploadToken(token = "")
+val FILE_UPLOAD_TOKEN_EMPTY = FileUploadTokenOnly(token = "")
+
+@Serializable
+data class FileUploadToken(
+    val token: String = "",
+    val md5: String,
+    val name: String,
+)
 
 @Serializable
 sealed class FileUploadPayload {
@@ -39,7 +47,7 @@ sealed class FileUploadPayload {
 @Serializable
 @SerialName("bugreport")
 data class BugReportFileUploadPayload(
-    val file: FileUploadToken = FILE_UPLOAD_TOKEN_EMPTY,
+    val file: FileUploadTokenOnly = FILE_UPLOAD_TOKEN_EMPTY,
 
     @SerialName("processing_options")
     val processingOptions: ProcessingOptions = ProcessingOptions(),
@@ -95,6 +103,8 @@ data class HeartbeatFileUploadPayload(
 
     val attachments: Attachments,
 
+    @SerialName("cid_ref")
+    val cidReference: LogcatCollectionId,
 ) : FileUploadPayload() {
     @Serializable
     data class Attachments(
@@ -102,22 +112,15 @@ data class HeartbeatFileUploadPayload(
         val batteryStats: BatteryStats,
     ) {
         @Serializable
-        data class FileEntry(
-            val token: String = "",
-            val md5: String,
-            val name: String,
-        )
-
-        @Serializable
         data class BatteryStats(
-            val file: FileEntry,
+            val file: FileUploadToken,
         )
     }
 }
 
 @Serializable
 data class DropBoxEntryFileUploadPayload(
-    val file: FileUploadToken = FILE_UPLOAD_TOKEN_EMPTY,
+    val file: FileUploadTokenOnly = FILE_UPLOAD_TOKEN_EMPTY,
 
     @SerialName("hardware_version")
     val hardwareVersion: String,
@@ -131,7 +134,44 @@ data class DropBoxEntryFileUploadPayload(
     @SerialName("software_type")
     val softwareType: String = SOFTWARE_TYPE,
 
+    @SerialName("cid_ref")
+    val cidReference: LogcatCollectionId,
+
     val metadata: DropBoxEntryFileUploadMetadata,
+) : FileUploadPayload()
+
+@Serializable
+data class LogcatCollectionId(
+    @Serializable(with = UUIDAsString::class)
+    val uuid: UUID,
+)
+
+@Serializable
+@SerialName("logcat")
+data class LogcatFileUploadPayload(
+    val file: FileUploadToken,
+
+    @SerialName("hardware_version")
+    val hardwareVersion: String,
+
+    @SerialName("device_serial")
+    val deviceSerial: String,
+
+    @SerialName("software_version")
+    val softwareVersion: String,
+
+    @SerialName("software_type")
+    val softwareType: String = SOFTWARE_TYPE,
+
+    @SerialName("collection_time")
+    val collectionTime: CombinedTime,
+
+    val command: List<String>,
+
+    val cid: LogcatCollectionId,
+
+    @SerialName("next_cid")
+    val nextCid: LogcatCollectionId,
 ) : FileUploadPayload()
 
 @Serializable

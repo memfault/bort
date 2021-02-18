@@ -1,3 +1,5 @@
+import static com.memfault.bort.buildsrc.BortSettingsDownloaderKt.getBortSettingsAssetsPath
+
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
@@ -6,6 +8,7 @@ apply from: "../properties.gradle"
 
 def keystoreProperties = loadKeystoreProperties()
 def keystoreFilePath = getKeystoreFilePath()
+def generatedSettingsAssets = getBortSettingsAssetsPath(project.rootProject.rootDir)
 
 android {
     compileSdkVersion versions.compileSdk
@@ -22,34 +25,8 @@ android {
         versionCode loadVersionCode() as Integer
         versionName loadVersionName() as String
 
-        buildConfigField "String", "MEMFAULT_FILES_BASE_URL", "\"$MEMFAULT_FILES_BASE_URL\""
-        buildConfigField "String", "MEMFAULT_INGRESS_BASE_URL", "\"$MEMFAULT_INGRESS_BASE_URL\""
-
         buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "\"" + bortProperty("MEMFAULT_PROJECT_API_KEY") + "\""
-        buildConfigField "Boolean", "UPLOAD_NETWORK_CONSTRAINT_ALLOW_METERED_CONNECTION", bortProperty("UPLOAD_NETWORK_CONSTRAINT_ALLOW_METERED_CONNECTION")
-        buildConfigField "int", "MINIMUM_LOG_LEVEL", bortProperty("MINIMUM_LOG_LEVEL")
         buildConfigField "Boolean", "RUNTIME_ENABLE_REQUIRED", bortProperty("RUNTIME_ENABLE_REQUIRED")
-        buildConfigField "Boolean", "UPLOAD_COMPRESSION_ENABLED", bortProperty("UPLOAD_COMPRESSION_ENABLED")
-
-        buildConfigField "String", "ANDROID_BUILD_VERSION_SOURCE", "\"" + bortSystemPropertyConfigProperty("ANDROID_BUILD_VERSION_SOURCE") + "\""
-        buildConfigField "String", "ANDROID_BUILD_VERSION_KEY", "\"" + bortSystemPropertyConfigProperty("ANDROID_BUILD_VERSION_KEY") + "\""
-        buildConfigField "String", "ANDROID_HARDWARE_VERSION_KEY", "\"" + bortSystemPropertyConfigProperty("ANDROID_HARDWARE_VERSION_KEY") + "\""
-        buildConfigField "String", "ANDROID_DEVICE_SERIAL_KEY", "\"" + bortSystemPropertyConfigProperty("ANDROID_DEVICE_SERIAL_KEY") + "\""
-
-        // Data Sources
-        buildConfigField "Boolean", "DATA_SOURCE_BUG_REPORTS_ENABLED", bortProperty("DATA_SOURCE_BUG_REPORTS_ENABLED")
-        buildConfigField "Boolean", "DATA_SOURCE_DROP_BOX_ENABLED", bortProperty("DATA_SOURCE_CALIPER_DROP_BOX_TRACES_ENABLED")
-        buildConfigField "Boolean", "DATA_SOURCE_METRICS_ENABLED", bortProperty("DATA_SOURCE_CALIPER_METRICS_ENABLED")
-        buildConfigField "Boolean", "DATA_SOURCE_BATTERY_STATS_ENABLED", bortProperty("DATA_SOURCE_CALIPER_BATTERYSTATS_ENABLED")
-
-        // Bug Report Settings
-        buildConfigField "int", "BUG_REPORT_REQUEST_INTERVAL_HOURS", bortProperty("BUG_REPORT_REQUEST_INTERVAL_HOURS")
-        buildConfigField "int", "FIRST_BUG_REPORT_DELAY_AFTER_BOOT_MINUTES", bortProperty("FIRST_BUG_REPORT_DELAY_AFTER_BOOT_MINUTES")
-        buildConfigField "int", "BUG_REPORT_MAX_UPLOAD_ATTEMPTS", bortProperty("BUG_REPORT_MAX_UPLOAD_ATTEMPTS")
-        buildConfigField "Boolean", "BUG_REPORT_MINIMAL_MODE", bortProperty("BUG_REPORT_MINIMAL_MODE")
-
-        // Metrics Settings
-        buildConfigField "int", "METRICS_HEARTBEAT_INTERVAL_MINUTES", bortProperty("METRICS_HEARTBEAT_INTERVAL_MINUTES")
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -75,6 +52,9 @@ android {
         // Used for CI. Do not use for production.
         releaseTest {
             initWith release
+            buildConfigField "String", "MEMFAULT_FILES_BASE_URL", "\"$MEMFAULT_FILES_BASE_URL\""
+            buildConfigField "String", "MEMFAULT_INGRESS_BASE_URL", "\"$MEMFAULT_INGRESS_BASE_URL\""
+            buildConfigField "String", "MEMFAULT_DEVICE_BASE_URL", "\"$MEMFAULT_API_BASE_URL\""
         }
     }
 
@@ -96,6 +76,7 @@ android {
     sourceSets {
         main {
             aidl.srcDirs = ['../../MemfaultDumpster/binder']
+            assets.srcDirs += [generatedSettingsAssets]
         }
     }
 
@@ -131,8 +112,6 @@ dependencies {
     testImplementation deps.test.junitEngine
     testImplementation deps.test.coroutines
     testImplementation deps.test.mockk
-    testImplementation deps.test.mockito
-    testImplementation deps.test.mockitoKotlin
     testImplementation deps.test.mockWebServer
 }
 

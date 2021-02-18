@@ -2,10 +2,16 @@ package com.memfault.bort
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.memfault.bort.settings.FileUploadHoldingAreaSettings
+import com.memfault.bort.settings.HttpApiSettings
+import com.memfault.bort.settings.LogcatSettings
+import com.memfault.bort.settings.NetworkConstraint
+import com.memfault.bort.shared.LogcatFilterSpec
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import java.io.File
+import kotlin.time.minutes
 import org.junit.jupiter.api.Test
 
 class AppComponentsTest {
@@ -16,6 +22,8 @@ class AppComponentsTest {
         val context: Context = mockk {
             every { cacheDir } returns File("/tmp")
             every { getSharedPreferences(any(), any()) } returns makeFakeSharedPreferences()
+            every { packageName } returns "com.memfault.bort"
+            every { resources } returns mockk(relaxed = true)
         }
 
         val getStringDefaultSlot = slot<String>()
@@ -24,11 +32,13 @@ class AppComponentsTest {
             sharedPreferences.getString(any(), capture(getStringDefaultSlot))
         } answers { getStringDefaultSlot.captured }
 
-        AppComponents.Builder(context, sharedPreferences).apply {
+        AppComponents.Builder(context, context.resources, sharedPreferences).apply {
             settingsProvider = mockk {
+                every { bugReportSettings } returns mockk()
                 every { isRuntimeEnableRequired } returns true
                 every { httpApiSettings } returns object : HttpApiSettings {
                     override val filesBaseUrl = "https://test.com"
+                    override val deviceBaseUrl = "https://device.test.com"
                     override val ingressBaseUrl = "https://ingress.test.com"
                     override val uploadNetworkConstraint = NetworkConstraint.CONNECTED
                     override val uploadCompressionEnabled = true
@@ -36,6 +46,17 @@ class AppComponentsTest {
                 }
                 every { sdkVersionInfo } returns mockk()
                 every { deviceInfoSettings } returns mockk()
+                every { dropBoxSettings } returns mockk()
+                every { logcatSettings } returns object : LogcatSettings {
+                    override val dataSourceEnabled = true
+                    override val collectionInterval = 15.minutes
+                    override val filterSpecs: List<LogcatFilterSpec> = emptyList()
+                }
+                every { fileUploadHoldingAreaSettings } returns object : FileUploadHoldingAreaSettings {
+                    override val trailingMargin = 5.minutes
+                    override val maxStoredEventsOfInterest = 10
+                }
+                every { metricsSettings } returns mockk()
             }
             deviceIdProvider = mockk {
                 every { deviceId() } returns "abc"

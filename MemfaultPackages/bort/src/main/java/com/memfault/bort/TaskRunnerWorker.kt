@@ -35,7 +35,7 @@ enum class TaskResult {
 }
 
 abstract class Task<I> {
-    abstract val maxAttempts: Int
+    abstract val getMaxAttempts: () -> Int
 
     suspend fun doWork(worker: TaskRunnerWorker): TaskResult {
         val input = try {
@@ -55,7 +55,7 @@ abstract class Task<I> {
 
     open fun finally(input: I?) {}
 
-    open fun getMaxAttempts(input: I): Int = maxAttempts
+    open fun getMaxAttempts(input: I): Int = getMaxAttempts()
 
     abstract fun convertAndValidateInputData(inputData: Data): I
 }

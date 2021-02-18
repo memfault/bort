@@ -49,4 +49,10 @@ abstract class PreferenceKeyProvider<T>(
         }
         return value as Set<String>
     }
+
+    fun remove() {
+        sharedPreferences.edit()
+            .remove(preferenceKey)
+            .apply()
+    }
 }

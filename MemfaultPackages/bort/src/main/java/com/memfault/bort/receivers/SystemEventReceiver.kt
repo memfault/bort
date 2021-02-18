@@ -7,26 +7,26 @@ import androidx.preference.PreferenceManager
 import com.memfault.bort.AndroidBootReason
 import com.memfault.bort.BootCountTracker
 import com.memfault.bort.DumpsterClient
-import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_REBOOT_EVENT
+import com.memfault.bort.LinuxRebootTracker
 import com.memfault.bort.RealLastTrackedBootCountProvider
+import com.memfault.bort.RealLastTrackedLinuxBootIdProvider
 import com.memfault.bort.RebootEventUploader
-import com.memfault.bort.requester.BugReportRequester
-import com.memfault.bort.requester.MetricsCollectionRequester
+import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
+import com.memfault.bort.logcat.handleTimeChanged
+import com.memfault.bort.readLinuxBootId
+import com.memfault.bort.settings.applyReporterServiceSettings
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.tokenbucket.RealTokenBucketFactory
-import com.memfault.bort.tokenbucket.RealTokenBucketStorage
-import com.memfault.bort.tokenbucket.TokenBucketStore
-import kotlin.time.minutes
 
 class SystemEventReceiver : BortEnabledFilteringReceiver(
-    setOf(Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED)
+    setOf(
+        Intent.ACTION_BOOT_COMPLETED,
+        Intent.ACTION_MY_PACKAGE_REPLACED,
+        Intent.ACTION_TIME_CHANGED,
+    )
 ) {
 
-    private fun onPackageReplaced(context: Context) {
-        listOf(
-            MetricsCollectionRequester(context, settingsProvider.metricsSettings),
-            BugReportRequester(context, settingsProvider.bugReportSettings),
-        ).forEach {
+    private fun onPackageReplaced() {
+        periodicWorkRequesters.forEach {
             it.startPeriodic()
         }
     }
@@ -35,22 +35,26 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         Logger.logEvent("boot")
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
 
-        goAsync {
-            DumpsterClient().getprop()?.let { systemProperties ->
-                val tokenBucketStore = TokenBucketStore(
-                    storage = RealTokenBucketStorage(
-                        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context),
-                        preferenceKey = PREFERENCE_TOKEN_BUCKET_REBOOT_EVENT,
-                    ),
-                    maxBuckets = 1,
-                    tokenBucketFactory = RealTokenBucketFactory(defaultCapacity = 5, defaultPeriod = 15.minutes),
-                )
+        if (LinuxRebootTracker(
+                ::readLinuxBootId, RealLastTrackedLinuxBootIdProvider(sharedPreferences)
+            ).checkAndUnset()
+        ) {
+            tokenBucketStoreRegistry.handleLinuxReboot()
+            fileUploadHoldingArea.handleLinuxReboot()
+        }
 
+        goAsync {
+            applyReporterServiceSettings(
+                reporterServiceConnector,
+                settingsProvider,
+            )
+
+            DumpsterClient().getprop()?.let { systemProperties ->
                 val rebootEventUploader = RebootEventUploader(
                     ingressService = ingressService,
                     deviceInfo = deviceInfoProvider.getDeviceInfo(),
                     androidSysBootReason = systemProperties.get(AndroidBootReason.SYS_BOOT_REASON_KEY),
-                    tokenBucketStore = tokenBucketStore,
+                    tokenBucketStore = rebootEventTokenBucketStore,
                 )
 
                 val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
@@ -63,18 +67,22 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
             }
         }
 
-        listOf(
-            MetricsCollectionRequester(context, settingsProvider.metricsSettings),
-            BugReportRequester(context, settingsProvider.bugReportSettings),
-        ).forEach {
+        periodicWorkRequesters.forEach {
             it.startPeriodic(justBooted = true)
         }
     }
 
+    private fun onTimeChanged(context: Context) {
+        RealNextLogcatStartTimeProvider(
+            PreferenceManager.getDefaultSharedPreferences(context)
+        ).handleTimeChanged()
+    }
+
     override fun onReceivedAndEnabled(context: Context, intent: Intent, action: String) {
         when (action) {
-            Intent.ACTION_MY_PACKAGE_REPLACED -> onPackageReplaced(context)
+            Intent.ACTION_MY_PACKAGE_REPLACED -> onPackageReplaced()
             Intent.ACTION_BOOT_COMPLETED -> onBootCompleted(context)
+            Intent.ACTION_TIME_CHANGED -> onTimeChanged(context)
         }
     }
 }

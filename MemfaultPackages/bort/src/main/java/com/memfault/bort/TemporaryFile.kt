@@ -1,5 +1,6 @@
 package com.memfault.bort
 
+import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.shared.Logger
 import java.io.File
 
@@ -20,7 +21,7 @@ class TemporaryFile(
         return try {
             block(file) { shouldDelete = false }
         } finally {
-            if (shouldDelete && !file.delete()) {
+            if (shouldDelete && !file.deleteSilently()) {
                 Logger.w("Failed to delete $file")
             }
         }

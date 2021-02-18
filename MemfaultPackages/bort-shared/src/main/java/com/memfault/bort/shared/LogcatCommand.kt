@@ -5,6 +5,14 @@ import android.os.Bundle
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 
 /**
  * Usage: logcat [options] [filterspecs]
@@ -356,6 +364,7 @@ enum class LogcatBufferId(val id: Byte, val cliValue: String) {
  * https://android.googlesource.com/platform/system/logging/+/refs/heads/android10-release/liblog/include/android/log.h#66
  */
 
+@Serializable(with = LogcatPrioritySerializer::class)
 enum class LogcatPriority(val id: Byte, val cliValue: String) {
     VERBOSE(2, "V"),
     DEBUG(3, "D"),
@@ -367,9 +376,26 @@ enum class LogcatPriority(val id: Byte, val cliValue: String) {
 
     companion object {
         fun getById(id: Byte) = values().firstOrNull { it.id == id }
+        fun getByCliValue(cliValue: String) = values().firstOrNull { it.cliValue == cliValue }
     }
 }
 
+object LogcatPrioritySerializer : KSerializer<LogcatPriority> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor(
+        serialName = "com.memfault.bort.shared.LogcatPriority",
+        PrimitiveKind.STRING
+    )
+
+    override fun deserialize(decoder: Decoder): LogcatPriority =
+        LogcatPriority.getByCliValue(decoder.decodeString())
+            ?: throw SerializationException("could not decode priority using the provided cli value")
+
+    override fun serialize(encoder: Encoder, value: LogcatPriority) {
+        encoder.encodeString(value.cliValue)
+    }
+}
+
+@Serializable
 data class LogcatFilterSpec(val tag: String = "*", val priority: LogcatPriority?) {
     fun toBundle(): Bundle =
         Bundle().apply {

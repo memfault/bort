@@ -19,6 +19,7 @@ import com.memfault.bort.shared.DropBoxSetTagFilterRequest
 import com.memfault.bort.shared.DropBoxSetTagFilterResponse
 import com.memfault.bort.shared.ErrorResponse
 import com.memfault.bort.shared.ErrorResponseException
+import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatCommand
 import com.memfault.bort.shared.LogcatRequest
 import com.memfault.bort.shared.Logger
@@ -30,6 +31,8 @@ import com.memfault.bort.shared.ReporterServiceMessage
 import com.memfault.bort.shared.ServiceMessage
 import com.memfault.bort.shared.ServiceMessageConnection
 import com.memfault.bort.shared.ServiceMessageReplyHandler
+import com.memfault.bort.shared.SetLogLevelRequest
+import com.memfault.bort.shared.SetLogLevelResponse
 import com.memfault.bort.shared.SleepCommand
 import com.memfault.bort.shared.SleepRequest
 import com.memfault.bort.shared.UnexpectedResponseException
@@ -64,6 +67,7 @@ class RealReporterServiceConnector(
 }
 
 private const val MINIMUM_VALID_VERSION = 3
+private const val MINIMUM_VALID_VERSION_LOG_LEVEL = 4
 
 class ReporterClient(
     val connection: ReporterServiceConnection,
@@ -77,6 +81,11 @@ class ReporterClient(
         }.fold({ it }, { null }).also {
             version ->
             cachedVersion = version
+        }
+
+    suspend fun setLogLevel(level: LogLevel): StdResult<Unit> =
+        withVersion(context = "loglevel", minimumVersion = MINIMUM_VALID_VERSION_LOG_LEVEL) {
+            send(SetLogLevelRequest(level)) { _: SetLogLevelResponse -> }
         }
 
     suspend fun dropBoxSetTagFilter(includedTags: List<String>): StdResult<Unit> =

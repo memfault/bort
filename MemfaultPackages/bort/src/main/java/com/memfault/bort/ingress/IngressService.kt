@@ -1,8 +1,8 @@
 package com.memfault.bort.ingress
 
-import com.memfault.bort.HttpApiSettings
 import com.memfault.bort.http.ProjectKeyAuthenticated
 import com.memfault.bort.kotlinxJsonConverterFactory
+import com.memfault.bort.settings.HttpApiSettings
 import com.memfault.bort.uploader.HttpTaskCallFactory
 import com.memfault.bort.uploader.HttpTaskOptions
 import okhttp3.HttpUrl.Companion.toHttpUrl

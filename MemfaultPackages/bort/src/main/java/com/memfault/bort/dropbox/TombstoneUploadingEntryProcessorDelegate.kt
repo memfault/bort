@@ -1,39 +1,20 @@
 package com.memfault.bort.dropbox
 
-import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.PackageManagerClient
-import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.TombstoneFileUploadMetadata
-import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.parsers.NativeBacktraceParser
 import com.memfault.bort.parsers.TombstoneParser
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
-import com.memfault.bort.time.BootRelativeTimeProvider
-import com.memfault.bort.tokenbucket.TokenBucketStore
-import com.memfault.bort.uploader.EnqueueFileUpload
 import java.io.File
 import java.io.InputStream
 
-class TombstoneEntryProcessor(
-    tempFileFactory: TemporaryFileFactory,
-    enqueueFileUpload: EnqueueFileUpload,
-    bootRelativeTimeProvider: BootRelativeTimeProvider,
-    deviceInfoProvider: DeviceInfoProvider,
+class TombstoneUploadingEntryProcessorDelegate(
     private val packageManagerClient: PackageManagerClient,
-    tokenBucketStore: TokenBucketStore,
-    builtinMetricsStore: BuiltinMetricsStore,
-) : UploadingEntryProcessor(
-    tempFileFactory,
-    enqueueFileUpload,
-    bootRelativeTimeProvider,
-    deviceInfoProvider,
-    tokenBucketStore,
-    builtinMetricsStore,
-) {
+) : UploadingEntryProcessorDelegate {
     override val tags = listOf("SYSTEM_TOMBSTONE")
 
     override val debugTag: String

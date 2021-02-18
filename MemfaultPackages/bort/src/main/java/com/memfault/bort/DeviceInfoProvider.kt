@@ -1,5 +1,7 @@
 package com.memfault.bort
 
+import com.memfault.bort.settings.DeviceInfoSettings
+
 interface DeviceInfoProvider {
     suspend fun getDeviceInfo(): DeviceInfo
 }

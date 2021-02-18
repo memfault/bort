@@ -1,5 +1,38 @@
 # Memfault Bort Changelog
 
+## v3.3.0 - February 17, 2021
+
+#### :rocket: New Features
+
+- Dynamic SDK Settings: at run-time, Bort will now periodically fetch the SDK
+  settings from the Memfault web service, making it possible to change the
+  settings remotely, after shipping. Many settings that were previously
+  specified as build-time constants in `bort.properties` must now be configured
+  in the Memfault web app via your project's Settings page. When building
+  MemfaultBort.apk, the gradle build script will download the settings and place
+  it in a file called `MemfaultPackages/settings/settings.json`. This file is
+  used as initial SDK settings and also as fall-back, in case the settings from
+  the web service cannot be used.
+- A new "Caliper" data source has been added to collect logcat logs when issues
+  occur. By default, logs are collected in hunks of 15 minutes and are uploaded
+  only if issues occurred around that span of time. In the Memfault UI, the logs
+  can be found through the timeline of a device, or under the "Logs" tab of an
+  Issue detail page.
+
+#### :chart_with_upwards_trend: Improvements
+
+- File uploads are now gzip-compressed prior to uploading to save bandwidth.
+- A built-in metric `MemfaultSdkMetric_bort_version_code` has been added that
+  contains Bort's version code.
+
+#### :house: Internal
+
+- Fixed a bug that caused overly aggressive rate limiting under certain
+  conditions.
+- All periodic data collection tasks are now also rate limited, to avoid
+  uploading more data than desirable in case those tasks are triggered by
+  repeatedly enabling/disabling of the SDK.
+
 ## v3.2.0 - February 4, 2021
 
 #### :chart_with_upwards_trend: Improvements

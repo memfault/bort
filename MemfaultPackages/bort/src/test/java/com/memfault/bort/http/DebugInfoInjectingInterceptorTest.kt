@@ -1,8 +1,8 @@
 package com.memfault.bort.http
 
 import com.memfault.bort.DeviceIdProvider
-import com.nhaarman.mockitokotlin2.doReturn
-import com.nhaarman.mockitokotlin2.mock
+import io.mockk.every
+import io.mockk.mockk
 import okhttp3.Request
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -22,8 +22,8 @@ class DebugInfoInjectingInterceptorTest {
                 .url(url)
                 .build().also { request ->
                     DebugInfoInjectingInterceptor(
-                        mock(),
-                        mock<DeviceIdProvider>()
+                        mockk(),
+                        mockk(),
                     ).transformRequest(request).let {
                         assertEquals(url, it.url.toString())
                     }
@@ -43,15 +43,15 @@ class DebugInfoInjectingInterceptorTest {
                 .url(url)
                 .build().also { request ->
                     DebugInfoInjectingInterceptor(
-                        mock {
-                            on { upstreamVersionName } doReturn "version"
-                            on { upstreamVersionCode } doReturn 1
-                            on { upstreamGitSha } doReturn "sha"
-                            on { appVersionName } doReturn "appVersion"
-                            on { appVersionCode } doReturn 1
+                        mockk {
+                            every { upstreamVersionName } returns "version"
+                            every { upstreamVersionCode } returns 1
+                            every { upstreamGitSha } returns "sha"
+                            every { appVersionName } returns "appVersion"
+                            every { appVersionCode } returns 1
                         },
-                        mock<DeviceIdProvider>() {
-                            on { deviceId() } doReturn "DEMO"
+                        mockk<DeviceIdProvider>() {
+                            every { deviceId() } returns "DEMO"
                         }
                     ).transformRequest(request).let { result ->
                         result.url.queryParameterNames.also { queryParamNames ->

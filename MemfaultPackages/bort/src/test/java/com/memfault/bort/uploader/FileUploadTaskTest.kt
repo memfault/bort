@@ -56,7 +56,7 @@ class FileUploadTaskTest {
             FileUploadTask(
                 delegate = fakeFileUploader(),
                 bortEnabledProvider = BortEnabledTestProvider(),
-                maxAttempts = 3,
+                getMaxAttempts = { 3 },
                 getUploadCompressionEnabled = { true },
             ).doWork(worker)
         }

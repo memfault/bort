@@ -17,7 +17,7 @@ class BugReportRequestTimeoutTask(
     private val context: Context,
     private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
 ) : Task<String?>() {
-    override val maxAttempts: Int = 1
+    override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data): String? =
         inputData.getString(REQUEST_ID_INPUT_DATA_KEY)
 

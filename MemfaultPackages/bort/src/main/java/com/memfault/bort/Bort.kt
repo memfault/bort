@@ -49,12 +49,13 @@ open class Bort : Application(), Configuration.Provider {
             )
             Logger.v(
                 """
-                |Settings:
+                |Settings (${this.javaClass.simpleName}):
                 |  device=${appComponents().deviceIdProvider.deviceId()}
                 |  minLogLevel=$minLogLevel
                 |  isRuntimeEnableRequired=$isRuntimeEnableRequired
                 |  build=${Build.TYPE}
                 |Http Api Settings:
+                |  deviceBaseUrl=${httpApiSettings.deviceBaseUrl}
                 |  filesBaseUrl=${httpApiSettings.filesBaseUrl}
                 |  ingressBaseUrl=${httpApiSettings.ingressBaseUrl}
                 |  uploadNetworkConstraint=${httpApiSettings.uploadNetworkConstraint}

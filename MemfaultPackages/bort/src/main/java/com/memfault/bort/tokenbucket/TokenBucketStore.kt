@@ -31,15 +31,15 @@ fun TokenBucket.toStoredTokenBucket(): StoredTokenBucket = StoredTokenBucket(
 
 class TokenBucketStore(
     private val storage: TokenBucketStorage,
-    private val maxBuckets: Int,
-    private val tokenBucketFactory: TokenBucketFactory,
+    private val getMaxBuckets: () -> Int,
+    private val getTokenBucketFactory: () -> TokenBucketFactory,
     val elapsedRealtime: () -> Duration = ::realElapsedRealtime,
 ) {
     private val lock = ReentrantLock()
     private var cachedMap: Map<String, TokenBucket>? = null
 
-    fun handleBoot() = lock.withLock {
-        // After booting (BOOT_COMPLETED intent), so either full reboot or system server restart, the
+    fun handleLinuxReboot() = lock.withLock {
+        // After rebooting Linux, the
         // periodStartElapsedRealtime needs to be reset. We don't know the elapsedRealtime() value when the reboot
         // happened, so just "restart" to the current elapsedRealtime(). Effectively, the token feeding periods are
         // restarted and thus will the next token "feed" be delayed.
@@ -52,9 +52,17 @@ class TokenBucketStore(
         )
     }
 
+    /**
+     * For testing purposes: resets all token buckets.
+     */
+    fun reset() = lock.withLock {
+        storage.writeMap(StoredTokenBucketMap())
+        cachedMap = null
+    }
+
     private fun readMap() = cachedMap ?: storage.readMap().mapValues { (_, storedBucket) ->
         with(storedBucket) {
-            tokenBucketFactory.create(count, capacity, period.duration)
+            getTokenBucketFactory().create(count, capacity, period.duration)
         }
     }.also {
         cachedMap = it
@@ -74,8 +82,8 @@ class TokenBucketStore(
         val initialMap = readMap()
         val map = TokenBucketMap(
             initialMap = initialMap,
-            maxBuckets = maxBuckets,
-            tokenBucketFactory = tokenBucketFactory
+            maxBuckets = getMaxBuckets(),
+            tokenBucketFactory = getTokenBucketFactory()
         )
         return block(map).also {
             val finalMap = map.toMap()
@@ -85,3 +93,13 @@ class TokenBucketStore(
         }
     }
 }
+
+/**
+ * Convenience method that can be used in the case there's only need for
+ * a single key / bucket in the store.
+ */
+fun TokenBucketStore.takeSimple(key: String = "_", n: Int = 1): Boolean =
+    edit { map ->
+        val bucket = map.upsertBucket(key) ?: return@edit false
+        bucket.take(n)
+    }

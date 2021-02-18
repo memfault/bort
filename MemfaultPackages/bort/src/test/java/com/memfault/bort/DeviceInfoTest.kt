@@ -1,5 +1,7 @@
 package com.memfault.bort
 
+import com.memfault.bort.settings.AndroidBuildFormat
+import com.memfault.bort.settings.DeviceInfoSettings
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals

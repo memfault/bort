@@ -3,7 +3,7 @@ package com.memfault.bort.shared
 import android.util.EventLog
 import android.util.Log
 
-enum class LogLevel(internal val level: Int) {
+enum class LogLevel(val level: Int) {
     NONE(0),
     ERROR(1),
     WARN(2),

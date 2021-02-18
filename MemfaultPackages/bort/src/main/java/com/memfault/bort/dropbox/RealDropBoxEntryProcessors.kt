@@ -1,103 +1,74 @@
 package com.memfault.bort.dropbox
 
-import android.content.SharedPreferences
 import com.memfault.bort.DeviceInfoProvider
-import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_ANRS
-import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_JAVA_EXCEPTIONS
-import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_KMSG
-import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_TOMBSTONES
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.TemporaryFileFactory
+import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.time.BaseBootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
-import com.memfault.bort.tokenbucket.RealTokenBucketFactory
-import com.memfault.bort.tokenbucket.RealTokenBucketStorage
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueFileUpload
-import kotlin.time.minutes
 
 fun realDropBoxEntryProcessors(
     bootRelativeTimeProvider: BootRelativeTimeProvider,
     tempFileFactory: TemporaryFileFactory,
     enqueueFileUpload: EnqueueFileUpload,
+    nextLogcatCidProvider: NextLogcatCidProvider,
     packageManagerClient: PackageManagerClient,
     deviceInfoProvider: DeviceInfoProvider,
-    sharedPreferences: SharedPreferences,
     builtinMetricsStore: BuiltinMetricsStore,
+    handleEventOfInterest: (eventTime: BaseBootRelativeTime) -> Unit,
+    tombstoneTokenBucketStore: TokenBucketStore,
+    javaExceptionTokenBucketStore: TokenBucketStore,
+    anrTokenBucketStore: TokenBucketStore,
+    kmsgTokenBucketStore: TokenBucketStore,
 ): Map<String, EntryProcessor> {
-    val tombstoneEntryProcessor = TombstoneEntryProcessor(
+    val tombstoneEntryProcessor = UploadingEntryProcessor(
+        delegate = TombstoneUploadingEntryProcessorDelegate(
+            packageManagerClient = packageManagerClient,
+        ),
         tempFileFactory = tempFileFactory,
         enqueueFileUpload = enqueueFileUpload,
+        nextLogcatCidProvider = nextLogcatCidProvider,
         bootRelativeTimeProvider = bootRelativeTimeProvider,
         deviceInfoProvider = deviceInfoProvider,
-        packageManagerClient = packageManagerClient,
-        tokenBucketStore = TokenBucketStore(
-            storage = RealTokenBucketStorage(
-                sharedPreferences,
-                PREFERENCE_TOKEN_BUCKET_TOMBSTONES
-            ),
-            maxBuckets = 1,
-            tokenBucketFactory = RealTokenBucketFactory(
-                defaultCapacity = 10,
-                defaultPeriod = 15.minutes,
-            ),
-        ),
+        tokenBucketStore = tombstoneTokenBucketStore,
         builtinMetricsStore = builtinMetricsStore,
+        handleEventOfInterest = handleEventOfInterest,
     )
-    val javaExceptionEntryProcessor = JavaExceptionEntryProcessor(
+    val javaExceptionEntryProcessor = UploadingEntryProcessor(
+        delegate = JavaExceptionUploadingEntryProcessorDelegate(),
         tempFileFactory = tempFileFactory,
         enqueueFileUpload = enqueueFileUpload,
+        nextLogcatCidProvider = nextLogcatCidProvider,
         bootRelativeTimeProvider = bootRelativeTimeProvider,
         deviceInfoProvider = deviceInfoProvider,
-        tokenBucketStore = TokenBucketStore(
-            storage = RealTokenBucketStorage(
-                sharedPreferences,
-                PREFERENCE_TOKEN_BUCKET_JAVA_EXCEPTIONS
-            ),
-            // Note: the backtrace signature is used as key, so one bucket per issue basically.
-            maxBuckets = 100,
-            tokenBucketFactory = RealTokenBucketFactory(
-                defaultCapacity = 4,
-                defaultPeriod = 15.minutes,
-            ),
-        ),
+        tokenBucketStore = javaExceptionTokenBucketStore,
         builtinMetricsStore = builtinMetricsStore,
+        handleEventOfInterest = handleEventOfInterest,
     )
-    val anrEntryProcessor = AnrEntryProcessor(
+    val anrEntryProcessor = UploadingEntryProcessor(
+        delegate = AnrUploadingEntryProcessorDelegate(),
         tempFileFactory = tempFileFactory,
         enqueueFileUpload = enqueueFileUpload,
+        nextLogcatCidProvider = nextLogcatCidProvider,
         bootRelativeTimeProvider = bootRelativeTimeProvider,
         deviceInfoProvider = deviceInfoProvider,
-        tokenBucketStore = TokenBucketStore(
-            storage = RealTokenBucketStorage(
-                sharedPreferences,
-                PREFERENCE_TOKEN_BUCKET_ANRS
-            ),
-            maxBuckets = 1,
-            tokenBucketFactory = RealTokenBucketFactory(
-                defaultCapacity = 10,
-                defaultPeriod = 15.minutes,
-            ),
-        ),
+        tokenBucketStore = anrTokenBucketStore,
         builtinMetricsStore = builtinMetricsStore,
+        handleEventOfInterest = handleEventOfInterest,
     )
-    val kmsgEntryProcessor = KmsgEntryProcessor(
+    val kmsgEntryProcessor = UploadingEntryProcessor(
+        delegate = KmsgUploadingEntryProcessorDelegate(),
         tempFileFactory = tempFileFactory,
         enqueueFileUpload = enqueueFileUpload,
+        nextLogcatCidProvider = nextLogcatCidProvider,
         bootRelativeTimeProvider = bootRelativeTimeProvider,
         deviceInfoProvider = deviceInfoProvider,
-        tokenBucketStore = TokenBucketStore(
-            storage = RealTokenBucketStorage(
-                sharedPreferences,
-                PREFERENCE_TOKEN_BUCKET_KMSG
-            ),
-            maxBuckets = 1,
-            tokenBucketFactory = RealTokenBucketFactory(
-                defaultCapacity = 10,
-                defaultPeriod = 15.minutes,
-            ),
-        ),
+        tokenBucketStore = kmsgTokenBucketStore,
         builtinMetricsStore = builtinMetricsStore,
+        handleEventOfInterest = handleEventOfInterest,
     )
     return mapOf(
         *tombstoneEntryProcessor.tagPairs(),

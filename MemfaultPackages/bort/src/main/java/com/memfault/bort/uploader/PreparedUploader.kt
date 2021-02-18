@@ -3,8 +3,9 @@ package com.memfault.bort.uploader
 import com.memfault.bort.BugReportFileUploadPayload
 import com.memfault.bort.DropBoxEntryFileUploadPayload
 import com.memfault.bort.FileUploadPayload
-import com.memfault.bort.FileUploadToken
+import com.memfault.bort.FileUploadTokenOnly
 import com.memfault.bort.HeartbeatFileUploadPayload
+import com.memfault.bort.LogcatFileUploadPayload
 import com.memfault.bort.http.ProjectKeyAuthenticated
 import com.memfault.bort.http.gzip
 import com.memfault.bort.shared.Logger
@@ -49,6 +50,12 @@ interface PreparedUploadService {
     suspend fun commit(
         @Path(value = "upload_type") uploadType: String,
         @Body payload: BugReportFileUploadPayload
+    ): Response<Unit>
+
+    @POST("/api/v0/upload/android-logcat")
+    @ProjectKeyAuthenticated
+    suspend fun commitLogcat(
+        @Body payload: LogcatFileUploadPayload
     ): Response<Unit>
 
     @POST("/api/v0/upload/android-dropbox-manager-entry/{family}")
@@ -108,14 +115,14 @@ internal class PreparedUploader(
             is BugReportFileUploadPayload ->
                 preparedUploadService.commit(
                     uploadType = "bugreport",
-                    payload = payload.copy(file = FileUploadToken(token))
+                    payload = payload.copy(file = FileUploadTokenOnly(token))
                 ).also {
                     eventLogger.log("commit", "done", "bugreport")
                 }
             is DropBoxEntryFileUploadPayload ->
                 preparedUploadService.commitDropBoxEntry(
                     entryFamily = payload.metadata.family,
-                    payload = payload.copy(file = FileUploadToken(token)),
+                    payload = payload.copy(file = FileUploadTokenOnly(token)),
                 ).also {
                     eventLogger.log("commit", "done", payload.metadata.family)
                 }
@@ -133,6 +140,11 @@ internal class PreparedUploader(
                 ).also {
                     eventLogger.log("commit", "done", "heartbeat")
                 }
+            }
+            is LogcatFileUploadPayload -> {
+                preparedUploadService.commitLogcat(
+                    payload.copy(file = payload.file.copy(token = token))
+                )
             }
         }
     }

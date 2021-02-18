@@ -3,6 +3,7 @@ package com.memfault.bort.time
 import kotlin.time.Duration
 import kotlin.time.milliseconds
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
@@ -10,6 +11,7 @@ import kotlinx.serialization.encoding.Encoder
 
 // Kotlin Serialization does not work (yet) with inline classes :(
 // https://github.com/Kotlin/kotlinx.serialization/issues/1063
+@Serializable(with = DurationAsMillisecondsLong::class)
 data class BoxedDuration(
     val duration: Duration,
 )

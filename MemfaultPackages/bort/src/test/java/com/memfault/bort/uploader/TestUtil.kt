@@ -1,10 +1,10 @@
 package com.memfault.bort.uploader
 
 import androidx.work.Data
-import com.memfault.bort.BortEnabledProvider
 import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.kotlinxJsonConverterFactory
+import com.memfault.bort.settings.BortEnabledProvider
 import io.mockk.every
 import io.mockk.mockk
 import java.io.File

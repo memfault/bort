@@ -12,11 +12,14 @@ import com.memfault.bort.shared.DropBoxGetNextEntryResponse
 import com.memfault.bort.shared.DropBoxSetTagFilterRequest
 import com.memfault.bort.shared.DropBoxSetTagFilterResponse
 import com.memfault.bort.shared.ErrorResponse
+import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.ReporterServiceMessage
 import com.memfault.bort.shared.RunCommandContinue
 import com.memfault.bort.shared.RunCommandRequest
 import com.memfault.bort.shared.RunCommandResponse
 import com.memfault.bort.shared.ServiceMessage
+import com.memfault.bort.shared.SetLogLevelRequest
+import com.memfault.bort.shared.SetLogLevelResponse
 import com.memfault.bort.shared.VersionRequest
 import com.memfault.bort.shared.VersionResponse
 import io.mockk.CapturingSlot
@@ -49,6 +52,7 @@ class ReporterServiceTest {
     lateinit var replier: Replier
     lateinit var enqueueCommand: (List<String>, CommandRunnerOptions, CommandRunnerReportResult) -> CommandRunner
     lateinit var reportResultSlot: CapturingSlot<CommandRunnerReportResult>
+    lateinit var logLevel: LogLevel
     var dropBoxManager: DropBoxManager? = null
 
     @BeforeEach
@@ -60,6 +64,7 @@ class ReporterServiceTest {
         enqueueCommand = mockk(name = "enqueueCommand")
         reportResultSlot = slot<CommandRunnerReportResult>()
         every { enqueueCommand(any(), any(), capture(reportResultSlot)) } returns mockk()
+        logLevel = LogLevel.NONE
 
         filterSettingsProvider = FakeDropBoxFilterSettingsProvider(emptySet())
         messageHandler = ReporterServiceMessageHandler(
@@ -67,6 +72,7 @@ class ReporterServiceTest {
                 getDropBoxManager = { dropBoxManager },
                 filterSettingsProvider = filterSettingsProvider
             ),
+            setLogLevel = { level -> logLevel = level },
             serviceMessageFromMessage = ReporterServiceMessage.Companion::fromMessage,
             getSendReply = { replier::sendReply },
             enqueueCommand = enqueueCommand,
@@ -98,6 +104,13 @@ class ReporterServiceTest {
         // Should not throw:
         messageHandler.handleServiceMessage(DropBoxSetTagFilterRequest(emptyList()), mockk())
         verify(exactly = 1) { replier.sendReply(ofType(DropBoxSetTagFilterResponse::class)) }
+    }
+
+    @Test
+    fun setLogLevel() {
+        messageHandler.handleServiceMessage(SetLogLevelRequest(LogLevel.TEST), mockk())
+        verify(exactly = 1) { replier.sendReply(ofType(SetLogLevelResponse::class)) }
+        assertEquals(LogLevel.TEST, logLevel)
     }
 
     @Test

@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.memfault.bort.ReporterServiceConnector
-import com.memfault.bort.SettingsProvider
+import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.Logger
 
 fun Boolean.toTestResult(): String =

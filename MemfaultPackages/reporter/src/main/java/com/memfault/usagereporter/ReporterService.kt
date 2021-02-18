@@ -18,6 +18,7 @@ import com.memfault.bort.shared.DropBoxGetNextEntryResponse
 import com.memfault.bort.shared.DropBoxSetTagFilterRequest
 import com.memfault.bort.shared.DropBoxSetTagFilterResponse
 import com.memfault.bort.shared.ErrorResponse
+import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.shared.REPORTER_SERVICE_VERSION
@@ -26,6 +27,8 @@ import com.memfault.bort.shared.RunCommandContinue
 import com.memfault.bort.shared.RunCommandRequest
 import com.memfault.bort.shared.RunCommandResponse
 import com.memfault.bort.shared.ServiceMessage
+import com.memfault.bort.shared.SetLogLevelRequest
+import com.memfault.bort.shared.SetLogLevelResponse
 import com.memfault.bort.shared.UnknownMessageException
 import com.memfault.bort.shared.VersionRequest
 import com.memfault.bort.shared.VersionResponse
@@ -38,6 +41,11 @@ typealias SendReply = (reply: ServiceMessage) -> Unit
 
 interface DropBoxFilterSettingsProvider {
     var includedTags: Set<String>
+}
+
+interface LogLevelPreferenceProvider {
+    fun setLogLevel(logLevel: LogLevel)
+    fun getLogLevel(): LogLevel
 }
 
 class DropBoxMessageHandler(
@@ -80,6 +88,7 @@ class ReporterServiceMessageHandler(
     private val enqueueCommand: (List<String>, CommandRunnerOptions, CommandRunnerReportResult) -> CommandRunner,
     private val dropBoxMessageHandler: DropBoxMessageHandler,
     private val serviceMessageFromMessage: (message: Message) -> ReporterServiceMessage,
+    private val setLogLevel: (logLevel: LogLevel) -> Unit,
     private val getSendReply: (message: Message) -> SendReply
 ) : Handler.Callback {
     override fun handleMessage(message: Message): Boolean {
@@ -109,6 +118,7 @@ class ReporterServiceMessageHandler(
         }
         when (serviceMessage) {
             is RunCommandRequest<*> -> handleRunCommandRequest(serviceMessage, sendReply)
+            is SetLogLevelRequest -> handleSetLogLevelRequest(serviceMessage.level, sendReply)
             is DropBoxSetTagFilterRequest ->
                 dropBoxMessageHandler.handleSetTagFilterMessage(serviceMessage, sendReply)
             is DropBoxGetNextEntryRequest ->
@@ -127,6 +137,11 @@ class ReporterServiceMessageHandler(
 
     private fun handleVersionRequest(sendReply: (reply: ServiceMessage) -> Unit) {
         sendReply(VersionResponse(REPORTER_SERVICE_VERSION))
+    }
+
+    private fun handleSetLogLevelRequest(level: LogLevel, sendReply: (reply: ServiceMessage) -> Unit) {
+        setLogLevel(level)
+        sendReply(SetLogLevelResponse)
     }
 
     private fun handleRunCommandRequest(request: RunCommandRequest<*>, sendReply: SendReply) {
@@ -151,15 +166,23 @@ class ReporterService : Service() {
         }
         commandExecutor = TimeoutThreadPoolExecutor(COMMAND_EXECUTOR_MAX_THREADS)
 
+        val preferenceManager = PreferenceManager.getDefaultSharedPreferences(this)
+        val logLevelPreferenceProvider = RealLogLevelPreferenceProvider(preferenceManager)
+
         messageHandler = ReporterServiceMessageHandler(
             enqueueCommand = ::enqueueCommand,
             dropBoxMessageHandler = DropBoxMessageHandler(
                 getDropBoxManager = ::getDropBoxManager,
                 filterSettingsProvider = RealDropBoxFilterSettingsProvider(
-                    PreferenceManager.getDefaultSharedPreferences(this)
+                    preferenceManager
                 )
             ),
             serviceMessageFromMessage = ReporterServiceMessage.Companion::fromMessage,
+            setLogLevel = { logLevel ->
+                logLevelPreferenceProvider.setLogLevel(logLevel)
+                Logger.minLevel = logLevel
+                Logger.test("Reporter received a log level update $logLevel")
+            },
             getSendReply = ::getSendReply
         )
     }
@@ -225,4 +248,19 @@ class RealDropBoxFilterSettingsProvider(
     override var includedTags
         get() = super.getValue()
         set(value) = super.setValue(value)
+}
+
+class RealLogLevelPreferenceProvider(
+    sharedPreferences: SharedPreferences,
+) : LogLevelPreferenceProvider, PreferenceKeyProvider<Int>(
+    sharedPreferences = sharedPreferences,
+    defaultValue = LogLevel.NONE.level,
+    preferenceKey = PREFERENCE_LOG_LEVEL,
+) {
+    override fun setLogLevel(logLevel: LogLevel) {
+        super.setValue(logLevel.level)
+    }
+
+    override fun getLogLevel(): LogLevel =
+        LogLevel.fromInt(super.getValue()) ?: LogLevel.NONE
 }

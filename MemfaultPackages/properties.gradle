@@ -1,5 +1,4 @@
 import java.nio.file.Paths
-import static com.memfault.bort.buildsrc.BortConfigDownloaderKt.bortSystemPropertyConfig
 
 ext.bortProperty = { propName ->
     if (rootProject.hasProperty(propName)) {
@@ -9,14 +8,6 @@ ext.bortProperty = { propName ->
     def bortProperties = new Properties()
     bortProperties.load(new FileInputStream(bortPropertiesFile))
     return bortProperties[propName]
-}
-
-ext.bortSystemPropertyConfigProperty = { propName ->
-    if (rootProject.hasProperty(propName)) {
-        return rootProject.property(propName)
-    }
-    def properties = bortSystemPropertyConfig(rootProject.rootDir.absolutePath)
-    return properties[propName]
 }
 
 ext.loadKeystoreProperties = {
@@ -104,13 +95,6 @@ ext.verifyBortProperties = {
         }
     }
     verifyBortProperty(bortProperty, "MEMFAULT_PROJECT_API_KEY", /^[A-Za-z0-9]{32}$/, true, true)
-    verifyBortProperty(bortSystemPropertyConfigProperty, "ANDROID_BUILD_VERSION_SOURCE", /^(build_fingerprint_and_system_property|build_fingerprint_only|system_property_only)$/)
-    // https://cs.android.com/android/platform/superproject/+/master:system/core/toolbox/setprop.cpp;l=55;drc=65a1ee83a89a7bea595ff07a64c50d1e51b2d8e2
-    if (bortSystemPropertyConfigProperty("ANDROID_BUILD_VERSION_SOURCE") != "build_fingerprint_only") {
-        verifyBortProperty(bortSystemPropertyConfigProperty, "ANDROID_BUILD_VERSION_KEY", /^[A-Za-z0-9:@_.-]+$/)
-    }
-    verifyBortProperty(bortSystemPropertyConfigProperty, "ANDROID_HARDWARE_VERSION_KEY", /^[A-Za-z0-9:@_.-]+$/)
-    verifyBortProperty(bortSystemPropertyConfigProperty, "ANDROID_DEVICE_SERIAL_KEY", /^[A-Za-z0-9:@_.-]+$/)
 }
 
 ext.warnLegacyBortProperties = {
@@ -119,6 +103,19 @@ ext.warnLegacyBortProperties = {
             "ANDROID_BUILD_VERSION_KEY",
             "ANDROID_HARDWARE_VERSION_KEY",
             "ANDROID_DEVICE_SERIAL_KEY",
+            "UPLOAD_NETWORK_CONSTRAINT_ALLOW_METERED_CONNECTION",
+            "MINIMUM_LOG_LEVEL",
+            "DATA_SOURCE_BUG_REPORTS_ENABLED",
+            "DATA_SOURCE_CALIPER_METRICS_ENABLED",
+            "DATA_SOURCE_CALIPER_BATTERYSTATS_ENABLED",
+            "DATA_SOURCE_CALIPER_DROP_BOX_TRACES_ENABLED",
+            "DATA_SOURCE_CALIPER_LOGCAT_ENABLED",
+            "BUG_REPORT_REQUEST_INTERVAL_HOURS",
+            "BUG_REPORT_MINIMAL_MODE",
+            "FIRST_BUG_REPORT_DELAY_AFTER_BOOT_MINUTES",
+            "BUG_REPORT_MAX_UPLOAD_ATTEMPTS",
+            "METRICS_HEARTBEAT_INTERVAL_MINUTES",
+            "LOGCAT_CAPTURE_INTERVAL_MINUTES",
     ]
     def foundKeys = keys.findResults { key ->
         if (bortProperty(key)) key

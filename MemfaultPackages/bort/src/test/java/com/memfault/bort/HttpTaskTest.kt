@@ -7,7 +7,7 @@ import com.memfault.bort.uploader.HttpTaskCallFactory
 import com.memfault.bort.uploader.HttpTaskInput
 import com.memfault.bort.uploader.HttpTaskOptions
 import com.memfault.bort.uploader.mockTaskRunnerWorker
-import com.nhaarman.mockitokotlin2.mock
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import okhttp3.Headers
@@ -119,7 +119,7 @@ class HttpTaskCallFactoryTest {
 class HttpTaskTestMaxAttempts {
     @Test
     fun getMaxAttemptsFromInput() {
-        val mockClient = mock<OkHttpClient>()
+        val mockClient = mockk<OkHttpClient>(relaxed = true)
         val task = HttpTask(mockClient)
         val httpTaskInput = HttpTaskInput(
             "", "", "", "", ByteArray(0), maxAttempts = 123

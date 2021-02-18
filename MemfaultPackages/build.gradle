@@ -1,20 +1,18 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
-import static com.memfault.bort.buildsrc.BortConfigDownloaderKt.tryRefreshBortSystemPropertyConfig
+import static com.memfault.bort.buildsrc.BortSettingsDownloaderKt.fetchBortSettings
 
 // Try to refresh bort_generated.properties before configuring the :bort project:
 gradle.beforeProject { project ->
     if (project.path != ":bort") return
-    if (rootProject.properties["SKIP_DOWNLOAD_SYSTEM_PROPERTY_CONFIG"] == "1") {
-        project.logger.warn("> Skipping download of bort_generated.properties from server...")
-        return
-    }
 
-    tryRefreshBortSystemPropertyConfig(
-            rootProject.rootDir.absolutePath,
+    fetchBortSettings(
+            rootProject.rootDir,
             { msg, exc -> rootProject.logger.log(LogLevel.WARN, msg, exc) },
             rootProject.properties["MEMFAULT_API_BASE_URL"],
             bortProperty("MEMFAULT_PROJECT_API_KEY"),
+            rootProject.properties["SKIP_DOWNLOAD_SYSTEM_PROPERTY_CONFIG"] != "1",
+            { name -> bortProperty(name) }
     )
 }
 
@@ -41,8 +39,6 @@ buildscript {
             'junit'                            : '5.7.0',
             'leakCanary'                       : '2.5',
             'mockk'                            : '1.10.2',
-            'mockito'                          : '2.28.2',
-            'mockitoKotlin'                    : '2.2.0',
             'okhttp'                           : '4.9.0',
             'okio'                             : '2.9.0',
             'preference'                       : '1.1.1',
@@ -79,8 +75,6 @@ buildscript {
                     'junitApi'     : "org.junit.jupiter:junit-jupiter-api:${versions.junit}",
                     'junitEngine'  : "org.junit.jupiter:junit-jupiter-engine:${versions.junit}",
                     'mockk'        : "io.mockk:mockk:${versions.mockk}",
-                    'mockito'      : "org.mockito:mockito-core:${versions.mockito}",
-                    'mockitoKotlin': "com.nhaarman.mockitokotlin2:mockito-kotlin:${versions.mockitoKotlin}",
                     'mockWebServer': "com.squareup.okhttp3:mockwebserver:${versions.okhttp}"
             ]
     ]

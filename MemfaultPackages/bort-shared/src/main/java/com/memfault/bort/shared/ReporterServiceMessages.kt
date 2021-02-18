@@ -8,7 +8,7 @@ class UnknownMessageException(message: String) : Exception(message)
 class ErrorResponseException(message: String) : Exception(message)
 class UnexpectedResponseException(message: String) : Exception(message)
 
-val REPORTER_SERVICE_VERSION: Int = 3
+val REPORTER_SERVICE_VERSION: Int = 4
 
 // Generic responses:
 val ERROR_RSP = -1
@@ -16,6 +16,10 @@ val ERROR_RSP = -1
 // General messages:
 val VERSION_REQ: Int = 1
 val VERSION_RSP: Int = 2
+
+// Log level messages
+val LOG_LEVEL_SET_REQ: Int = 3
+val LOG_LEVEL_SET_RSP: Int = 4
 
 // DropBox related messages:
 val DROPBOX_SET_TAG_FILTER_REQ: Int = 100
@@ -47,6 +51,9 @@ abstract class ReporterServiceMessage : ServiceMessage {
             when (message.what) {
                 VERSION_REQ -> VersionRequest()
                 VERSION_RSP -> VersionResponse.fromBundle(message.data)
+
+                LOG_LEVEL_SET_REQ -> SetLogLevelRequest.fromBundle(message.data)
+                LOG_LEVEL_SET_RSP -> SetLogLevelResponse
 
                 DROPBOX_SET_TAG_FILTER_REQ -> DropBoxSetTagFilterRequest.fromBundle(message.data)
                 DROPBOX_SET_TAG_FILTER_RSP -> DropBoxSetTagFilterResponse()
@@ -97,6 +104,22 @@ class VersionResponse(val version: Int) : ReporterServiceMessage() {
         fun fromBundle(bundle: Bundle) = VersionResponse(bundle.getInt(VERSION))
     }
 }
+
+private const val LOG_LEVEL = "LOG_LEVEL"
+data class SetLogLevelRequest(val level: LogLevel) : ReporterServiceMessage() {
+    override val messageId: Int = LOG_LEVEL_SET_REQ
+    override fun toBundle(): Bundle = Bundle().apply {
+        putInt(LOG_LEVEL, level.level)
+    }
+
+    companion object {
+        fun fromBundle(bundle: Bundle) = SetLogLevelRequest(
+            LogLevel.fromInt(bundle.getInt(LOG_LEVEL)) ?: LogLevel.NONE
+        )
+    }
+}
+
+object SetLogLevelResponse : SimpleReporterServiceMessage(LOG_LEVEL_SET_RSP)
 
 private const val INCLUDED_TAGS = "INCLUDED_TAGS"
 

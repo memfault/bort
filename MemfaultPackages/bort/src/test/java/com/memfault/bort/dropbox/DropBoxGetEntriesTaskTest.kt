@@ -4,12 +4,13 @@ import android.os.DropBoxManager
 import android.os.RemoteException
 import android.system.StructStat
 import com.github.michaelbull.result.Result
-import com.memfault.bort.DropBoxSettings
 import com.memfault.bort.ReporterClient
 import com.memfault.bort.ReporterServiceConnection
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.TaskResult
 import com.memfault.bort.createMockServiceConnector
+import com.memfault.bort.settings.DropBoxSettings
+import com.memfault.bort.settings.RateLimitingSettings
 import com.memfault.bort.shared.DropBoxGetNextEntryRequest
 import com.memfault.bort.shared.DropBoxGetNextEntryResponse
 import com.memfault.bort.shared.DropBoxSetTagFilterRequest
@@ -19,6 +20,7 @@ import com.memfault.bort.shared.VersionRequest
 import com.memfault.bort.shared.VersionResponse
 import com.memfault.bort.shared.result.failure
 import com.memfault.bort.shared.result.success
+import com.memfault.bort.time.boxed
 import io.mockk.MockKAnnotations
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -28,6 +30,7 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import io.mockk.verify
+import kotlin.time.minutes
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -43,6 +46,20 @@ class DropBoxGetEntriesTaskTest {
     lateinit var mockEntryProcessor: EntryProcessor
     lateinit var task: DropBoxGetEntriesTask
     lateinit var lastProcessedEntryProvider: FakeLastProcessedEntryProvider
+
+    private val mockRateLimitingSettings = RateLimitingSettings(
+        defaultCapacity = 10,
+        defaultPeriod = 15.minutes.boxed(),
+        maxBuckets = 1,
+    )
+
+    private val mockDropboxSettings = object : DropBoxSettings {
+        override val dataSourceEnabled = true
+        override val anrRateLimitingSettings = mockRateLimitingSettings
+        override val javaExceptionsRateLimitingSettings = mockRateLimitingSettings
+        override val kmsgsRateLimitingSettings = mockRateLimitingSettings
+        override val tombstonesRateLimitingSettings = mockRateLimitingSettings
+    }
 
     @BeforeEach
     fun setUp() {
@@ -62,9 +79,7 @@ class DropBoxGetEntriesTaskTest {
             reporterServiceConnector = mockServiceConnector,
             lastProcessedEntryProvider = lastProcessedEntryProvider,
             entryProcessors = mapOf(TEST_TAG to mockEntryProcessor),
-            settings = object : DropBoxSettings {
-                override val dataSourceEnabled = true
-            },
+            settings = mockDropboxSettings,
             retryDelayMillis = 0
         )
     }
@@ -232,9 +247,7 @@ class DropBoxGetEntriesTaskTest {
             reporterServiceConnector = mockServiceConnector,
             lastProcessedEntryProvider = lastProcessedEntryProvider,
             entryProcessors = mapOf(),
-            object : DropBoxSettings {
-                override val dataSourceEnabled = true
-            },
+            settings = mockDropboxSettings,
         )
         runAndAssertNoop()
     }
@@ -245,9 +258,9 @@ class DropBoxGetEntriesTaskTest {
             reporterServiceConnector = mockServiceConnector,
             lastProcessedEntryProvider = lastProcessedEntryProvider,
             entryProcessors = mapOf(TEST_TAG to mockEntryProcessor),
-            object : DropBoxSettings {
+            settings = object : DropBoxSettings by mockDropboxSettings {
                 override val dataSourceEnabled = false
-            },
+            }
         )
         runAndAssertNoop()
     }

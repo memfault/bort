@@ -1,36 +1,16 @@
 package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
-import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DropBoxEntryFileUploadMetadata
 import com.memfault.bort.JavaExceptionFileUploadMetadata
-import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.TimezoneWithId
-import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.parsers.JavaExceptionParser
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
-import com.memfault.bort.time.BootRelativeTimeProvider
-import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.tokenBucketKey
-import com.memfault.bort.uploader.EnqueueFileUpload
 import java.io.File
 
-class JavaExceptionEntryProcessor(
-    tempFileFactory: TemporaryFileFactory,
-    enqueueFileUpload: EnqueueFileUpload,
-    bootRelativeTimeProvider: BootRelativeTimeProvider,
-    deviceInfoProvider: DeviceInfoProvider,
-    tokenBucketStore: TokenBucketStore,
-    builtinMetricsStore: BuiltinMetricsStore,
-) : UploadingEntryProcessor(
-    tempFileFactory,
-    enqueueFileUpload,
-    bootRelativeTimeProvider,
-    deviceInfoProvider,
-    tokenBucketStore,
-    builtinMetricsStore,
-) {
+class JavaExceptionUploadingEntryProcessorDelegate : UploadingEntryProcessorDelegate {
     override val tags = listOf(
         "data_app_crash",
         "data_app_wtf",

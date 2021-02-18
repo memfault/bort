@@ -8,7 +8,6 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.github.michaelbull.result.onFailure
-import com.memfault.bort.DropBoxSettings
 import com.memfault.bort.ReporterClient
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.ServiceGetter
@@ -16,6 +15,7 @@ import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.oneTimeWorkRequest
+import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.shared.Logger
 import kotlinx.coroutines.delay
 
@@ -30,7 +30,7 @@ class DropBoxGetEntriesTask(
     private val settings: DropBoxSettings,
     private val retryDelayMillis: Long = DEFAULT_RETRY_DELAY_MILLIS
 ) : Task<Unit>() {
-    override val maxAttempts: Int = 1
+    override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data): Unit = Unit
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult = doWork()
     private val cursorProvider: ProcessedEntryCursorProvider = ProcessedEntryCursorProvider(lastProcessedEntryProvider)

@@ -4,8 +4,8 @@ import android.app.Application
 import android.content.IntentFilter
 import android.os.Build
 import android.os.DropBoxManager
+import androidx.preference.PreferenceManager
 import com.memfault.bort.shared.BuildConfigSdkVersionInfo
-import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.Logger
 import com.memfault.usagereporter.receivers.DropBoxEntryAddedForwardingReceiver
 
@@ -15,7 +15,10 @@ class UsageReporter : Application() {
 
         Logger.TAG = "mflt-report"
         Logger.TAG_TEST = "mflt-report-test"
-        Logger.minLevel = LogLevel.fromInt(BuildConfig.MINIMUM_LOG_LEVEL) ?: LogLevel.NONE
+
+        // Reads a previously-set log level
+        val preferenceManager = PreferenceManager.getDefaultSharedPreferences(this)
+        Logger.minLevel = RealLogLevelPreferenceProvider(preferenceManager).getLogLevel()
 
         with(BuildConfigSdkVersionInfo) {
             Logger.v(

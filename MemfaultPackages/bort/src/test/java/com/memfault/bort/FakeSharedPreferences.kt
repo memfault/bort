@@ -6,11 +6,22 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 
-fun makeFakeSharedPreferences(): SharedPreferences {
-    val backingStorage = mutableMapOf<String, Float>()
+interface MockSharedPreferences : SharedPreferences {
+    val backingStorage: MutableMap<String, Any>
+    val editor: SharedPreferences.Editor
+}
+
+fun makeFakeSharedPreferences(): MockSharedPreferences {
+    val backingStorage = mutableMapOf<String, Any>()
     val editor = mockk<SharedPreferences.Editor> {
         every {
             putFloat(any(), any())
+        } answers {
+            backingStorage.put(firstArg(), secondArg())
+            this@mockk
+        }
+        every {
+            putString(any(), any())
         } answers {
             backingStorage.put(firstArg(), secondArg())
             this@mockk
@@ -26,11 +37,16 @@ fun makeFakeSharedPreferences(): SharedPreferences {
         }
     }
 
-    return mockk {
+    val m: MockSharedPreferences = mockk {
         every {
             getFloat(any(), any())
         } answers {
-            backingStorage[firstArg()] ?: secondArg()
+            backingStorage[firstArg()] as Float? ?: secondArg()
+        }
+        every {
+            getString(any(), any())
+        } answers {
+            backingStorage[firstArg()] as String? ?: secondArg()
         }
         every {
             edit()
@@ -39,4 +55,11 @@ fun makeFakeSharedPreferences(): SharedPreferences {
             all
         } returns backingStorage
     }
+    every {
+        m.backingStorage
+    } returns backingStorage
+    every {
+        m.editor
+    } returns editor
+    return m
 }

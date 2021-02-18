@@ -3,30 +3,31 @@ package com.memfault.bort.receivers
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.preference.PreferenceManager
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.memfault.bort.Bort
 import com.memfault.bort.LastTrackedBootCountProvider
-import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_ANRS
-import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_BUGREPORT_REQUESTS
-import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_JAVA_EXCEPTIONS
-import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_KMSG
-import com.memfault.bort.PREFERENCE_TOKEN_BUCKET_TOMBSTONES
 import com.memfault.bort.PersistentProjectKeyProvider
+import com.memfault.bort.logcat.RealNextLogcatCidProvider
+import com.memfault.bort.requester.restartPeriodicLogcatCollection
 import com.memfault.bort.requester.restartPeriodicMetricsCollection
 import com.memfault.bort.selfTesting.SelfTestWorker
+import com.memfault.bort.settings.RealStoredSettingsPreferenceProvider
+import com.memfault.bort.settings.restartPeriodicSettingsUpdate
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
+import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BoxedDuration
 import com.memfault.bort.time.RealBootRelativeTimeProvider
-import com.memfault.bort.tokenbucket.RealTokenBucketStorage
-import com.memfault.bort.tokenbucket.StoredTokenBucketMap
 import kotlin.time.Duration
 import kotlin.time.days
 import kotlin.time.hours
+import kotlin.time.milliseconds
 
 private const val INTENT_EXTRA_ECHO_STRING = "echo"
 private const val WORK_UNIQUE_NAME_SELF_TEST = "com.memfault.bort.work.SELF_TEST"
@@ -50,7 +51,9 @@ class TestReceiver : FilteringReceiver(
         "com.memfault.intent.action.TEST_BORT_ECHO",
         "com.memfault.intent.action.TEST_SETTING_SET",
         "com.memfault.intent.action.TEST_SELF_TEST",
+        "com.memfault.intent.action.TEST_REQUEST_LOGCAT_COLLECTION",
         "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION",
+        "com.memfault.intent.action.TEST_REQUEST_SETTINGS_UPDATE",
         "com.memfault.intent.action.TEST_SETUP",
     )
 ) {
@@ -79,6 +82,38 @@ class TestReceiver : FilteringReceiver(
                     )
                 }
             }
+            "com.memfault.intent.action.TEST_REQUEST_LOGCAT_COLLECTION" -> {
+                // Pretend an event of interest occurred, so that the logcat file gets uploaded immediately:
+                fileUploadHoldingArea.handleEventOfInterest(SystemClock.elapsedRealtime().milliseconds)
+
+                restartPeriodicLogcatCollection(
+                    context = context,
+                    // Something long to ensure it does not re-run & interfere with tests:
+                    collectionInterval = 1.days,
+                    // Pretend the logcat started an hour ago:
+                    lastLogcatEnd = AbsoluteTime.now() - 1.hours,
+                    collectImmediately = true,
+                )
+                PreferenceManager.getDefaultSharedPreferences(context).let {
+                    RealNextLogcatCidProvider(it).cid
+                }.also {
+                    Logger.test("cid=${it.uuid}")
+                }
+            }
+            "com.memfault.intent.action.TEST_REQUEST_SETTINGS_UPDATE" -> {
+                // Remove cached settings to ensure that a full update, including periodic
+                // scheduler restarts is performed.
+                RealStoredSettingsPreferenceProvider(
+                    PreferenceManager.getDefaultSharedPreferences(context)
+                ) { "" }.remove()
+
+                restartPeriodicSettingsUpdate(
+                    context = context,
+                    // Something long to ensure it does not re-run & interfere with tests:
+                    updateInterval = 1.days,
+                    httpApiSettings = settingsProvider.httpApiSettings,
+                )
+            }
             "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION" -> {
                 restartPeriodicMetricsCollection(
                     context = context,
@@ -103,19 +138,7 @@ class TestReceiver : FilteringReceiver(
             }
             // Sent before each E2E test:
             "com.memfault.intent.action.TEST_SETUP" -> {
-                val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
-                listOf(
-                    PREFERENCE_TOKEN_BUCKET_TOMBSTONES,
-                    PREFERENCE_TOKEN_BUCKET_JAVA_EXCEPTIONS,
-                    PREFERENCE_TOKEN_BUCKET_ANRS,
-                    PREFERENCE_TOKEN_BUCKET_KMSG,
-                    PREFERENCE_TOKEN_BUCKET_BUGREPORT_REQUESTS,
-                ).forEach { preferenceKey ->
-                    RealTokenBucketStorage(
-                        sharedPreferences = sharedPreferences,
-                        preferenceKey = preferenceKey,
-                    ).writeMap(StoredTokenBucketMap())
-                }
+                Bort.appComponents().tokenBucketStoreRegistry.reset()
             }
         }
     }

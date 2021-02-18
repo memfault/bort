@@ -5,9 +5,7 @@ import com.memfault.bort.tokenbucket.MockTokenBucketFactory
 import com.memfault.bort.tokenbucket.MockTokenBucketStorage
 import com.memfault.bort.tokenbucket.StoredTokenBucketMap
 import com.memfault.bort.tokenbucket.TokenBucketStore
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.times
-import com.nhaarman.mockitokotlin2.verify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlin.time.milliseconds
@@ -20,7 +18,9 @@ class RebootTrackingTest {
     @Test
     fun testIfBootNotTrackedYet() {
         val currentBootCount = 1
-        val untrackedBootCountHandler = mock<(Int) -> Unit>()
+        val untrackedBootCountHandler: (Int) -> Unit = mockk {
+            every { this@mockk(any()) } returns Unit
+        }
         val provider = object : LastTrackedBootCountProvider {
             override var bootCount: Int = 0
         }
@@ -30,11 +30,15 @@ class RebootTrackingTest {
 
         // Expect the LastTrackedBootCountProvider to have been updated and the block to have been called
         assertEquals(currentBootCount, provider.bootCount)
-        verify(untrackedBootCountHandler, times(1))(currentBootCount)
+        verify(exactly = 1) {
+            untrackedBootCountHandler(any())
+        }
 
         // Block should not be called again, because the boot count has not been bumped
         BootCountTracker(provider, untrackedBootCountHandler).trackIfNeeded(currentBootCount)
-        verify(untrackedBootCountHandler, times(1))(currentBootCount)
+        verify(exactly = 1) {
+            untrackedBootCountHandler(any())
+        }
     }
 }
 
@@ -68,11 +72,13 @@ class RebootEventUploaderTest {
             androidSysBootReason = "alarm",
             tokenBucketStore = TokenBucketStore(
                 storage = MockTokenBucketStorage(StoredTokenBucketMap()),
-                maxBuckets = 1,
-                tokenBucketFactory = MockTokenBucketFactory(
-                    defaultCapacity = TEST_BUCKET_CAPACITY,
-                    defaultPeriod = 1.milliseconds,
-                ),
+                getMaxBuckets = { 1 },
+                getTokenBucketFactory = {
+                    MockTokenBucketFactory(
+                        defaultCapacity = TEST_BUCKET_CAPACITY,
+                        defaultPeriod = 1.milliseconds,
+                    )
+                },
             ),
         )
 

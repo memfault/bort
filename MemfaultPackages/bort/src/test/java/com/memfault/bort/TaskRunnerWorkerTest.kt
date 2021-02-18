@@ -12,7 +12,7 @@ private val SAMPLE_TASK_INPUT_DATA_KEY = "key"
 
 class SampleTask(
     val result: TaskResult = TaskResult.SUCCESS,
-    override val maxAttempts: Int = 3
+    override val getMaxAttempts: () -> Int = { 3 }
 ) : Task<String>() {
 
     var finallyCalled: Boolean = false
@@ -54,7 +54,7 @@ class BaseTaskTest {
                 inputData = workDataOf(SAMPLE_TASK_INPUT_DATA_KEY to "foo"),
                 runAttemptCount = runAttemptCount
             ).let { worker ->
-                SampleTask(maxAttempts = 1, result = TaskResult.RETRY).let { task ->
+                SampleTask(getMaxAttempts = { 1 }, result = TaskResult.RETRY).let { task ->
                     assertEquals(
                         expectedResult,
                         runBlocking {
