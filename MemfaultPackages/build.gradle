@@ -2,17 +2,19 @@
 
 import static com.memfault.bort.buildsrc.BortSettingsDownloaderKt.fetchBortSettings
 
-// Try to refresh bort_generated.properties before configuring the :bort project:
+// Try to refresh settings/settings.json before configuring the :bort project:
 gradle.beforeProject { project ->
     if (project.path != ":bort") return
 
     fetchBortSettings(
             rootProject.rootDir,
-            { msg, exc -> rootProject.logger.log(LogLevel.WARN, msg, exc) },
             rootProject.properties["MEMFAULT_API_BASE_URL"],
             bortProperty("MEMFAULT_PROJECT_API_KEY"),
-            rootProject.properties["SKIP_DOWNLOAD_SYSTEM_PROPERTY_CONFIG"] != "1",
-            { name -> bortProperty(name) }
+            rootProject.properties["BORT_USE_DEVELOPMENT_SETTINGS_JSON"] == "1",
+            rootProject.properties["SKIP_DOWNLOAD_SYSTEM_SETTINGS_JSON"] == "1",
+            { name -> bortProperty(name) },
+            { msg, exc -> rootProject.logger.log(LogLevel.WARN, msg,
+                    exc == null ? "" : exc) }
     )
 }
 
@@ -44,7 +46,9 @@ buildscript {
             'preference'                       : '1.1.1',
             'result'                           : '1.1.9',
             'retrofit'                         : '2.9.0',
-            'work'                             : '2.4.0'
+            'work'                             : '2.4.0',
+            'jackson'                          : '2.12.1',
+            'zjsonpatch'                       : '0.4.11',
     ]
     ext.deps = [
             'android'      : [
@@ -76,7 +80,9 @@ buildscript {
                     'junitEngine'  : "org.junit.jupiter:junit-jupiter-engine:${versions.junit}",
                     'mockk'        : "io.mockk:mockk:${versions.mockk}",
                     'mockWebServer': "com.squareup.okhttp3:mockwebserver:${versions.okhttp}"
-            ]
+            ],
+            'jackson'      : "com.fasterxml.jackson.core:jackson-databind:${versions.jackson}",
+            'zjsonpatch'   : "com.flipkart.zjsonpatch:zjsonpatch:${versions.zjsonpatch}",
     ]
     repositories {
         google()

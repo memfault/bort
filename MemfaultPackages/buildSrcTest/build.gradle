@@ -31,6 +31,8 @@ dependencies {
     // Inspired by https://android.googlesource.com/platform/frameworks/support/+/d61ec62be635af084fa72eacf00bdc4c925187c4/buildSrc-tests/build.gradle#31
     implementation(project.files(new File("../buildSrc/build/libs/buildSrc.jar")))
 
+    testImplementation deps.jackson
+    testImplementation deps.zjsonpatch
     testImplementation deps.test.junitApi
     testImplementation deps.test.junitEngine
     testImplementation deps.test.coroutines

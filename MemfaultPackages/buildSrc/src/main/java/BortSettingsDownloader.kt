@@ -1,6 +1,11 @@
 package com.memfault.bort.buildsrc
 
-import org.json.JSONObject
+import com.fasterxml.jackson.core.JsonGenerationException
+import com.fasterxml.jackson.core.JsonProcessingException
+import com.fasterxml.jackson.databind.JsonMappingException
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.flipkart.zjsonpatch.JsonDiff
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -12,13 +17,17 @@ class BortSettingsDownloaderException(msg: String, cause: Throwable?) : Exceptio
     constructor(msg: String) : this(msg, null)
 }
 
-fun getBortSettingsAssetsPath(rootDir: File) =
+class BortSettingsInconsistencyException(msg: String, cause: Throwable?) : Exception(msg, cause) {
+    constructor(msg: String) : this(msg, null)
+}
+
+fun getBortSettingsAssetsPath(rootDir: File): String =
     Paths.get(rootDir.absolutePath, "settings").toString()
 
-fun getBortSettingsAssetsFile(rootDir: File) =
+fun getBortSettingsAssetsFile(rootDir: File): File =
     Paths.get(getBortSettingsAssetsPath(rootDir), BORT_SETTINGS_RESOURCE_NAME).toFile()
 
-fun downloadSettings(deviceBaseUrl: String, projectKey: String, softwareType: String = "android-build"): String {
+private fun fetchBortConfig(deviceBaseUrl: String, projectKey: String, softwareType: String = "android-build"): String {
     val url = URL("$deviceBaseUrl/api/v0/sdk-settings?software_type=$softwareType")
     val connection = try {
         url.openConnection().apply {
@@ -48,49 +57,10 @@ fun downloadSettings(deviceBaseUrl: String, projectKey: String, softwareType: St
     }
 }
 
-fun refreshSettings(
-    rootDir: File,
-    warn: (String, Exception?) -> Unit,
-    getConfig: () -> String
-) {
-    val generatedFolder = File(getBortSettingsAssetsPath(rootDir))
-    generatedFolder.mkdirs()
-    val generatedFile = getBortSettingsAssetsFile(rootDir)
-    val text = try {
-        // TODO: we should be validating this with the same FetchedSettings  that is used in runtime but Gradle 6.x
-        //  uses Kotlin 1.3.x for buildSrc and using it with kotlinx-serialization resulted in internal compiler errors,
-        //  Revisit this later. For now, we'll validate that json is well-formed.
-        getConfig().also {
-            // will throw if invalid
-            JSONObject(it)
-        }
-    } catch (e: Exception) {
-        if (!generatedFile.isFile) {
-            throw BortSettingsDownloaderException("Failed to fetch initial configuration from Memfault Server", e)
-        }
-        warn("Failed to refresh configuration from Memfault Server, reusing existing one...", e)
-        return
-    }
-    generatedFile.writeText(text)
-}
-
-fun fetchBortSettings(
-    rootDir: File,
-    warn: (String, Exception?) -> Unit,
-    deviceBaseUrl: String,
-    projectKey: String,
-    shouldFetch: Boolean,
+private fun generateDevConfig(
     getDefaultProperty: (String) -> String?
-) {
-    val getConfig = {
-        if (shouldFetch) {
-            downloadSettings(
-                deviceBaseUrl = deviceBaseUrl,
-                projectKey = projectKey
-            )
-        } else {
-            // Note: this happens in CI use cases
-            """
+): String =
+    """
             {
                 "data": {
                    "battery_stats.data_source_enabled" : true,
@@ -157,12 +127,105 @@ fun fetchBortSettings(
                    }
                 }
             }
-            """.trimIndent()
+    """.trimIndent()
+
+private fun readExistingConfig(rootDir: File): String? =
+    getBortSettingsAssetsFile(rootDir).let {
+        if (it.exists()) it.readText()
+        else null
+    }
+
+private fun hasSameJsonContent(remote: String, existing: String): Boolean =
+    ObjectMapper().let {
+        it.readTree(remote) == it.readTree(existing)
+    }
+
+private fun writeConfig(rootDir: File, contents: String, prettyPrint: Boolean = true) {
+    val mapper = ObjectMapper().also {
+        if (prettyPrint) it.enable(SerializationFeature.INDENT_OUTPUT)
+    }
+
+    try {
+        val jsonTree = mapper.readTree(contents)
+
+        File(getBortSettingsAssetsPath(rootDir)).mkdirs()
+        mapper.writeValue(getBortSettingsAssetsFile(rootDir), jsonTree)
+    } catch (ex: Exception) {
+        when (ex) {
+            is JsonMappingException,
+            is JsonProcessingException,
+            is JsonGenerationException -> {
+                throw BortSettingsInconsistencyException("Error when validating JSON config.", ex)
+            }
+            else -> throw ex
         }
     }
-    refreshSettings(
-        rootDir = rootDir,
-        warn = warn,
-        getConfig = getConfig
+}
+
+private fun showDiff(current: String, future: String, handler: (String) -> Unit, prettyPrint: Boolean = true) {
+    val mapper = ObjectMapper().also {
+        if (prettyPrint) it.enable(SerializationFeature.INDENT_OUTPUT)
+    }
+    val diff = JsonDiff.asJson(mapper.readTree(current), mapper.readTree(future))
+    handler(mapper.writeValueAsString(diff))
+}
+
+fun fetchBortSettingsInternal(
+    rootDir: File,
+    useDevConfig: Boolean,
+    skipDownload: Boolean,
+    getDefaultProperty: (String) -> String?,
+    warn: (String, Exception?) -> Unit,
+    fetchBortConfigFun: () -> String
+) {
+    if (useDevConfig) {
+        writeConfig(rootDir, generateDevConfig(getDefaultProperty))
+        return
+    }
+
+    val currentConfig = readExistingConfig(rootDir)
+    val remoteConfig =
+        if (skipDownload) null
+        else fetchBortConfigFun()
+
+    if (currentConfig == null && remoteConfig == null) {
+        throw BortSettingsInconsistencyException(
+            """No local config and SKIP_DOWNLOAD_SETTINGS_JSON is enabled, please
+            |provide a local settings file in ${getBortSettingsAssetsFile(rootDir)} or enable settings download
+        """.trimMargin()
+        )
+    } else if (currentConfig != null && remoteConfig != null) {
+        if (!hasSameJsonContent(currentConfig, remoteConfig)) {
+            warn("Diff between local configuration and project configuration in Memfault servers:", null)
+            showDiff(currentConfig, remoteConfig, { diff: String -> warn(diff, null) })
+            throw BortSettingsInconsistencyException(
+                """Local config (${getBortSettingsAssetsFile(rootDir)}) content
+                | is different from settings downloaded from the Memfault server. If the new remote settings look good
+                | remove the local settings file and retry. Otherwise, change the remote settings to match local ones
+                | and retry.
+            """.trimMargin()
+            )
+        }
+    } else if (remoteConfig != null) {
+        writeConfig(rootDir, remoteConfig)
+    }
+}
+
+fun fetchBortSettings(
+    rootDir: File,
+    deviceBaseUrl: String,
+    projectKey: String,
+    useDevConfig: Boolean,
+    skipDownload: Boolean,
+    getDefaultProperty: (String) -> String?,
+    warn: (String, Exception?) -> Unit
+) {
+    fetchBortSettingsInternal(
+        rootDir,
+        useDevConfig,
+        skipDownload,
+        getDefaultProperty,
+        warn,
+        { fetchBortConfig(deviceBaseUrl, projectKey) }
     )
 }

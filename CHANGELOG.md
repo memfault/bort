@@ -1,5 +1,16 @@
 # Memfault Bort Changelog
 
+## v3.3.1 - February 19, 2021
+
+#### :chart_with_upwards_trend: Improvements
+
+- Improved the gradle build scripting to prevent accidentally replacing the
+  `MemfaultPackages/settings/settings.json` with different settings. In case the
+  local file contains settings that differ from what has been configured in the
+  Memfault web service, the build is aborted and a
+  [RFC 6902 JSON diff](https://tools.ietf.org/html/rfc6902) is printed to aid
+  the user, as well as suggestions on how to fix the issue.
+
 ## v3.3.0 - February 17, 2021
 
 #### :rocket: New Features
