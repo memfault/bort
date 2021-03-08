@@ -1,5 +1,6 @@
 package com.memfault.bort.dropbox
 
+import android.os.DropBoxManager
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.TimezoneWithId
@@ -21,7 +22,7 @@ class TombstoneUploadingEntryProcessorDelegate(
         get() = "UPLOAD_TOMBSTONE"
 
     override suspend fun createMetadata(
-        tempFile: File,
+        entryInfo: EntryInfo,
         tag: String,
         fileTime: AbsoluteTime?,
         entryTime: AbsoluteTime,
@@ -30,10 +31,15 @@ class TombstoneUploadingEntryProcessorDelegate(
         tag = tag,
         fileTime = fileTime,
         entryTime = entryTime,
-        packages = getPackages(tempFile),
+        packages = entryInfo.packages,
         collectionTime = collectionTime,
         timezone = TimezoneWithId.deviceDefault,
     )
+
+    override suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo {
+        val processName = findProcessName(entryFile)
+        return EntryInfo(entry.tag, processName, getPackages(processName))
+    }
 
     private fun findProcessName(tempFile: File) =
         listOf(
@@ -49,8 +55,8 @@ class TombstoneUploadingEntryProcessorDelegate(
             }
         }.filterNotNull().firstOrNull()
 
-    private suspend fun getPackages(tempFile: File): List<FileUploadPayload.Package> {
-        val processName = findProcessName(tempFile) ?: return emptyList<FileUploadPayload.Package>().also {
+    private suspend fun getPackages(processName: String?): List<FileUploadPayload.Package> {
+        processName ?: return emptyList<FileUploadPayload.Package>().also {
             Logger.e("Tombstone failed to parse")
         }
 

@@ -5,6 +5,7 @@ import com.memfault.bort.FakeBootRelativeTimeProvider
 import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.PackageManagerClient
+import com.memfault.bort.PackageNameAllowList
 import com.memfault.bort.TombstoneFileUploadMetadata
 import com.memfault.bort.logcat.FakeNextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
@@ -31,6 +32,7 @@ import io.mockk.verify
 import kotlin.time.milliseconds
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DynamicTest
@@ -46,6 +48,7 @@ class TombstoneEntryProcessorTest {
     lateinit var mockPackageManagerClient: PackageManagerClient
     lateinit var builtInMetricsStore: BuiltinMetricsStore
     lateinit var mockHandleEventOfInterest: (BaseBootRelativeTime) -> Unit
+    lateinit var mockPackageNameAllowList: PackageNameAllowList
 
     @BeforeEach
     fun setUp() {
@@ -59,6 +62,9 @@ class TombstoneEntryProcessorTest {
 
         mockPackageManagerClient = mockk()
         builtInMetricsStore = BuiltinMetricsStore(makeFakeMetricRegistry())
+        mockPackageNameAllowList = mockk {
+            every { contains(any()) } returns true
+        }
         processor = UploadingEntryProcessor(
             delegate = TombstoneUploadingEntryProcessorDelegate(
                 packageManagerClient = mockPackageManagerClient,
@@ -80,6 +86,7 @@ class TombstoneEntryProcessorTest {
             ),
             builtinMetricsStore = builtInMetricsStore,
             handleEventOfInterest = mockHandleEventOfInterest,
+            packageNameAllowList = mockPackageNameAllowList,
         )
     }
 
@@ -171,6 +178,26 @@ class TombstoneEntryProcessorTest {
                     .entries
                     .containsAll(expectedMap.entries)
             )
+        }
+    }
+
+    @Test
+    fun doesNotEnqueueWhenNotAllowed() {
+        every { mockPackageNameAllowList.contains(any()) } returns false
+
+        runBlocking {
+            processor.process(mockEntry(text = ""))
+            assertFalse(fileUploadPayloadSlot.isCaptured)
+        }
+    }
+
+    @Test
+    fun nullEntryInputStream() {
+        val entry = mockEntry(text = "")
+        every { entry.getInputStream() } returns null
+        runBlocking {
+            // Used to raise an exception, but should not!
+            processor.process(entry)
         }
     }
 }

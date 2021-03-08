@@ -220,6 +220,11 @@ sealed class DropBoxEntryFileUploadMetadata {
      * The device's timezone at the time the DropBox Entry was collected.
      */
     abstract val timezone: TimezoneWithId?
+
+    /**
+     * The (optional) list of packages
+     */
+    abstract val packages: List<FileUploadPayload.Package>?
 }
 
 @Serializable
@@ -233,12 +238,12 @@ data class TombstoneFileUploadMetadata(
     @SerialName("entry_time")
     override val entryTime: AbsoluteTime,
 
-    val packages: List<FileUploadPayload.Package>,
-
     @SerialName("collection_time")
     override val collectionTime: BootRelativeTime,
 
     override val timezone: TimezoneWithId?,
+
+    override val packages: List<FileUploadPayload.Package>
 ) : DropBoxEntryFileUploadMetadata() {
     override val family: String
         get() = "tombstone"
@@ -260,6 +265,8 @@ data class JavaExceptionFileUploadMetadata(
 
     override val timezone: TimezoneWithId?,
 ) : DropBoxEntryFileUploadMetadata() {
+    override val packages: List<FileUploadPayload.Package> = emptyList()
+
     override val family: String
         get() = "java_exception"
 }
@@ -280,6 +287,8 @@ data class AnrFileUploadMetadata(
 
     override val timezone: TimezoneWithId?,
 ) : DropBoxEntryFileUploadMetadata() {
+    override val packages: List<FileUploadPayload.Package> = emptyList()
+
     override val family: String
         get() = "anr"
 }
@@ -300,6 +309,8 @@ data class KmsgFileUploadMetadata(
 
     override val timezone: TimezoneWithId?,
 ) : DropBoxEntryFileUploadMetadata() {
+    override val packages: List<FileUploadPayload.Package> = emptyList()
+
     override val family: String
         get() = "kmsg"
 }

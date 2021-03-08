@@ -136,7 +136,7 @@ def _cmd_cpp_header(*, output_file, bort_properties_file):
     _write_if_changed(content, output_file)
 
 
-def _parse_keytool_printcert_sha256(keytool_output):
+def _parse_keytool_printcert_sha256(keytool_output, keytool_cmd):
     in_fingerprints_section = False
     for line in keytool_output.splitlines():
         if "Certificate fingerprints:" in line:
@@ -146,7 +146,12 @@ def _parse_keytool_printcert_sha256(keytool_output):
         if in_fingerprints_section and "SHA256: " in line:
             return line.partition(": ")[2]
     else:
-        raise Exception("Failed to extract SHA256 fingerprint")
+        cmd_str = " ".join(keytool_cmd)
+        raise Exception(
+            "Failed to extract SHA256 fingerprint. keytool cmd `{}` output:\n{}".format(
+                cmd_str, keytool_output
+            )
+        )
 
 
 def _hex_colon_format(hex_input):
@@ -169,7 +174,8 @@ def _get_java_bin_path(prog):
 
 def _run_keytool(*args):
     keytool_path = _get_java_bin_path("keytool")
-    return subprocess.check_output([keytool_path] + list(args)).decode("utf8", errors="ignore")
+    cmd = [keytool_path] + list(args)
+    return subprocess.check_output(cmd).decode("utf8", errors="ignore"), cmd
 
 
 def _get_apksigner_jar_path():
@@ -216,7 +222,8 @@ def _cmd_check_signature(*, output_file, apk_file, pem_file):
         raise Exception("Failed to extract certificates from {}".format(apk_file)) from e
 
     try:
-        pem_sha256 = _parse_keytool_printcert_sha256(_run_keytool("-printcert", "-file", pem_file))
+        output, cmd = _run_keytool("-printcert", "-file", pem_file)
+        pem_sha256 = _parse_keytool_printcert_sha256(output, cmd)
     except Exception as e:
         raise Exception("Failed to extract certificate from {}".format(pem_file)) from e
 
@@ -335,9 +342,18 @@ def test_parse_keytool_printcert_sha256() -> None:
         """
     )
     assert (
-        _parse_keytool_printcert_sha256(output)
+        _parse_keytool_printcert_sha256(output, [])
         == "17:47:DC:46:55:D9:72:9E:5B:3A:A9:33:8D:52:53:85:95:A3:56:AA:80:61:86:5C:14:8F:BB:00:DF:FB:4B:4C"
     )
+
+
+def test_parse_keytool_printcert_sha256_failure() -> None:
+    import pytest
+
+    with pytest.raises(Exception) as excinfo:
+        _parse_keytool_printcert_sha256("the output", ["keytool", "cmd", "xyz"])
+    assert "keytool cmd xyz" in str(excinfo.value)
+    assert "the output" in str(excinfo.value)
 
 
 def test_parse_apksigner_cert_sha256() -> None:

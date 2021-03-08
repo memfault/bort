@@ -1,8 +1,11 @@
 package com.memfault.bort.dropbox
 
+import android.os.DropBoxManager
 import com.memfault.bort.AnrFileUploadMetadata
 import com.memfault.bort.DropBoxEntryFileUploadMetadata
 import com.memfault.bort.TimezoneWithId
+import com.memfault.bort.parsers.AnrParser
+import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
 import java.io.File
@@ -16,8 +19,17 @@ class AnrUploadingEntryProcessorDelegate : UploadingEntryProcessorDelegate {
     override val debugTag: String
         get() = "UPLOAD_ANR"
 
+    override suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo = try {
+        entryFile.inputStream().use {
+            EntryInfo(entry.tag, AnrParser(it).parse().packageName)
+        }
+    } catch (ex: Exception) {
+        Logger.w("Unable to parse ANR", ex)
+        EntryInfo(entry.tag)
+    }
+
     override suspend fun createMetadata(
-        tempFile: File,
+        entryInfo: EntryInfo,
         tag: String,
         fileTime: AbsoluteTime?,
         entryTime: AbsoluteTime,

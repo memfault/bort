@@ -25,11 +25,11 @@ class SelfTester(
         listOf(
             SelfTestReporterServiceTimeouts(reporterServiceConnector),
             SelfTestDumpster(settingsProvider.deviceInfoSettings),
-            SelfTestBatteryStats(reporterServiceConnector),
-            SelfTestLogcatFilterSpecs(reporterServiceConnector),
-            SelfTestLogcatFormat(reporterServiceConnector),
+            SelfTestBatteryStats(reporterServiceConnector, settingsProvider.batteryStatsSettings.commandTimeout),
+            SelfTestLogcatFilterSpecs(reporterServiceConnector, settingsProvider.logcatSettings.commandTimeout),
+            SelfTestLogcatFormat(reporterServiceConnector, settingsProvider.logcatSettings.commandTimeout),
             SelfTestLogcatCommandSerialization(),
-            SelfTestPackageManager(reporterServiceConnector),
+            SelfTestPackageManager(reporterServiceConnector, settingsProvider.packageManagerSettings.commandTimeout),
         ).map { case ->
             try {
                 Logger.test("Running $case...")

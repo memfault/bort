@@ -1,5 +1,6 @@
 package com.memfault.bort.settings
 
+import com.memfault.bort.DataScrubbingRule
 import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.time.BoxedDuration
 import com.memfault.bort.time.DurationAsMillisecondsLong
@@ -10,11 +11,18 @@ import kotlinx.serialization.json.Json
 
 @Serializable
 data class FetchedSettings(
+    @SerialName("battery_stats.command_timeout_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val batteryStatsCommandTimeout: BoxedDuration,
+
     @SerialName("battery_stats.data_source_enabled")
     val batteryStatsDataSourceEnabled: Boolean,
 
     @SerialName("bort.min_log_level")
     val bortMinLogLevel: Int,
+
+    @SerialName("bort.event_log_enabled")
+    val bortEventLogEnabled: Boolean,
 
     @SerialName("bort.settings_update_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
@@ -40,6 +48,9 @@ data class FetchedSettings(
     @SerialName("bug_report.options.minimal")
     val bugReportOptionsMinimal: Boolean,
 
+    @SerialName("data_scrubbing.rules")
+    val dataScrubbingRules: List<DataScrubbingRule>,
+
     @SerialName("device_info.android_build_version_key")
     val deviceInfoAndroidBuildVersionKey: String,
 
@@ -51,6 +62,9 @@ data class FetchedSettings(
 
     @SerialName("device_info.android_hardware_version_key")
     val deviceInfoAndroidHardwareVersionKey: String,
+
+    @SerialName("drop_box.excluded_tags")
+    val dropBoxExcludedTags: Set<String>,
 
     @SerialName("drop_box.anrs.rate_limiting_settings")
     val dropBoxAnrsRateLimitingSettings: RateLimitingSettings,
@@ -93,6 +107,10 @@ data class FetchedSettings(
     @Serializable(with = DurationAsMillisecondsLong::class)
     val logcatCollectionInterval: BoxedDuration,
 
+    @SerialName("logcat.command_timeout_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val logcatCommandTimeout: BoxedDuration,
+
     @SerialName("logcat.data_source_enabled")
     val logcatDataSourceEnabled: Boolean,
 
@@ -105,6 +123,13 @@ data class FetchedSettings(
 
     @SerialName("metrics.data_source_enabled")
     val metricsDataSourceEnabled: Boolean,
+
+    @SerialName("package_manager.command_timeout_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val packageManagerCommandTimeout: BoxedDuration,
+
+    @SerialName("reboot_events.data_source_enabled")
+    val rebootEventsDataSourceEnabled: Boolean,
 
     @SerialName("reboot_events.rate_limiting_settings")
     val rebootEventsRateLimitingSettings: RateLimitingSettings,

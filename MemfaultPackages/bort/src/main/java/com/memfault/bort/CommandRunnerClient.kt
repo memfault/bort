@@ -23,7 +23,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 
-private val DEFAULT_INPUT_STREAM_TIMEOUT = 5.seconds
+private val DEFAULT_INPUT_STREAM_TIMEOUT = 30.seconds
 private val DEFAULT_RESPONSE_TIMEOUT = 5.seconds
 
 interface CommandRunnerClientFactory {

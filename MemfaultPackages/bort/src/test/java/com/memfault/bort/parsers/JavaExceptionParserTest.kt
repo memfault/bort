@@ -8,6 +8,7 @@ class JavaExceptionParserTest {
     fun ok() {
         assertEquals(
             JavaException(
+                packageName = "com.memfault.bort_e2e_helper",
                 unparsedStackFrames = listOf(
                     "android.app.ActivityThread.handleReceiver(ActivityThread.java:3194)",
                     "com.android.internal.os.RuntimeInit.MethodAndArgsCaller.run(RuntimeInit.java:438)",

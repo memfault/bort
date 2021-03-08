@@ -2,6 +2,7 @@ package com.memfault.bort.dropbox
 
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.PackageManagerClient
+import com.memfault.bort.PackageNameAllowList
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
@@ -23,6 +24,7 @@ fun realDropBoxEntryProcessors(
     javaExceptionTokenBucketStore: TokenBucketStore,
     anrTokenBucketStore: TokenBucketStore,
     kmsgTokenBucketStore: TokenBucketStore,
+    packageNameAllowList: PackageNameAllowList,
 ): Map<String, EntryProcessor> {
     val tombstoneEntryProcessor = UploadingEntryProcessor(
         delegate = TombstoneUploadingEntryProcessorDelegate(
@@ -36,6 +38,7 @@ fun realDropBoxEntryProcessors(
         tokenBucketStore = tombstoneTokenBucketStore,
         builtinMetricsStore = builtinMetricsStore,
         handleEventOfInterest = handleEventOfInterest,
+        packageNameAllowList = packageNameAllowList,
     )
     val javaExceptionEntryProcessor = UploadingEntryProcessor(
         delegate = JavaExceptionUploadingEntryProcessorDelegate(),
@@ -47,6 +50,7 @@ fun realDropBoxEntryProcessors(
         tokenBucketStore = javaExceptionTokenBucketStore,
         builtinMetricsStore = builtinMetricsStore,
         handleEventOfInterest = handleEventOfInterest,
+        packageNameAllowList = packageNameAllowList,
     )
     val anrEntryProcessor = UploadingEntryProcessor(
         delegate = AnrUploadingEntryProcessorDelegate(),
@@ -58,6 +62,7 @@ fun realDropBoxEntryProcessors(
         tokenBucketStore = anrTokenBucketStore,
         builtinMetricsStore = builtinMetricsStore,
         handleEventOfInterest = handleEventOfInterest,
+        packageNameAllowList = packageNameAllowList,
     )
     val kmsgEntryProcessor = UploadingEntryProcessor(
         delegate = KmsgUploadingEntryProcessorDelegate(),
@@ -69,6 +74,7 @@ fun realDropBoxEntryProcessors(
         tokenBucketStore = kmsgTokenBucketStore,
         builtinMetricsStore = builtinMetricsStore,
         handleEventOfInterest = handleEventOfInterest,
+        packageNameAllowList = packageNameAllowList,
     )
     return mapOf(
         *tombstoneEntryProcessor.tagPairs(),

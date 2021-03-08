@@ -110,30 +110,33 @@ class ReporterClient(
 
     suspend fun <R> batteryStatsRun(
         cmd: BatteryStatsCommand,
+        timeout: Duration,
         block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>
     ): StdResult<R> =
         withVersion(context = "battery stats") {
-            commandRunnerClientFactory.create().run(block) { options ->
+            commandRunnerClientFactory.create(timeout = timeout).run(block) { options ->
                 sendAndGetReplyHandler(BatteryStatsRequest(cmd, options))
             }
         }
 
     suspend fun <R> logcatRun(
         cmd: LogcatCommand,
-        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>
+        timeout: Duration,
+        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>,
     ): StdResult<R> =
         withVersion(context = "logcat") {
-            commandRunnerClientFactory.create().run(block) { options ->
+            commandRunnerClientFactory.create(timeout = timeout).run(block) { options ->
                 sendAndGetReplyHandler(LogcatRequest(cmd, options))
             }
         }
 
     suspend fun <R> packageManagerRun(
         cmd: PackageManagerCommand,
+        timeout: Duration,
         block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>
     ): StdResult<R> =
         withVersion(context = "package manager") {
-            commandRunnerClientFactory.create().run(block) { options ->
+            commandRunnerClientFactory.create(timeout = timeout).run(block) { options ->
                 sendAndGetReplyHandler(PackageManagerRequest(cmd, options))
             }
         }

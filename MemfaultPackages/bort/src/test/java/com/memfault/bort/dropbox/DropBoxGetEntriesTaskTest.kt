@@ -46,6 +46,7 @@ class DropBoxGetEntriesTaskTest {
     lateinit var mockEntryProcessor: EntryProcessor
     lateinit var task: DropBoxGetEntriesTask
     lateinit var lastProcessedEntryProvider: FakeLastProcessedEntryProvider
+    var mockGetExcludedTags: Set<String> = setOf()
 
     private val mockRateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 10,
@@ -59,6 +60,7 @@ class DropBoxGetEntriesTaskTest {
         override val javaExceptionsRateLimitingSettings = mockRateLimitingSettings
         override val kmsgsRateLimitingSettings = mockRateLimitingSettings
         override val tombstonesRateLimitingSettings = mockRateLimitingSettings
+        override val excludedTags get() = mockGetExcludedTags
     }
 
     @BeforeEach
@@ -78,7 +80,10 @@ class DropBoxGetEntriesTaskTest {
         task = DropBoxGetEntriesTask(
             reporterServiceConnector = mockServiceConnector,
             lastProcessedEntryProvider = lastProcessedEntryProvider,
-            entryProcessors = mapOf(TEST_TAG to mockEntryProcessor),
+            entryProcessors = mapOf(
+                TEST_TAG to mockEntryProcessor,
+                TEST_TAG_TO_IGNORE to mockEntryProcessor,
+            ),
             settings = mockDropboxSettings,
             retryDelayMillis = 0
         )
@@ -223,6 +228,25 @@ class DropBoxGetEntriesTaskTest {
         }
         assertEquals(TaskResult.SUCCESS, result)
         assertEquals(10, lastProcessedEntryProvider.timeMillis)
+        verifyCloseCalled()
+    }
+
+    @Test
+    fun ignoredTagsArePassed() {
+        mockGetExcludedTags = setOf(TEST_TAG_TO_IGNORE)
+        val verifyCloseCalled = mockGetNextEntryReponses(
+            mockEntry(10, tag_ = TEST_TAG),
+            null
+        )
+
+        runBlocking {
+            task.doWork()
+        }
+
+        coVerify {
+            mockServiceConnection.sendAndReceive(DropBoxSetTagFilterRequest(listOf(TEST_TAG)))
+        }
+
         verifyCloseCalled()
     }
 

@@ -64,7 +64,9 @@ private fun generateDevConfig(
             {
                 "data": {
                    "battery_stats.data_source_enabled" : true,
+                   "battery_stats.command_timeout_ms" : 60000,
                    "bort.min_log_level" : ${getDefaultProperty("MINIMUM_LOG_LEVEL")?.toInt() ?: 5},
+                   "bort.event_log_enabled": true,
                    "bort.settings_update_interval_ms" : 86400000,
                    "bug_report.collection_interval_ms" : 43200000,
                    "bug_report.data_source_enabled" : true,
@@ -116,10 +118,13 @@ private fun generateDevConfig(
                    "http_api.upload_compression_enabled" : true,
                    "http_api.upload_network_constraint_allow_metered_connection" : true,
                    "logcat.collection_interval_ms" : 900000,
+                   "logcat.command_timeout_ms" : 60000,
                    "logcat.data_source_enabled" : true,
                    "logcat.filter_specs": [{"priority": "W", "tag": "*"}],
                    "metrics.collection_interval_ms" : 3600000,
                    "metrics.data_source_enabled" : true,
+                   "package_manager.command_timeout_ms" : 60000,
+                   "reboot_events.data_source_enabled": true,
                    "reboot_events.rate_limiting_settings": {
                        "default_capacity": 5,
                        "default_period_ms": 900000,

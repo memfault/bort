@@ -38,6 +38,7 @@ import com.memfault.bort.requester.LogcatCollectionRequester
 import com.memfault.bort.requester.MetricsCollectionRequester
 import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.settings.BortEnabledProvider
+import com.memfault.bort.settings.ConfigValue
 import com.memfault.bort.settings.DynamicSettingsProvider
 import com.memfault.bort.settings.PeriodicRequesterRestartTask
 import com.memfault.bort.settings.RealStoredSettingsPreferenceProvider
@@ -175,7 +176,10 @@ data class AppComponents(
                 override val temporaryFileDirectory: File = context.cacheDir
             }
             val bootRelativeTimeProvider = RealBootRelativeTimeProvider(context)
-            val packageManagerClient = PackageManagerClient(reporterServiceConnector)
+            val packageManagerClient = PackageManagerClient(
+                reporterServiceConnector = reporterServiceConnector,
+                commandTimeoutConfig = settingsProvider.packageManagerSettings::commandTimeout
+            )
             val enqueueFileUpload: EnqueueFileUpload = { file, metadata, debugTag ->
                 enqueueFileUploadTask(
                     context, file, metadata, settingsProvider.httpApiSettings::uploadConstraints, debugTag
@@ -220,6 +224,19 @@ data class AppComponents(
                     },
                 )
             }
+
+            val packageNameAllowList = RuleBasedPackageNameAllowList(
+                rulesConfig = {
+                    settingsProvider.dataScrubbingSettings.rules.filterIsInstance(AndroidAppIdScrubbingRule::class.java)
+                }
+            )
+
+            val dataScrubber = {
+                DataScrubber(
+                    settingsProvider.dataScrubbingSettings.rules.filterIsInstance(LineScrubbingCleaner::class.java),
+                )
+            }
+
             val dropBoxSettings = settingsProvider.dropBoxSettings
             val nextLogcatCidProvider = RealNextLogcatCidProvider(sharedPreferences)
             val dropBoxEntryProcessors = realDropBoxEntryProcessors(
@@ -275,6 +292,7 @@ data class AppComponents(
                             },
                         )
                     },
+                packageNameAllowList = packageNameAllowList,
             ) + extraDropBoxEntryProcessors
 
             val pendingBugReportRequestAccessor = PendingBugReportRequestAccessor(
@@ -375,6 +393,9 @@ data class AppComponents(
                             },
                         )
                     },
+                dataScrubber = dataScrubber,
+                packageNameAllowList = packageNameAllowList,
+                packageManagerClient = packageManagerClient,
                 interceptingFactory = interceptingWorkerFactory,
             )
 
@@ -461,6 +482,9 @@ class DefaultWorkerFactory(
     private val logcatPeriodicTaskTokenBucketStore: TokenBucketStore,
     private val metricsPeriodicTaskTokenBucketStore: TokenBucketStore,
     private val settingsUpdatePeriodicTaskTokenBucketStore: TokenBucketStore,
+    private val dataScrubber: ConfigValue<DataScrubber>,
+    private val packageNameAllowList: PackageNameAllowList,
+    private val packageManagerClient: PackageManagerClient,
     private val interceptingFactory: InterceptingWorkerFactory? = null,
 ) : WorkerFactory(), TaskFactory {
     override fun createWorker(
@@ -519,6 +543,7 @@ class DefaultWorkerFactory(
                     temporaryFileFactory = temporaryFileFactory,
                     nextBatteryStatsHistoryStartProvider = RealNextBatteryStatsHistoryStartProvider(sharedPreferences),
                     runBatteryStats = reporterServiceConnector::runBatteryStats,
+                    timeoutConfig = settingsProvider.batteryStatsSettings::commandTimeout,
                 ),
                 enqueueFileUpload = enqueueFileUpload,
                 nextLogcatCidProvider = nextLogcatCidProvider,
@@ -540,6 +565,10 @@ class DefaultWorkerFactory(
                     nextLogcatCidProvider = RealNextLogcatCidProvider(sharedPreferences),
                     runLogcat = reporterServiceConnector::runLogcat,
                     filterSpecsConfig = settingsProvider.logcatSettings::filterSpecs,
+                    dataScrubber = dataScrubber,
+                    timeoutConfig = settingsProvider.logcatSettings::commandTimeout,
+                    packageNameAllowList = packageNameAllowList,
+                    packageManagerClient = packageManagerClient,
                 ),
                 fileUploadHoldingArea = fileUploadHoldingArea,
                 combinedTimeProvider = RealCombinedTimeProvider(context),

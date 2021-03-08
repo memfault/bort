@@ -6,7 +6,6 @@ import com.memfault.bort.KmsgFileUploadMetadata
 import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
-import java.io.File
 
 class KmsgUploadingEntryProcessorDelegate : UploadingEntryProcessorDelegate {
     override val tags = listOf(
@@ -17,7 +16,7 @@ class KmsgUploadingEntryProcessorDelegate : UploadingEntryProcessorDelegate {
         get() = "UPLOAD_KMSG"
 
     override suspend fun createMetadata(
-        tempFile: File,
+        entryInfo: EntryInfo,
         tag: String,
         fileTime: AbsoluteTime?,
         entryTime: AbsoluteTime,

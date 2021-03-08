@@ -2,6 +2,7 @@ package com.memfault.bort.settings
 
 import androidx.work.Constraints
 import androidx.work.NetworkType
+import com.memfault.bort.DataScrubbingRule
 import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatFilterSpec
@@ -30,10 +31,12 @@ interface DropBoxSettings {
     val javaExceptionsRateLimitingSettings: RateLimitingSettings
     val kmsgsRateLimitingSettings: RateLimitingSettings
     val tombstonesRateLimitingSettings: RateLimitingSettings
+    val excludedTags: Set<String>
 }
 
 interface BatteryStatsSettings {
     val dataSourceEnabled: Boolean
+    val commandTimeout: Duration
 }
 
 interface MetricsSettings {
@@ -44,6 +47,7 @@ interface MetricsSettings {
 interface LogcatSettings {
     val dataSourceEnabled: Boolean
     val collectionInterval: Duration
+    val commandTimeout: Duration
     val filterSpecs: List<LogcatFilterSpec>
 }
 
@@ -84,11 +88,21 @@ interface HttpApiSettings {
 }
 
 interface RebootEventsSettings {
+    val dataSourceEnabled: Boolean
     val rateLimitingSettings: RateLimitingSettings
+}
+
+interface DataScrubbingSettings {
+    val rules: List<DataScrubbingRule>
+}
+
+interface PackageManagerSettings {
+    val commandTimeout: Duration
 }
 
 interface SettingsProvider {
     val minLogLevel: LogLevel
+    val eventLogEnabled: Boolean
     val isRuntimeEnableRequired: Boolean
     val settingsUpdateInterval: Duration
 
@@ -102,6 +116,8 @@ interface SettingsProvider {
     val logcatSettings: LogcatSettings
     val fileUploadHoldingAreaSettings: FileUploadHoldingAreaSettings
     val rebootEventsSettings: RebootEventsSettings
+    val dataScrubbingSettings: DataScrubbingSettings
+    val packageManagerSettings: PackageManagerSettings
 
     fun invalidate()
 }

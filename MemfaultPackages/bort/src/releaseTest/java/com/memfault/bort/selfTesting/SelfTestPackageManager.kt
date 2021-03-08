@@ -8,11 +8,13 @@ import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PackageManagerCommand
 import com.memfault.bort.shared.result.isSuccess
+import kotlin.time.Duration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class SelfTestPackageManager(
-    val reporterServiceConnector: ReporterServiceConnector
+    private val reporterServiceConnector: ReporterServiceConnector,
+    private val timeout: Duration,
 ) : SelfTester.Case {
     override suspend fun test(): Boolean {
         data class PackageManagerTestCase(val cmd: PackageManagerCommand, val expectation: String)
@@ -31,7 +33,7 @@ class SelfTestPackageManager(
         )
         return reporterServiceConnector.connect { getClient ->
             testCases.map { testCase ->
-                getClient().packageManagerRun(testCase.cmd) { invocation ->
+                getClient().packageManagerRun(testCase.cmd, timeout) { invocation ->
                     invocation.awaitInputStream().map { stream ->
                         withContext(Dispatchers.IO) {
                             stream.bufferedReader().readText()

@@ -35,6 +35,7 @@ open class Bort : Application(), Configuration.Provider {
 
         with(appComponents().settingsProvider) {
             Logger.minLevel = minLogLevel
+            Logger.eventLogEnabled = this::eventLogEnabled
             Logger.logEvent(
                 "bort-oncreate",
                 "device=${appComponents().deviceIdProvider.deviceId()}",
@@ -53,6 +54,7 @@ open class Bort : Application(), Configuration.Provider {
                 |  device=${appComponents().deviceIdProvider.deviceId()}
                 |  minLogLevel=$minLogLevel
                 |  isRuntimeEnableRequired=$isRuntimeEnableRequired
+                |  eventLogEnabled=${Logger.eventLogEnabled()}
                 |  build=${Build.TYPE}
                 |Http Api Settings:
                 |  deviceBaseUrl=${httpApiSettings.deviceBaseUrl}

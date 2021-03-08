@@ -5,6 +5,7 @@ import io.mockk.every
 import io.mockk.mockk
 
 const val TEST_TAG = "TEST"
+const val TEST_TAG_TO_IGNORE = "TEST_TAG_TO_IGNORE"
 
 fun mockEntry(timeMillis_: Long = 0, tag_: String = TEST_TAG, text: String = "") = mockk<DropBoxManager.Entry> {
     every { tag } returns tag_

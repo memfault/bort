@@ -8,13 +8,17 @@ import androidx.work.WorkerParameters
 import com.memfault.bort.dropbox.testDropBoxEntryProcessors
 import com.memfault.bort.requester.BugReportRequestWorker
 import com.memfault.bort.selfTesting.SelfTestWorker
+import com.memfault.bort.settings.DataScrubbingSettings
 import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.settings.DynamicSettingsProvider
 import com.memfault.bort.settings.HttpApiSettings
+import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.settings.RealStoredSettingsPreferenceProvider
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.StoredSettingsPreferenceProvider
 import com.memfault.bort.shared.LogLevel
+import com.memfault.bort.shared.LogcatFilterSpec
+import com.memfault.bort.shared.LogcatPriority
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.tokenbucket.TokenBucketStore
@@ -113,14 +117,6 @@ class PersistentSettingsProvider(
     override val httpApiSettings = object : HttpApiSettings by super.httpApiSettings {
         override val projectKey: String
             get() = persistentProjectKeyProvider.getValue()
-
-        // TODO: ideally these would not be overloaded but the backend is currently returning
-        //  production urls in settings update payloads, even in test environments. When the
-        //  settings update job is triggered, the tests would start pointing at production
-        //  urls. The workaround for now is to use those specified in BuildConfig
-        override val deviceBaseUrl: String = BuildConfig.MEMFAULT_DEVICE_BASE_URL
-        override val filesBaseUrl: String = BuildConfig.MEMFAULT_FILES_BASE_URL
-        override val ingressBaseUrl: String = BuildConfig.MEMFAULT_INGRESS_BASE_URL
     }
 
     // TODO: review this, the backend will override settings through dynamic settings update
@@ -131,5 +127,23 @@ class PersistentSettingsProvider(
     // Backend might return this as disabled but e2e tests require it
     override val dropBoxSettings = object : DropBoxSettings by super.dropBoxSettings {
         override val dataSourceEnabled = true
+    }
+
+    // Include bort-test tags for logcat collector
+    override val logcatSettings = object : LogcatSettings by super.logcatSettings {
+        override val filterSpecs: List<LogcatFilterSpec> =
+            listOf(
+                LogcatFilterSpec("*", LogcatPriority.WARN),
+                LogcatFilterSpec("bort", LogcatPriority.VERBOSE),
+                LogcatFilterSpec("bort-test", LogcatPriority.VERBOSE),
+            )
+    }
+
+    // Include data scrubbing rules when testing
+    override val dataScrubbingSettings = object : DataScrubbingSettings by super.dataScrubbingSettings {
+        override val rules: List<DataScrubbingRule> = listOf(
+            EmailScrubbingRule,
+            CredentialScrubbingRule,
+        )
     }
 }

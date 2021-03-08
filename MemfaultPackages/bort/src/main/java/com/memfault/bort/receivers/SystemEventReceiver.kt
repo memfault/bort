@@ -49,21 +49,23 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
                 settingsProvider,
             )
 
-            DumpsterClient().getprop()?.let { systemProperties ->
-                val rebootEventUploader = RebootEventUploader(
-                    ingressService = ingressService,
-                    deviceInfo = deviceInfoProvider.getDeviceInfo(),
-                    androidSysBootReason = systemProperties.get(AndroidBootReason.SYS_BOOT_REASON_KEY),
-                    tokenBucketStore = rebootEventTokenBucketStore,
-                )
+            if (settingsProvider.rebootEventsSettings.dataSourceEnabled) {
+                DumpsterClient().getprop()?.let { systemProperties ->
+                    val rebootEventUploader = RebootEventUploader(
+                        ingressService = ingressService,
+                        deviceInfo = deviceInfoProvider.getDeviceInfo(),
+                        androidSysBootReason = systemProperties.get(AndroidBootReason.SYS_BOOT_REASON_KEY),
+                        tokenBucketStore = rebootEventTokenBucketStore,
+                    )
 
-                val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
-                BootCountTracker(
-                    lastTrackedBootCountProvider = RealLastTrackedBootCountProvider(
-                        sharedPreferences = sharedPreferences
-                    ),
-                    untrackedBootCountHandler = rebootEventUploader::handleUntrackedBootCount
-                ).trackIfNeeded(bootCount)
+                    val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
+                    BootCountTracker(
+                        lastTrackedBootCountProvider = RealLastTrackedBootCountProvider(
+                            sharedPreferences = sharedPreferences
+                        ),
+                        untrackedBootCountHandler = rebootEventUploader::handleUntrackedBootCount
+                    ).trackIfNeeded(bootCount)
+                }
             }
         }
 

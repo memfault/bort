@@ -8,6 +8,7 @@ import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.parsers.BatteryStatsParser
 import com.memfault.bort.parsers.BatteryStatsReport
+import com.memfault.bort.settings.ConfigValue
 import com.memfault.bort.shared.BatteryStatsCommand
 import com.memfault.bort.shared.Logger
 import java.io.File
@@ -20,7 +21,8 @@ import kotlinx.coroutines.withContext
 class BatteryStatsHistoryCollector(
     private val temporaryFileFactory: TemporaryFileFactory,
     private val nextBatteryStatsHistoryStartProvider: NextBatteryStatsHistoryStartProvider,
-    private val runBatteryStats: suspend (outputStream: OutputStream, historyStart: Long) -> Unit,
+    private val runBatteryStats: suspend (outputStream: OutputStream, historyStart: Long, timeout: Duration) -> Unit,
+    private val timeoutConfig: ConfigValue<Duration>,
 ) {
     suspend fun collect(limit: Duration): File {
         temporaryFileFactory.createTemporaryFile(
@@ -85,7 +87,7 @@ class BatteryStatsHistoryCollector(
     ): BatteryStatsReport =
         withContext(Dispatchers.IO) {
             batteryStatsFile.outputStream().use {
-                runBatteryStats(it, historyStart)
+                runBatteryStats(it, historyStart, timeoutConfig())
             }
             batteryStatsFile.inputStream().use {
                 return@withContext BatteryStatsParser(it).parse()
@@ -95,13 +97,17 @@ class BatteryStatsHistoryCollector(
 
 private val LIMIT_GRACE_MARGIN = 10.seconds
 
-suspend fun ReporterServiceConnector.runBatteryStats(outputStream: OutputStream, historyStart: Long) {
+suspend fun ReporterServiceConnector.runBatteryStats(
+    outputStream: OutputStream,
+    historyStart: Long,
+    timeout: Duration,
+) {
     this.connect { getClient ->
-        getClient().batteryStatsRun(BatteryStatsCommand(c = true, historyStart = historyStart)) { invocation ->
+        getClient().batteryStatsRun(BatteryStatsCommand(c = true, historyStart = historyStart), timeout) { invocation ->
             invocation.awaitInputStream().map { stream ->
                 stream.copyTo(outputStream)
             }.andThen {
-                invocation.awaitResponse().toErrorIf({ it.exitCode != 0 }) {
+                invocation.awaitResponse(timeout).toErrorIf({ it.exitCode != 0 }) {
                     Exception("Remote error: $it")
                 }
             }

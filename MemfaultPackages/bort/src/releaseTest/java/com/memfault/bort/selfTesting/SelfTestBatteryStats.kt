@@ -10,11 +10,13 @@ import com.memfault.bort.shared.BatteryStatsOption
 import com.memfault.bort.shared.BatteryStatsOptionEnablement
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.result.isSuccess
+import kotlin.time.Duration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class SelfTestBatteryStats(
-    val reporterServiceConnector: ReporterServiceConnector
+    val reporterServiceConnector: ReporterServiceConnector,
+    val timeout: Duration,
 ) : SelfTester.Case {
     override suspend fun test(): Boolean {
         data class BatteryStatsTestCase(val cmd: BatteryStatsCommand, val expectation: String)
@@ -49,7 +51,7 @@ class SelfTestBatteryStats(
         ).toList()
         return reporterServiceConnector.connect { getClient ->
             testCases.map { testCase ->
-                getClient().batteryStatsRun(testCase.cmd) { invocation ->
+                getClient().batteryStatsRun(testCase.cmd, timeout) { invocation ->
                     invocation.awaitInputStream().map { stream ->
                         withContext(Dispatchers.IO) {
                             stream.bufferedReader().readText()

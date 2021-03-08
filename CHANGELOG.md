@@ -1,5 +1,27 @@
 # Memfault Bort Changelog
 
+## v3.4.0 - March 8, 2021
+
+#### :rocket: New Features
+
+- On-device data scrubbing: Caliper traces pertinent to allowed application IDs
+  are uploaded and others are filtered out, on-device. Similarly,
+  Caliper-captured log lines are scrubbed before they are uploaded, based on
+  allowed application IDs and configured text scrubbing rules. The data
+  scrubbing rules can be configured through the Memfault Settings UI. Note that
+  bug reports are still scrubbed server-side. See
+  [data scrubbing documentation](https://mflt.io/android-data-scrubbing) for
+  more information.
+
+#### :chart_with_upwards_trend: Improvements
+
+- Hard-coded, 5-second command (i.e. logcat) timeouts have been removed and
+  replaced with remotely configurable timeouts.
+- DropBoxEntry tags can be excluded entirely from uploading. The list of tags to
+  exclude can be configured in the Memfault Settings / Data Sources UI.
+- Fixed/avoided a problem relevant to Android 8.x, where Bort would
+  occassionally crash due to bugs in the AOSP platform code.
+
 ## v3.3.1 - February 19, 2021
 
 #### :chart_with_upwards_trend: Improvements

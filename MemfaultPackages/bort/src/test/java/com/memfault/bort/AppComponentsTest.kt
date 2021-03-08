@@ -11,6 +11,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import java.io.File
+import kotlin.time.Duration
 import kotlin.time.minutes
 import org.junit.jupiter.api.Test
 
@@ -50,6 +51,7 @@ class AppComponentsTest {
                 every { logcatSettings } returns object : LogcatSettings {
                     override val dataSourceEnabled = true
                     override val collectionInterval = 15.minutes
+                    override val commandTimeout: Duration = 1.minutes
                     override val filterSpecs: List<LogcatFilterSpec> = emptyList()
                 }
                 every { fileUploadHoldingAreaSettings } returns object : FileUploadHoldingAreaSettings {
@@ -57,6 +59,7 @@ class AppComponentsTest {
                     override val maxStoredEventsOfInterest = 10
                 }
                 every { metricsSettings } returns mockk()
+                every { packageManagerSettings } returns mockk()
             }
             deviceIdProvider = mockk {
                 every { deviceId() } returns "abc"

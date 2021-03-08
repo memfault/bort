@@ -1,12 +1,17 @@
 package com.memfault.bort.http
 
 import com.memfault.bort.shared.Logger
+import java.text.DecimalFormat
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 
 private fun obfuscateProjectKey(projectKey: String) =
     "${projectKey.subSequence(0, 2)}...${projectKey.last()}"
+
+// Not using String.format() to avoid bug in AOSP 8.x java.util.Formatter implementation.
+// See https://github.com/facebook/fresco/issues/2504#issuecomment-657771489
+private val decimalFormat = DecimalFormat("#.##")
 
 class LoggingNetworkInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -29,7 +34,7 @@ Sending request
         val delta = (t2 - t1) / 1e6
         Logger.v(
             """
-Received response for ${response.request.url} in ${String.format("%.1f", delta)} ms
+Received response for ${response.request.url} in ${decimalFormat.format(delta)} ms
         """.trimEnd()
         )
 

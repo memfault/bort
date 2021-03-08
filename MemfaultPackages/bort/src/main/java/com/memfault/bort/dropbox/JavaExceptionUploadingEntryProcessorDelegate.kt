@@ -22,17 +22,22 @@ class JavaExceptionUploadingEntryProcessorDelegate : UploadingEntryProcessorDele
     override val debugTag: String
         get() = "UPLOAD_JAVA_EXCEPTION"
 
-    override fun getTokenBucketKey(entry: DropBoxManager.Entry, entryFile: File): String =
+    override suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo =
         try {
             entryFile.inputStream().use {
-                JavaExceptionParser(it).parse().tokenBucketKey()
+                JavaExceptionParser(it).parse().let { exception ->
+                    EntryInfo(
+                        exception.tokenBucketKey(),
+                        exception.packageName,
+                    )
+                }
             }
         } catch (e: Exception) {
-            entry.tag
+            EntryInfo(entry.tag)
         }
 
     override suspend fun createMetadata(
-        tempFile: File,
+        entryInfo: EntryInfo,
         tag: String,
         fileTime: AbsoluteTime?,
         entryTime: AbsoluteTime,

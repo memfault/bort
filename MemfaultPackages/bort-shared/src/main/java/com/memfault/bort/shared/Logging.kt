@@ -25,6 +25,9 @@ object Logger {
     var TAG_TEST = "TAG_TEST"
 
     @JvmStatic
+    var eventLogEnabled: () -> Boolean = { true }
+
+    @JvmStatic
     var minLevel: LogLevel =
         LogLevel.NONE
 
@@ -137,11 +140,15 @@ object Logger {
 
     @JvmStatic
     fun logEvent(vararg strings: String) {
-        EventLog.writeEvent(40000000, *strings)
+        if (eventLogEnabled()) {
+            EventLog.writeEvent(40000000, *strings)
+        }
     }
 
     @JvmStatic
     fun logEventBortSdkEnabled(isEnabled: Boolean) {
-        EventLog.writeEvent(40000001, if (isEnabled) 1 else 0)
+        if (eventLogEnabled()) {
+            EventLog.writeEvent(40000001, if (isEnabled) 1 else 0)
+        }
     }
 }

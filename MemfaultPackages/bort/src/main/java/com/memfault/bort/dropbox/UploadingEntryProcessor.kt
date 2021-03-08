@@ -4,6 +4,8 @@ import android.os.DropBoxManager
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DropBoxEntryFileUploadMetadata
 import com.memfault.bort.DropBoxEntryFileUploadPayload
+import com.memfault.bort.FileUploadPayload
+import com.memfault.bort.PackageNameAllowList
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
@@ -24,17 +26,23 @@ interface UploadingEntryProcessorDelegate {
     val debugTag: String
 
     suspend fun createMetadata(
-        tempFile: File,
+        entryInfo: EntryInfo,
         tag: String,
         fileTime: AbsoluteTime?,
         entryTime: AbsoluteTime,
         collectionTime: BootRelativeTime
     ): DropBoxEntryFileUploadMetadata
 
-    fun getTokenBucketKey(entry: DropBoxManager.Entry, entryFile: File): String = entry.tag
+    suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo = EntryInfo(entry.tag)
 
     fun isTraceEntry(entry: DropBoxManager.Entry): Boolean = true
 }
+
+data class EntryInfo(
+    val tokenBucketKey: String,
+    val packageName: String? = null,
+    val packages: List<FileUploadPayload.Package> = emptyList(),
+)
 
 class UploadingEntryProcessor(
     private val delegate: UploadingEntryProcessorDelegate,
@@ -45,14 +53,15 @@ class UploadingEntryProcessor(
     private val deviceInfoProvider: DeviceInfoProvider,
     private val tokenBucketStore: TokenBucketStore,
     private val builtinMetricsStore: BuiltinMetricsStore,
+    private val packageNameAllowList: PackageNameAllowList,
     private val handleEventOfInterest: (eventTime: BaseBootRelativeTime) -> Unit,
 ) : EntryProcessor() {
     override val tags: List<String>
         get() = delegate.tags
 
-    private fun allowedByRateLimit(entry: DropBoxManager.Entry, entryFile: File): Boolean =
+    private fun allowedByRateLimit(tokenBucketKey: String): Boolean =
         tokenBucketStore.edit { map ->
-            val bucket = map.upsertBucket(delegate.getTokenBucketKey(entry, entryFile)) ?: return@edit false
+            val bucket = map.upsertBucket(tokenBucketKey) ?: return@edit false
             bucket.take()
         }
 
@@ -61,13 +70,19 @@ class UploadingEntryProcessor(
             tempFile.outputStream().use { outStream ->
                 entry.inputStream.use {
                     inStream ->
+                    inStream ?: return@useFile
                     inStream.copyTo(outStream)
                 }
             }
 
+            val info = delegate.getEntryInfo(entry, tempFile)
+            if (info.packageName !in packageNameAllowList) {
+                return
+            }
+
             builtinMetricsStore.increment(metricForTraceTag(entry.tag))
 
-            if (!allowedByRateLimit(entry, tempFile)) {
+            if (!allowedByRateLimit(info.tokenBucketKey)) {
                 builtinMetricsStore.increment(DROP_BOX_TRACES_DROP_COUNT)
                 return
             }
@@ -82,7 +97,7 @@ class UploadingEntryProcessor(
                     softwareVersion = deviceInfo.softwareVersion,
                     cidReference = nextLogcatCidProvider.cid,
                     metadata = delegate.createMetadata(
-                        tempFile,
+                        info,
                         entry.tag,
                         fileTime,
                         entry.timeMillis.toAbsoluteTime(),

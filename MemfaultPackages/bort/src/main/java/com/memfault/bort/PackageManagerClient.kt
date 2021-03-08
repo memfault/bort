@@ -9,14 +9,19 @@ import com.github.michaelbull.result.toErrorIf
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.parsers.PackageManagerReportParser
+import com.memfault.bort.settings.ConfigValue
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PackageManagerCommand
 import com.memfault.bort.shared.PackageManagerCommand.Util.isValidAndroidApplicationId
+import kotlin.time.Duration
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.mapNotNull
 
-class PackageManagerClient(val reporterServiceConnector: ReporterServiceConnector) {
+class PackageManagerClient(
+    private val reporterServiceConnector: ReporterServiceConnector,
+    private val commandTimeoutConfig: ConfigValue<Duration>,
+) {
     suspend fun findPackagesByProcessName(processName: String): Package? =
         appIdGuessesFromProcessName(processName).asFlow().mapNotNull(::findPackageByApplicationId).firstOrNull()
 
@@ -28,13 +33,16 @@ class PackageManagerClient(val reporterServiceConnector: ReporterServiceConnecto
         val cmdOrAppId = appId ?: PackageManagerCommand.CMD_PACKAGES
 
         return reporterServiceConnector.connect { getClient ->
-            getClient().packageManagerRun(PackageManagerCommand(cmdOrAppId = cmdOrAppId)) { invocation ->
+            getClient().packageManagerRun(
+                cmd = PackageManagerCommand(cmdOrAppId = cmdOrAppId),
+                timeout = commandTimeoutConfig()
+            ) { invocation ->
                 invocation.awaitInputStream().andThen {
                     runCatching {
                         PackageManagerReportParser(it).parse()
                     }
                 }.andThen { packages ->
-                    invocation.awaitResponse().toErrorIf({ it.exitCode != 0 }) {
+                    invocation.awaitResponse(commandTimeoutConfig()).toErrorIf({ it.exitCode != 0 }) {
                         Exception("Remote error while running dumpsys package! result=$it")
                     }.map { packages }
                 }

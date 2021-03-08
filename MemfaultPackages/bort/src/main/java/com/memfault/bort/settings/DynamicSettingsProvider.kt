@@ -1,6 +1,7 @@
 package com.memfault.bort.settings
 
 import com.memfault.bort.BuildConfig
+import com.memfault.bort.DataScrubbingRule
 import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.BuildConfigSdkVersionInfo
 import com.memfault.bort.shared.LogLevel
@@ -26,6 +27,9 @@ open class DynamicSettingsProvider(
 
     override val minLogLevel: LogLevel
         get() = LogLevel.fromInt(settings.bortMinLogLevel) ?: LogLevel.VERBOSE
+
+    override val eventLogEnabled: Boolean
+        get() = settings.bortEventLogEnabled
 
     override val isRuntimeEnableRequired: Boolean = BuildConfig.RUNTIME_ENABLE_REQUIRED
 
@@ -86,6 +90,8 @@ open class DynamicSettingsProvider(
             get() = settings.dropBoxKmsgsRateLimitingSettings
         override val tombstonesRateLimitingSettings: RateLimitingSettings
             get() = settings.dropBoxTombstonesRateLimitingSettings
+        override val excludedTags: Set<String>
+            get() = settings.dropBoxExcludedTags
     }
 
     override val metricsSettings = object : MetricsSettings {
@@ -98,6 +104,8 @@ open class DynamicSettingsProvider(
     override val batteryStatsSettings = object : BatteryStatsSettings {
         override val dataSourceEnabled
             get() = settings.batteryStatsDataSourceEnabled
+        override val commandTimeout: Duration
+            get() = settings.batteryStatsCommandTimeout.duration
     }
 
     override val logcatSettings = object : LogcatSettings {
@@ -105,6 +113,8 @@ open class DynamicSettingsProvider(
             get() = settings.logcatDataSourceEnabled
         override val collectionInterval
             get() = settings.logcatCollectionInterval.duration
+        override val commandTimeout: Duration
+            get() = settings.logcatCommandTimeout.duration
         override val filterSpecs: List<LogcatFilterSpec>
             get() = settings.logcatFilterSpecs
     }
@@ -117,8 +127,20 @@ open class DynamicSettingsProvider(
     }
 
     override val rebootEventsSettings = object : RebootEventsSettings {
+        override val dataSourceEnabled: Boolean
+            get() = settings.rebootEventsDataSourceEnabled
         override val rateLimitingSettings: RateLimitingSettings
             get() = settings.rebootEventsRateLimitingSettings
+    }
+
+    override val dataScrubbingSettings = object : DataScrubbingSettings {
+        override val rules: List<DataScrubbingRule>
+            get() = settings.dataScrubbingRules
+    }
+
+    override val packageManagerSettings = object : PackageManagerSettings {
+        override val commandTimeout: Duration
+            get() = settings.packageManagerCommandTimeout.duration
     }
 
     override fun invalidate() {

@@ -11,6 +11,7 @@ class TokenBucketKeysTest {
         assertEquals(
             "7e881ac7cda0b9a1182d3448cdbaa67d",
             JavaException(
+                packageName = null,
                 unparsedStackFrames = listOf(
                     "android.app.ActivityThread.handleReceiver(ActivityThread.java:3194)",
                     "com.android.internal.os.RuntimeInit.MethodAndArgsCaller.run(RuntimeInit.java:438)",

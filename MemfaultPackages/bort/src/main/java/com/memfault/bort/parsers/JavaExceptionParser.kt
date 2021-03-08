@@ -1,6 +1,5 @@
 package com.memfault.bort.parsers
 
-import com.memfault.bort.shared.consume
 import java.io.InputStream
 
 /**
@@ -11,22 +10,23 @@ import java.io.InputStream
  * this is fine.
  */
 data class JavaException(
+    val packageName: String?,
     val unparsedStackFrames: List<String>,
 )
 
 class JavaExceptionParser(val inputStream: InputStream) {
     fun parse(): JavaException {
         val lines = Lines(inputStream.bufferedReader().lineSequence().asIterable())
-        dropActivityManagerDropBoxMetadata(lines)
+
+        val packageName = ActivityManagerHeaderParser.dropUntilAndGetPackageName(lines)
+        ActivityManagerHeaderParser.dropActivityManagerMetadata(lines)
         return JavaException(
+            packageName = packageName,
             unparsedStackFrames = lines.mapNotNull {
                 FRAME_REGEX.matchEntire(it)?.groupValues?.get(1)
             },
         )
     }
-
-    private fun dropActivityManagerDropBoxMetadata(lines: Lines) =
-        lines.until(consumeMatch = true) { it.isEmpty() }.use { it.consume() }
 }
 
 private val FRAME_REGEX = Regex("""^\s*at (.*)""")

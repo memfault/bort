@@ -1,6 +1,10 @@
 package com.memfault.bort.settings
 
+import com.memfault.bort.AndroidAppIdScrubbingRule
 import com.memfault.bort.BortJson
+import com.memfault.bort.CredentialScrubbingRule
+import com.memfault.bort.EmailScrubbingRule
+import com.memfault.bort.UnknownScrubbingRule
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.shared.LogcatPriority
@@ -8,6 +12,7 @@ import com.memfault.bort.time.boxed
 import io.mockk.every
 import io.mockk.mockk
 import kotlin.time.milliseconds
+import kotlin.time.seconds
 import kotlinx.serialization.SerializationException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -18,9 +23,11 @@ class DynamicSettingsProviderTest {
     fun testParseRemoteSettings() {
         assertEquals(
             FetchedSettings(
+                batteryStatsCommandTimeout = 60.seconds.boxed(),
                 batteryStatsDataSourceEnabled = false,
                 bortMinLogLevel = 2,
                 bortSettingsUpdateInterval = 1234.milliseconds.boxed(),
+                bortEventLogEnabled = true,
                 bugReportCollectionInterval = 1234.milliseconds.boxed(),
                 bugReportDataSourceEnabled = false,
                 bugReportFirstBugReportDelayAfterBoot = 5678.milliseconds.boxed(),
@@ -31,6 +38,13 @@ class DynamicSettingsProviderTest {
                 ),
                 bugReportMaxUploadAttempts = 15,
                 bugReportOptionsMinimal = true,
+                dataScrubbingRules = listOf(
+                    AndroidAppIdScrubbingRule("com.memfault.*"),
+                    AndroidAppIdScrubbingRule("com.yolo.*"),
+                    EmailScrubbingRule,
+                    CredentialScrubbingRule,
+                    UnknownScrubbingRule,
+                ),
                 deviceInfoAndroidBuildVersionKey = "ro.build.another",
                 deviceInfoAndroidBuildVersionSource = "build_fingerprint",
                 deviceInfoAndroidDeviceSerialKey = "ro.another.serial",
@@ -40,6 +54,7 @@ class DynamicSettingsProviderTest {
                     defaultPeriod = 900000.milliseconds.boxed(),
                     maxBuckets = 1,
                 ),
+                dropBoxExcludedTags = setOf("TAG1", "TAG2"),
                 dropBoxDataSourceEnabled = true,
                 dropBoxJavaExceptionsRateLimitingSettings = RateLimitingSettings(
                     defaultCapacity = 4,
@@ -63,6 +78,7 @@ class DynamicSettingsProviderTest {
                 httpApiIngressBaseUrl = "https://ingress2.memfault.com",
                 httpApiUploadCompressionEnabled = false,
                 httpApiUploadNetworkConstraintAllowMeteredConnection = false,
+                logcatCommandTimeout = 60.seconds.boxed(),
                 logcatCollectionInterval = 9999.milliseconds.boxed(),
                 logcatDataSourceEnabled = false,
                 logcatFilterSpecs = listOf(
@@ -71,6 +87,8 @@ class DynamicSettingsProviderTest {
                 ),
                 metricsCollectionInterval = 91011.milliseconds.boxed(),
                 metricsDataSourceEnabled = false,
+                packageManagerCommandTimeout = 60.seconds.boxed(),
+                rebootEventsDataSourceEnabled = true,
                 rebootEventsRateLimitingSettings = RateLimitingSettings(
                     defaultCapacity = 5,
                     defaultPeriod = 900000.milliseconds.boxed(),
@@ -113,7 +131,9 @@ internal val SETTINGS_FIXTURE = """
             {
               "data": {
                 "battery_stats.data_source_enabled": false,
+                "battery_stats.command_timeout_ms" : 60000,
                 "bort.min_log_level": 2,
+                "bort.event_log_enabled": true,
                 "bort.settings_update_interval_ms": 1234,
                 "bug_report.collection_interval_ms": 1234,
                 "bug_report.data_source_enabled": false,
@@ -129,7 +149,8 @@ internal val SETTINGS_FIXTURE = """
                     {"app_id_pattern": "com.memfault.*", "type": "android_app_id"},
                     {"app_id_pattern": "com.yolo.*", "type": "android_app_id"},
                     {"type": "text_email"},
-                    {"type": "text_credential"}
+                    {"type": "text_credential"},
+                    {"type": "text_addresses_unknown"}
                 ],
                 "device_info.android_build_version_key": "ro.build.another",
                 "device_info.android_build_version_source": "build_fingerprint",
@@ -141,7 +162,7 @@ internal val SETTINGS_FIXTURE = """
                     "max_buckets": 1
                 },
                 "drop_box.data_source_enabled": true,
-                "drop_box.excluded_tags": [],
+                "drop_box.excluded_tags": ["TAG1", "TAG2"],
                 "drop_box.java_exceptions.rate_limiting_settings": {
                     "default_capacity": 4,
                     "default_period_ms": 900000,
@@ -165,10 +186,13 @@ internal val SETTINGS_FIXTURE = """
                 "http_api.upload_compression_enabled": False,
                 "http_api.upload_network_constraint_allow_metered_connection": False,
                 "logcat.collection_interval_ms": 9999,
+                "logcat.command_timeout_ms" : 60000,
                 "logcat.data_source_enabled": False,
                 "logcat.filter_specs": [{"priority": "W", "tag": "*"}, {"priority": "V", "tag": "bort"}],
                 "metrics.collection_interval_ms": 91011,
-                "metrics.data_source_enabled": false
+                "metrics.data_source_enabled": false,
+                "package_manager.command_timeout_ms" : 60000,
+                "reboot_events.data_source_enabled": true,
                 "reboot_events.rate_limiting_settings": {
                     "default_capacity": 5,
                     "default_period_ms": 900000,

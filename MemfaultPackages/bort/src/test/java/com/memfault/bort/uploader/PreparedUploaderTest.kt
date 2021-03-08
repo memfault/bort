@@ -165,11 +165,11 @@ internal class PreparedUploaderTest {
                     """"cid_ref":{"uuid":"00000000-0000-0000-0000-000000000001"},""" +
                     """"metadata":{"type":"tombstone",""" +
                     """"tag":"SYSTEM_TOMBSTONE","file_time":{"timestamp":"1970-01-01T00:00:01.234Z"},""" +
-                    """"entry_time":{"timestamp":"1970-01-01T00:00:04.321Z"},"packages":[{"id":"com.app",""" +
-                    """"version_code":1,"version_name":"1.0.0","user_id":1001,"code_path":"/data/app/apk"}],""" +
+                    """"entry_time":{"timestamp":"1970-01-01T00:00:04.321Z"},""" +
                     """"collection_time":{"uptime_ms":987,"elapsed_realtime_ms":456,""" +
-                    """"linux_boot_id":"230295cb-04d4-40b8-8624-ec37089b9b75",""" +
-                    """"boot_count":67},"timezone":{"id":"UTC"}}}"""
+                    """"linux_boot_id":"230295cb-04d4-40b8-8624-ec37089b9b75","boot_count":67},""" +
+                    """"timezone":{"id":"UTC"},"packages":[{"id":"com.app","version_code":1,"version_name":"1.0.0",""" +
+                    """"user_id":1001,"code_path":"/data/app/apk"}]}}"""
                 ),
             recordedRequest.body.readUtf8()
         )
@@ -213,7 +213,7 @@ internal class PreparedUploaderTest {
                     """"entry_time":{"timestamp":"1970-01-01T00:00:04.321Z"},""" +
                     """"collection_time":{"uptime_ms":987,"elapsed_realtime_ms":456,""" +
                     """"linux_boot_id":"230295cb-04d4-40b8-8624-ec37089b9b75",""" +
-                    """"boot_count":67},"timezone":{"id":"Europe/Amsterdam"}}}"""
+                    """"boot_count":67},"timezone":{"id":"Europe/Amsterdam"},"packages":[]}}"""
                 ),
             recordedRequest.body.readUtf8()
         )

@@ -3,6 +3,7 @@ package com.memfault.bort
 import com.memfault.bort.PackageManagerClient.Util.appIdGuessesFromProcessName
 import com.memfault.bort.parsers.PackageManagerReport
 import io.mockk.mockk
+import kotlin.time.minutes
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -17,7 +18,7 @@ class PackageManagerClientTest {
     fun setUp() {
         reporterClient = mockk()
         mockServiceConnector = createMockServiceConnector(reporterClient)
-        client = PackageManagerClient(mockServiceConnector)
+        client = PackageManagerClient(mockServiceConnector, 1::minutes)
     }
 
     @Test

@@ -19,8 +19,12 @@ import com.memfault.bort.shared.result.success
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.UUID
+import kotlin.time.Duration
 
-class SelfTestLogcatFilterSpecs(val reporterServiceConnector: ReporterServiceConnector) : SelfTester.Case {
+class SelfTestLogcatFilterSpecs(
+    private val reporterServiceConnector: ReporterServiceConnector,
+    private val timeout: Duration,
+) : SelfTester.Case {
     override suspend fun test(): Boolean {
         val verboseLog = UUID.randomUUID().toString().also {
             Logger.v(it)
@@ -42,7 +46,8 @@ class SelfTestLogcatFilterSpecs(val reporterServiceConnector: ReporterServiceCon
                     // Allow logs of ERROR or higher from any other tag:
                     LogcatFilterSpec(priority = LogcatPriority.ERROR)
                 )
-            )
+            ),
+            timeout,
         ) { output ->
             val text = output.toString(Charsets.UTF_8)
             text.contains(debugLog) and
@@ -53,7 +58,10 @@ class SelfTestLogcatFilterSpecs(val reporterServiceConnector: ReporterServiceCon
     }
 }
 
-class SelfTestLogcatFormat(val reporterServiceConnector: ReporterServiceConnector) : SelfTester.Case {
+class SelfTestLogcatFormat(
+    private val reporterServiceConnector: ReporterServiceConnector,
+    private val timeout: Duration,
+) : SelfTester.Case {
     override suspend fun test(): Boolean {
         val testLog = UUID.randomUUID().toString().also {
             Logger.test(it)
@@ -66,7 +74,8 @@ class SelfTestLogcatFormat(val reporterServiceConnector: ReporterServiceConnecto
                     LogcatFormatModifier.USEC,
                     LogcatFormatModifier.UID
                 )
-            )
+            ),
+            timeout,
         ) { output ->
             val text = output.toString(Charsets.UTF_8)
             // Example:
@@ -127,10 +136,11 @@ class SelfTestLogcatCommandSerialization : SelfTester.Case {
 
 private suspend fun ReporterServiceConnector.testLogcatRun(
     cmd: LogcatCommand,
-    block: (ByteArray) -> Boolean
+    timeout: Duration,
+    block: (ByteArray) -> Boolean,
 ): Boolean =
     this.connect { getClient ->
-        getClient().logcatRun(cmd) { invocation ->
+        getClient().logcatRun(cmd, timeout) { invocation ->
             invocation.awaitInputStream().onFailure {
                 Logger.e("Logcat stream was null")
             }.andThen {

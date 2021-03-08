@@ -39,6 +39,7 @@ buildscript {
             'ktlintGradle'                     : '9.4.1',
             'ktxSerializationJson'             : '1.0.1',
             'junit'                            : '5.7.0',
+            'jblake2'                          : '0.4',
             'leakCanary'                       : '2.5',
             'mockk'                            : '1.10.2',
             'okhttp'                           : '4.9.0',
@@ -70,6 +71,7 @@ buildscript {
             'debug'        : [
                     'leakCanary': "com.squareup.leakcanary:leakcanary-android:${versions.leakCanary}",
             ],
+            'jblake2'      : "org.kocakosm:jblake2:${versions.jblake2}",
             'retrofit'     : "com.squareup.retrofit2:retrofit:${versions.retrofit}",
             'okhttp'       : "com.squareup.okhttp3:okhttp:${versions.okhttp}",
             'okio'         : "com.squareup.okio:okio:${versions.okio}",

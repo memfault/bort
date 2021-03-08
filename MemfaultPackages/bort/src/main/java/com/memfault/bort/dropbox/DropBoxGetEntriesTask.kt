@@ -39,9 +39,11 @@ class DropBoxGetEntriesTask(
         if (!settings.dataSourceEnabled or entryProcessors.isEmpty()) TaskResult.SUCCESS
         else try {
             reporterServiceConnector.connect { getConnection ->
-                getConnection().dropBoxSetTagFilter(entryProcessors.keys.toList()).onFailure {
-                    return@connect TaskResult.FAILURE
-                }
+                getConnection()
+                    .dropBoxSetTagFilter(entryProcessors.keys.subtract(settings.excludedTags).toList())
+                    .onFailure {
+                        return@connect TaskResult.FAILURE
+                    }
 
                 if (process(getConnection)) TaskResult.SUCCESS else TaskResult.FAILURE
             }
