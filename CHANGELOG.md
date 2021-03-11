@@ -1,5 +1,12 @@
 # Memfault Bort Changelog
 
+## v3.4.1 - March 11, 2021
+
+#### :chart_with_upwards_trend: Improvements
+
+- Added a `dontaudit` sepolicy line to avoid failing a CTS test. See
+  `memfault_dumpster.te` for more information.
+
 ## v3.4.0 - March 8, 2021
 
 #### :rocket: New Features

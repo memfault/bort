@@ -3,3 +3,8 @@
 type memfault_dumpster_service, service_manager_type;
 
 add_service(dumpstate, memfault_dumpster_service)
+
+# MemfaultDumpster exposes a binder service. MemfaultDumpster uses the dumpstate label.
+# dumpstate (the program) runs, it goes through all services and tries to call dump.
+# This won't be allowed and is expected to be denied. So, don't audit this access:
+dontaudit dumpstate dumpstate:binder call;
