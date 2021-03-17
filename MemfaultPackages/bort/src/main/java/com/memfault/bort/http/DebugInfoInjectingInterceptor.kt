@@ -1,6 +1,8 @@
 package com.memfault.bort.http
 
 import com.memfault.bort.DeviceIdProvider
+import com.memfault.bort.DeviceInfoProvider
+import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.shared.SdkVersionInfo
 import java.util.UUID
 import okhttp3.Interceptor
@@ -13,12 +15,15 @@ internal const val QUERY_PARAM_UPSTREAM_GIT_SHA = "upstreamGitSha"
 internal const val QUERY_PARAM_VERSION_NAME = "versionName"
 internal const val QUERY_PARAM_VERSION_CODE = "versionCode"
 internal const val QUERY_PARAM_DEVICE_ID = "deviceId"
+internal const val QUERY_PARAM_DEVICE_SERIAL = "deviceSerial"
 internal const val X_REQUEST_ID = "X-Request-ID"
 
 /** Inject debug information for requests to memfault or to a local api server */
 class DebugInfoInjectingInterceptor(
     private val sdkVersionInfo: SdkVersionInfo,
-    private val deviceIdProvider: DeviceIdProvider
+    private val deviceIdProvider: DeviceIdProvider,
+    private val bortEnabledProvider: BortEnabledProvider,
+    private val deviceInfoProvider: DeviceInfoProvider,
 ) : Interceptor {
 
     fun transformRequest(request: Request): Request {
@@ -33,8 +38,12 @@ class DebugInfoInjectingInterceptor(
             else -> return request
         }
         val xRequestId = UUID.randomUUID().toString()
+        val deviceSerial =
+            if (bortEnabledProvider.isEnabled()) deviceInfoProvider.lastDeviceInfo?.deviceSerial ?: ""
+            else ""
         val transformedUrl = url.newBuilder().apply {
             linkedMapOf(
+                QUERY_PARAM_DEVICE_SERIAL to deviceSerial,
                 QUERY_PARAM_UPSTREAM_VERSION_NAME to sdkVersionInfo.upstreamVersionName,
                 QUERY_PARAM_UPSTREAM_VERSION_CODE to sdkVersionInfo.upstreamVersionCode
                     .toString(),

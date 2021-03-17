@@ -68,7 +68,7 @@ class RebootEventUploaderTest {
 
         val uploader = RebootEventUploader(
             ingressService = ingressService,
-            deviceInfo = runBlocking { FakeDeviceInfoProvider.getDeviceInfo() },
+            deviceInfo = runBlocking { FakeDeviceInfoProvider().getDeviceInfo() },
             androidSysBootReason = "alarm",
             tokenBucketStore = TokenBucketStore(
                 storage = MockTokenBucketStorage(StoredTokenBucketMap()),

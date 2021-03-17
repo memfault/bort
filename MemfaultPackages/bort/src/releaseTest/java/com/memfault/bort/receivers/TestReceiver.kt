@@ -16,7 +16,6 @@ import com.memfault.bort.logcat.RealNextLogcatCidProvider
 import com.memfault.bort.requester.restartPeriodicLogcatCollection
 import com.memfault.bort.requester.restartPeriodicMetricsCollection
 import com.memfault.bort.selfTesting.SelfTestWorker
-import com.memfault.bort.settings.RealStoredSettingsPreferenceProvider
 import com.memfault.bort.settings.restartPeriodicSettingsUpdate
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
@@ -54,6 +53,8 @@ class TestReceiver : FilteringReceiver(
         "com.memfault.intent.action.TEST_REQUEST_LOGCAT_COLLECTION",
         "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION",
         "com.memfault.intent.action.TEST_REQUEST_SETTINGS_UPDATE",
+        "com.memfault.intent.action.TEST_RESET_DYNAMIC_SETTINGS",
+        "com.memfault.intent.action.TEST_RESET_RATE_LIMITS",
         "com.memfault.intent.action.TEST_SETUP",
     )
 ) {
@@ -101,17 +102,13 @@ class TestReceiver : FilteringReceiver(
                 }
             }
             "com.memfault.intent.action.TEST_REQUEST_SETTINGS_UPDATE" -> {
-                // Remove cached settings to ensure that a full update, including periodic
-                // scheduler restarts is performed.
-                RealStoredSettingsPreferenceProvider(
-                    PreferenceManager.getDefaultSharedPreferences(context)
-                ) { "" }.remove()
-
                 restartPeriodicSettingsUpdate(
                     context = context,
                     // Something long to ensure it does not re-run & interfere with tests:
-                    updateInterval = 1.days,
+                    updateInterval = 4.days,
                     httpApiSettings = settingsProvider.httpApiSettings,
+                    delayInitially = false,
+                    testRequest = true,
                 )
             }
             "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION" -> {
@@ -136,11 +133,30 @@ class TestReceiver : FilteringReceiver(
                 ).bootCount
                 Logger.test("BOOT_COMPLETED handled: ${bootCount == lastTrackedBootCount}")
             }
+            "com.memfault.intent.action.TEST_RESET_RATE_LIMITS" -> {
+                resetRateLimits()
+            }
+            "com.memfault.intent.action.TEST_RESET_DYNAMIC_SETTINGS" -> {
+                resetDynamicSettings()
+            }
             // Sent before each E2E test:
             "com.memfault.intent.action.TEST_SETUP" -> {
-                Bort.appComponents().tokenBucketStoreRegistry.reset()
+                resetDynamicSettings()
+                resetRateLimits()
             }
         }
+    }
+
+    private fun resetDynamicSettings() {
+        // Reset to built-in settings values:
+        with(Bort.appComponents()) {
+            storedSettingsPreferenceProvider.reset()
+            settingsProvider.invalidate()
+        }
+    }
+
+    private fun resetRateLimits() {
+        Bort.appComponents().tokenBucketStoreRegistry.reset()
     }
 }
 

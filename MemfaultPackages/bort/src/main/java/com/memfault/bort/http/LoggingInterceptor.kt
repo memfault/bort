@@ -2,12 +2,18 @@ package com.memfault.bort.http
 
 import com.memfault.bort.shared.Logger
 import java.text.DecimalFormat
+import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 
 private fun obfuscateProjectKey(projectKey: String) =
     "${projectKey.subSequence(0, 2)}...${projectKey.last()}"
+
+internal fun scrubUrl(url: HttpUrl): HttpUrl =
+    url.newBuilder().apply {
+        setQueryParameter(QUERY_PARAM_DEVICE_SERIAL, "***SCRUBBED***")
+    }.build()
 
 // Not using String.format() to avoid bug in AOSP 8.x java.util.Formatter implementation.
 // See https://github.com/facebook/fresco/issues/2504#issuecomment-657771489
@@ -21,10 +27,11 @@ class LoggingNetworkInterceptor : Interceptor {
             obfuscateProjectKey(it)
         } ?: ""
         val t1: Long = System.nanoTime()
+        val scrubbedUrl = scrubUrl(request.url)
         Logger.v(
             """
 Sending request
-> ${request.url}
+> $scrubbedUrl
 > ID=$xRequestId
 > key=$obfuscatedProjectKey
 """.trimEnd()
@@ -34,7 +41,7 @@ Sending request
         val delta = (t2 - t1) / 1e6
         Logger.v(
             """
-Received response for ${response.request.url} in ${decimalFormat.format(delta)} ms
+Received response for $scrubbedUrl in ${decimalFormat.format(delta)} ms
         """.trimEnd()
         )
 

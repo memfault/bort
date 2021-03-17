@@ -8,11 +8,11 @@ import com.memfault.bort.shared.Logger
 fun realSettingsUpdateCallback(
     context: Context,
     reporterServiceConnector: ReporterServiceConnector,
-): SettingsUpdateCallback = { settingsProvider ->
+): SettingsUpdateCallback = { settingsProvider, fetchedSettingsUpdate ->
     applyReporterServiceSettings(reporterServiceConnector, settingsProvider)
 
     // Update periodic tasks that might have changed after a settings update
-    PeriodicRequesterRestartTask.schedule(context)
+    PeriodicRequesterRestartTask.schedule(context, fetchedSettingsUpdate)
 }
 
 suspend fun applyReporterServiceSettings(

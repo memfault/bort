@@ -3,8 +3,6 @@ package com.memfault.bort.requester
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
-import androidx.preference.PreferenceManager
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
@@ -19,17 +17,16 @@ import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.broadcastReply
 import com.memfault.bort.settings.BugReportSettings
+import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.BugReportRequest
 import com.memfault.bort.shared.INTENT_ACTION_BUG_REPORT_START
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.takeSimple
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
-import kotlin.time.milliseconds
 
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.REQUEST_PERIODIC_BUGREPORT"
 private const val WORK_INTERVAL_PREFERENCE_KEY = "com.memfault.bort.work.BUGREPORT_INTERVAL"
@@ -85,28 +82,11 @@ internal fun requestBugReport(
     return true
 }
 
-class BugReportIntervalPreferenceKeyProvider(
-    sharedPreferences: SharedPreferences
-) : PreferenceKeyProvider<Long>(sharedPreferences, WORK_INTERVAL_PREFERENCE_ABSENT, WORK_INTERVAL_PREFERENCE_KEY) {
-    /**
-     * Stores a new interval, obtaining the previous one.
-     */
-    fun getAndSet(interval: Duration): Duration =
-        getValue().let { durationMillis ->
-            if (durationMillis == WORK_INTERVAL_PREFERENCE_ABSENT) Duration.INFINITE
-            else durationMillis.milliseconds
-        }.also {
-            setValue(interval.toLongMilliseconds())
-        }
-}
-
 class BugReportRequester(
     private val context: Context,
     private val bugReportSettings: BugReportSettings,
-    private val intervalPreferenceKeyProvider: BugReportIntervalPreferenceKeyProvider =
-        BugReportIntervalPreferenceKeyProvider(PreferenceManager.getDefaultSharedPreferences(context))
 ) : PeriodicWorkRequester() {
-    override fun startPeriodic(justBooted: Boolean) {
+    override fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         if (!bugReportSettings.dataSourceEnabled) return
 
         val requestInterval = bugReportSettings.requestInterval
@@ -129,9 +109,8 @@ class BugReportRequester(
             Logger.test("Requesting bug report every ${requestInterval.inHours} hours")
         }.build().also {
             val existingWorkPolicy =
-                if (intervalPreferenceKeyProvider.getAndSet(requestInterval) == requestInterval)
-                    ExistingPeriodicWorkPolicy.KEEP
-                else ExistingPeriodicWorkPolicy.REPLACE
+                if (settingsChanged) ExistingPeriodicWorkPolicy.REPLACE
+                else ExistingPeriodicWorkPolicy.KEEP
 
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(
@@ -148,13 +127,11 @@ class BugReportRequester(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override fun evaluateSettingsChange() {
-        if (!bugReportSettings.dataSourceEnabled) {
-            cancelPeriodic()
-        } else {
-            startPeriodic()
-        }
-    }
+    override fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
+        // Note: not including firstBugReportDelayAfterBoot because that is only used immediately after booting.
+        old.bugReportSettings.dataSourceEnabled != new.bugReportSettings.dataSourceEnabled ||
+            old.bugReportSettings.requestInterval != new.bugReportSettings.requestInterval ||
+            old.bugReportSettings.defaultOptions != new.bugReportSettings.defaultOptions
 }
 
 internal open class BugReportRequestWorker(

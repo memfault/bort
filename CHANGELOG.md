@@ -1,5 +1,24 @@
 # Memfault Bort Changelog
 
+## v3.4.2 - March 17, 2021
+
+#### :chart_with_upwards_trend: Improvements
+
+- Capture log files, even when empty, to make it clear the SDK is working as
+  expected.
+- Fixed 2 bugs in the Dymamic SDK Settings code that 1) caused changes in the
+  polling interval to not get applied until Bort got restarted or
+  disabled/re-enabled 2) caused most periodic collection tasks to restart, upon
+  any change in Dynamic SDK Settings, even if the change was unrelated to the
+  periodic collection tasks.
+- Fixed a bug in the logcat capturing code that caused noisy, but harmless logs
+  of a (handled) exception.
+- Fixed an issue in the logcat capturing code that caused the start time for the
+  next capture to be not as accurate as it should be, which could lead to
+  missing log lines between captures.
+- Fixed a bug that could sometimes cause Bort to crash under rare circumstances,
+  when reconnecting to MemfaultUsageReporter.
+
 ## v3.4.1 - March 11, 2021
 
 #### :chart_with_upwards_trend: Improvements
@@ -445,7 +464,7 @@
   keystore. See the README for details.
 - Configuration for the bort app has moved from
   `MemfaultBort/app/gradle.properties` to `MemfaultBort/bort.properties`; you
-  will need to set your API key in this new location.
+  will need to set your Project Key in this new location.
 
 ## v1.1.0 - May 2, 2020
 

@@ -65,7 +65,6 @@ import com.memfault.bort.uploader.PreparedUploadService
 import com.memfault.bort.uploader.PreparedUploader
 import com.memfault.bort.uploader.enqueueFileUploadTask
 import java.io.File
-import java.util.UUID
 import kotlinx.serialization.ExperimentalSerializationApi
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
@@ -96,6 +95,7 @@ data class AppComponents(
     val tokenBucketStoreRegistry: TokenBucketStoreRegistry,
     val bugReportRequestsTokenBucketStore: TokenBucketStore,
     val rebootEventTokenBucketStore: TokenBucketStore,
+    val storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider,
 ) {
     open class Builder(
         private val context: Context,
@@ -132,6 +132,15 @@ data class AppComponents(
                 }
             )
             val settingsProvider = settingsProvider ?: DynamicSettingsProvider(storedSettingsPreferenceProvider)
+            val bortEnabledProvider =
+                bortEnabledProvider ?: if (settingsProvider.isRuntimeEnableRequired) {
+                    PreferenceBortEnabledProvider(
+                        sharedPreferences,
+                        defaultValue = !settingsProvider.isRuntimeEnableRequired
+                    )
+                } else {
+                    BortAlwaysEnabledProvider()
+                }
             val deviceIdProvider = deviceIdProvider ?: RandomUuidDeviceIdProvider(sharedPreferences)
             val deviceInfoProvider = RealDeviceInfoProvider(settingsProvider.deviceInfoSettings)
             val fileUploaderFactory =
@@ -144,7 +153,9 @@ data class AppComponents(
                 .addInterceptor(
                     debugInfoInjectingInterceptor ?: DebugInfoInjectingInterceptor(
                         settingsProvider.sdkVersionInfo,
-                        deviceIdProvider
+                        deviceIdProvider,
+                        bortEnabledProvider,
+                        deviceInfoProvider,
                     )
                 )
                 .addInterceptor(loggingInterceptor ?: LoggingNetworkInterceptor())
@@ -157,16 +168,6 @@ data class AppComponents(
                     kotlinxJsonConverterFactory()
                 )
                 .build()
-            val bortEnabledProvider =
-                bortEnabledProvider ?: if (settingsProvider.isRuntimeEnableRequired) {
-                    PreferenceBortEnabledProvider(
-                        sharedPreferences,
-                        defaultValue = !settingsProvider.isRuntimeEnableRequired
-                    )
-                } else {
-                    BortAlwaysEnabledProvider()
-                }
-
             val reporterServiceConnector = reporterServiceConnector ?: RealReporterServiceConnector(
                 context = context,
                 inboundLooper = Looper.getMainLooper()
@@ -422,6 +423,7 @@ data class AppComponents(
                 tokenBucketStoreRegistry = tokenBucketStoreRegistry,
                 bugReportRequestsTokenBucketStore = bugReportRequestsTokenBucketStore,
                 rebootEventTokenBucketStore = rebootEventTokenBucketStore,
+                storedSettingsPreferenceProvider = storedSettingsPreferenceProvider,
             )
         }
     }
@@ -432,20 +434,6 @@ data class AppComponents(
 @OptIn(ExperimentalSerializationApi::class)
 fun kotlinxJsonConverterFactory(): Converter.Factory =
     BortJson.asConverterFactory("application/json".toMediaType())
-
-interface DeviceIdProvider {
-    fun deviceId(): String
-}
-
-class RandomUuidDeviceIdProvider(
-    sharedPreferences: SharedPreferences
-) : DeviceIdProvider, PreferenceKeyProvider<String>(
-    sharedPreferences = sharedPreferences,
-    defaultValue = UUID.randomUUID().toString(),
-    preferenceKey = PREFERENCE_DEVICE_ID
-) {
-    override fun deviceId(): String = super.getValue()
-}
 
 interface InterceptingWorkerFactory {
     fun createWorker(

@@ -157,3 +157,9 @@ data class RateLimitingSettings(
     @SerialName("max_buckets")
     val maxBuckets: Int,
 )
+
+@Serializable
+data class FetchedSettingsUpdate(
+    val old: FetchedSettings,
+    val new: FetchedSettings,
+)

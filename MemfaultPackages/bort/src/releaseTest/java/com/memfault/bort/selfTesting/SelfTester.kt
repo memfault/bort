@@ -30,6 +30,7 @@ class SelfTester(
             SelfTestLogcatFormat(reporterServiceConnector, settingsProvider.logcatSettings.commandTimeout),
             SelfTestLogcatCommandSerialization(),
             SelfTestPackageManager(reporterServiceConnector, settingsProvider.packageManagerSettings.commandTimeout),
+            SelfTestReporterServiceConnect(reporterServiceConnector),
         ).map { case ->
             try {
                 Logger.test("Running $case...")

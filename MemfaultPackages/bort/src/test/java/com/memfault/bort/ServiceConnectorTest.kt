@@ -91,6 +91,16 @@ class ServiceConnectorTest {
     }
 
     @Test
+    fun reconnectWhilePreviousServiceNotYetConnected() {
+        // Regression test for MFLT-3126
+        runBlocking {
+            (0..1).forEach {
+                serviceConnector.connect { }
+            }
+        }
+    }
+
+    @Test
     fun handlesRemoteExceptionDuringBind() {
         every {
             mockContext.bindService(any(), any(), any())

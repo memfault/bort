@@ -17,7 +17,7 @@ import kotlin.time.Duration
  * remotely fetched settings.
  */
 open class DynamicSettingsProvider(
-    private val storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider,
+    private val storedSettingsPreferenceProvider: ReadonlyFetchedSettingsProvider,
 ) : SettingsProvider {
     private val settingsCache = CachedProperty {
         storedSettingsPreferenceProvider.get()

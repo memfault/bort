@@ -69,7 +69,15 @@ abstract class ServiceConnector<S>(val context: Context, val componentName: Comp
     private fun replaceServiceDeferred() {
         serviceLock.withLock {
             if (!service.isCompleted) {
-                throw IllegalStateException("Should not replace non-completed deferred service")
+                if (bound) {
+                    throw IllegalStateException("Should not replace non-completed deferred service")
+                } else {
+                    // Happens when connect() got called again while the service connection from a previous connect()
+                    // call had not been connected yet and the connect block had already returned and triggered
+                    // unbinding of the service again. There *should not* be anything awaiting the CompletableDeferred,
+                    // but let's complete it for good measure:
+                    service.completeExceptionally(Exception("ReplaceServiceDeferred"))
+                }
             }
             service = CompletableDeferred()
         }

@@ -9,9 +9,13 @@ import kotlinx.serialization.SerializationException
 
 private const val INVALID_MARKER = "__NA__"
 
-interface StoredSettingsPreferenceProvider {
+interface ReadonlyFetchedSettingsProvider {
     fun get(): FetchedSettings
+}
+
+interface StoredSettingsPreferenceProvider : ReadonlyFetchedSettingsProvider {
     fun set(settings: FetchedSettings)
+    fun reset()
 }
 
 class RealStoredSettingsPreferenceProvider(
@@ -41,5 +45,9 @@ class RealStoredSettingsPreferenceProvider(
                 FetchedSettings.FetchedSettingsContainer(settings)
             )
         )
+    }
+
+    override fun reset() {
+        set(FetchedSettings.from(getBundledConfig()) { BortJson })
     }
 }

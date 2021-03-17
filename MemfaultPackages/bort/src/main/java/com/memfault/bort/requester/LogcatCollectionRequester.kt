@@ -10,6 +10,7 @@ import com.memfault.bort.logcat.RealNextLogcatCidProvider
 import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
 import com.memfault.bort.periodicWorkRequest
 import com.memfault.bort.settings.LogcatSettings
+import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.toAbsoluteTime
@@ -54,7 +55,7 @@ class LogcatCollectionRequester(
     private val context: Context,
     private val logcatSettings: LogcatSettings,
 ) : PeriodicWorkRequester() {
-    override fun startPeriodic(justBooted: Boolean) {
+    override fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         if (!logcatSettings.dataSourceEnabled) return
 
         val collectionInterval = maxOf(MINIMUM_COLLECTION_INTERVAL, logcatSettings.collectionInterval)
@@ -75,11 +76,7 @@ class LogcatCollectionRequester(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override fun evaluateSettingsChange() {
-        if (!logcatSettings.dataSourceEnabled) {
-            cancelPeriodic()
-        } else {
-            startPeriodic()
-        }
-    }
+    override fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
+        old.logcatSettings.dataSourceEnabled != new.logcatSettings.dataSourceEnabled ||
+            old.logcatSettings.collectionInterval != new.logcatSettings.collectionInterval
 }

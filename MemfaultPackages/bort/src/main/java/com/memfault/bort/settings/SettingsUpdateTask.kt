@@ -11,7 +11,10 @@ import com.memfault.bort.tokenbucket.takeSimple
 import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
 
-typealias SettingsUpdateCallback = suspend (settings: SettingsProvider) -> Unit
+typealias SettingsUpdateCallback = suspend (
+    settings: SettingsProvider,
+    fetchedSettingsUpdate: FetchedSettingsUpdate
+) -> Unit
 
 class SettingsUpdateTask(
     private val deviceInfoProvider: DeviceInfoProvider,
@@ -27,22 +30,25 @@ class SettingsUpdateTask(
         if (!tokenBucketStore.takeSimple()) return TaskResult.FAILURE
         return try {
             val deviceInfo = deviceInfoProvider.getDeviceInfo()
-            val fetched = settingsUpdateServiceFactory().settings(
+            val new = settingsUpdateServiceFactory().settings(
                 deviceInfo.deviceSerial,
                 deviceInfo.softwareVersion,
                 deviceInfo.hardwareVersion,
             ).data
 
-            if (storedSettingsPreferenceProvider.get() != fetched) {
-                storedSettingsPreferenceProvider.set(fetched)
+            val old = storedSettingsPreferenceProvider.get()
+            val changed = old != new
+
+            if (changed) {
+                storedSettingsPreferenceProvider.set(new)
 
                 // Force a reload on the next settings read
                 settingsProvider.invalidate()
 
-                settingsUpdateCallback(settingsProvider)
+                settingsUpdateCallback(settingsProvider, FetchedSettingsUpdate(old = old, new = new))
             }
 
-            Logger.test("Settings updated successfully")
+            Logger.test("Settings updated successfully (changed=$changed)")
             TaskResult.SUCCESS
         } catch (e: HttpException) {
             Logger.d("failed to fetch settings from remote endpoint", e)

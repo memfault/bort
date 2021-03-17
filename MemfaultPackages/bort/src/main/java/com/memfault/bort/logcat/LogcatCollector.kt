@@ -65,9 +65,6 @@ class LogcatCollector(
                 allowedUids = packageManagerClient.getPackageManagerReport()
                     .toAllowedUids(packageNameAllowList)
             )
-            if (file.length() == 0L) {
-                return null
-            }
             val (cid, nextCid) = nextLogcatCidProvider.rotate()
             preventDeletion()
             return LogcatCollectorResult(
@@ -116,16 +113,19 @@ class LogcatCollector(
             outputFile.bufferedReader().useLines { lines ->
                 temporaryFileFactory.createTemporaryFile(
                     prefix = "logcat-scrubbed", suffix = ".txt"
-                ).useFile { scrubbedFile, _ ->
+                ).useFile { scrubbedFile, preventScrubbedDeletion ->
                     scrubbedFile.outputStream().bufferedWriter().use { scrubbedWriter ->
                         val scrubber = dataScrubber()
                         lines.toLogcatLines(command)
                             .map { it.scrub(scrubber, allowedUids) }
                             .onEach { it.writeTo(scrubbedWriter) }
                             .asIterable()
-                            .last()
-                            .logTime
-                    }.also { scrubbedFile.renameTo(outputFile) }
+                            .lastOrNull { it.logTime != null }
+                            ?.logTime
+                    }.also {
+                        preventScrubbedDeletion()
+                        scrubbedFile.renameTo(outputFile)
+                    }
                 }
             }
         } catch (e: Exception) {

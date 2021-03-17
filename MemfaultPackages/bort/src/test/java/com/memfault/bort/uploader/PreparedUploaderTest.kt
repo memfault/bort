@@ -126,7 +126,7 @@ internal class PreparedUploaderTest {
         server.enqueue(MockResponse())
 
         runBlocking {
-            val deviceInfo = FakeDeviceInfoProvider.getDeviceInfo()
+            val deviceInfo = FakeDeviceInfoProvider().getDeviceInfo()
             createUploader(server).commit(
                 "someToken",
                 DropBoxEntryFileUploadPayload(
@@ -179,7 +179,7 @@ internal class PreparedUploaderTest {
     fun commitAnr() {
         server.enqueue(MockResponse())
         runBlocking {
-            val deviceInfo = FakeDeviceInfoProvider.getDeviceInfo()
+            val deviceInfo = FakeDeviceInfoProvider().getDeviceInfo()
             createUploader(server).commit(
                 "someToken",
                 DropBoxEntryFileUploadPayload(
@@ -223,7 +223,7 @@ internal class PreparedUploaderTest {
     fun commitLogcat() {
         server.enqueue(MockResponse())
         runBlocking {
-            val deviceInfo = FakeDeviceInfoProvider.getDeviceInfo()
+            val deviceInfo = FakeDeviceInfoProvider().getDeviceInfo()
             createUploader(server).commit(
                 "someToken",
                 LogcatFileUploadPayload(

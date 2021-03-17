@@ -72,15 +72,16 @@ class SettingsUpdateTaskTest {
             }
         }
 
-        val callback: suspend (SettingsProvider) -> Unit = mockk {
-            coEvery { this@mockk(any()) } returns Unit
+        val fetchedSettingsUpdateSlot = slot<FetchedSettingsUpdate>()
+        val callback: suspend (SettingsProvider, FetchedSettingsUpdate) -> Unit = mockk {
+            coEvery { this@mockk(any(), capture(fetchedSettingsUpdateSlot)) } returns Unit
         }
 
         runBlocking {
             assertEquals(
                 TaskResult.SUCCESS,
                 SettingsUpdateTask(
-                    FakeDeviceInfoProvider,
+                    FakeDeviceInfoProvider(),
                     { service },
                     settingsProvider,
                     storedSettingsPreferenceProvider,
@@ -98,7 +99,7 @@ class SettingsUpdateTaskTest {
             assertEquals(
                 TaskResult.SUCCESS,
                 SettingsUpdateTask(
-                    FakeDeviceInfoProvider,
+                    FakeDeviceInfoProvider(),
                     { service },
                     settingsProvider,
                     storedSettingsPreferenceProvider,
@@ -119,9 +120,11 @@ class SettingsUpdateTaskTest {
                     response
                 )
                 settingsProvider.invalidate()
-                callback(any())
+                callback(any(), any())
             }
             confirmVerified(settingsProvider)
+            assertEquals(fetchedSettingsUpdateSlot.captured.old, SETTINGS_FIXTURE)
+            assertEquals(fetchedSettingsUpdateSlot.captured.new, response)
         }
     }
 
@@ -135,11 +138,11 @@ class SettingsUpdateTaskTest {
             assertEquals(
                 TaskResult.SUCCESS,
                 SettingsUpdateTask(
-                    FakeDeviceInfoProvider,
+                    FakeDeviceInfoProvider(),
                     { service },
                     settingsProvider,
                     storedSettingsPreferenceProvider,
-                    {},
+                    { _, _ -> },
                     tokenBucketStore,
                 ).doWork(worker)
             )
@@ -164,11 +167,11 @@ class SettingsUpdateTaskTest {
             assertEquals(
                 TaskResult.SUCCESS,
                 SettingsUpdateTask(
-                    FakeDeviceInfoProvider,
+                    FakeDeviceInfoProvider(),
                     { service },
                     settingsProvider,
                     storedSettingsPreferenceProvider,
-                    {},
+                    { _, _ -> },
                     tokenBucketStore,
                 ).doWork(worker)
             )

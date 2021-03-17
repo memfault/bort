@@ -73,7 +73,7 @@ class TombstoneEntryProcessorTest {
             enqueueFileUpload = mockEnqueueFileUpload,
             nextLogcatCidProvider = FakeNextLogcatCidProvider.incrementing(),
             bootRelativeTimeProvider = FakeBootRelativeTimeProvider,
-            deviceInfoProvider = FakeDeviceInfoProvider,
+            deviceInfoProvider = FakeDeviceInfoProvider(),
             tokenBucketStore = TokenBucketStore(
                 storage = MockTokenBucketStorage(StoredTokenBucketMap()),
                 getMaxBuckets = { 1 },

@@ -29,7 +29,6 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -156,13 +155,33 @@ class LogcatCollectorTest {
     }
 
     @Test
+    fun useLastDateIflastLogLineIsSeparator() {
+        val nextStartInstant = Instant.ofEpochSecond(1234, 56789)
+        startTimeProvider.nextStart = AbsoluteTime(nextStartInstant)
+        logcatOutput = """2021-01-18 12:34:02.000000000 +0000  9008  9008 I ServiceManager: Waiting...
+            |--------- switch to main
+            |""".trimMargin()
+        val result = collect()
+        assertNotEquals(FAKE_NOW, startTimeProvider.nextStart)
+        assertEquals(
+            AbsoluteTime(Instant.ofEpochSecond(1610973242, 1)), // Note: +1 nsec
+            startTimeProvider.nextStart,
+        )
+        assertNotNull(result)
+    }
+
+    @Test
     fun emptyLogcatOutput() {
         logcatOutput = ""
         val initialCid = cidProvider.cid
         val result = collect()
-        assertNull(result)
-        // CID should not have been rotated:
-        assertEquals(initialCid, cidProvider.cid)
+        // Upload even when empty. If it is not uploaded, it causes confusion when there is no log file
+        // around an event of interest to be found ("what happened, is it a Bort bug?").
+        assertNotNull(result)
+        assertEquals("", result!!.file.readText())
+        // CID should have been rotated:
+        assertEquals(initialCid, result.cid)
+        assertNotEquals(initialCid, cidProvider.cid)
     }
 
     @Test

@@ -35,14 +35,15 @@ abstract class BaseControlReceiver : FilteringReceiver(
             return
         }
 
-        val allowedByRateLimit = allowedByRateLimit()
-
-        Logger.v("Received request for bug report, allowedByRateLimit=$allowedByRateLimit")
         if (!bortEnabledProvider.isEnabled()) {
             Logger.w("Bort not enabled; not sending request")
             request.broadcastReply(context, BugReportRequestStatus.ERROR_SDK_NOT_ENABLED)
             return
         }
+
+        val allowedByRateLimit = allowedByRateLimit()
+        Logger.v("Received request for bug report, allowedByRateLimit=$allowedByRateLimit")
+
         if (!allowedByRateLimit) {
             request.broadcastReply(context, BugReportRequestStatus.ERROR_RATE_LIMITED)
             return
