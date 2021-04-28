@@ -50,6 +50,8 @@ android {
 }
 
 dependencies {
+    implementation project(':structured-log-lib')
+
     implementation deps.kotlin.stdlib
     implementation deps.kotlin.coroutines
     implementation deps.result

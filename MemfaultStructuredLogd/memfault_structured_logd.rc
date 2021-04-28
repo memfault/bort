@@ -1,0 +1,14 @@
+service memfault-structured-logd /system/bin/MemfaultStructuredLogd
+    user system
+    group system log
+    disabled
+
+on post-fs-data && property:ro.crypto.state=unsupported
+    mkdir /data/system/MemfaultStructuredLogd/ 0700 system system
+    wait /data/system/MemfaultStructuredLogd/
+    start memfault-structured-logd
+
+on post-fs-data && property:ro.crypto.state=encrypted
+    mkdir /data/system/MemfaultStructuredLogd/ 0700 system system
+    wait /data/system/MemfaultStructuredLogd/
+    start memfault-structured-logd

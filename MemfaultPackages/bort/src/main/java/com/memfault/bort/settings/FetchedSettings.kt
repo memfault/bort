@@ -78,6 +78,9 @@ data class FetchedSettings(
     @SerialName("drop_box.kmsgs.rate_limiting_settings")
     val dropBoxKmsgsRateLimitingSettings: RateLimitingSettings,
 
+    @SerialName("drop_box.structured_log.rate_limiting_settings")
+    val dropBoxStructuredLogRateLimitingSettings: RateLimitingSettings,
+
     @SerialName("drop_box.tombstones.rate_limiting_settings")
     val dropBoxTombstonesRateLimitingSettings: RateLimitingSettings,
 
@@ -102,6 +105,22 @@ data class FetchedSettings(
 
     @SerialName("http_api.upload_network_constraint_allow_metered_connection")
     val httpApiUploadNetworkConstraintAllowMeteredConnection: Boolean,
+
+    @SerialName("http_api.connect_timeout_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val httpApiConnectTimeout: BoxedDuration,
+
+    @SerialName("http_api.write_timeout_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val httpApiWriteTimeout: BoxedDuration,
+
+    @SerialName("http_api.read_timeout_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val httpApiReadTimeout: BoxedDuration,
+
+    @SerialName("http_api.call_timeout_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val httpApiCallTimeout: BoxedDuration,
 
     @SerialName("logcat.collection_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)

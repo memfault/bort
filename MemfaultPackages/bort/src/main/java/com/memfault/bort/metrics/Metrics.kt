@@ -9,6 +9,7 @@ import kotlin.concurrent.read
 import kotlin.concurrent.write
 
 const val DROP_BOX_TRACES_DROP_COUNT = "drop_box_traces_drop_count"
+const val STRUCTURED_LOG_DROP_COUNT = "structured_log_drop_count"
 private const val DROP_BOX_TRACE_TAG_COUNT_PER_HOUR_TEMPLATE = "drop_box_trace_%s_count"
 private const val BORT_VERSION_CODE = "bort_version_code"
 

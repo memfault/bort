@@ -58,4 +58,46 @@ class TokenBucketTest {
         assertEquals(true, bucket.take())
         assertEquals(2, bucket.count)
     }
+
+    @Test
+    fun testTakeWithLongPeriod() {
+        val bucket = TokenBucket(
+            capacity = 1,
+            period = 1.milliseconds,
+            _count = 0,
+            _periodStartElapsedRealtime = 0.milliseconds,
+            elapsedRealtime = mockElapsedRealtime
+        )
+
+        now = 5.milliseconds
+        assertEquals(true, bucket.take(1))
+        assertEquals(false, bucket.take(1))
+
+        // Check that the externally observable value did change
+        assertEquals(5.milliseconds, bucket.periodStartElapsedRealtime)
+    }
+
+    @Test
+    fun testFeedRate() {
+        val bucket = TokenBucket(
+            capacity = 10,
+            period = 1.milliseconds,
+            _count = 0,
+            _periodStartElapsedRealtime = 0.milliseconds,
+            elapsedRealtime = mockElapsedRealtime
+        )
+
+        now = 10.milliseconds
+        bucket.feed()
+        assertEquals(10, bucket.count)
+
+        bucket.take(10)
+        assertEquals(0, bucket.count)
+
+        repeat(10) {
+            now += 1.milliseconds
+            bucket.feed()
+            assertEquals(it + 1, bucket.count)
+        }
+    }
 }

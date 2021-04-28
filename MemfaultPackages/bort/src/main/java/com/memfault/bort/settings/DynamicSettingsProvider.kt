@@ -49,6 +49,14 @@ open class DynamicSettingsProvider(
             get() = settings.httpApiDeviceBaseUrl
         override val ingressBaseUrl
             get() = settings.httpApiIngressBaseUrl
+        override val connectTimeout
+            get() = settings.httpApiConnectTimeout.duration
+        override val writeTimeout
+            get() = settings.httpApiWriteTimeout.duration
+        override val readTimeout
+            get() = settings.httpApiReadTimeout.duration
+        override val callTimeout
+            get() = settings.httpApiCallTimeout.duration
     }
 
     override val deviceInfoSettings = object : DeviceInfoSettings {
@@ -88,6 +96,8 @@ open class DynamicSettingsProvider(
             get() = settings.dropBoxJavaExceptionsRateLimitingSettings
         override val kmsgsRateLimitingSettings: RateLimitingSettings
             get() = settings.dropBoxKmsgsRateLimitingSettings
+        override val structuredLogRateLimitingSettings: RateLimitingSettings
+            get() = settings.dropBoxStructuredLogRateLimitingSettings
         override val tombstonesRateLimitingSettings: RateLimitingSettings
             get() = settings.dropBoxTombstonesRateLimitingSettings
         override val excludedTags: Set<String>

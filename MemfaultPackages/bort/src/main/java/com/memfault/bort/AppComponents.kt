@@ -65,6 +65,7 @@ import com.memfault.bort.uploader.PreparedUploadService
 import com.memfault.bort.uploader.PreparedUploader
 import com.memfault.bort.uploader.enqueueFileUploadTask
 import java.io.File
+import kotlin.time.toJavaDuration
 import kotlinx.serialization.ExperimentalSerializationApi
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
@@ -96,6 +97,7 @@ data class AppComponents(
     val bugReportRequestsTokenBucketStore: TokenBucketStore,
     val rebootEventTokenBucketStore: TokenBucketStore,
     val storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider,
+    val jitterDelayProvider: JitterDelayProvider,
 ) {
     open class Builder(
         private val context: Context,
@@ -119,6 +121,7 @@ data class AppComponents(
         var deviceIdProvider: DeviceIdProvider? = null
         var reporterServiceConnector: ReporterServiceConnector? = null
         var extraDropBoxEntryProcessors: Map<String, EntryProcessor> = emptyMap()
+        var jitterDelayProvider: JitterDelayProvider? = null
 
         fun build(): AppComponents {
             val storedSettingsPreferenceProvider = RealStoredSettingsPreferenceProvider(
@@ -149,6 +152,10 @@ data class AppComponents(
                 settingsProvider.httpApiSettings::projectKey
             )
             val okHttpClient = okHttpClient ?: OkHttpClient.Builder()
+                .connectTimeout(settingsProvider.httpApiSettings.connectTimeout.toJavaDuration())
+                .writeTimeout(settingsProvider.httpApiSettings.writeTimeout.toJavaDuration())
+                .readTimeout(settingsProvider.httpApiSettings.readTimeout.toJavaDuration())
+                .callTimeout(settingsProvider.httpApiSettings.callTimeout.toJavaDuration())
                 .addInterceptor(projectKeyInjectingInterceptor)
                 .addInterceptor(
                     debugInfoInjectingInterceptor ?: DebugInfoInjectingInterceptor(
@@ -181,9 +188,15 @@ data class AppComponents(
                 reporterServiceConnector = reporterServiceConnector,
                 commandTimeoutConfig = settingsProvider.packageManagerSettings::commandTimeout
             )
+            val jitterDelayProvider = jitterDelayProvider ?: JitterDelayProvider(applyJitter = true)
             val enqueueFileUpload: EnqueueFileUpload = { file, metadata, debugTag ->
                 enqueueFileUploadTask(
-                    context, file, metadata, settingsProvider.httpApiSettings::uploadConstraints, debugTag
+                    context = context,
+                    file = file,
+                    payload = metadata,
+                    getUploadConstraints = settingsProvider.httpApiSettings::uploadConstraints,
+                    debugTag = debugTag,
+                    jitterDelayProvider = jitterDelayProvider
                 )
             }
             val builtinMetricsStore = BuiltinMetricsStore(
@@ -251,8 +264,7 @@ data class AppComponents(
                 handleEventOfInterest = fileUploadHoldingArea::handleEventOfInterest,
                 tombstoneTokenBucketStore = tokenBucketStoreRegistry.createAndRegisterStore(
                     context, "tombstones"
-                ) {
-                    storage ->
+                ) { storage ->
                     TokenBucketStore(
                         storage = storage,
                         getMaxBuckets = { dropBoxSettings.tombstonesRateLimitingSettings.maxBuckets },
@@ -293,7 +305,18 @@ data class AppComponents(
                             },
                         )
                     },
+                structuredLogTokenBucketStore =
+                    tokenBucketStoreRegistry.createAndRegisterStore(context, "memfault_structured") { storage ->
+                        TokenBucketStore(
+                            storage = storage,
+                            getMaxBuckets = { dropBoxSettings.structuredLogRateLimitingSettings.maxBuckets },
+                            getTokenBucketFactory = {
+                                RealTokenBucketFactory.from(dropBoxSettings.structuredLogRateLimitingSettings)
+                            },
+                        )
+                    },
                 packageNameAllowList = packageNameAllowList,
+                combinedTimeProvider = RealCombinedTimeProvider(context),
             ) + extraDropBoxEntryProcessors
 
             val pendingBugReportRequestAccessor = PendingBugReportRequestAccessor(
@@ -311,7 +334,8 @@ data class AppComponents(
                 SettingsUpdateRequester(
                     context = context,
                     httpApiSettings = settingsProvider.httpApiSettings,
-                    getUpdateInterval = settingsProvider::settingsUpdateInterval
+                    getUpdateInterval = settingsProvider::settingsUpdateInterval,
+                    jitterDelayProvider = jitterDelayProvider
                 ),
                 MetricsCollectionRequester(context, settingsProvider.metricsSettings),
                 BugReportRequester(context, settingsProvider.bugReportSettings),
@@ -401,7 +425,10 @@ data class AppComponents(
             )
 
             val httpTaskCallFactory = HttpTaskCallFactory.fromContextAndConstraints(
-                context, settingsProvider.httpApiSettings::uploadConstraints, projectKeyInjectingInterceptor
+                context = context,
+                getUploadConstraints = settingsProvider.httpApiSettings::uploadConstraints,
+                projectKeyInjectingInterceptor = projectKeyInjectingInterceptor,
+                jitterDelayProvider = jitterDelayProvider
             )
 
             return AppComponents(
@@ -424,6 +451,7 @@ data class AppComponents(
                 bugReportRequestsTokenBucketStore = bugReportRequestsTokenBucketStore,
                 rebootEventTokenBucketStore = rebootEventTokenBucketStore,
                 storedSettingsPreferenceProvider = storedSettingsPreferenceProvider,
+                jitterDelayProvider = jitterDelayProvider,
             )
         }
     }

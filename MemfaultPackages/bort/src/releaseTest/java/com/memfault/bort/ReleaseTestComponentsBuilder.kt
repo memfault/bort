@@ -99,6 +99,9 @@ internal class ReleaseTestComponentsBuilder(
         )
 
         extraDropBoxEntryProcessors = testDropBoxEntryProcessors()
+
+        // Don't apply jitter delay to http requests in tests
+        jitterDelayProvider = JitterDelayProvider(applyJitter = false)
     }
 }
 

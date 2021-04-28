@@ -74,3 +74,5 @@ LOCAL_REQUIRED_MODULES := com.memfault.usagereporter.xml
 # The priv-app folder
 TARGET_OUT_DATA_APPS_PRIVILEGED := $(TARGET_OUT_DATA)/priv-app
 include $(BUILD_PREBUILT)
+
+include $(LOCAL_PATH)/structured-log-lib/Android.mk

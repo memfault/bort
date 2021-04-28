@@ -13,7 +13,6 @@ import com.memfault.bort.shared.BugReportRequest
 import com.memfault.bort.shared.INTENT_EXTRA_BUG_REPORT_REQUEST_TIMEOUT_MS
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.getLongOrNull
-import com.memfault.bort.uploader.sendSdkEnabledEvent
 import kotlin.time.milliseconds
 
 /** Base receiver to handle events that control the SDK. */
@@ -78,13 +77,6 @@ abstract class BaseControlReceiver : FilteringReceiver(
                 it.cancelPeriodic()
             }
         }
-
-        sendSdkEnabledEvent(
-            ingressService,
-            isNowEnabled,
-            deviceIdProvider,
-            settingsProvider.sdkVersionInfo
-        )
     }
 
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {

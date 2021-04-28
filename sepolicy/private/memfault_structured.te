@@ -1,0 +1,33 @@
+type memfault_structured, domain;
+
+typeattribute memfault_structured coredomain;
+
+# Allow domain transition from init to memfault_structured
+init_daemon_domain(memfault_structured)
+
+# Allow memfault_structured to use binder
+binder_use(memfault_structured)
+
+# Allow memfault_structured to register a service with service manager
+add_service(memfault_structured, memfault_structured_service)
+
+# Allow apps to call memfault_structured
+binder_call(appdomain, memfault_structured)
+
+# Allow memfault_structured to find and call dropbox
+allow memfault_structured dropbox_service:service_manager find;
+binder_call(memfault_structured, dropbox_service)
+
+# Allow calling/sharing fds to/from the system server for dropbox
+binder_call(memfault_structured, system_server)
+binder_call(system_server, memfault_structured)
+
+# Allow memfault_structured rw access to its data dir
+allow memfault_structured memfault_structured_data_file:dir rw_dir_perms;
+allow memfault_structured memfault_structured_data_file:file create_file_perms;
+
+# Allow system server to read files for dropbox
+allow system_server memfault_structured_data_file:file read;
+
+# Allow reading the vendor.* property namespace
+get_prop(memfault_structured, vendor_default_prop)

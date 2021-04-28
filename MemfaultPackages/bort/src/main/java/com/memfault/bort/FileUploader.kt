@@ -175,6 +175,32 @@ data class LogcatFileUploadPayload(
 ) : FileUploadPayload()
 
 @Serializable
+@SerialName("structured_log")
+data class StructuredLogFileUploadPayload(
+    val file: FileUploadTokenOnly = FILE_UPLOAD_TOKEN_EMPTY,
+
+    val cid: LogcatCollectionId,
+
+    @SerialName("next_cid")
+    val nextCid: LogcatCollectionId,
+
+    @SerialName("hardware_version")
+    val hardwareVersion: String,
+
+    @SerialName("device_serial")
+    val deviceSerial: String,
+
+    @SerialName("software_version")
+    val softwareVersion: String,
+
+    @SerialName("software_type")
+    val softwareType: String = SOFTWARE_TYPE,
+
+    @SerialName("collection_time")
+    val collectionTime: CombinedTime
+) : FileUploadPayload()
+
+@Serializable
 data class TimezoneWithId(val id: String) {
     companion object {
         val deviceDefault: TimezoneWithId?

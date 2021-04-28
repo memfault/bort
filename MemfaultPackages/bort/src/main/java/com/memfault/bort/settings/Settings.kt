@@ -30,6 +30,7 @@ interface DropBoxSettings {
     val anrRateLimitingSettings: RateLimitingSettings
     val javaExceptionsRateLimitingSettings: RateLimitingSettings
     val kmsgsRateLimitingSettings: RateLimitingSettings
+    val structuredLogRateLimitingSettings: RateLimitingSettings
     val tombstonesRateLimitingSettings: RateLimitingSettings
     val excludedTags: Set<String>
 }
@@ -85,6 +86,11 @@ interface HttpApiSettings {
         get() = Constraints.Builder()
             .setRequiredNetworkType(uploadNetworkConstraint.networkType)
             .build()
+
+    val connectTimeout: Duration
+    val writeTimeout: Duration
+    val readTimeout: Duration
+    val callTimeout: Duration
 }
 
 interface RebootEventsSettings {

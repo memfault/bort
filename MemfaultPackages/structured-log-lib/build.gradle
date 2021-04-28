@@ -1,0 +1,50 @@
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion versions.compileSdk
+    buildToolsVersion versions.buildTools
+
+    defaultConfig {
+        minSdkVersion versions.minSdk
+        targetSdkVersion versions.targetSdk
+        versionCode loadVersionCode() as Integer
+        versionName loadVersionName() as String
+
+        // Used by BuildConfigSdkVersionInfo:
+        buildConfigField "String", "APP_VERSION_NAME", "\"${loadVersionName()}\""
+        buildConfigField "int", "APP_VERSION_CODE", "${loadVersionCode()}"
+        buildConfigField "String", "UPSTREAM_VERSION_NAME", "\"${upstreamVersionName()}\""
+        buildConfigField "int", "UPSTREAM_VERSION_CODE", "${upstreamVersionCode()}"
+        buildConfigField "String", "UPSTREAM_GIT_SHA", "\"${upstreamGitSha()}\""
+        buildConfigField "String", "CURRENT_GIT_SHA", "\"${currentGitSha()}\""
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+        releaseTest {
+            initWith release
+        }
+    }
+
+    sourceSets {
+        main {
+            aidl.srcDirs += '../../MemfaultStructuredLogd/aidl'
+        }
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+        unitTests.all {
+            useJUnitPlatform()
+        }
+    }
+}
+
+dependencies {
+    testImplementation deps.test.junitApi
+    testImplementation deps.test.junitEngine
+}

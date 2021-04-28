@@ -9,6 +9,7 @@ import androidx.work.workDataOf
 import com.memfault.bort.BortJson
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploader
+import com.memfault.bort.JitterDelayProvider
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
@@ -130,11 +131,13 @@ fun enqueueFileUploadTask(
     debugTag: String,
     continuation: FileUploadContinuation? = null,
     shouldCompress: Boolean = true,
+    jitterDelayProvider: JitterDelayProvider,
 ): WorkRequest =
     enqueueWorkOnce<FileUploadTask>(
         context,
         FileUploadTaskInput(file, payload, continuation, shouldCompress).toWorkerInputData()
     ) {
+        setInitialDelay(jitterDelayProvider.randomJitterDelay().toJavaDuration())
         setConstraints(getUploadConstraints())
         setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())
         addTag(debugTag)

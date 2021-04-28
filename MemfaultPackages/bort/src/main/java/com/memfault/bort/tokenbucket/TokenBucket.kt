@@ -33,7 +33,7 @@ class TokenBucket(
     val elapsedRealtime: () -> Duration = ::realElapsedRealtime,
 ) {
     val count: Int get() = _count
-    val periodStartElapsedRealtime: Duration = _periodStartElapsedRealtime
+    val periodStartElapsedRealtime: Duration get() = _periodStartElapsedRealtime
 
     val isFull: Boolean
         get() = count >= capacity
@@ -56,12 +56,12 @@ class TokenBucket(
      */
     internal fun feed() {
         val now = elapsedRealtime()
-        val periods = floor((now - periodStartElapsedRealtime) / period)
+        val periods = floor((now - _periodStartElapsedRealtime) / period)
         if (periods < 1.0) {
             return
         }
         _count = minOf(count + periods.toInt(), capacity)
-        _periodStartElapsedRealtime = now + (period * periods)
+        _periodStartElapsedRealtime += period * periods
     }
 
     fun copy(_count: Int? = null, capacity: Int? = null, period: Duration? = null): TokenBucket =

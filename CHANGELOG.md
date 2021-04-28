@@ -1,5 +1,17 @@
 # Memfault Bort Changelog
 
+## v3.4.3 - April 27, 2021
+
+#### :chart_with_upwards_trend: Improvements
+
+- Fix a rare issue in the on-device rate limiting system.
+- Make HTTP request timeout a configurable parameter.
+- Add randomized delay to uploads to distribute fleet-wide requests over time.
+
+#### :house: Internal
+
+- Structured logging: this is an experimental new feature still in development.
+
 ## v3.4.2 - March 17, 2021
 
 #### :chart_with_upwards_trend: Improvements

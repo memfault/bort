@@ -3,15 +3,106 @@ is not allowed to hold multiple directories. A build error will occur when
 BOARD_PLAT_PRIVATE_SEPOLICY_DIR is also used by customer/vendor code.
 We work around this by patching system/sepolicy directly.
 
+
+diff --git a/private/compat/26.0/26.0.ignore.cil b/private/compat/26.0/26.0.ignore.cil
+index 9e1eb9775..97e5643ff 100644
+--- a/private/compat/26.0/26.0.ignore.cil
++++ b/private/compat/26.0/26.0.ignore.cil
+@@ -14,6 +14,11 @@
+     hal_wifi_offload_hwservice
+     kmsg_debug_device
+     mediaprovider_tmpfs
++    memfault_structured
++    memfault_structured_data_file
++    memfault_structured_exec
++    memfault_structured_service
++    memfault_structured_tmpfs
+     netd_stable_secret_prop
+     package_native_service
+     sysfs_fs_ext4_features
+diff --git a/private/file.te b/private/file.te
+index da5f9adde..d6cb5c04d 100644
+--- a/private/file.te
++++ b/private/file.te
+@@ -5,3 +5,6 @@ typealias app_data_file alias download_file;
+ 
+ # /proc/config.gz
+ type config_gz, fs_type;
++
++# MFLT
++type memfault_structured_data_file, file_type, data_file_type;
+diff --git a/private/file_contexts b/private/file_contexts
+index 536975894..5d3d6b376 100644
+--- a/private/file_contexts
++++ b/private/file_contexts
+@@ -468,3 +468,7 @@
+ /mnt/user(/.*)?             u:object_r:mnt_user_file:s0
+ /mnt/runtime(/.*)?          u:object_r:storage_file:s0
+ /storage(/.*)?              u:object_r:storage_file:s0
++
++#### MFLT
++/data/system/MemfaultStructuredLogd(/.*)? u:object_r:memfault_structured_data_file:s0
++/system/bin/MemfaultStructuredLogd        u:object_r:memfault_structured_exec:s0
+diff --git a/private/memfault_structured.te b/private/memfault_structured.te
+new file mode 100644
+index 000000000..79566f1ae
+--- /dev/null
++++ b/private/memfault_structured.te
+@@ -0,0 +1,34 @@
++type memfault_structured, domain;
++type memfault_structured_exec, exec_type, file_type;
++
++typeattribute memfault_structured coredomain;
++
++# Allow domain transition from init to memfault_structured
++init_daemon_domain(memfault_structured)
++
++# Allow memfault_structured to use binder
++binder_use(memfault_structured)
++
++# Allow memfault_structured to register a service with service manager
++add_service(memfault_structured, memfault_structured_service)
++
++# Allow apps to call memfault_structured
++binder_call(appdomain, memfault_structured)
++
++# Allow memfault_structured to find and call dropbox
++allow memfault_structured dropbox_service:service_manager find;
++binder_call(memfault_structured, dropbox_service)
++
++# Allow calling/sharing fds to/from the system server for dropbox
++binder_call(memfault_structured, system_server)
++binder_call(system_server, memfault_structured)
++
++# Allow memfault_structured rw access to its data dir
++allow memfault_structured memfault_structured_data_file:dir rw_dir_perms;
++allow memfault_structured memfault_structured_data_file:file create_file_perms;
++
++# Allow system server to read files for dropbox
++allow system_server memfault_structured_data_file:file read;
++
++# Allow access to /proc/sys/kernel/random/boot_id
++allow memfault_structured proc:file { getattr open read };
 diff --git a/private/service_contexts b/private/service_contexts
-index a82243ffb..b7c66a146 100644
+index a82243ffb..21d9969f2 100644
 --- a/private/service_contexts
 +++ b/private/service_contexts
-@@ -93,6 +93,7 @@ media_projection                          u:object_r:media_projection_service:s0
+@@ -93,6 +93,8 @@ media_projection                          u:object_r:media_projection_service:s0
  media_resource_monitor                    u:object_r:media_session_service:s0
  media_router                              u:object_r:media_router_service:s0
  media_session                             u:object_r:media_session_service:s0
 +memfault_dumpster                         u:object_r:memfault_dumpster_service:s0
++memfault_structured                       u:object_r:memfault_structured_service:s0
  meminfo                                   u:object_r:meminfo_service:s0
  midi                                      u:object_r:midi_service:s0
  mount                                     u:object_r:mount_service:s0
+diff --git a/public/service.te b/public/service.te
+index e97b864db..ea86d172b 100644
+--- a/public/service.te
++++ b/public/service.te
+@@ -148,3 +148,5 @@ type wifi_service, app_api_service, system_server_service, service_manager_type;
+ type wificond_service, service_manager_type;
+ type wifiaware_service, app_api_service, system_server_service, service_manager_type;
+ type window_service, system_api_service, system_server_service, service_manager_type;
++
++type memfault_structured_service, app_api_service, ephemeral_app_api_service, service_manager_type;

@@ -8,6 +8,7 @@ import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.time.BaseBootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
+import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueFileUpload
 
@@ -24,7 +25,9 @@ fun realDropBoxEntryProcessors(
     javaExceptionTokenBucketStore: TokenBucketStore,
     anrTokenBucketStore: TokenBucketStore,
     kmsgTokenBucketStore: TokenBucketStore,
+    structuredLogTokenBucketStore: TokenBucketStore,
     packageNameAllowList: PackageNameAllowList,
+    combinedTimeProvider: CombinedTimeProvider,
 ): Map<String, EntryProcessor> {
     val tombstoneEntryProcessor = UploadingEntryProcessor(
         delegate = TombstoneUploadingEntryProcessorDelegate(
@@ -76,10 +79,19 @@ fun realDropBoxEntryProcessors(
         handleEventOfInterest = handleEventOfInterest,
         packageNameAllowList = packageNameAllowList,
     )
+    val structuredLogProcessor = StructuredLogEntryProcessor(
+        temporaryFileFactory = tempFileFactory,
+        deviceInfoProvider = deviceInfoProvider,
+        tokenBucketStore = structuredLogTokenBucketStore,
+        enqueueFileUpload = enqueueFileUpload,
+        combinedTimeProvider = combinedTimeProvider,
+        builtinMetricsStore = builtinMetricsStore,
+    )
     return mapOf(
         *tombstoneEntryProcessor.tagPairs(),
         *javaExceptionEntryProcessor.tagPairs(),
         *anrEntryProcessor.tagPairs(),
         *kmsgEntryProcessor.tagPairs(),
+        *structuredLogProcessor.tagPairs(),
     )
 }

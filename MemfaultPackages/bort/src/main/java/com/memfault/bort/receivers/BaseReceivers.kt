@@ -6,6 +6,7 @@ import android.content.Intent
 import com.memfault.bort.Bort
 import com.memfault.bort.DeviceIdProvider
 import com.memfault.bort.DeviceInfoProvider
+import com.memfault.bort.JitterDelayProvider
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.ingress.IngressService
@@ -50,6 +51,7 @@ abstract class FilteringReceiver(
     protected lateinit var tokenBucketStoreRegistry: TokenBucketStoreRegistry
     protected lateinit var rebootEventTokenBucketStore: TokenBucketStore
     protected lateinit var bugReportRequestsTokenBucketStore: TokenBucketStore
+    protected lateinit var jitterDelayProvider: JitterDelayProvider
 
     override fun onReceive(context: Context?, intent: Intent?) {
         Logger.v("Received action=${intent?.action}")
@@ -80,6 +82,7 @@ abstract class FilteringReceiver(
         tokenBucketStoreRegistry = it.tokenBucketStoreRegistry
         rebootEventTokenBucketStore = it.rebootEventTokenBucketStore
         bugReportRequestsTokenBucketStore = it.bugReportRequestsTokenBucketStore
+        jitterDelayProvider = it.jitterDelayProvider
     }
 
     abstract fun onIntentReceived(context: Context, intent: Intent, action: String)

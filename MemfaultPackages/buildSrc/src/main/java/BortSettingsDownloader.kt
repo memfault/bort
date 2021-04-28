@@ -105,6 +105,11 @@ private fun generateDevConfig(
                        "default_period_ms": 900000,
                        "max_buckets": 1
                    },
+                   "drop_box.structured_log.rate_limiting_settings": {
+                       "default_capacity": 10,
+                       "default_period_ms": 900000,
+                       "max_buckets": 1
+                   },
                    "drop_box.tombstones.rate_limiting_settings": {
                        "default_capacity": 10,
                        "default_period_ms": 900000,
@@ -117,6 +122,10 @@ private fun generateDevConfig(
                    "http_api.ingress_base_url" : "${getDefaultProperty("MEMFAULT_INGRESS_BASE_URL") ?: "https://ingress.memfault.com"}",
                    "http_api.upload_compression_enabled" : true,
                    "http_api.upload_network_constraint_allow_metered_connection" : true,
+                   "http_api.connect_timeout_ms": 30000,
+                   "http_api.write_timeout_ms": 0,
+                   "http_api.read_timeout_ms": 0,
+                   "http_api.call_timeout_ms": 0,
                    "logcat.collection_interval_ms" : 900000,
                    "logcat.command_timeout_ms" : 60000,
                    "logcat.data_source_enabled" : true,

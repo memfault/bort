@@ -13,6 +13,7 @@ import io.mockk.slot
 import java.io.File
 import kotlin.time.Duration
 import kotlin.time.minutes
+import kotlin.time.seconds
 import org.junit.jupiter.api.Test
 
 class AppComponentsTest {
@@ -44,6 +45,10 @@ class AppComponentsTest {
                     override val uploadNetworkConstraint = NetworkConstraint.CONNECTED
                     override val uploadCompressionEnabled = true
                     override val projectKey = "SECRET"
+                    override val connectTimeout = 0.seconds
+                    override val writeTimeout = 0.seconds
+                    override val readTimeout = 0.seconds
+                    override val callTimeout = 0.seconds
                 }
                 every { sdkVersionInfo } returns mockk()
                 every { deviceInfoSettings } returns mockk()

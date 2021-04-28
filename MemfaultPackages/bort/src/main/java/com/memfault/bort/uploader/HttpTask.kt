@@ -5,6 +5,7 @@ import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.workDataOf
+import com.memfault.bort.JitterDelayProvider
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
@@ -163,18 +164,20 @@ data class HttpTaskOptions(
  */
 class HttpTaskCallFactory(
     private val enqueueHttpTaskCallback: (HttpTaskInput) -> Unit,
-    private val projectKeyInjectingInterceptor: ProjectKeyInjectingInterceptor
+    private val projectKeyInjectingInterceptor: ProjectKeyInjectingInterceptor,
 ) : Call.Factory {
 
     companion object {
         fun fromContextAndConstraints(
             context: Context,
             getUploadConstraints: () -> Constraints,
-            projectKeyInjectingInterceptor: ProjectKeyInjectingInterceptor
+            projectKeyInjectingInterceptor: ProjectKeyInjectingInterceptor,
+            jitterDelayProvider: JitterDelayProvider,
         ) =
             HttpTaskCallFactory(
                 { input ->
                     enqueueWorkOnce<HttpTask>(context, input.toWorkerInputData()) {
+                        setInitialDelay(jitterDelayProvider.randomJitterDelay().toJavaDuration())
                         setConstraints(getUploadConstraints())
                         setBackoffCriteria(BackoffPolicy.EXPONENTIAL, input.backoffDuration.toJavaDuration())
                         input.taskTags.forEach { tag -> addTag(tag) }

@@ -59,6 +59,7 @@ class DropBoxGetEntriesTaskTest {
         override val anrRateLimitingSettings = mockRateLimitingSettings
         override val javaExceptionsRateLimitingSettings = mockRateLimitingSettings
         override val kmsgsRateLimitingSettings = mockRateLimitingSettings
+        override val structuredLogRateLimitingSettings = mockRateLimitingSettings
         override val tombstonesRateLimitingSettings = mockRateLimitingSettings
         override val excludedTags get() = mockGetExcludedTags
     }

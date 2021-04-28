@@ -47,6 +47,7 @@ buildscript {
             'preference'                       : '1.1.1',
             'result'                           : '1.1.9',
             'retrofit'                         : '2.9.0',
+            'robolectric'                      : '4.5.1',
             'work'                             : '2.4.0',
             'jackson'                          : '2.12.1',
             'zjsonpatch'                       : '0.4.11',
@@ -81,7 +82,8 @@ buildscript {
                     'junitApi'     : "org.junit.jupiter:junit-jupiter-api:${versions.junit}",
                     'junitEngine'  : "org.junit.jupiter:junit-jupiter-engine:${versions.junit}",
                     'mockk'        : "io.mockk:mockk:${versions.mockk}",
-                    'mockWebServer': "com.squareup.okhttp3:mockwebserver:${versions.okhttp}"
+                    'mockWebServer': "com.squareup.okhttp3:mockwebserver:${versions.okhttp}",
+                    'robolectric'  : "org.robolectric:robolectric:${versions.robolectric}",
             ],
             'jackson'      : "com.fasterxml.jackson.core:jackson-databind:${versions.jackson}",
             'zjsonpatch'   : "com.flipkart.zjsonpatch:zjsonpatch:${versions.zjsonpatch}",

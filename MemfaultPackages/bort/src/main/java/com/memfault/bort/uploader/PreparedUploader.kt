@@ -6,6 +6,7 @@ import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploadTokenOnly
 import com.memfault.bort.HeartbeatFileUploadPayload
 import com.memfault.bort.LogcatFileUploadPayload
+import com.memfault.bort.StructuredLogFileUploadPayload
 import com.memfault.bort.http.ProjectKeyAuthenticated
 import com.memfault.bort.http.gzip
 import com.memfault.bort.shared.Logger
@@ -63,6 +64,12 @@ interface PreparedUploadService {
     suspend fun commitDropBoxEntry(
         @Path(value = "family") entryFamily: String,
         @Body payload: DropBoxEntryFileUploadPayload
+    ): Response<Unit>
+
+    @POST("/api/v0/upload/android-structured")
+    @ProjectKeyAuthenticated
+    suspend fun commitStructuredLog(
+        @Body payload: StructuredLogFileUploadPayload
     ): Response<Unit>
 
     @POST("/api/v0/events/android-heartbeat")
@@ -126,6 +133,10 @@ internal class PreparedUploader(
                 ).also {
                     eventLogger.log("commit", "done", payload.metadata.family)
                 }
+            is StructuredLogFileUploadPayload ->
+                preparedUploadService.commitStructuredLog(
+                    payload = payload.copy(file = FileUploadTokenOnly(token))
+                )
             is HeartbeatFileUploadPayload -> {
                 preparedUploadService.commitHeartbeat(
                     payload.copy(

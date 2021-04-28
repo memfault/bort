@@ -56,6 +56,7 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
             },
             /* Already a .zip file, not much to gain by recompressing */
             shouldCompress = false,
+            jitterDelayProvider = jitterDelayProvider,
         )
     }
 

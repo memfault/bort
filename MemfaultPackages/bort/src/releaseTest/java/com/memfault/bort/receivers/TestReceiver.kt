@@ -107,8 +107,9 @@ class TestReceiver : FilteringReceiver(
                     // Something long to ensure it does not re-run & interfere with tests:
                     updateInterval = 4.days,
                     httpApiSettings = settingsProvider.httpApiSettings,
-                    delayInitially = false,
+                    delayAfterSettingsUpdate = false,
                     testRequest = true,
+                    jitterDelayProvider = jitterDelayProvider,
                 )
             }
             "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION" -> {

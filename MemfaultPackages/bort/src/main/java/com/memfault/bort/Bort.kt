@@ -61,6 +61,10 @@ open class Bort : Application(), Configuration.Provider {
                 |  filesBaseUrl=${httpApiSettings.filesBaseUrl}
                 |  ingressBaseUrl=${httpApiSettings.ingressBaseUrl}
                 |  uploadNetworkConstraint=${httpApiSettings.uploadNetworkConstraint}
+                |  connectTimeout=${httpApiSettings.connectTimeout.inSeconds}s
+                |  writeTimeout=${httpApiSettings.writeTimeout.inSeconds}s
+                |  readTimeout=${httpApiSettings.readTimeout.inSeconds}s
+                |  callTimeout=${httpApiSettings.callTimeout.inSeconds}s
                 |Device Info Settings:
                 |  androidBuildVersionKey=${deviceInfoSettings.androidBuildVersionKey}
                 |  androidHardwareVersionKey=${deviceInfoSettings.androidHardwareVersionKey}

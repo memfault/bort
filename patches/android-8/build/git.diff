@@ -1,17 +1,29 @@
 diff --git a/target/board/generic_arm64/BoardConfig.mk b/target/board/generic_arm64/BoardConfig.mk
-index 46c8865..bfea13b 100644
+index 46c8865a4f..1bcaace388 100644
 --- a/target/board/generic_arm64/BoardConfig.mk
 +++ b/target/board/generic_arm64/BoardConfig.mk
 @@ -96,3 +96,7 @@ DEVICE_MATRIX_FILE   := device/generic/goldfish/compatibility_matrix.xml
-
+ 
  BOARD_PROPERTY_OVERRIDES_SPLIT_ENABLED := true
  BOARD_SEPOLICY_DIRS += build/target/board/generic/sepolicy
 +
 +TARGET_BOOTLOADER_BOARD_NAME := generic-arm64
 +include vendor/memfault/bort/BoardConfig.mk
 +
+diff --git a/target/board/generic_x86_64/BoardConfig.mk b/target/board/generic_x86_64/BoardConfig.mk
+index 883dd2e5c4..f6ca5c6ac0 100755
+--- a/target/board/generic_x86_64/BoardConfig.mk
++++ b/target/board/generic_x86_64/BoardConfig.mk
+@@ -60,3 +60,7 @@ DEVICE_MATRIX_FILE   := device/generic/goldfish/compatibility_matrix.xml
+ BOARD_SEPOLICY_DIRS += \
+         build/target/board/generic/sepolicy \
+         build/target/board/generic_x86/sepolicy
++
++TARGET_BOOTLOADER_BOARD_NAME := generic-x86_64
++include vendor/memfault/bort/BoardConfig.mk
++
 diff --git a/target/product/emulator.mk b/target/product/emulator.mk
-index 0e1e581..690f672 100644
+index 0e1e581cdd..ea0e792d06 100644
 --- a/target/product/emulator.mk
 +++ b/target/product/emulator.mk
 @@ -151,3 +151,9 @@ PRODUCT_PACKAGE_OVERLAYS := device/generic/goldfish/overlay

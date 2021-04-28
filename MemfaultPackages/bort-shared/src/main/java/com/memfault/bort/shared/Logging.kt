@@ -2,6 +2,7 @@ package com.memfault.bort.shared
 
 import android.util.EventLog
 import android.util.Log
+import com.memfault.bort.structuredlog.StructuredLog
 
 enum class LogLevel(val level: Int) {
     NONE(0),
@@ -150,5 +151,10 @@ object Logger {
         if (eventLogEnabled()) {
             EventLog.writeEvent(40000001, if (isEnabled) 1 else 0)
         }
+    }
+
+    @JvmStatic
+    fun structured(data: String, tag: String = TAG) {
+        StructuredLog.log(tag, data)
     }
 }
