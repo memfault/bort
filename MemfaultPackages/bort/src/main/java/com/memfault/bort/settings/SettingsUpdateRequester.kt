@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.JitterDelayProvider
 import com.memfault.bort.periodicWorkRequest
 import com.memfault.bort.requester.PeriodicWorkRequester
@@ -56,8 +57,11 @@ class SettingsUpdateRequester(
     private val httpApiSettings: HttpApiSettings,
     private val getUpdateInterval: () -> Duration,
     private val jitterDelayProvider: JitterDelayProvider,
+    private val bortSystemCapabilities: BortSystemCapabilities,
 ) : PeriodicWorkRequester() {
-    override fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
+    override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
+        if (!bortSystemCapabilities.supportsDynamicSettings()) return
+
         restartPeriodicSettingsUpdate(
             context = context,
             httpApiSettings = httpApiSettings,

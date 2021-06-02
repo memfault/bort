@@ -18,7 +18,7 @@ class DumpsterClientTest {
     fun serviceNotAvailable() {
         val client = DumpsterClient(
             serviceProvider = object : DumpsterServiceProvider {
-                override fun get(): IDumpster? = null
+                override fun get(logIfMissing: Boolean): IDumpster? = null
             }
         )
         runBlocking {
@@ -33,7 +33,7 @@ class DumpsterClientTest {
         }
         val client = DumpsterClient(
             serviceProvider = object : DumpsterServiceProvider {
-                override fun get(): IDumpster? = service
+                override fun get(logIfMissing: Boolean): IDumpster? = service
             }
         )
         runBlocking {
@@ -49,7 +49,7 @@ class DumpsterClientTest {
         }
         val client = DumpsterClient(
             serviceProvider = object : DumpsterServiceProvider {
-                override fun get(): IDumpster? = service
+                override fun get(logIfMissing: Boolean): IDumpster? = service
             }
         )
         runBlocking {
@@ -68,7 +68,7 @@ class DumpsterClientTest {
         }
         val client = DumpsterClient(
             serviceProvider = object : DumpsterServiceProvider {
-                override fun get(): IDumpster? = service
+                override fun get(logIfMissing: Boolean): IDumpster? = service
             },
             basicCommandTimeout = 1
         )
@@ -95,7 +95,7 @@ class DumpsterClientTest {
             }
             val client = DumpsterClient(
                 serviceProvider = object : DumpsterServiceProvider {
-                    override fun get(): IDumpster? = service
+                    override fun get(logIfMissing: Boolean): IDumpster? = service
                 }
             )
             assertNull(client.getprop())
@@ -120,7 +120,7 @@ class DumpsterClientTest {
             }
             val client = DumpsterClient(
                 serviceProvider = object : DumpsterServiceProvider {
-                    override fun get(): IDumpster? = service
+                    override fun get(logIfMissing: Boolean): IDumpster? = service
                 }
             )
             assertEquals(client.getprop(), mapOf("Hello" to "World!"))

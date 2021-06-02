@@ -19,6 +19,8 @@
 #include "android-9/file.h"
 
 #define DUMPSTER_SERVICE_NAME "memfault_dumpster"
+#define BORT_ENABLED_PROPERTY "persist.vendor.memfault.bort.enabled"
+#define STRUCTURED_ENABLED_PROPERTY "persist.vendor.memfault.structured.enabled"
 
 using android::os::dumpstate::CommandOptions;
 using android::os::dumpstate::RunCommandToFd;
@@ -60,6 +62,20 @@ namespace {
         std::vector<std::string> commandForId(int cmdId) {
             switch (cmdId) {
                 case IDumpster::CMD_ID_GETPROP: return { "/system/bin/getprop" };
+                case IDumpster::CMD_ID_SET_BORT_ENABLED_PROPERTY_ENABLED: return {
+                        "/system/bin/setprop", BORT_ENABLED_PROPERTY, "1"
+                };
+                case IDumpster::CMD_ID_SET_BORT_ENABLED_PROPERTY_DISABLED: return {
+                        "/system/bin/setprop", BORT_ENABLED_PROPERTY, "0"
+                };
+                case IDumpster::CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_ENABLED: return {
+                        "/system/bin/setprop", STRUCTURED_ENABLED_PROPERTY, "1"
+                };
+                case IDumpster::CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_DISABLED: return {
+                        "/system/bin/setprop", STRUCTURED_ENABLED_PROPERTY, "0"
+                };
+
+
                 default: return {};
             }
         }

@@ -6,6 +6,7 @@ import com.memfault.bort.StructuredLogFileUploadPayload
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.STRUCTURED_LOG_DROP_COUNT
+import com.memfault.bort.settings.ConfigValue
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.CombinedTimeProvider
@@ -20,6 +21,7 @@ class StructuredLogEntryProcessor(
     private val enqueueFileUpload: EnqueueFileUpload,
     private val combinedTimeProvider: CombinedTimeProvider,
     private val builtinMetricsStore: BuiltinMetricsStore,
+    private val structuredLogDataSourceEnabledConfig: ConfigValue<Boolean>,
 ) : EntryProcessor() {
     override val tags: List<String> = listOf(DROPBOX_ENTRY_TAG)
 
@@ -29,6 +31,10 @@ class StructuredLogEntryProcessor(
         }
 
     override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
+        if (!structuredLogDataSourceEnabledConfig()) {
+            return
+        }
+
         if (!allowedByRateLimit()) {
             builtinMetricsStore.increment(STRUCTURED_LOG_DROP_COUNT)
             return

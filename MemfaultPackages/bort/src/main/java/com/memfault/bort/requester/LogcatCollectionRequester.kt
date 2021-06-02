@@ -5,6 +5,7 @@ import androidx.preference.PreferenceManager
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.logcat.LogcatCollectionTask
 import com.memfault.bort.logcat.RealNextLogcatCidProvider
 import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
@@ -54,9 +55,11 @@ internal fun restartPeriodicLogcatCollection(
 class LogcatCollectionRequester(
     private val context: Context,
     private val logcatSettings: LogcatSettings,
+    private val bortSystemCapabilities: BortSystemCapabilities,
 ) : PeriodicWorkRequester() {
-    override fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
+    override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         if (!logcatSettings.dataSourceEnabled) return
+        if (!bortSystemCapabilities.supportsCaliperLogcatCollection()) return
 
         val collectionInterval = maxOf(MINIMUM_COLLECTION_INTERVAL, logcatSettings.collectionInterval)
         Logger.test("Collecting logcat every ${collectionInterval.inMinutes} minutes")

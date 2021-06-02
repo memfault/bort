@@ -7,10 +7,13 @@ namespace {
 
 TEST(RateLimiterTest, TestFeed) {
     uint64_t now = 0;
+    const RateLimiterConfig config = RateLimiterConfig{
+            .initialCapacity = 0,
+            .capacity = 3,
+            .msPerToken = 2
+    };
     TokenBucketRateLimiter bucket(
-            2,
-            3,
-            0,
+            config,
             [&now]() { return now; }
     );
 
@@ -29,10 +32,13 @@ TEST(RateLimiterTest, TestFeed) {
 
 TEST(RateLimiterTest, TestTake) {
     uint64_t now = 0;
+    const RateLimiterConfig config = {
+            .initialCapacity = 3,
+            .capacity = 3,
+            .msPerToken = 2
+    };
     TokenBucketRateLimiter bucket(
-            2,
-            3,
-            3,
+            config,
             [&now]() { return now; }
     );
 
@@ -48,11 +54,12 @@ TEST(RateLimiterTest, TestTake) {
 
 TEST(RateLimiterTest, TestTakeWithLongPeriod) {
     uint64_t now = 0;
-    TokenBucketRateLimiter bucket(
-            1,
-            1,
-            0,
-            [&now]() { return now; }
+    const RateLimiterConfig config = {
+            .initialCapacity = 0,
+            .capacity = 1,
+            .msPerToken = 1
+    };
+    TokenBucketRateLimiter bucket(config, [&now]() { return now; }
     );
 
     now = 5;
@@ -62,12 +69,12 @@ TEST(RateLimiterTest, TestTakeWithLongPeriod) {
 
 TEST(RateLimiterTest, TestFeedRate) {
     uint64_t now = 0;
-    TokenBucketRateLimiter bucket(
-            1,
-            10,
-            0,
-            [&now]() { return now; }
-    );
+    const RateLimiterConfig config = {
+            .initialCapacity = 0,
+            .capacity = 10,
+            .msPerToken = 1
+    };
+    TokenBucketRateLimiter bucket(config, [&now]() { return now; });
 
     now = 10;
     bucket.feed();
@@ -81,6 +88,36 @@ TEST(RateLimiterTest, TestFeedRate) {
         ASSERT_EQ(now-10, bucket.getTokens());
     }
 
+}
+
+TEST(RateLimiterTest, TestReconfigure) {
+    const RateLimiterConfig config = {
+            .initialCapacity = 0,
+            .capacity = 10,
+            .msPerToken = 1
+    };
+    uint64_t now = 0;
+    TokenBucketRateLimiter bucket(config, [&now]() { return now; });
+
+    now = 10;
+    bucket.feed();
+    ASSERT_EQ(10u, bucket.getTokens());
+
+    const RateLimiterConfig newConfig = {
+            .initialCapacity = 0,
+            .capacity = 4,
+            .msPerToken = 2
+    };
+    bucket.reconfigure(newConfig);
+
+    // Tokens are trimmed to the new capacity
+    ASSERT_EQ(4u, bucket.getTokens());
+    bucket.take(4);
+
+    now += 4;
+    bucket.feed();
+    // new period is applied
+    ASSERT_EQ(2u, bucket.getTokens());
 }
 
 }

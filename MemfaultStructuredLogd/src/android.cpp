@@ -15,6 +15,9 @@
 #include <cutils/properties.h>
 
 #include "android.h"
+#include "config.h"
+#include "log.h"
+#include "logger.h"
 #include "logwriter.h"
 #include "timeutil.h"
 #include "storage.h"
@@ -39,7 +42,7 @@ static void logRtcSync(std::shared_ptr<StorageBackend> backend, uint64_t time) {
     writer.Int64(time);
     writer.EndObject();
 
-    backend->store(LogEntry(elapsedRealtimeNano(), "rtc.sync", buffer.GetString(), true /* internal */), 0 /* cost */);
+    backend->store(LogEntry(elapsedRealtimeNano(), "rtc.sync", buffer.GetString(), true /* internal */));
 }
 
 static bool isDropBoxReady() {
@@ -70,69 +73,27 @@ static std::string readBootId() {
     return id;
 }
 
-static uintmax_t property_get_umax(
-        const char *key,
-        uintmax_t lower,
-        uintmax_t upper,
-        uintmax_t defaultValue) {
-    if (!key) return defaultValue;
-
-    char buf[PROPERTY_VALUE_MAX] {'\0'};
-    char *end = nullptr;
-
-    int len = property_get(key, buf, "");
-    if (len == 0) return defaultValue;
-
-    uintmax_t result = strtoumax(buf, &end, 10);
-    if (result == UINTMAX_MAX && errno == ERANGE) {
-        return defaultValue;
-    } else if (result < lower || result > upper) {
-        return defaultValue;
-    } else if (end == buf) {
-        return defaultValue;
-    }
-    return result;
-}
-
-static uint32_t property_get_uint32(
-        const char *key,
-        uint32_t defaultValue,
-        uint32_t lower=0,
-        uint32_t upper=UINT32_MAX) {
-    return (uint32_t)property_get_umax(key, lower, upper, defaultValue);
-}
-
-static uint64_t property_get_uint64(
-        const char *key,
-        uint64_t defaultValue,
-        uint64_t lower=0,
-        uint64_t upper=UINT64_MAX) {
-    return (uint64_t)property_get_umax(key, lower, upper, defaultValue);
-}
-
 void createService(const char* storagePath) {
-    uint32_t rateLimitCapacity = property_get_uint32(RATE_LIMIT_CAPACITY_PROPERTY, RATE_LIMIT_CAPACITY);
-    uint32_t rateLimitInitialCapacity = property_get_uint32(RATE_LIMIT_INITIAL_CAPACITY_PROPERTY,
-                                                          RATE_LIMIT_INITIAL_CAPACITY);
-    uint64_t msPerToken = property_get_uint64(RATE_LIMIT_PERIOD_MS_PROPERTY, RATE_LIMIT_PERIOD_MS);
-
-    TokenBucketRateLimiter limiter(msPerToken, rateLimitCapacity, rateLimitInitialCapacity, []{
-        return uint64_t(elapsedRealtime());
-    });
-    StorageBackend::SharedPtr storage = std::make_shared<Sqlite3StorageBackend>(storagePath, readBootId(), limiter);
+    StorageBackend::SharedPtr storage = std::make_shared<Sqlite3StorageBackend>(storagePath, readBootId());
+    Config::SharedPtr config = std::make_shared<StoredConfig>(storage);
     storage->addStorageEmtpyListener([&storage]() { logRtcSync(storage, getTimeInMsSinceEpoch()); });
     logRtcSync(storage, getTimeInMsSinceEpoch());
 
-    std::shared_ptr<Dumper> dumper = std::make_shared<Dumper>(STRUCTURED_DUMP_FILE, storage, sendToDropBox,
+    std::shared_ptr<Dumper> dumper = std::make_shared<Dumper>(STRUCTURED_DUMP_FILE, config, storage, sendToDropBox,
                                                               [](){ return isDropBoxReady(); },
+                                                              config->getDumpPeriodMs(),
                                                               true);
-
-    size_t maxMessageSize = size_t(property_get_uint32(MAX_MESSAGE_SIZE_BYTES_PROPERTY, MAX_MESSAGE_SIZE_BYTES));
-    size_t numEventsBeforeDump = size_t(property_get_uint32(NUM_EVENTS_BEFORE_DUMP_PROPERTY, NUM_EVENTS_BEFORE_DUMP));
-    sp<LoggerImpl> logger(new LoggerImpl(storage, dumper, maxMessageSize, numEventsBeforeDump));
+    RateLimiterConfig rateLimiterConfig = config->getRateLimiterConfig();
+    std::unique_ptr<TokenBucketRateLimiter> rateLimiter = std::make_unique<TokenBucketRateLimiter>(rateLimiterConfig, []{
+        return uint64_t(elapsedRealtime());
+    });
+    std::unique_ptr<Logger> logger = std::make_unique<Logger>(
+            storage, dumper, config, rateLimiter
+    );
+    sp<LoggerService> loggerService(new LoggerService(logger));
     defaultServiceManager()->addService(
             String16(STRUCTURED_SERVICE_NAME),
-            logger,
+            loggerService,
             true /* allowIsolated */);
 
     signal(SIGTERM, signal_handler);
@@ -142,6 +103,9 @@ void createService(const char* storagePath) {
         logRtcSync(storage, time);
         ALOGV("time updated: %" PRIu64, time);
     });
+
+    // This log is used in E2E testing to signal test readiness:
+    ALOGT("MemfaultStructuredLogd ready");
 
     IPCThreadState::self()->joinThreadPool();
 

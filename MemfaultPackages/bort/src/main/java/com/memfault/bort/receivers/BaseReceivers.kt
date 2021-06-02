@@ -4,11 +4,13 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.memfault.bort.Bort
+import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.DeviceIdProvider
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.JitterDelayProvider
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.ReporterServiceConnector
+import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.ingress.IngressService
 import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.settings.BortEnabledProvider
@@ -52,6 +54,8 @@ abstract class FilteringReceiver(
     protected lateinit var rebootEventTokenBucketStore: TokenBucketStore
     protected lateinit var bugReportRequestsTokenBucketStore: TokenBucketStore
     protected lateinit var jitterDelayProvider: JitterDelayProvider
+    protected lateinit var dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider
+    protected lateinit var bortSystemCapabilities: BortSystemCapabilities
 
     override fun onReceive(context: Context?, intent: Intent?) {
         Logger.v("Received action=${intent?.action}")
@@ -83,6 +87,8 @@ abstract class FilteringReceiver(
         rebootEventTokenBucketStore = it.rebootEventTokenBucketStore
         bugReportRequestsTokenBucketStore = it.bugReportRequestsTokenBucketStore
         jitterDelayProvider = it.jitterDelayProvider
+        dropBoxProcessedEntryCursorProvider = it.dropBoxProcessedEntryCursorProvider
+        bortSystemCapabilities = it.bortSystemCapabilities
     }
 
     abstract fun onIntentReceived(context: Context, intent: Intent, action: String)

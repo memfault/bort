@@ -37,11 +37,12 @@ class StructuredLogStreamingParserTest {
                 |"next_cid":"00000000-0000-0000-0000-000000000003",
                 |"events":[
                 |{"ts":123.1,"type":"type1","data":{"extra_int":3,"extra_double":3.0,"extra_string":"blah","extra_null":null,"extra_array":[1,2,3],"extra_object":{"a":"b"}}},
-                |{"ts":123.1,"_type":"internal","data":[1,2,3]},
+                |{"ts":123.1,"_type":"internal","data":[1,2,3]}
+                |],
                 |"device_serial":"SN1234",
                 |"software_version":"1.0.0",
                 |"hardware_version":"HW-FOO"
-                |]}""".trimMargin().replace("\n", ""),
+                |}""".trimMargin().replace("\n", ""),
             output
         )
 

@@ -57,7 +57,7 @@ dependencies {
     implementation deps.result
 
     testImplementation deps.test.junitApi
-    testImplementation deps.test.junitEngine
+    testImplementation deps.test.junitJupiterEngine
     testImplementation deps.test.coroutines
     testImplementation deps.test.mockk
 }

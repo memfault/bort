@@ -73,6 +73,8 @@ open class Bort : Application(), Configuration.Provider {
                 |  dataSourceEnabled=${bugReportSettings.dataSourceEnabled}
                 |  requestInterval=${bugReportSettings.requestInterval.inHours}h
                 |  defaultOptions=${bugReportSettings.defaultOptions}
+                |  maxStorageBytes=${bugReportSettings.maxStorageBytes}
+                |  maxStoredAge=${bugReportSettings.maxStoredAge}
                 |  maxUploadAttempts=${bugReportSettings.maxUploadAttempts}
                 |  firstBugReportDelayAfterBoot=${bugReportSettings.firstBugReportDelayAfterBoot}
                 |DropBox Settings:

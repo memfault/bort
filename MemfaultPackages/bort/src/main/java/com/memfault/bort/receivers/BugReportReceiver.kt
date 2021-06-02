@@ -33,31 +33,35 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
             return
         }
 
-        val dropBoxDataSourceEnabled = settingsProvider.dropBoxSettings.dataSourceEnabled
-        enqueueFileUploadTask(
-            context = context,
-            file = file,
-            payload = BugReportFileUploadPayload(
-                processingOptions = BugReportFileUploadPayload.ProcessingOptions(
-                    processAnrs = !dropBoxDataSourceEnabled,
-                    processJavaExceptions = !dropBoxDataSourceEnabled,
-                    processLastKmsg = !dropBoxDataSourceEnabled,
-                    processRecoveryKmsg = !dropBoxDataSourceEnabled,
-                    processTombstones = !dropBoxDataSourceEnabled,
+        goAsync {
+            val dropBoxDataSourceEnabledAndSupported = settingsProvider.dropBoxSettings.dataSourceEnabled &&
+                bortSystemCapabilities.supportsCaliperDropBoxTraces()
+
+            enqueueFileUploadTask(
+                context = context,
+                file = file,
+                payload = BugReportFileUploadPayload(
+                    processingOptions = BugReportFileUploadPayload.ProcessingOptions(
+                        processAnrs = !dropBoxDataSourceEnabledAndSupported,
+                        processJavaExceptions = !dropBoxDataSourceEnabledAndSupported,
+                        processLastKmsg = !dropBoxDataSourceEnabledAndSupported,
+                        processRecoveryKmsg = !dropBoxDataSourceEnabledAndSupported,
+                        processTombstones = !dropBoxDataSourceEnabledAndSupported,
+                    ),
+                    requestId = requestId,
                 ),
-                requestId = requestId,
-            ),
-            getUploadConstraints = settingsProvider.httpApiSettings::uploadConstraints,
-            debugTag = WORK_TAG,
-            continuation = request?.let {
-                BugReportFileUploadContinuation(
-                    request = it,
-                )
-            },
-            /* Already a .zip file, not much to gain by recompressing */
-            shouldCompress = false,
-            jitterDelayProvider = jitterDelayProvider,
-        )
+                getUploadConstraints = settingsProvider.httpApiSettings::uploadConstraints,
+                debugTag = WORK_TAG,
+                continuation = request?.let {
+                    BugReportFileUploadContinuation(
+                        request = it,
+                    )
+                },
+                /* Already a .zip file, not much to gain by recompressing */
+                shouldCompress = false,
+                jitterDelayProvider = jitterDelayProvider,
+            )
+        }
     }
 
     private fun getPendingRequest(requestId: String?, context: Context) =

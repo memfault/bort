@@ -14,9 +14,6 @@
 #include <memory>
 
 #include <sqlite_modern_cpp.h>
-#include "rate_limiter.h"
-
-#define DEFAULT_COST 1u
 
 namespace structured {
 
@@ -53,10 +50,12 @@ typedef std::function<void(void)> OnStorageEmptyListener;
 class StorageBackend {
   public:
     virtual void store(const LogEntry &entry) = 0;
-    virtual void store(const LogEntry &entry, uint32_t cost) = 0;
     virtual void dump(bool skipLatest, std::function<void(BootIdDumpView&)> callback) = 0;
+    virtual std::string getConfig() = 0;
+    virtual void setConfig(const std::string &config) = 0;
     virtual ~StorageBackend() = default;
     virtual void addStorageEmtpyListener(OnStorageEmptyListener listener) = 0;
+    virtual uint64_t getAvailableSpace() = 0;
     typedef std::shared_ptr<StorageBackend> SharedPtr;
 };
 
@@ -104,18 +103,21 @@ private:
     int64_t bootRowId;
 };
 
+// Return a fixed amount for in-memory databases used in testing
+constexpr uint64_t kInMemoryAvailableSpace = 2u * 1024 * 1024 * 1024;
 class Sqlite3StorageBackend: public StorageBackend {
   public:
     explicit Sqlite3StorageBackend(
             const std::string &path,
-            const std::string &bootId,
-            TokenBucketRateLimiter &rateLimiter);
+            const std::string &bootId);
     ~Sqlite3StorageBackend() noexcept override {}
 
     void store(const LogEntry &entry) override;
-    void store(const LogEntry &entry, uint32_t cost) override;
     void dump(bool skipLatest, std::function<void(BootIdDumpView&)> callback) override;
     void addStorageEmtpyListener(OnStorageEmptyListener listener) override;
+    std::string getConfig() override;
+    void setConfig(const std::string &config) override;
+    uint64_t getAvailableSpace() override;
 
     inline int getBootIdRow() const { return bootIdRow; }
   private:
@@ -123,14 +125,17 @@ class Sqlite3StorageBackend: public StorageBackend {
 
     SqliteDatabase _db;
     sqlite::database_binder _insertStmt;
+    std::string _path;
+    bool _inMemory;
     int64_t bootIdRow;
     friend class Sqlite3BootIdDumpView;
     std::recursive_mutex dbMutex;
-    TokenBucketRateLimiter &rateLimiter;
+    std::string storageDir;
 
     std::string generateCid();
     void ensureCids();
     void consumeCid();
+    void ensureConfig();
     std::pair<std::string, std::string> getCidPair();
     std::vector<OnStorageEmptyListener> storageEmptyListeners;
 };

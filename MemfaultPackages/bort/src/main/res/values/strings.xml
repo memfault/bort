@@ -4,4 +4,8 @@
     <string name="permission_control_description">Allows the application to control the Bort
         SDK behavior, including being able to enable and disable the SDK.
     </string>
+    <string name="update_structured_log_config">Update Structured Logging configuration</string>
+    <string name="update_structured_log_config_description">Allows the application to pass
+        configuration updates to the structured log daemon.
+    </string>
 </resources>

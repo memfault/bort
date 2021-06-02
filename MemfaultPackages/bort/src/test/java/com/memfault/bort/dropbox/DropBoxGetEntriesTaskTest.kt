@@ -47,6 +47,8 @@ class DropBoxGetEntriesTaskTest {
     lateinit var task: DropBoxGetEntriesTask
     lateinit var lastProcessedEntryProvider: FakeLastProcessedEntryProvider
     var mockGetExcludedTags: Set<String> = setOf()
+    lateinit var processedEntryCursorProvider: ProcessedEntryCursorProvider
+    lateinit var retryDelay: suspend () -> Unit
 
     private val mockRateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 10,
@@ -78,16 +80,18 @@ class DropBoxGetEntriesTaskTest {
         val reporterClient = ReporterClient(mockServiceConnection, mockk())
         mockServiceConnector = createMockServiceConnector(reporterClient)
         lastProcessedEntryProvider = FakeLastProcessedEntryProvider(0)
+        processedEntryCursorProvider = ProcessedEntryCursorProvider(lastProcessedEntryProvider)
         task = DropBoxGetEntriesTask(
             reporterServiceConnector = mockServiceConnector,
-            lastProcessedEntryProvider = lastProcessedEntryProvider,
+            cursorProvider = processedEntryCursorProvider,
             entryProcessors = mapOf(
                 TEST_TAG to mockEntryProcessor,
                 TEST_TAG_TO_IGNORE to mockEntryProcessor,
             ),
             settings = mockDropboxSettings,
-            retryDelayMillis = 0
+            retryDelay = suspend { retryDelay() }
         )
+        retryDelay = suspend { }
     }
 
     @AfterEach
@@ -159,6 +163,27 @@ class DropBoxGetEntriesTaskTest {
 
         coVerify(exactly = 2) {
             mockServiceConnection.sendAndReceive(ofType(DropBoxGetNextEntryRequest::class))
+        }
+        assertEquals(TaskResult.SUCCESS, result)
+    }
+
+    @Test
+    fun refreshesCursorBeforeRetryAfterNullEntry() {
+        mockGetNextEntryReponses(null)
+
+        // Simulate that a time adjustment took place while waiting for the retry delay to pass:
+        val changedTimeMillis = 12345L
+        retryDelay = suspend {
+            processedEntryCursorProvider.makeCursor().next(changedTimeMillis)
+        }
+
+        val result = runBlocking {
+            task.doWork()
+        }
+
+        coVerify {
+            mockServiceConnection.sendAndReceive(DropBoxGetNextEntryRequest(lastTimeMillis = 0))
+            mockServiceConnection.sendAndReceive(DropBoxGetNextEntryRequest(lastTimeMillis = changedTimeMillis))
         }
         assertEquals(TaskResult.SUCCESS, result)
     }
@@ -270,7 +295,7 @@ class DropBoxGetEntriesTaskTest {
     fun emptyEntryProcessorsMap() {
         task = DropBoxGetEntriesTask(
             reporterServiceConnector = mockServiceConnector,
-            lastProcessedEntryProvider = lastProcessedEntryProvider,
+            cursorProvider = processedEntryCursorProvider,
             entryProcessors = mapOf(),
             settings = mockDropboxSettings,
         )
@@ -281,7 +306,7 @@ class DropBoxGetEntriesTaskTest {
     fun dataSourceDisabled() {
         task = DropBoxGetEntriesTask(
             reporterServiceConnector = mockServiceConnector,
-            lastProcessedEntryProvider = lastProcessedEntryProvider,
+            cursorProvider = processedEntryCursorProvider,
             entryProcessors = mapOf(TEST_TAG to mockEntryProcessor),
             settings = object : DropBoxSettings by mockDropboxSettings {
                 override val dataSourceEnabled = false

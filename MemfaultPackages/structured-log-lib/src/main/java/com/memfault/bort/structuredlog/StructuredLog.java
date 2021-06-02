@@ -17,12 +17,12 @@ import com.memfault.bort.internal.ILogger;
  */
 public final class StructuredLog {
     private static final String STRUCTURED_LOGD_SERVICE_NAME = "memfault_structured";
-    private static boolean initialized;
     private static ILogger cachedLogger;
 
     /**
      * Obtains a logger remote proxy. This uses reflection on well-known (but hidden)
      * system APIs instead of doing extensive platform-level changes to expose the service.
+     *
      *
      * Although reflection restrictions are being increasingly enforced, this specific method
      * is allowed:
@@ -34,10 +34,19 @@ public final class StructuredLog {
      *     <li>Android S: part of the unsupported (previously known as greylist) list</li>
      * </ul>
      *
+     * The instance is cached in cachedLogger to prevent further reflective service manager
+     * queries. The cache is automatically invalidated if the service dies.
+     *
      * @return A logger instance.
      */
     @SuppressLint("PrivateApi")
     private static ILogger obtainRemoteLogger() {
+        synchronized (StructuredLog.class) {
+            if (cachedLogger != null) {
+                return cachedLogger;
+            }
+        }
+
         // Non-public but stable system APIs
         try {
             Class<?> serviceManager = Class.forName("android.os.ServiceManager");
@@ -48,7 +57,19 @@ public final class StructuredLog {
                 IBinder serviceBinder = (IBinder) getService.invoke(
                         serviceManager,
                         STRUCTURED_LOGD_SERVICE_NAME);
-                return ILogger.Stub.asInterface(serviceBinder);
+
+                synchronized (StructuredLog.class) {
+                    serviceBinder.linkToDeath(new IBinder.DeathRecipient() {
+                        @Override
+                        public void binderDied() {
+                            synchronized (StructuredLog.class) {
+                                cachedLogger = null;
+                            }
+                        }
+                    }, 0);
+                    cachedLogger = ILogger.Stub.asInterface(serviceBinder);
+                    return cachedLogger;
+                }
             }
         } catch (ClassNotFoundException ex) {
             new IllegalStateException("Could not find ServiceManager, please contact Memfault support.", ex)
@@ -60,24 +81,6 @@ public final class StructuredLog {
             // ignored
         }
         return null;
-    }
-
-    /**
-     * Initializes and caches a remote logger instance to prevent further service manager
-     * RPC and reflective calls.
-     *
-     * @return An instance of the logger or null if the logger was not found.
-     */
-    private static ILogger logger() {
-        if (!initialized) {
-            synchronized (StructuredLog.class) {
-                if (!initialized) {
-                    initialized = true;
-                    cachedLogger = obtainRemoteLogger();
-                }
-            }
-        }
-        return cachedLogger;
     }
 
     /**
@@ -94,7 +97,7 @@ public final class StructuredLog {
      */
     public static void log(long timestamp, String tag, String message) {
         try {
-            ILogger logger = logger();
+            ILogger logger = obtainRemoteLogger();
             if (logger == null) {
                 // If no logger, write to the system log. Timestamp is lost.
                 android.util.Log.w(tag, message);
@@ -133,11 +136,28 @@ public final class StructuredLog {
      */
     public static void dump() {
         try {
-            ILogger logger = logger();
+            ILogger logger = obtainRemoteLogger();
             if (logger == null) {
                 android.util.Log.w("structured", "Could not dump, memfault_structured not found.");
             } else {
                 logger.triggerDump();
+            }
+        } catch(RemoteException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Reloads the structured log config. Do not use in apps, it will throw a security exception.
+     * @param config The configuration JSON as a string.
+     */
+    public static void reloadConfig(String config) {
+        try {
+            ILogger logger = obtainRemoteLogger();
+            if (logger == null) {
+                android.util.Log.w("structured", "Could not reload, memfault_structured not found.");
+            } else {
+                logger.reloadConfig(config);
             }
         } catch(RemoteException ex) {
             ex.printStackTrace();

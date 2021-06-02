@@ -1,5 +1,31 @@
 # Memfault Bort Changelog
 
+## v3.5.0 - June 2, 2021
+
+#### :rocket: New Features
+
+- Structured logging: this new API enables logging structured events, which
+  appear directly on the device timeline
+  [See documentation](https://docs.memfault.com/docs/android/structured-logs)
+  for more information.
+- Android 11 support for the Bort SDK.
+
+#### :chart_with_upwards_trend: Improvements
+
+- Fixed a problem where BatteryStat-based system metrics stop being collected if
+  the battery was fully charged and still plugged. To resolve this, patches for
+  `frameworks/base` have been added to the SDK. The command
+  `bort_cli.py patch-aosp --android-release $RELEASE` will need to be run again
+  to apply this new patch.
+- The bort apk is now backwards-compatible with older SDK versions (from 2.2.4
+  onwards). This means that the bort app can safely be updated (via Play Store
+  or an MDM tool) without a full system image update. Not all new bort apk
+  features will be available, depending on the bort SDK version installed in the
+  system image.
+- Added the ability to configure storage limits (disk space or age) for
+  bugreports stored on the device.
+- Populate the "captured timestamp" for DropBox-sourced items.
+
 ## v3.4.3 - April 27, 2021
 
 #### :chart_with_upwards_trend: Improvements

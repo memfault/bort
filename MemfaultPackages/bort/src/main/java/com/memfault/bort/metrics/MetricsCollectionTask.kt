@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics
 
+import android.os.RemoteException
 import androidx.work.Data
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.FileUploadToken
@@ -84,6 +85,9 @@ class MetricsCollectionTask(
             batteryStatsHistoryCollector.collect(
                 limit = batteryStatsLimit
             )
+        } catch (e: RemoteException) {
+            Logger.w("Unable to connect to ReporterService to run batterystats")
+            return TaskResult.FAILURE
         } catch (e: Exception) {
             Logger.e("Failed to collect batterystats", e)
             return TaskResult.FAILURE

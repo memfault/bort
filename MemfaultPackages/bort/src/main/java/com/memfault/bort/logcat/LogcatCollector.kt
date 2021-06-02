@@ -1,6 +1,7 @@
 package com.memfault.bort.logcat
 
 import android.os.Process
+import android.os.RemoteException
 import com.github.michaelbull.result.andThen
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onFailure
@@ -128,6 +129,9 @@ class LogcatCollector(
                     }
                 }
             }
+        } catch (e: RemoteException) {
+            Logger.w("Unable to connect to ReporterService to run logcat")
+            null
         } catch (e: Exception) {
             Logger.w("Failed to process logcat", e)
             null

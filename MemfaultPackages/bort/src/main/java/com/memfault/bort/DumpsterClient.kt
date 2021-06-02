@@ -9,26 +9,22 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 
 interface DumpsterServiceProvider {
-    fun get(): IDumpster?
+    fun get(logIfMissing: Boolean = true): IDumpster?
 }
 
 internal class DefaultDumpsterServiceProvider : DumpsterServiceProvider {
-    override fun get(): IDumpster? {
+    override fun get(logIfMissing: Boolean): IDumpster? {
         val dumpster: IDumpster? = IDumpster.Stub.asInterface(
             ServiceManagerProxy.getService(DUMPSTER_SERVICE_NAME)
         )
         if (dumpster == null) {
-            Logger.w("Failed to get $DUMPSTER_SERVICE_NAME")
+            if (logIfMissing) {
+                Logger.w("Failed to get $DUMPSTER_SERVICE_NAME")
+            }
         }
         return dumpster
     }
 }
-
-/**
- * The lowest, valid service version.
- * @note This is not zero because IPC calls to unimplemented methods also seem to return zero.
- */
-private const val MINIMUM_VALID_VERSION = 1
 
 private class WrappedService(val service: IDumpster, val basicCommandTimeout: Long) {
     fun getVersion(): Int = service.getVersion()
@@ -67,7 +63,7 @@ class DumpsterClient(
     val serviceProvider: DumpsterServiceProvider = DefaultDumpsterServiceProvider(),
     val basicCommandTimeout: Long = 5000L
 ) {
-    private fun getService(): IDumpster? = serviceProvider.get()
+    private fun getServiceSilently(): IDumpster? = serviceProvider.get(logIfMissing = false)
 
     /**
      * Runs a block with service matching versioning constraints.
@@ -75,7 +71,7 @@ class DumpsterClient(
      * not satisty the given constraints.
      */
     private inline fun <R> withService(
-        minimumVersion: Int = MINIMUM_VALID_VERSION,
+        minimumVersion: Int = IDumpster.VERSION_INITIAL,
         block: WrappedService.() -> R
     ): R? =
         serviceProvider.get()?.let {
@@ -92,9 +88,42 @@ class DumpsterClient(
      * Gets all system properties by running the 'getprop' program.
      * @return All system properties, or null in case they could not be retrieved.
      */
-    suspend fun getprop(): Map<String, String>? = withService(minimumVersion = 1) {
+    suspend fun getprop(): Map<String, String>? = withService(minimumVersion = IDumpster.VERSION_INITIAL) {
         return runBasicCommand(IDumpster.CMD_ID_GETPROP)?.let {
             parseGetpropOutput(it)
         }
+    }
+
+    /**
+     * Sets a system property (persist.vendor.memfault.bort.enabled) so that other components may enable / disable
+     * themselves when bort enabled state changes.
+     */
+    suspend fun setBortEnabled(enabled: Boolean) {
+        withService(minimumVersion = IDumpster.VERSION_BORT_ENABLED_PROPERTY) {
+            runBasicCommand(
+                if (enabled) IDumpster.CMD_ID_SET_BORT_ENABLED_PROPERTY_ENABLED
+                else IDumpster.CMD_ID_SET_BORT_ENABLED_PROPERTY_DISABLED
+            )
+        }
+    }
+
+    /**
+     * Sets a system property (persist.vendor.memfault.structured.enabled) so that the structured log daemon may
+     * be started/stopped by init as needed.
+     */
+    suspend fun setStructuredLogEnabled(enabled: Boolean) {
+        withService(minimumVersion = IDumpster.VERSION_BORT_ENABLED_PROPERTY) {
+            runBasicCommand(
+                if (enabled) IDumpster.CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_ENABLED
+                else IDumpster.CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_DISABLED
+            )
+        }
+    }
+
+    /**
+     * Gets the available version of the MemfaultDumpster service, or null if the service is not available.
+     */
+    fun availableVersion(): Int? {
+        return getServiceSilently()?.version
     }
 }

@@ -7,8 +7,8 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libstructured
 LOCAL_SRC_FILES := $(call all-cpp-files-under, src)  aidl/com/memfault/bort/internal/ILogger.aidl
 LOCAL_CFLAGS := -Wall -Werror -Wextra -Wno-unused-parameter -fexceptions
-ifneq (,$(filter userdebug eng, $(TARGET_BUILD_VARIANT)))
-LOCAL_CFLAGS += -DDEBUG_BUILD
+ifeq ($(TARGET_BUILD_BORT_UNDER_TEST),1)
+LOCAL_CFLAGS += -DBORT_UNDER_TEST
 endif
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/deps/rapidjson-1.1.0/include $(LOCAL_PATH)/deps/sqlite_modern_cpp-3.2/hdr/
 LOCAL_CLANG := true
@@ -22,8 +22,8 @@ LOCAL_SRC_FILES := main.cpp aidl/com/memfault/bort/internal/ILogger.aidl
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/deps/rapidjson-1.1.0/include $(LOCAL_PATH)/deps/sqlite_modern_cpp-3.2/hdr/
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS := -Wall -Werror -Wextra -Wno-unused-parameter -fexceptions
-ifneq (,$(filter userdebug eng, $(TARGET_BUILD_VARIANT)))
-LOCAL_CFLAGS += -DDEBUG_BUILD
+ifeq ($(TARGET_BUILD_BORT_UNDER_TEST),1)
+LOCAL_CFLAGS += -DBORT_UNDER_TEST
 endif
 LOCAL_CLANG := true
 LOCAL_SHARED_LIBRARIES := libbase libbinder liblog libservices libsqlite libutils libcutils
@@ -39,5 +39,5 @@ LOCAL_MODULE_TAGS := tests
 LOCAL_CFLAGS := -Wall -Werror -Wextra -Wno-unused-parameter -fexceptions
 LOCAL_CLANG := true
 LOCAL_SHARED_LIBRARIES := libbase libbinder liblog libservices libsqlite libutils
-LOCAL_STATIC_LIBRARIES := libstructured
+LOCAL_STATIC_LIBRARIES := libstructured libgmock
 include $(BUILD_NATIVE_TEST)

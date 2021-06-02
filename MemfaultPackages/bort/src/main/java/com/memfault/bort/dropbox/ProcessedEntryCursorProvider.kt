@@ -41,6 +41,16 @@ class ProcessedEntryCursorProvider(
             advanceTo(newTimeMillis, token)
             return makeCursor()
         }
+
+        /**
+         * Returns the current cursor if still up-to-date or otherwise returns a new, up-to-date one.
+         */
+        fun refresh(): Cursor {
+            lock.withLock {
+                if (token == currentToken) return this
+                return makeCursor()
+            }
+        }
     }
 
     fun makeCursor() =

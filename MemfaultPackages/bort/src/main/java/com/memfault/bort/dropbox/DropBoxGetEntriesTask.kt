@@ -25,15 +25,14 @@ private const val DEFAULT_RETRY_DELAY_MILLIS: Long = 5000
 
 class DropBoxGetEntriesTask(
     private val reporterServiceConnector: ReporterServiceConnector,
-    lastProcessedEntryProvider: DropBoxLastProcessedEntryProvider,
+    private val cursorProvider: ProcessedEntryCursorProvider,
     private val entryProcessors: Map<String, EntryProcessor>,
     private val settings: DropBoxSettings,
-    private val retryDelayMillis: Long = DEFAULT_RETRY_DELAY_MILLIS
+    private val retryDelay: suspend () -> Unit = suspend { delay(DEFAULT_RETRY_DELAY_MILLIS) }
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data): Unit = Unit
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult = doWork()
-    private val cursorProvider: ProcessedEntryCursorProvider = ProcessedEntryCursorProvider(lastProcessedEntryProvider)
 
     suspend fun doWork() =
         if (!settings.dataSourceEnabled or entryProcessors.isEmpty()) TaskResult.SUCCESS
@@ -67,7 +66,8 @@ class DropBoxGetEntriesTask(
                     return true
                 }
                 previousWasNull = true
-                delay(retryDelayMillis)
+                retryDelay()
+                cursor = cursor.refresh()
                 continue
             }
             previousWasNull = false

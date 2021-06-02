@@ -22,7 +22,7 @@ logging.basicConfig(format="%(message)s", level=logging.INFO)
 DEFAULT_ENCODING = "utf-8"
 PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
-RELEASES = range(8, 10 + 1)
+RELEASES = range(8, 11 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 PYTHON_MIN_VERSION = ("3", "6", "0")
 USAGE_REPORTER_APPLICATION_ID = "com.memfault.usagereporter"

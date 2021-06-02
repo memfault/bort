@@ -1,9 +1,12 @@
 #include "storage.h"
 
+#include <cstring>
 #include <fstream>
 #include <memory>
 #include <utility>
-#include "rate_limiter.h"
+
+#include <sys/statvfs.h>
+
 #include "log.h"
 
 namespace structured {
@@ -11,6 +14,7 @@ namespace structured {
 enum versions {
   INITIAL = 0,
   LOG_TABLE,
+  CONFIG,
   MAX,
 };
 
@@ -39,6 +43,13 @@ void SqliteDatabase::migrate() {
             setDbVersion(LOG_TABLE);
             [[clang::fallthrough]];
         case LOG_TABLE:
+            *this <<
+                "CREATE TABLE config("
+                "  content text"
+                ")";
+            setDbVersion(CONFIG);
+            [[clang::fallthrough]];
+        case CONFIG:
             break;
         default:
             throw Sqlite3Exception("invalid db version", version);
@@ -51,14 +62,15 @@ void SqliteDatabase::migrate() {
 
 Sqlite3StorageBackend::Sqlite3StorageBackend(
         const std::string &path,
-        const std::string &bootId,
-        TokenBucketRateLimiter &rateLimiter
+        const std::string &bootId
 )
         : _db(path),
           _insertStmt(_db << "INSERT INTO log (timestamp, type, blob, bootRowId, internal) VALUES(?, ?, ?, ?, ?)"),
-          rateLimiter(rateLimiter) {
+          _path(path),
+          _inMemory(path == ":memory:") {
     registerBoot(bootId);
     ensureCids();
+    ensureConfig();
 }
 
 int SqliteDatabase::getDbVersion() {
@@ -81,14 +93,6 @@ SqliteDatabase::SqliteDatabase(
 }
 
 void Sqlite3StorageBackend::store(const LogEntry &entry) {
-    store(entry, DEFAULT_COST);
-}
-
-void Sqlite3StorageBackend::store(const LogEntry &entry, uint32_t cost) {
-  if (!rateLimiter.take(cost)) {
-      ALOGV("Entry ignored by rate limiter");
-      return;
-  }
   std::unique_lock<std::recursive_mutex> lock(dbMutex);
   _insertStmt.reset();
   _insertStmt << entry.timestamp;
@@ -169,6 +173,38 @@ std::pair<std::string, std::string> Sqlite3StorageBackend::getCidPair() {
 
 void Sqlite3StorageBackend::addStorageEmtpyListener(OnStorageEmptyListener listener) {
     storageEmptyListeners.emplace_back(listener);
+}
+
+void Sqlite3StorageBackend::ensureConfig() {
+    std::unique_lock<std::recursive_mutex> lock(dbMutex);
+    int64_t count;
+    _db << "SELECT count(*) FROM config" >> count;
+    if (count == 0) {
+        _db << "INSERT INTO config (content) VALUES(?)" << "";
+    }
+}
+
+std::string Sqlite3StorageBackend::getConfig() {
+    std::unique_lock<std::recursive_mutex> lock(dbMutex);
+    std::string config;
+    _db << "SELECT content FROM config LIMIT 1" >> config;
+    return config;
+}
+
+void Sqlite3StorageBackend::setConfig(const std::string &config) {
+    std::unique_lock<std::recursive_mutex> lock(dbMutex);
+    _db << "UPDATE config SET content = ?" << config;
+}
+
+uint64_t Sqlite3StorageBackend::getAvailableSpace() {
+    // Return a fixed amount for in-memory databases used in testing
+    if (_inMemory) return kInMemoryAvailableSpace;
+    struct statvfs64 stat{};
+    if (statvfs64(_path.c_str(), &stat)) {
+        ALOGE("Unable to compute available space for %s: %s", _path.c_str(), strerror(errno));
+        return 0u;
+    }
+    return uint64_t(stat.f_bavail * stat.f_bsize);
 }
 
 void Sqlite3BootIdDumpView::forEachEvent(std::function<void(LogEntry &)> callback) {

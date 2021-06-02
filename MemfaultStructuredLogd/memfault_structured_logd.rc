@@ -6,9 +6,18 @@ service memfault-structured-logd /system/bin/MemfaultStructuredLogd
 on post-fs-data && property:ro.crypto.state=unsupported
     mkdir /data/system/MemfaultStructuredLogd/ 0700 system system
     wait /data/system/MemfaultStructuredLogd/
-    start memfault-structured-logd
+    setprop vendor.memfault.data.ready 1
 
 on post-fs-data && property:ro.crypto.state=encrypted
     mkdir /data/system/MemfaultStructuredLogd/ 0700 system system
     wait /data/system/MemfaultStructuredLogd/
+    setprop vendor.memfault.data.ready 1
+
+on property:vendor.memfault.data.ready=1 && property:persist.vendor.memfault.bort.enabled=1 && property:persist.vendor.memfault.structured.enabled=1
     start memfault-structured-logd
+
+on property:persist.vendor.memfault.bort.enabled=0
+    stop memfault-structured-logd
+
+on property:persist.vendor.memfault.structured.enabled=0
+    stop memfault-structured-logd

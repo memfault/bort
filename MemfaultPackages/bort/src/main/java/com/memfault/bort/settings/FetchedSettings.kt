@@ -4,9 +4,10 @@ import com.memfault.bort.DataScrubbingRule
 import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.time.BoxedDuration
 import com.memfault.bort.time.DurationAsMillisecondsLong
+import com.memfault.bort.time.boxed
+import kotlin.time.Duration.Companion.ZERO
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 
 @Serializable
@@ -41,6 +42,13 @@ data class FetchedSettings(
 
     @SerialName("bug_report.request_rate_limiting_settings")
     val bugReportRequestRateLimitingSettings: RateLimitingSettings,
+
+    @SerialName("bug_report.max_storage_bytes")
+    val bugReportMaxStorageBytes: Int = 50000000,
+
+    @SerialName("bug_report.max_stored_age_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val bugReportMaxStoredAge: BoxedDuration = ZERO.boxed(),
 
     @SerialName("bug_report.max_upload_attempts")
     val bugReportMaxUploadAttempts: Int,
@@ -152,6 +160,25 @@ data class FetchedSettings(
 
     @SerialName("reboot_events.rate_limiting_settings")
     val rebootEventsRateLimitingSettings: RateLimitingSettings,
+
+    @SerialName("structured_log.data_source_enabled")
+    val structuredLogDataSourceEnabled: Boolean,
+
+    @SerialName("structured_log.dump_period_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val structuredLogDumpPeriod: BoxedDuration,
+
+    @SerialName("structured_log.max_message_size_bytes")
+    val structuredLogMaxMessageSizeBytes: Long,
+
+    @SerialName("structured_log.min_storage_threshold_bytes")
+    val structuredLogMinStorageThresholdBytes: Long = 268435456,
+
+    @SerialName("structured_log.num_events_before_dump")
+    val structuredLogNumEventsBeforeDump: Long,
+
+    @SerialName("structured_log.rate_limiting_settings")
+    val structuredLogRateLimitingSettings: RateLimitingSettings,
 ) {
     @Serializable
     data class FetchedSettingsContainer(

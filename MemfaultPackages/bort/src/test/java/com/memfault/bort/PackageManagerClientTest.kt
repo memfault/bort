@@ -1,7 +1,9 @@
 package com.memfault.bort
 
+import android.os.RemoteException
 import com.memfault.bort.PackageManagerClient.Util.appIdGuessesFromProcessName
 import com.memfault.bort.parsers.PackageManagerReport
+import io.mockk.coEvery
 import io.mockk.mockk
 import kotlin.time.minutes
 import kotlinx.coroutines.runBlocking
@@ -40,5 +42,15 @@ class PackageManagerClientTest {
             emptyList<String>(),
             appIdGuessesFromProcessName("/system/bin/storaged").toList()
         )
+    }
+
+    @Test
+    fun reporterServiceRemoteException() {
+        coEvery {
+            mockServiceConnector.connect<suspend (getService: ServiceGetter<ReporterClient>) -> Any>(any())
+        } throws RemoteException("")
+        runBlocking {
+            assertEquals(PackageManagerReport(), client.getPackageManagerReport(appId = "com.memfault.smartsink"))
+        }
     }
 }

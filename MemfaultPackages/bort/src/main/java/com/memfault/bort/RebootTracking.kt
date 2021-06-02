@@ -80,6 +80,7 @@ internal class RebootEventUploader(
     val deviceInfo: DeviceInfo,
     val androidSysBootReason: String?,
     val tokenBucketStore: TokenBucketStore,
+    private val getLinuxBootId: () -> String
 ) {
     private fun createAndUploadCurrentRebootEvent(bootCount: Int) {
         val allowedByRateLimit = tokenBucketStore.edit { map ->
@@ -96,7 +97,7 @@ internal class RebootEventUploader(
             deviceInfo = deviceInfo,
             eventInfo = RebootEventInfo.fromAndroidBootReason(
                 bootCount = bootCount,
-                linuxBootId = readLinuxBootId(),
+                linuxBootId = getLinuxBootId(),
                 androidBootReason = AndroidBootReason.parse(androidSysBootReason)
             )
         )

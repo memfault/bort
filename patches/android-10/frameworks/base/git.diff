@@ -1,0 +1,21 @@
+AOSP's BatteryStats subsystem is leveraged to collect various built-in system metrics.
+The subsystem stops recording these when the battery is full and still plugged.
+This patch prevents this and makes it record at all times.
+
+
+diff --git a/core/java/com/android/internal/os/BatteryStatsImpl.java b/core/java/com/android/internal/os/BatteryStatsImpl.java
+index 3a7caa4c2fc..34816cf68f5 100644
+--- a/core/java/com/android/internal/os/BatteryStatsImpl.java
++++ b/core/java/com/android/internal/os/BatteryStatsImpl.java
+@@ -12409,7 +12409,10 @@ public class BatteryStatsImpl extends BatteryStats {
+             // We don't record history while we are plugged in and fully charged
+             // (or when battery is not present).  The next time we are
+             // unplugged, history will be cleared.
+-            mRecordingHistory = DEBUG;
++            // mRecordingHistory = DEBUG;
++
++            // For Memfault Bort's data collection, keep recording history:
++            mRecordingHistory = true;
+         }
+ 
+         if (mMinLearnedBatteryCapacity == -1) {

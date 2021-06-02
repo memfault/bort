@@ -21,18 +21,17 @@ TEST(DumperTest, DumpingGetsCalledForEachBootId) {
     mkstemp(tmpDb);
     char tmpFile[] = {"dumper-test-XXXXXX"};
     mkstemp(tmpFile);
-    TokenBucketRateLimiter limiter(1, 1000, 1000, []{ return 0; });
-
     {
-        Sqlite3StorageBackend backend(tmpDb, "boot-1", limiter);
+        Sqlite3StorageBackend backend(tmpDb, "boot-1");
         backend.store(LogEntry(1234567, "dummy", R"j([1,2,3])j"));
     }
     {
-        auto backend = std::shared_ptr<StorageBackend>(new Sqlite3StorageBackend(tmpDb, "boot-2", limiter));
+        auto backend = std::shared_ptr<StorageBackend>(new Sqlite3StorageBackend(tmpDb, "boot-2"));
+        auto config = std::shared_ptr<Config>(new StoredConfig(backend));
         backend->store(LogEntry(1234567, "dummy", R"j([4,5,6])j"));
         std::atomic_int callCounter(0);
         std::condition_variable done;
-        auto dumper = std::make_shared<Dumper>(tmpFile, backend, [&](int nEvents, const std::string &dumpPath) -> bool {
+        auto dumper = std::make_shared<Dumper>(tmpFile, config, backend, [&](int nEvents, const std::string &dumpPath) -> bool {
             std::ifstream ifs(dumpPath);
             std::string jsonOutput((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
             rapidjson::Document document;
@@ -57,7 +56,7 @@ TEST(DumperTest, DumpingGetsCalledForEachBootId) {
                 }
             }();
             return true;
-        }, []() { return true; }, false, true);
+        }, []() { return true; }, 10000, false, true);
 
         std::thread dumperThread(&Dumper::run, dumper);
 
@@ -81,19 +80,19 @@ TEST(DumperTest, DumpingGetsNumberOfEvents) {
     char tmpFile[] = {"dumper-test-XXXXXX"};
     mkstemp(tmpFile);
 
-    TokenBucketRateLimiter limiter(1, 1000, 1000, []{ return 0; });
     {
-        auto backend = std::shared_ptr<StorageBackend>(new Sqlite3StorageBackend(tmpDb, "boot-1", limiter));
+        auto backend = std::shared_ptr<StorageBackend>(new Sqlite3StorageBackend(tmpDb, "boot-1"));
+        auto config = std::shared_ptr<Config>(new StoredConfig(backend));
         backend->store(LogEntry(1234567, "dummy", R"j([4,5,6])j"));
         backend->store(LogEntry(1234568, "dummy2", R"j([4,5,6])j"));
         std::condition_variable done;
-        auto dumper = std::make_shared<Dumper>(tmpFile, backend, [&](int nEvents, const std::string &dumpPath) -> bool {
+        auto dumper = std::make_shared<Dumper>(tmpFile, config, backend, [&](int nEvents, const std::string &dumpPath) -> bool {
             [&]() {
                 ASSERT_EQ(2, nEvents);
             }();
             done.notify_all();
             return true;
-        }, []() { return true; }, false, true);
+        }, []() { return true; }, 10000, false, true);
 
         std::thread dumperThread(&Dumper::run, dumper);
         std::mutex waitMutex;

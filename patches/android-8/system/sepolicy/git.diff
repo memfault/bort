@@ -5,13 +5,14 @@ We work around this by patching system/sepolicy directly.
 
 
 diff --git a/private/compat/26.0/26.0.ignore.cil b/private/compat/26.0/26.0.ignore.cil
-index 9e1eb9775..97e5643ff 100644
+index 9e1eb9775..f10d54c86 100644
 --- a/private/compat/26.0/26.0.ignore.cil
 +++ b/private/compat/26.0/26.0.ignore.cil
-@@ -14,6 +14,11 @@
+@@ -14,6 +14,12 @@
      hal_wifi_offload_hwservice
      kmsg_debug_device
      mediaprovider_tmpfs
++    memfault_prop
 +    memfault_structured
 +    memfault_structured_data_file
 +    memfault_structured_exec
@@ -45,10 +46,10 @@ index 536975894..5d3d6b376 100644
 +/system/bin/MemfaultStructuredLogd        u:object_r:memfault_structured_exec:s0
 diff --git a/private/memfault_structured.te b/private/memfault_structured.te
 new file mode 100644
-index 000000000..79566f1ae
+index 000000000..51a1936dd
 --- /dev/null
 +++ b/private/memfault_structured.te
-@@ -0,0 +1,34 @@
+@@ -0,0 +1,44 @@
 +type memfault_structured, domain;
 +type memfault_structured_exec, exec_type, file_type;
 +
@@ -70,6 +71,9 @@ index 000000000..79566f1ae
 +allow memfault_structured dropbox_service:service_manager find;
 +binder_call(memfault_structured, dropbox_service)
 +
++# Allow memfault_structured to find the permission service
++allow memfault_structured permission_service:service_manager find;
++
 +# Allow calling/sharing fds to/from the system server for dropbox
 +binder_call(memfault_structured, system_server)
 +binder_call(system_server, memfault_structured)
@@ -83,6 +87,25 @@ index 000000000..79566f1ae
 +
 +# Allow access to /proc/sys/kernel/random/boot_id
 +allow memfault_structured proc:file { getattr open read };
++
++# Allow reading the vendor.memfault.* property namespace
++get_prop(memfault_structured, memfault_prop)
++
++# Dumpstate will not be able to call into memfault_structured, prevent logging
++# to avoid a CTS failure: https://cs.android.com/android/platform/superproject/+/master:cts/hostsidetests/security/src/android/security/cts/SELinuxHostTest.java;l=1026-1044;drc=09af02f580279437fd9ee3c3a6de5789397fa291
++dontaudit dumpstate memfault_structured:binder call;
+diff --git a/private/property_contexts b/private/property_contexts
+index 8eb2f28b2..cba0fdda6 100644
+--- a/private/property_contexts
++++ b/private/property_contexts
+@@ -112,3 +112,7 @@ wlan.                   u:object_r:wifi_prop:s0
+ 
+ # hwservicemanager properties
+ hwservicemanager.       u:object_r:hwservicemanager_prop:s0
++
++# memfault properties
++persist.vendor.memfault. u:object_r:memfault_prop:s0
++vendor.memfault.         u:object_r:memfault_prop:s0
 diff --git a/private/service_contexts b/private/service_contexts
 index a82243ffb..21d9969f2 100644
 --- a/private/service_contexts
@@ -96,6 +119,16 @@ index a82243ffb..21d9969f2 100644
  meminfo                                   u:object_r:meminfo_service:s0
  midi                                      u:object_r:midi_service:s0
  mount                                     u:object_r:mount_service:s0
+diff --git a/public/property.te b/public/property.te
+index 95efcaa78..3353f37ff 100644
+--- a/public/property.te
++++ b/public/property.te
+@@ -87,3 +87,5 @@ neverallow * {
+   -system_radio_prop
+   -vold_prop
+ }:file no_rw_file_perms;
++
++type memfault_prop, property_type;
 diff --git a/public/service.te b/public/service.te
 index e97b864db..ea86d172b 100644
 --- a/public/service.te

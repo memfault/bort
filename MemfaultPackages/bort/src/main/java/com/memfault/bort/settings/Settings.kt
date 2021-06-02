@@ -20,6 +20,8 @@ interface BugReportSettings {
     val dataSourceEnabled: Boolean
     val requestInterval: Duration
     val defaultOptions: BugReportOptions
+    val maxStorageBytes: Int
+    val maxStoredAge: Duration
     val maxUploadAttempts: Int
     val firstBugReportDelayAfterBoot: Duration
     val rateLimitingSettings: RateLimitingSettings
@@ -106,6 +108,15 @@ interface PackageManagerSettings {
     val commandTimeout: Duration
 }
 
+interface StructuredLogSettings {
+    val dataSourceEnabled: Boolean
+    val rateLimitingSettings: RateLimitingSettings
+    val dumpPeriod: Duration
+    val numEventsBeforeDump: Long
+    val maxMessageSizeBytes: Long
+    val minStorageThresholdBytes: Long
+}
+
 interface SettingsProvider {
     val minLogLevel: LogLevel
     val eventLogEnabled: Boolean
@@ -124,6 +135,7 @@ interface SettingsProvider {
     val rebootEventsSettings: RebootEventsSettings
     val dataScrubbingSettings: DataScrubbingSettings
     val packageManagerSettings: PackageManagerSettings
+    val structuredLogSettings: StructuredLogSettings
 
     fun invalidate()
 }

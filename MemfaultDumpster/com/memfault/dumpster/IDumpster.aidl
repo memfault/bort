@@ -3,10 +3,13 @@ package com.memfault.dumpster;
 import com.memfault.dumpster.IDumpsterBasicCommandListener;
 
 interface IDumpster {
+    const int VERSION_INITIAL = 1;
+    const int VERSION_BORT_ENABLED_PROPERTY = 2;
+
     /**
      * Current version of the service.
      */
-    const int VERSION = 1;
+    const int VERSION = 2;
 
     /**
     * Gets the version of the MemfaultDumpster service.
@@ -14,6 +17,10 @@ interface IDumpster {
     int getVersion() = 0;
 
     const int CMD_ID_GETPROP = 1;
+    const int CMD_ID_SET_BORT_ENABLED_PROPERTY_ENABLED = 2;
+    const int CMD_ID_SET_BORT_ENABLED_PROPERTY_DISABLED = 3;
+    const int CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_ENABLED = 4;
+    const int CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_DISABLED = 5;
 
     /**
      * Runs a basic command and calls the listener with the string output.

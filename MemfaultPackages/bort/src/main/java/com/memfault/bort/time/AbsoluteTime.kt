@@ -35,3 +35,7 @@ data class AbsoluteTime(
 fun Long.toAbsoluteTime() = AbsoluteTime(
     Instant.ofEpochMilli(this)
 )
+
+fun Duration.toAbsoluteTime() = AbsoluteTime(
+    Instant.ofEpochMilli(this.toLongMilliseconds())
+)

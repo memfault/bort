@@ -80,6 +80,7 @@ class RebootEventUploaderTest {
                     )
                 },
             ),
+            getLinuxBootId = { "bootid" }
         )
 
         repeat(15) {

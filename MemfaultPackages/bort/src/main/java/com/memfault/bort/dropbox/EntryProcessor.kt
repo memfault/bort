@@ -4,6 +4,7 @@ import android.os.DropBoxManager
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.toAbsoluteTime
+import kotlin.time.seconds
 
 abstract class EntryProcessor {
     abstract val tags: List<String>
@@ -17,7 +18,7 @@ abstract class EntryProcessor {
             Logger.w("Empty entry with tag ${entry.tag}")
             return
         }
-        val fileTime = stat?.st_mtime?.toAbsoluteTime()
+        val fileTime = stat?.st_mtime?.seconds?.toAbsoluteTime()
         process(entry, fileTime)
     }
 

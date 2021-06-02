@@ -10,11 +10,18 @@
         android:name="android.permission.DUMP"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="com.memfault.usagereporter.permission.REPORTER_ACCESS" />
+    <uses-permission android:name="com.memfault.bort.permission.UPDATE_STRUCTURED_LOG_CONFIG" />
 
     <permission
         android:name="com.memfault.bort.permission.CONTROL"
         android:label="@string/permission_control_label"
         android:description="@string/permission_control_description"
+        android:protectionLevel="signature|privileged" />
+
+    <permission
+        android:name="com.memfault.bort.permission.UPDATE_STRUCTURED_LOG_CONFIG"
+        android:label="@string/update_structured_log_config"
+        android:description="@string/update_structured_log_config_description"
         android:protectionLevel="signature|privileged" />
 
     <!-- Prevent app being installed on non-vendor devices -->

@@ -5,6 +5,7 @@ import androidx.preference.PreferenceManager
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.metrics.MetricsCollectionTask
 import com.memfault.bort.metrics.RealLastHeartbeatEndTimeProvider
 import com.memfault.bort.periodicWorkRequest
@@ -52,9 +53,11 @@ internal fun restartPeriodicMetricsCollection(
 class MetricsCollectionRequester(
     private val context: Context,
     private val metricsSettings: MetricsSettings,
+    private val bortSystemCapabilities: BortSystemCapabilities,
 ) : PeriodicWorkRequester() {
-    override fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
+    override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         if (!metricsSettings.dataSourceEnabled) return
+        if (!bortSystemCapabilities.supportsCaliperMetrics()) return
 
         val collectionInterval = maxOf(MINIMUM_COLLECTION_INTERVAL, metricsSettings.collectionInterval)
         Logger.test("Collecting metrics every ${collectionInterval.inMinutes} minutes")

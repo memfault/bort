@@ -71,6 +71,8 @@ private fun generateDevConfig(
                    "bug_report.collection_interval_ms" : 43200000,
                    "bug_report.data_source_enabled" : true,
                    "bug_report.first_bug_report_delay_after_boot_ms" : 600000,
+                   "bug_report.max_storage_bytes" : 50000000,
+                   "bug_report.max_stored_age_ms" : 0,
                    "bug_report.max_upload_attempts" : 3,
                    "bug_report.options.minimal" : false,
                    "bug_report.request_rate_limiting_settings": {
@@ -93,7 +95,7 @@ private fun generateDevConfig(
                        "default_period_ms": 900000,
                        "max_buckets": 1
                    },
-                   "drop_box.data_source_enabled" : ${getDefaultProperty("DATA_SOURCE_CALIPER_DROP_BOX_TRACES_ENABLED")?.toBoolean() ?: false},
+                   "drop_box.data_source_enabled" : ${getDefaultProperty("DATA_SOURCE_CALIPER_DROP_BOX_TRACES_ENABLED")?.toBoolean() ?: true},
                    "drop_box.excluded_tags": [],
                    "drop_box.java_exceptions.rate_limiting_settings": {
                        "default_capacity": 4,
@@ -137,6 +139,16 @@ private fun generateDevConfig(
                    "reboot_events.rate_limiting_settings": {
                        "default_capacity": 5,
                        "default_period_ms": 900000,
+                       "max_buckets": 1
+                   },
+                   "structured_log.data_source_enabled": true,
+                   "structured_log.dump_period_ms": 7200000,
+                   "structured_log.max_message_size_bytes": 4096,
+                   "structured_log.min_storage_threshold_bytes": 268435456,
+                   "structured_log.num_events_before_dump": 1000,
+                   "structured_log.rate_limiting_settings": {
+                       "default_capacity": 1000,
+                       "default_period_ms": 15000,
                        "max_buckets": 1
                    }
                 }

@@ -72,7 +72,7 @@ android {
 
     sourceSets {
         main {
-            aidl.srcDirs = ['../../MemfaultDumpster/binder']
+            aidl.srcDirs = ['../../MemfaultDumpster/']
             assets.srcDirs += [generatedSettingsAssets]
         }
     }
@@ -88,6 +88,7 @@ android {
 
 dependencies {
     implementation project(':bort-shared')
+    implementation project(':structured-log-lib')
 
     implementation deps.kotlin.stdlib
     implementation deps.kotlin.coroutines
@@ -108,7 +109,8 @@ dependencies {
     debugImplementation deps.debug.leakCanary
 
     testImplementation deps.test.junitApi
-    testImplementation deps.test.junitEngine
+    testRuntimeOnly deps.test.junitJupiterEngine
+    testRuntimeOnly deps.test.junitVintageEngine
     testImplementation deps.test.coroutines
     testImplementation deps.test.mockk
     testImplementation deps.test.mockWebServer

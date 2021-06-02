@@ -37,11 +37,11 @@ cc_library_shared {
         "libutils",
     ],
     aidl: {
-        local_include_dirs: ["binder"],
+        local_include_dirs: ["."],
         export_aidl_headers: true,
     },
     srcs: [
-        "binder/com/memfault/dumpster/IDumpsterBasicCommandListener.aidl",
-        "binder/com/memfault/dumpster/IDumpster.aidl",
+        "com/memfault/dumpster/IDumpsterBasicCommandListener.aidl",
+        "com/memfault/dumpster/IDumpster.aidl",
     ],
 }

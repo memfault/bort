@@ -1,22 +1,8 @@
-PRODUCT_PACKAGES += MemfaultDumpstateRunner MemfaultDumpster MemfaultBort MemfaultUsageReporter
+PRODUCT_PACKAGES += \
+  MemfaultBort \
+  MemfaultDumpstateRunner \
+  MemfaultDumpster \
+  MemfaultStructuredLogd \
+  MemfaultUsageReporter \
 
-TARGET_USES_MFLT_STRUCTURED ?= 0
-TARGET_MEMFAULT_STRUCTURED_ENABLED ?= 1
-TARGET_MEMFAULT_STRUCTURED_RATE_LIMIT_INITIAL_CAPACITY ?= 1000
-TARGET_MEMFAULT_STRUCTURED_RATE_LIMIT_CAPACITY ?= 1000
-TARGET_MEMFAULT_STRUCTURED_RATE_LIMIT_PERIOD_MS ?= 3600000
-TARGET_MEMFAULT_STRUCTURED_MAX_MESSAGE_SIZE_BYTES ?= 4096
-TARGET_MEMFAULT_STRUCTURED_NUM_EVENTS_BEFORE_DUMP ?= 1000
-
-ifeq ($(TARGET_USES_MFLT_STRUCTURED),1)
-    $(warning "Building with MemfaultStructuredLogd")
-    PRODUCT_PACKAGES += MemfaultStructuredLogd
-    PRODUCT_PACKAGES_DEBUG += MemfaultStructuredLogdTests
-    PRODUCT_PROPERTY_OVERRIDES += \
-        vendor.memfault.structured.enabled=$(TARGET_MEMFAULT_STRUCTURED_ENABLED) \
-        vendor.memfault.structured.initial_capacity=$(TARGET_MEMFAULT_STRUCTURED_RATE_LIMIT_INITIAL_CAPACITY) \
-        vendor.memfault.structured.capacity=$(TARGET_MEMFAULT_STRUCTURED_RATE_LIMIT_CAPACITY) \
-        vendor.memfault.structured.period_ms=$(TARGET_MEMFAULT_STRUCTURED_RATE_LIMIT_PERIOD_MS) \
-        vendor.memfault.structured.max_message_size_bytes=$(TARGET_MEMFAULT_STRUCTURED_MAX_MESSAGE_SIZE_BYTES) \
-        vendor.memfault.structured.num_events_before_dump=$(TARGET_MEMFAULT_STRUCTURED_NUM_EVENTS_BEFORE_DUMP)
-endif
+TARGET_BUILD_BORT_UNDER_TEST ?= 0

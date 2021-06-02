@@ -7,7 +7,7 @@ include $(LOCAL_PATH)/bort_src_gen.mk
 ################################################################################
 include $(CLEAR_VARS)
 LOCAL_MODULE := CheckMemfaultBortSignature
-LOCAL_MODULE_PATH := $(TARGET_OUT_INTERMEDIATES)/memfault/bort
+LOCAL_MODULE_PATH := $(HOST_OUT_INTERMEDIATES)/memfault/bort
 BORT_CHECK_OUTPUT_TARGET := $(LOCAL_MODULE_PATH)/signature-check.txt
 $(call bort_check_signature,$(BORT_CHECK_OUTPUT_TARGET),$(LOCAL_PATH)/MemfaultBort.apk,$(LOCAL_PATH)/MemfaultBort.x509.pem)
 LOCAL_ADDITIONAL_DEPENDENCIES := $(BORT_CHECK_OUTPUT_TARGET)

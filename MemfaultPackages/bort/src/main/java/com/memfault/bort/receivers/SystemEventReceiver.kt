@@ -26,8 +26,10 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
 ) {
 
     private fun onPackageReplaced() {
-        periodicWorkRequesters.forEach {
-            it.startPeriodic()
+        goAsync {
+            periodicWorkRequesters.forEach {
+                it.startPeriodic()
+            }
         }
     }
 
@@ -49,13 +51,16 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
                 settingsProvider,
             )
 
-            if (settingsProvider.rebootEventsSettings.dataSourceEnabled) {
+            if (settingsProvider.rebootEventsSettings.dataSourceEnabled &&
+                bortSystemCapabilities.supportsRebootEvents()
+            ) {
                 DumpsterClient().getprop()?.let { systemProperties ->
                     val rebootEventUploader = RebootEventUploader(
                         ingressService = ingressService,
                         deviceInfo = deviceInfoProvider.getDeviceInfo(),
                         androidSysBootReason = systemProperties.get(AndroidBootReason.SYS_BOOT_REASON_KEY),
                         tokenBucketStore = rebootEventTokenBucketStore,
+                        getLinuxBootId = ::readLinuxBootId
                     )
 
                     val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
@@ -67,10 +72,10 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
                     ).trackIfNeeded(bootCount)
                 }
             }
-        }
 
-        periodicWorkRequesters.forEach {
-            it.startPeriodic(justBooted = true)
+            periodicWorkRequesters.forEach {
+                it.startPeriodic(justBooted = true)
+            }
         }
     }
 

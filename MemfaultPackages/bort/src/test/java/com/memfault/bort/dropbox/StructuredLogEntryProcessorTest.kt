@@ -42,9 +42,11 @@ class StructuredLogEntryProcessorTest {
     lateinit var mockEnqueueFileUpload: EnqueueFileUpload
     lateinit var fileUploadPayloadSlot: CapturingSlot<FileUploadPayload>
     lateinit var builtInMetricsStore: BuiltinMetricsStore
+    var dataSourceEnabled: Boolean = true
 
     @Before
     fun setUp() {
+        dataSourceEnabled = true
         mockEnqueueFileUpload = mockk(relaxed = true)
 
         fileUploadPayloadSlot = slot()
@@ -69,6 +71,7 @@ class StructuredLogEntryProcessorTest {
             ),
             combinedTimeProvider = FakeCombinedTimeProvider,
             builtinMetricsStore = builtInMetricsStore,
+            structuredLogDataSourceEnabledConfig = { dataSourceEnabled }
         )
     }
 
@@ -100,6 +103,15 @@ class StructuredLogEntryProcessorTest {
                 (runs - STRUCTURED_LOG_TEST_BUCKET_CAPACITY + 1).toFloat()
                     == builtInMetricsStore.collect(STRUCTURED_LOG_DROP_COUNT)
             )
+        }
+    }
+
+    @Test
+    fun noProcessingWhenDataSourceDisabled() {
+        dataSourceEnabled = false
+        runBlocking {
+            processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
+            verify(exactly = 0) { mockEnqueueFileUpload(any(), any(), any()) }
         }
     }
 }

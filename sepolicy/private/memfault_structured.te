@@ -18,6 +18,9 @@ binder_call(appdomain, memfault_structured)
 allow memfault_structured dropbox_service:service_manager find;
 binder_call(memfault_structured, dropbox_service)
 
+# Allow memfault_structured to find the permission service
+allow memfault_structured permission_service:service_manager find;
+
 # Allow calling/sharing fds to/from the system server for dropbox
 binder_call(memfault_structured, system_server)
 binder_call(system_server, memfault_structured)
@@ -29,5 +32,12 @@ allow memfault_structured memfault_structured_data_file:file create_file_perms;
 # Allow system server to read files for dropbox
 allow system_server memfault_structured_data_file:file read;
 
-# Allow reading the vendor.* property namespace
-get_prop(memfault_structured, vendor_default_prop)
+# Allow reading the vendor.memfault.* property namespace
+get_prop(memfault_structured, memfault_prop)
+
+# Allow vendor_init to set memfault properties defined in {vendor,system}.prop
+set_prop(vendor_init, memfault_prop)
+
+# Dumpstate will not be able to call into memfault_structured, prevent logging
+# to avoid a CTS failure: https://cs.android.com/android/platform/superproject/+/master:cts/hostsidetests/security/src/android/security/cts/SELinuxHostTest.java;l=1026-1044;drc=09af02f580279437fd9ee3c3a6de5789397fa291
+dontaudit dumpstate memfault_structured:binder call;

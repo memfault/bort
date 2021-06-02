@@ -5,6 +5,7 @@ import android.os.DropBoxManager
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -27,6 +28,17 @@ class ProcessedEntryCursorProviderTest {
     fun nextUnchanged() {
         cursor.next(TEST_INIT_TIME + 1)
         assertEquals(TEST_INIT_TIME + 1, entryProvider.timeMillis)
+    }
+
+    @Test
+    fun refreshUpToDate() {
+        assertEquals(cursor, cursor.refresh())
+    }
+
+    @Test
+    fun refreshStale() {
+        cursor.next(TEST_INIT_TIME + 1)
+        assertNotEquals(cursor, cursor.refresh())
     }
 
     @Test

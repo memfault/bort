@@ -38,7 +38,7 @@ class SettingsUpdateTaskTest {
         }
         storedSettingsPreferenceProvider = mockk {
             every { set(any()) } returns Unit
-            every { get() } returns SETTINGS_FIXTURE
+            every { get() } returns SETTINGS_FIXTURE.toSettings()
         }
         worker = mockk {
             every { id } returns UUID.randomUUID()
@@ -63,10 +63,10 @@ class SettingsUpdateTaskTest {
 
     @Test
     fun testValidResponse() {
-        val response = SETTINGS_FIXTURE.copy(bortMinLogLevel = LogLevel.NONE.level)
+        val response = SETTINGS_FIXTURE.toSettings().copy(bortMinLogLevel = LogLevel.NONE.level)
         val service = mockk<SettingsUpdateService> {
             coEvery { settings(any(), any(), any()) } answers {
-                FetchedSettings.FetchedSettingsContainer(SETTINGS_FIXTURE)
+                FetchedSettings.FetchedSettingsContainer(SETTINGS_FIXTURE.toSettings())
             } andThen {
                 FetchedSettings.FetchedSettingsContainer(response)
             }
@@ -123,7 +123,7 @@ class SettingsUpdateTaskTest {
                 callback(any(), any())
             }
             confirmVerified(settingsProvider)
-            assertEquals(fetchedSettingsUpdateSlot.captured.old, SETTINGS_FIXTURE)
+            assertEquals(fetchedSettingsUpdateSlot.captured.old, SETTINGS_FIXTURE.toSettings())
             assertEquals(fetchedSettingsUpdateSlot.captured.new, response)
         }
     }

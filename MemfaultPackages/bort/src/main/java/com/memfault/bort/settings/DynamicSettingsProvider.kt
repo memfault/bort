@@ -19,6 +19,7 @@ import kotlin.time.Duration
 open class DynamicSettingsProvider(
     private val storedSettingsPreferenceProvider: ReadonlyFetchedSettingsProvider,
 ) : SettingsProvider {
+    @Transient
     private val settingsCache = CachedProperty {
         storedSettingsPreferenceProvider.get()
     }
@@ -79,6 +80,10 @@ open class DynamicSettingsProvider(
             get() = settings.bugReportCollectionInterval.duration
         override val defaultOptions
             get() = BugReportOptions(minimal = settings.bugReportOptionsMinimal)
+        override val maxStorageBytes: Int
+            get() = settings.bugReportMaxStorageBytes
+        override val maxStoredAge: Duration
+            get() = settings.bugReportMaxStoredAge.duration
         override val maxUploadAttempts
             get() = settings.bugReportMaxUploadAttempts
         override val firstBugReportDelayAfterBoot
@@ -151,6 +156,21 @@ open class DynamicSettingsProvider(
     override val packageManagerSettings = object : PackageManagerSettings {
         override val commandTimeout: Duration
             get() = settings.packageManagerCommandTimeout.duration
+    }
+
+    override val structuredLogSettings = object : StructuredLogSettings {
+        override val dataSourceEnabled: Boolean
+            get() = settings.structuredLogDataSourceEnabled
+        override val rateLimitingSettings: RateLimitingSettings
+            get() = settings.structuredLogRateLimitingSettings
+        override val dumpPeriod: Duration
+            get() = settings.structuredLogDumpPeriod.duration
+        override val numEventsBeforeDump: Long
+            get() = settings.structuredLogNumEventsBeforeDump
+        override val maxMessageSizeBytes: Long
+            get() = settings.structuredLogMaxMessageSizeBytes
+        override val minStorageThresholdBytes: Long
+            get() = settings.structuredLogMinStorageThresholdBytes
     }
 
     override fun invalidate() {

@@ -25,6 +25,7 @@ import com.memfault.bort.shared.INTENT_ACTION_BUG_REPORT_START
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.takeSimple
+import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
@@ -47,7 +48,16 @@ internal fun requestBugReport(
     pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
     request: BugReportRequest,
     requestTimeout: Duration = BugReportRequestTimeoutTask.DEFAULT_TIMEOUT,
+    bugReportSettings: BugReportSettings,
 ): Boolean {
+    // First, cleanup the bugreport filestore.
+    cleanupBugReports(
+        bugReportDir = File(context.filesDir, "bugreports"),
+        maxBugReportStorageBytes = bugReportSettings.maxStorageBytes,
+        maxBugReportAge = bugReportSettings.maxStoredAge,
+        timeNowMs = System.currentTimeMillis(),
+    )
+
     val (success, _) = pendingBugReportRequestAccessor.compareAndSwap(request) { it == null }
     if (!success) {
         Logger.w("Ignoring bug report request: already one pending")
@@ -86,7 +96,7 @@ class BugReportRequester(
     private val context: Context,
     private val bugReportSettings: BugReportSettings,
 ) : PeriodicWorkRequester() {
-    override fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
+    override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         if (!bugReportSettings.dataSourceEnabled) return
 
         val requestInterval = bugReportSettings.requestInterval
@@ -139,12 +149,17 @@ internal open class BugReportRequestWorker(
     workerParameters: WorkerParameters,
     private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
     private val tokenBucketStore: TokenBucketStore,
+    private val bugReportSettings: BugReportSettings,
 ) : Worker(appContext, workerParameters) {
 
     override fun doWork(): Result =
         if (Bort.appComponents().isEnabled() &&
             tokenBucketStore.takeSimple() &&
-            requestBugReport(applicationContext, pendingBugReportRequestAccessor, inputData.toBugReportOptions())
-        )
-            Result.success() else Result.failure()
+            requestBugReport(
+                    context = applicationContext,
+                    pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
+                    request = inputData.toBugReportOptions(),
+                    bugReportSettings = bugReportSettings
+                )
+        ) Result.success() else Result.failure()
 }

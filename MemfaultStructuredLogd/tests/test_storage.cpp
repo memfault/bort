@@ -10,8 +10,7 @@ using namespace structured;
 namespace {
 
 TEST (Sqlite3StorageBackendTest, CreationAndMigrationWorks) {
-  TokenBucketRateLimiter limiter(1, 1000, 1000, []{ return 0; });
-  auto backend = new Sqlite3StorageBackend(SQLITE3_FILE, "id", limiter);
+  auto backend = new Sqlite3StorageBackend(SQLITE3_FILE, "id");
   delete backend;
 }
 
@@ -19,23 +18,22 @@ TEST (Sqlite3StorageBackendTest, TestBootIdGeneration) {
     // we need persistence for this
     char name[] = "test-db-XXXXXX";
     mkstemp(name);
-    TokenBucketRateLimiter limiter(1, 1000, 1000, []{ return 0; });
 
     // A first boot
     {
-        Sqlite3StorageBackend boot1(name, "id1", limiter);
+        Sqlite3StorageBackend boot1(name, "id1");
         ASSERT_EQ(1, boot1.getBootIdRow());
     }
 
     // A daemon crash/restart -> same boot
     {
-        Sqlite3StorageBackend boot1(name, "id1", limiter);
+        Sqlite3StorageBackend boot1(name, "id1");
         ASSERT_EQ(1, boot1.getBootIdRow());
     }
 
     // A follow-up boot
     {
-        Sqlite3StorageBackend boot1(name, "id2", limiter);
+        Sqlite3StorageBackend boot1(name, "id2");
         ASSERT_EQ(2, boot1.getBootIdRow());
     }
 
@@ -69,15 +67,14 @@ TEST (Sqlite3StorageBackendTest, AddingAndDumpingEventsWorks) {
   char name[] = "test-db-XXXXXX";
   mkstemp(name);
 
-  TokenBucketRateLimiter limiter(1, 1000, 1000, []{ return 0; });
   {
-    Sqlite3StorageBackend backend(name, "boot_id1", limiter);
+    Sqlite3StorageBackend backend(name, "boot_id1");
     backend.store(LogEntry(120, "type1", "message1"));
     backend.store(LogEntry(121, "type2", "message2"));
     backend.store(LogEntry(119, "type3", "message3"));
   }
 
-  Sqlite3StorageBackend backend(name, "boot_id2", limiter);
+  Sqlite3StorageBackend backend(name, "boot_id2");
   backend.store(LogEntry(140, "type4", "message4"));
 
   auto dumpResults = dump(backend);
@@ -121,15 +118,14 @@ TEST (Sqlite3StorageBackendTest, SkipLatestWorks) {
     // we need persistence for this
     char name[] = "test-db-XXXXXX";
     mkstemp(name);
-    TokenBucketRateLimiter limiter(1, 1000, 1000, []{ return 0; });
     {
-        Sqlite3StorageBackend backend(name, "boot_id1", limiter);
+        Sqlite3StorageBackend backend(name, "boot_id1");
         backend.store(LogEntry(120, "type1", "message1"));
         backend.store(LogEntry(121, "type2", "message2"));
         backend.store(LogEntry(119, "type3", "message3"));
     }
 
-    Sqlite3StorageBackend backend(name, "boot_id2", limiter);
+    Sqlite3StorageBackend backend(name, "boot_id2");
     backend.store(LogEntry(140, "type4", "message4"));
 
     auto dumpResults = dump(backend, true);
@@ -143,9 +139,8 @@ TEST (Sqlite3StorageBackendTest, SkipLatestWorks) {
 }
 
 TEST (Sqlite3StorageBackendTest, TestTsOverflow) {
-    TokenBucketRateLimiter limiter(1, 1000, 1000, []{ return 0; });
     // Regression test for nanoseconds overflow in storage
-    Sqlite3StorageBackend backend(SQLITE3_FILE, "id", limiter);
+    Sqlite3StorageBackend backend(SQLITE3_FILE, "id");
     backend.store(LogEntry(INT64_MAX, "type", "{}"));
 
     auto dumpResults = dump(backend);
@@ -154,9 +149,7 @@ TEST (Sqlite3StorageBackendTest, TestTsOverflow) {
 }
 
 TEST (Sqlite3StorageBackendTest, TestInternalTypes) {
-    TokenBucketRateLimiter limiter(1, 1000, 1000, []{ return 0; });
-    // Regression test for nanoseconds overflow in storage
-    Sqlite3StorageBackend backend(SQLITE3_FILE, "id", limiter);
+    Sqlite3StorageBackend backend(SQLITE3_FILE, "id");
     backend.store(LogEntry(INT64_MAX, "type", "{}", true /* internal */));
     backend.store(LogEntry(INT64_MAX, "type", "{}", false /* internal */));
 
@@ -167,8 +160,7 @@ TEST (Sqlite3StorageBackendTest, TestInternalTypes) {
 }
 
 TEST (Sqlite3StorageBackendTest, TestEmptyListener) {
-    TokenBucketRateLimiter limiter(1, 1000, 1000, []{ return 0; });
-    Sqlite3StorageBackend backend(SQLITE3_FILE, "id", limiter);
+    Sqlite3StorageBackend backend(SQLITE3_FILE, "id");
     backend.addStorageEmtpyListener([&backend](){
         backend.store(LogEntry(2, "fake.rtc.sync", "{}"));
     });
@@ -181,31 +173,15 @@ TEST (Sqlite3StorageBackendTest, TestEmptyListener) {
     ASSERT_EQ("fake.rtc.sync", afterEmpty["id"].entries[0].type);
 }
 
-TEST (Sqlite3StorageBackendTest, TestRateLimiting) {
-    // we need persistence for this
-    char name[] = "test-db-XXXXXX";
-    mkstemp(name);
+TEST (Sqlite3StorageBackendTest, TestConfig) {
+    Sqlite3StorageBackend backend(SQLITE3_FILE, "id");
 
-    TokenBucketRateLimiter limiter(1, 1, 1, []{ return 0; });
-    Sqlite3StorageBackend backend(name, "boot_id1", limiter);
-    backend.store(LogEntry(120, "type1", "message1"));
-    backend.store(LogEntry(121, "type2", "message2"));
-    backend.store(LogEntry(122, "costless", "message3"), 0);
+    auto initialConfig = backend.getConfig();
+    ASSERT_EQ("", initialConfig);
 
-    auto dumpResults = dump(backend);
-
-    ASSERT_EQ(1u, dumpResults.size());
-
-    CollectedDump &dump1 = dumpResults["boot_id1"];
-    std::vector<LogEntry> &entries = dump1.entries;
-    ASSERT_EQ(2u, entries.size());
-    ASSERT_EQ(entries[0].type, "type1");
-    ASSERT_EQ(entries[0].timestamp, 120);
-    ASSERT_EQ(entries[0].blob, "message1");
-
-    ASSERT_EQ(entries[1].type, "costless");
-    ASSERT_EQ(entries[1].timestamp, 122);
-    ASSERT_EQ(entries[1].blob, "message3");
+    std::string updatedConfig("{\"test: true\"}");
+    backend.setConfig(updatedConfig);
+    ASSERT_EQ(updatedConfig, backend.getConfig());
 }
 
 }

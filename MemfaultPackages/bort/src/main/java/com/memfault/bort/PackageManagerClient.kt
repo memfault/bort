@@ -1,5 +1,6 @@
 package com.memfault.bort
 
+import android.os.RemoteException
 import com.github.michaelbull.result.andThen
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.map
@@ -32,24 +33,29 @@ class PackageManagerClient(
         if (appId != null && !appId.isValidAndroidApplicationId()) return PackageManagerReport()
         val cmdOrAppId = appId ?: PackageManagerCommand.CMD_PACKAGES
 
-        return reporterServiceConnector.connect { getClient ->
-            getClient().packageManagerRun(
-                cmd = PackageManagerCommand(cmdOrAppId = cmdOrAppId),
-                timeout = commandTimeoutConfig()
-            ) { invocation ->
-                invocation.awaitInputStream().andThen {
-                    runCatching {
-                        PackageManagerReportParser(it).parse()
+        return try {
+            reporterServiceConnector.connect { getClient ->
+                getClient().packageManagerRun(
+                    cmd = PackageManagerCommand(cmdOrAppId = cmdOrAppId),
+                    timeout = commandTimeoutConfig()
+                ) { invocation ->
+                    invocation.awaitInputStream().andThen {
+                        runCatching {
+                            PackageManagerReportParser(it).parse()
+                        }
+                    }.andThen { packages ->
+                        invocation.awaitResponse(commandTimeoutConfig()).toErrorIf({ it.exitCode != 0 }) {
+                            Exception("Remote error while running dumpsys package! result=$it")
+                        }.map { packages }
                     }
-                }.andThen { packages ->
-                    invocation.awaitResponse(commandTimeoutConfig()).toErrorIf({ it.exitCode != 0 }) {
-                        Exception("Remote error while running dumpsys package! result=$it")
-                    }.map { packages }
                 }
-            }
-        }.onFailure {
-            Logger.e("Error getting package manager report", it)
-        }.getOr(PackageManagerReport())
+            }.onFailure {
+                Logger.e("Error getting package manager report", it)
+            }.getOr(PackageManagerReport())
+        } catch (e: RemoteException) {
+            Logger.w("Unable to connect to ReporterService to get package manager report")
+            PackageManagerReport()
+        }
     }
 
     companion object Util {

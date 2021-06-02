@@ -12,6 +12,7 @@ import androidx.work.WorkerParameters
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.memfault.bort.dropbox.DropBoxGetEntriesTask
 import com.memfault.bort.dropbox.EntryProcessor
+import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.dropbox.RealDropBoxLastProcessedEntryProvider
 import com.memfault.bort.dropbox.realDropBoxEntryProcessors
 import com.memfault.bort.http.DebugInfoInjectingInterceptor
@@ -98,6 +99,8 @@ data class AppComponents(
     val rebootEventTokenBucketStore: TokenBucketStore,
     val storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider,
     val jitterDelayProvider: JitterDelayProvider,
+    val dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider,
+    val bortSystemCapabilities: BortSystemCapabilities,
 ) {
     open class Builder(
         private val context: Context,
@@ -317,6 +320,7 @@ data class AppComponents(
                     },
                 packageNameAllowList = packageNameAllowList,
                 combinedTimeProvider = RealCombinedTimeProvider(context),
+                settingsProvider = settingsProvider,
             ) + extraDropBoxEntryProcessors
 
             val pendingBugReportRequestAccessor = PendingBugReportRequestAccessor(
@@ -330,16 +334,27 @@ data class AppComponents(
                 )
             }
 
+            val dumpsterClient = DumpsterClient()
+            val bortSystemCapabilities = BortSystemCapabilities(
+                dumpsterClient = dumpsterClient,
+                reporterServiceConnector = reporterServiceConnector,
+            )
+
             val periodicWorkRequesters = listOf(
                 SettingsUpdateRequester(
                     context = context,
                     httpApiSettings = settingsProvider.httpApiSettings,
                     getUpdateInterval = settingsProvider::settingsUpdateInterval,
-                    jitterDelayProvider = jitterDelayProvider
+                    jitterDelayProvider = jitterDelayProvider,
+                    bortSystemCapabilities = bortSystemCapabilities,
                 ),
-                MetricsCollectionRequester(context, settingsProvider.metricsSettings),
+                MetricsCollectionRequester(context, settingsProvider.metricsSettings, bortSystemCapabilities),
                 BugReportRequester(context, settingsProvider.bugReportSettings),
-                LogcatCollectionRequester(context, settingsProvider.logcatSettings),
+                LogcatCollectionRequester(context, settingsProvider.logcatSettings, bortSystemCapabilities),
+            )
+
+            val dropBoxProcessedEntryCursorProvider = ProcessedEntryCursorProvider(
+                RealDropBoxLastProcessedEntryProvider(sharedPreferences)
             )
 
             val workerFactory = DefaultWorkerFactory(
@@ -351,6 +366,7 @@ data class AppComponents(
                 okHttpClient = okHttpClient,
                 reporterServiceConnector = reporterServiceConnector,
                 dropBoxEntryProcessors = dropBoxEntryProcessors,
+                dropBoxProcessedEntryCursorProvider = dropBoxProcessedEntryCursorProvider,
                 enqueueFileUpload = enqueueFileUpload,
                 nextLogcatCidProvider = nextLogcatCidProvider,
                 temporaryFileFactory = temporaryFileFactory,
@@ -421,6 +437,7 @@ data class AppComponents(
                 dataScrubber = dataScrubber,
                 packageNameAllowList = packageNameAllowList,
                 packageManagerClient = packageManagerClient,
+                dumpsterClient = dumpsterClient,
                 interceptingFactory = interceptingWorkerFactory,
             )
 
@@ -452,6 +469,8 @@ data class AppComponents(
                 rebootEventTokenBucketStore = rebootEventTokenBucketStore,
                 storedSettingsPreferenceProvider = storedSettingsPreferenceProvider,
                 jitterDelayProvider = jitterDelayProvider,
+                dropBoxProcessedEntryCursorProvider = dropBoxProcessedEntryCursorProvider,
+                bortSystemCapabilities = bortSystemCapabilities,
             )
         }
     }
@@ -484,6 +503,7 @@ class DefaultWorkerFactory(
     private val okHttpClient: OkHttpClient,
     private val reporterServiceConnector: ReporterServiceConnector,
     private val dropBoxEntryProcessors: Map<String, EntryProcessor>,
+    private val dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider,
     private val enqueueFileUpload: EnqueueFileUpload,
     private val nextLogcatCidProvider: NextLogcatCidProvider,
     private val temporaryFileFactory: TemporaryFileFactory,
@@ -501,6 +521,7 @@ class DefaultWorkerFactory(
     private val dataScrubber: ConfigValue<DataScrubber>,
     private val packageNameAllowList: PackageNameAllowList,
     private val packageManagerClient: PackageManagerClient,
+    private val dumpsterClient: DumpsterClient,
     private val interceptingFactory: InterceptingWorkerFactory? = null,
 ) : WorkerFactory(), TaskFactory {
     override fun createWorker(
@@ -532,6 +553,7 @@ class DefaultWorkerFactory(
                 workerParameters = workerParameters,
                 pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
                 tokenBucketStore = bugReportPeriodicTaskTokenBucketStore,
+                bugReportSettings = settingsProvider.bugReportSettings,
             )
             else -> null
         }
@@ -549,7 +571,7 @@ class DefaultWorkerFactory(
                 getUploadCompressionEnabled = { settingsProvider.httpApiSettings.uploadCompressionEnabled },
             )
             DropBoxGetEntriesTask::class.qualifiedName -> DropBoxGetEntriesTask(
-                lastProcessedEntryProvider = RealDropBoxLastProcessedEntryProvider(sharedPreferences),
+                cursorProvider = dropBoxProcessedEntryCursorProvider,
                 reporterServiceConnector = reporterServiceConnector,
                 entryProcessors = dropBoxEntryProcessors,
                 settings = settingsProvider.dropBoxSettings,
@@ -565,7 +587,7 @@ class DefaultWorkerFactory(
                 nextLogcatCidProvider = nextLogcatCidProvider,
                 combinedTimeProvider = RealCombinedTimeProvider(context),
                 lastHeartbeatEndTimeProvider = RealLastHeartbeatEndTimeProvider(sharedPreferences),
-                deviceInfoProvider = RealDeviceInfoProvider(settingsProvider.deviceInfoSettings),
+                deviceInfoProvider = deviceInfoProvider,
                 builtinMetricsStore = builtinMetricsStore,
                 tokenBucketStore = metricsPeriodicTaskTokenBucketStore,
             )
@@ -588,7 +610,7 @@ class DefaultWorkerFactory(
                 ),
                 fileUploadHoldingArea = fileUploadHoldingArea,
                 combinedTimeProvider = RealCombinedTimeProvider(context),
-                deviceInfoProvider = RealDeviceInfoProvider(settingsProvider.deviceInfoSettings),
+                deviceInfoProvider = deviceInfoProvider,
                 tokenBucketStore = logcatPeriodicTaskTokenBucketStore,
             )
             FileUploadHoldingAreaTimeoutTask::class.qualifiedName -> FileUploadHoldingAreaTimeoutTask(
@@ -602,6 +624,7 @@ class DefaultWorkerFactory(
                 settingsUpdateCallback = realSettingsUpdateCallback(
                     context,
                     reporterServiceConnector,
+                    dumpsterClient,
                 ),
                 tokenBucketStore = settingsUpdatePeriodicTaskTokenBucketStore,
             )

@@ -66,6 +66,7 @@ internal class ReleaseTestComponentsBuilder(
                         workerParameters,
                         pendingBugReportRequestAccessor,
                         bugReportPeriodicTaskTokenBucketStore,
+                        settingsProvider.bugReportSettings
                     ) {
                         override fun doWork(): Result {
                             Logger.i("** MFLT-TEST ** Periodic Bug Report Request")

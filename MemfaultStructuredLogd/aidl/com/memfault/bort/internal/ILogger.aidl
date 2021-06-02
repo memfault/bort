@@ -26,4 +26,13 @@ interface ILogger {
    * Trigger a structured log dump. This is used for testing and is a no-op in user builds.
    */
   oneway void triggerDump();
+
+  /**
+   * Reloads the config with a new json config passed from Bort. This method is permission-protected by
+   * com.memfault.bort.permission.UPDATE_STRUCTURED_LOG_CONFIG and will throw a security exception if
+   * called from a context which does not have it.
+   *
+   * @param config The JSON config object.
+   */
+  oneway void reloadConfig(String config);
 }

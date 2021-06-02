@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import com.memfault.bort.BugReportRequestStatus
 import com.memfault.bort.BugReportRequestTimeoutTask
+import com.memfault.bort.DumpsterClient
 import com.memfault.bort.INTENT_ACTION_BORT_ENABLE
 import com.memfault.bort.INTENT_ACTION_BUG_REPORT_REQUESTED
 import com.memfault.bort.INTENT_EXTRA_BORT_ENABLED
@@ -51,7 +52,7 @@ abstract class BaseControlReceiver : FilteringReceiver(
         val timeout = intent.extras?.getLongOrNull(
             INTENT_EXTRA_BUG_REPORT_REQUEST_TIMEOUT_MS
         )?.let(Long::milliseconds) ?: BugReportRequestTimeoutTask.DEFAULT_TIMEOUT
-        requestBugReport(context, pendingBugReportRequestAccessor, request, timeout)
+        requestBugReport(context, pendingBugReportRequestAccessor, request, timeout, settingsProvider.bugReportSettings)
     }
 
     private fun onBortEnabled(intent: Intent) {
@@ -70,12 +71,18 @@ abstract class BaseControlReceiver : FilteringReceiver(
 
         fileUploadHoldingArea.handleChangeBortEnabled()
 
-        periodicWorkRequesters.forEach {
-            if (isNowEnabled) {
-                it.startPeriodic()
-            } else {
-                it.cancelPeriodic()
+        goAsync {
+            periodicWorkRequesters.forEach {
+                if (isNowEnabled) {
+                    it.startPeriodic()
+                } else {
+                    it.cancelPeriodic()
+                }
             }
+
+            val dumpsterClient = DumpsterClient()
+            dumpsterClient.setBortEnabled(isNowEnabled)
+            dumpsterClient.setStructuredLogEnabled(settingsProvider.structuredLogSettings.dataSourceEnabled)
         }
     }
 

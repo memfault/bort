@@ -3,5 +3,4 @@ allow priv_app bort_app_data_file:{ file lnk_file } create_file_perms;
 
 allow priv_app memfault_dumpster_service:service_manager find;
 
-# MFLT-1955: Create dedicated domain for MemfaultDumpster instead of re-using dumpstate's
 binder_call(priv_app, dumpstate)

@@ -66,9 +66,6 @@ class RealReporterServiceConnector(
         )
 }
 
-private const val MINIMUM_VALID_VERSION = 3
-private const val MINIMUM_VALID_VERSION_LOG_LEVEL = 4
-
 class ReporterClient(
     val connection: ReporterServiceConnection,
     val commandRunnerClientFactory: CommandRunnerClientFactory
@@ -193,4 +190,9 @@ class ReporterClient(
             is ErrorResponse -> ErrorResponseException("Error response to $request: ${response.error}")
             else -> UnexpectedResponseException("Unexpected response to $request: $response")
         }
+
+    companion object {
+        const val MINIMUM_VALID_VERSION = 3
+        const val MINIMUM_VALID_VERSION_LOG_LEVEL = 4
+    }
 }

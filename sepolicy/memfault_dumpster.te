@@ -1,5 +1,3 @@
-# MFLT-1955: Create dedicated domain for MemfaultDumpster instead of re-using dumpstate's
-
 type memfault_dumpster_service, service_manager_type;
 
 add_service(dumpstate, memfault_dumpster_service)
@@ -8,3 +6,10 @@ add_service(dumpstate, memfault_dumpster_service)
 # dumpstate (the program) runs, it goes through all services and tries to call dump.
 # This won't be allowed and is expected to be denied. So, don't audit this access:
 dontaudit dumpstate dumpstate:binder call;
+
+# Allow setting the bort enabled property
+if_sdk_version_gteq(28, `
+  typeattribute dumpstate system_writes_vendor_properties_violators;
+', `')
+
+set_prop(dumpstate, memfault_prop);

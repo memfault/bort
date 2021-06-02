@@ -46,5 +46,5 @@ android {
 
 dependencies {
     testImplementation deps.test.junitApi
-    testImplementation deps.test.junitEngine
+    testImplementation deps.test.junitJupiterEngine
 }
