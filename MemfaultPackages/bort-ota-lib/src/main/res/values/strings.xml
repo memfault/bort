@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<resources>
+    <string name="software_update_download">Software Update Download</string>
+    <string name="software_update_download_description">Progress notification shown when downloading a file.</string>
+    <string name="download_notification_title">Downloading software update…</string>
+    <string name="download_successful">Update downloaded…</string>
+    <string name="download_failed">Download failed, please retry…</string>
+</resources>

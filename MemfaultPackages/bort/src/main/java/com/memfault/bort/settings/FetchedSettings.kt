@@ -1,6 +1,7 @@
 package com.memfault.bort.settings
 
 import com.memfault.bort.DataScrubbingRule
+import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.time.BoxedDuration
 import com.memfault.bort.time.DurationAsMillisecondsLong
@@ -20,7 +21,10 @@ data class FetchedSettings(
     val batteryStatsDataSourceEnabled: Boolean,
 
     @SerialName("bort.min_log_level")
-    val bortMinLogLevel: Int,
+    val bortMinLogcatLevel: Int,
+
+    @SerialName("bort.min_structured_log_level")
+    val bortMinStructuredLogLevel: Int = LogLevel.INFO.level,
 
     @SerialName("bort.event_log_enabled")
     val bortEventLogEnabled: Boolean,

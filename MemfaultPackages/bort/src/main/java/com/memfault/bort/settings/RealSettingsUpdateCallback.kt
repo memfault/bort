@@ -6,8 +6,8 @@ import com.github.michaelbull.result.onFailure
 import com.memfault.bort.BortJson
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.ReporterServiceConnector
+import com.memfault.bort.customevent.CustomEvent
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.structuredlog.StructuredLog
 
 fun realSettingsUpdateCallback(
     context: Context,
@@ -17,7 +17,7 @@ fun realSettingsUpdateCallback(
     applyReporterServiceSettings(reporterServiceConnector, settingsProvider)
 
     // Pass the new settings to structured logging
-    StructuredLog.reloadConfig(
+    CustomEvent.reloadConfig(
         BortJson.encodeToString(
             StructuredLogDaemonSettings.serializer(), fetchedSettingsUpdate.new.toStructuredLogDaemonSettings()
         )
@@ -27,6 +27,13 @@ fun realSettingsUpdateCallback(
 
     // Update periodic tasks that might have changed after a settings update
     PeriodicRequesterRestartTask.schedule(context, fetchedSettingsUpdate)
+
+    with(settingsProvider) {
+        Logger.minLogcatLevel = minLogcatLevel
+        Logger.minStructuredLevel = minStructuredLogLevel
+        Logger.eventLogEnabled = this::eventLogEnabled
+        Logger.i("settings.updated", selectSettingsToMap())
+    }
 }
 
 suspend fun applyReporterServiceSettings(
@@ -35,7 +42,7 @@ suspend fun applyReporterServiceSettings(
 ) {
     try {
         reporterServiceConnector.connect { getConnection ->
-            getConnection().setLogLevel(settingsProvider.minLogLevel).onFailure {
+            getConnection().setLogLevel(settingsProvider.minLogcatLevel).onFailure {
                 Logger.w("could not send log level to reporter service", it)
             }
         }

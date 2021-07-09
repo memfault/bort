@@ -1,9 +1,11 @@
 rootProject.name='Bort'
 include ':bort-shared'
 include ':bort'
+include ':bort-ota'
+include ':bort-ota-lib'
+include ':custom-event-lib'
 include ':reporter'
 include ':buildSrcTest'
-include ':structured-log-lib'
 
 // Conditionally include the end-to-end test helper application (not published as part of the SDK):
 if ((properties["BORT_INCLUDE_E2E_HELPER"] ?: "0").toBoolean()) {

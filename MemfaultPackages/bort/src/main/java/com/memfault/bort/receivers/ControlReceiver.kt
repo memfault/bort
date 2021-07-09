@@ -24,7 +24,7 @@ abstract class BaseControlReceiver : FilteringReceiver(
         bugReportRequestsTokenBucketStore
             .edit { map ->
                 val bucket = map.upsertBucket("control-requested") ?: return@edit false
-                bucket.take()
+                bucket.take(tag = "bugreport_request")
             }
 
     private fun onBugReportRequested(context: Context, intent: Intent) {
@@ -56,9 +56,14 @@ abstract class BaseControlReceiver : FilteringReceiver(
     }
 
     private fun onBortEnabled(intent: Intent) {
+        // It doesn't make sense to take any action here if bort isn't configured to require runtime enabling
+        // (we would get into a bad state where jobs are cancelled, but we can not re-enable).
+        if (!bortEnabledProvider.requiresRuntimeEnable()) return
+
+        if (!intent.hasExtra(INTENT_EXTRA_BORT_ENABLED)) return
         val isNowEnabled = intent.getBooleanExtra(
             INTENT_EXTRA_BORT_ENABLED,
-            !settingsProvider.isRuntimeEnableRequired
+            false // never used, because we just checked hasExtra()
         )
         val wasEnabled = bortEnabledProvider.isEnabled()
         Logger.test("wasEnabled=$wasEnabled isNowEnabled=$isNowEnabled")
@@ -66,6 +71,7 @@ abstract class BaseControlReceiver : FilteringReceiver(
         if (wasEnabled == isNowEnabled) {
             return
         }
+        Logger.i(if (wasEnabled) "bort.enabled" else "bort.disabled", mapOf())
 
         bortEnabledProvider.setEnabled(isNowEnabled)
 
@@ -82,7 +88,10 @@ abstract class BaseControlReceiver : FilteringReceiver(
 
             val dumpsterClient = DumpsterClient()
             dumpsterClient.setBortEnabled(isNowEnabled)
-            dumpsterClient.setStructuredLogEnabled(settingsProvider.structuredLogSettings.dataSourceEnabled)
+            dumpsterClient.setStructuredLogEnabled(
+                isNowEnabled &&
+                    settingsProvider.structuredLogSettings.dataSourceEnabled
+            )
         }
     }
 

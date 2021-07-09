@@ -34,7 +34,7 @@ class TokenBucketMapTest {
         val bucketMap = TokenBucketMap(initialMap, maxBuckets = 1, tokenBucketFactory = tokenBucketFactory)
         val bucket = bucketMap.upsertBucket("x", capacity = bucketA.capacity, period = bucketA.period)
         // Mutate bucket's count:
-        assertEquals(true, bucket?.take())
+        assertEquals(true, bucket?.take(tag = "test"))
         // bucketA should still be untouched:
         assertEquals(originalCount, bucketA.count)
         assertEquals(bucketA.count - 1, bucket?.count)

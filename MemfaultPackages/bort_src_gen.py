@@ -14,13 +14,18 @@ except:  # noqa
     pass
 
 
-INVALID_VALUES = {"vnd.myandroid.bortappid", "vnd.myandroid.bortfeaturename"}
+INVALID_VALUES = {
+    "vnd.myandroid.bortappid",
+    "vnd.myandroid.bort.otaappid",
+    "vnd.myandroid.bortfeaturename",
+}
 
 
 MAPPING = {
     # source file placeholder / preprocessor define name => bort.properties variable (and optional fallback)
     # Note: the leading $ is removed for preprocessor define names.
     "$BORT_APPLICATION_ID": ("BORT_APPLICATION_ID",),
+    "$BORT_OTA_APPLICATION_ID": ("BORT_OTA_APPLICATION_ID",),
     "$BORT_FEATURE_NAME": ("BORT_FEATURE_NAME", "BORT_APPLICATION_ID"),
 }
 

@@ -1,0 +1,10 @@
+<permissions>
+    <allow-in-power-save package="$BORT_OTA_APPLICATION_ID" />
+    <privapp-permissions package="$BORT_OTA_APPLICATION_ID">
+        <permission name="android.permission.ACCESS_CACHE_FILESYSTEM" />
+        <permission name="android.permission.READ_PRIVILEGED_PHONE_STATE" />
+        <permission name="android.permission.REBOOT" />
+        <permission name="android.permission.RECOVERY" />
+        <permission name="com.memfault.bort.permission.READ_SOFTWARE_UPDATE_SETTINGS" />
+    </privapp-permissions>
+</permissions>

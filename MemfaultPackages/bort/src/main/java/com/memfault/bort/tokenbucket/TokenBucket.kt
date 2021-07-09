@@ -1,5 +1,7 @@
 package com.memfault.bort.tokenbucket
 
+import com.memfault.bort.metrics.RATE_LIMIT_APPLIED
+import com.memfault.bort.metrics.metrics
 import kotlin.math.floor
 import kotlin.time.Duration
 
@@ -41,12 +43,15 @@ class TokenBucket(
     /**
      * Attempt to take n tokens. For convenience, the token count is re-up'd before attempting to take tokens.
      * @param n Number of tokens to take.
+     * @param tag for metrics
      * @return true if successful
      */
-    fun take(n: Int = 1): Boolean {
+    fun take(n: Int = 1, tag: String): Boolean {
         feed()
-        return if (count < n) false
-        else true.also {
+        return if (count < n) {
+            metrics()?.increment("${RATE_LIMIT_APPLIED}_$tag")
+            false
+        } else true.also {
             _count -= n
         }
     }

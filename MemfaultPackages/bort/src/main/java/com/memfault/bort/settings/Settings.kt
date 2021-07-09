@@ -118,7 +118,8 @@ interface StructuredLogSettings {
 }
 
 interface SettingsProvider {
-    val minLogLevel: LogLevel
+    val minLogcatLevel: LogLevel
+    val minStructuredLogLevel: LogLevel
     val eventLogEnabled: Boolean
     val isRuntimeEnableRequired: Boolean
     val settingsUpdateInterval: Duration
@@ -140,9 +141,53 @@ interface SettingsProvider {
     fun invalidate()
 }
 
+fun SettingsProvider.selectSettingsToMap(): Map<String, Any> = mapOf(
+    "Settings" to mapOf(
+        "minLogcatLevel" to minLogcatLevel,
+        "minStructuredLogLevel" to minStructuredLogLevel,
+        "isRuntimeEnableRequired" to isRuntimeEnableRequired,
+        "eventLogEnabled" to eventLogEnabled,
+    ),
+    "Http Api Settings" to mapOf(
+        "deviceBaseUrl" to httpApiSettings.deviceBaseUrl,
+        "filesBaseUrl" to httpApiSettings.filesBaseUrl,
+        "ingressBaseUrl" to httpApiSettings.ingressBaseUrl,
+        "uploadNetworkConstraint" to httpApiSettings.uploadNetworkConstraint,
+        "connectTimeout" to httpApiSettings.connectTimeout,
+        "writeTimeout" to httpApiSettings.writeTimeout,
+        "readTimeout" to httpApiSettings.readTimeout,
+        "callTimeout" to httpApiSettings.callTimeout,
+    ),
+    "Device Info Settings" to mapOf(
+        "androidBuildVersionKey" to deviceInfoSettings.androidBuildVersionKey,
+        "androidHardwareVersionKey" to deviceInfoSettings.androidHardwareVersionKey,
+        "androidSerialNumberKey" to deviceInfoSettings.androidSerialNumberKey,
+    ),
+    "Bug Report Settings" to mapOf(
+        "dataSourceEnabled" to bugReportSettings.dataSourceEnabled,
+        "requestInterval" to bugReportSettings.requestInterval,
+        "defaultOptions" to bugReportSettings.defaultOptions,
+        "maxStorageBytes" to bugReportSettings.maxStorageBytes,
+        "maxStoredAge" to bugReportSettings.maxStoredAge,
+        "maxUploadAttempts" to bugReportSettings.maxUploadAttempts,
+        "firstBugReportDelayAfterBoot" to bugReportSettings.firstBugReportDelayAfterBoot,
+    ),
+    "DropBox Settings" to mapOf(
+        "dataSourceEnabled" to dropBoxSettings.dataSourceEnabled,
+    ),
+    "Metrics Settings" to mapOf(
+        "dataSourceEnabled" to metricsSettings.dataSourceEnabled,
+        "collectionInterval" to metricsSettings.collectionInterval,
+    ),
+    "BatteryStats Settings" to mapOf(
+        "dataSourceEnabled" to batteryStatsSettings.dataSourceEnabled,
+    ),
+)
+
 interface BortEnabledProvider {
     fun setEnabled(isOptedIn: Boolean)
     fun isEnabled(): Boolean
+    fun requiresRuntimeEnable(): Boolean
 }
 
 typealias ConfigValue<T> = () -> T

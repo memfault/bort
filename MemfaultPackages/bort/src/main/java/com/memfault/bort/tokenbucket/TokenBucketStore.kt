@@ -98,8 +98,8 @@ class TokenBucketStore(
  * Convenience method that can be used in the case there's only need for
  * a single key / bucket in the store.
  */
-fun TokenBucketStore.takeSimple(key: String = "_", n: Int = 1): Boolean =
+fun TokenBucketStore.takeSimple(key: String = "_", n: Int = 1, tag: String): Boolean =
     edit { map ->
         val bucket = map.upsertBucket(key) ?: return@edit false
-        bucket.take(n)
+        bucket.take(n, tag)
     }

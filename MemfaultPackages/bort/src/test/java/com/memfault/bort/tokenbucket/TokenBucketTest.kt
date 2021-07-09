@@ -44,18 +44,18 @@ class TokenBucketTest {
             _periodStartElapsedRealtime = 0.milliseconds,
             elapsedRealtime = mockElapsedRealtime
         )
-        assertEquals(false, bucket.take(n = 4))
+        assertEquals(false, bucket.take(n = 4, tag = "test"))
         assertEquals(3, bucket.count)
-        assertEquals(true, bucket.take(n = 2))
+        assertEquals(true, bucket.take(n = 2, tag = "test"))
         assertEquals(1, bucket.count)
-        assertEquals(true, bucket.take())
+        assertEquals(true, bucket.take(tag = "test"))
         assertEquals(0, bucket.count)
-        assertEquals(false, bucket.take())
+        assertEquals(false, bucket.take(tag = "test"))
         assertEquals(0, bucket.count)
 
         // For convenience, take() also feeds():
         now = 10.milliseconds
-        assertEquals(true, bucket.take())
+        assertEquals(true, bucket.take(tag = "test"))
         assertEquals(2, bucket.count)
     }
 
@@ -70,8 +70,8 @@ class TokenBucketTest {
         )
 
         now = 5.milliseconds
-        assertEquals(true, bucket.take(1))
-        assertEquals(false, bucket.take(1))
+        assertEquals(true, bucket.take(1, tag = "test"))
+        assertEquals(false, bucket.take(1, tag = "test"))
 
         // Check that the externally observable value did change
         assertEquals(5.milliseconds, bucket.periodStartElapsedRealtime)
@@ -91,7 +91,7 @@ class TokenBucketTest {
         bucket.feed()
         assertEquals(10, bucket.count)
 
-        bucket.take(10)
+        bucket.take(10, tag = "test")
         assertEquals(0, bucket.count)
 
         repeat(10) {

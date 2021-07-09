@@ -1,0 +1,123 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlinx-serialization'
+apply from: "../properties.gradle"
+
+def keystoreProperties = loadBortOtaKeystoreProperties()
+def keystoreFilePath = getKeystoreFilePath()
+
+android {
+    compileSdkVersion versions.compileSdk
+    buildToolsVersion versions.buildTools
+
+    defaultConfig {
+        applicationId bortProperty("BORT_OTA_APPLICATION_ID")
+        minSdkVersion versions.minSdk
+        targetSdkVersion versions.targetSdk
+        versionCode loadVersionCode() as Integer
+        versionName loadVersionName() as String
+
+        buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "\"" + bortProperty("MEMFAULT_PROJECT_API_KEY") + "\""
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile file(keystoreFilePath)
+            storePassword keystoreProperties['storePassword']
+            v1SigningEnabled bortProperty("V1_SIGNING_ENABLED") as Boolean
+            v2SigningEnabled bortProperty("V2_SIGNING_ENABLED") as Boolean
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+
+        // Used for CI. Do not use for production.
+        releaseTest {
+            initWith release
+        }
+    }
+
+    lintOptions {
+        abortOnError true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8.toString()
+        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
+        freeCompilerArgs += "-Xopt-in=kotlin.time.ExperimentalTime"
+        freeCompilerArgs += "-Xopt-in=kotlinx.coroutines.ExperimentalCoroutinesApi"
+    }
+
+    testOptions {
+        // Needed to unit test against AIDL-generated code
+        unitTests.returnDefaultValues = true
+        unitTests.all {
+            useJUnitPlatform()
+        }
+    }
+}
+
+dependencies {
+    implementation project(':bort-ota-lib')
+    implementation project(':bort-shared')
+
+    implementation deps.kotlin.stdlib
+    implementation deps.kotlin.coroutines
+    implementation deps.kotlin.coroutinesAndroid
+
+    implementation deps.android.activityKtx
+    implementation deps.android.appcompat
+    implementation deps.android.fragmentKtx
+    implementation deps.android.material
+    implementation deps.android.preference
+
+    implementation deps.result
+    implementation deps.retrofit
+    implementation deps.okhttp
+    implementation deps.okio
+
+    testImplementation deps.test.junitApi
+    testRuntimeOnly deps.test.junitJupiterEngine
+    testRuntimeOnly deps.test.junitVintageEngine
+    testImplementation deps.test.coroutines
+    testImplementation deps.test.mockk
+    testImplementation deps.test.mockWebServer
+    testImplementation deps.test.robolectric
+}
+
+task copyReleaseApk(type: Copy) {
+    from file("$buildDir/outputs/apk/release/bort-ota-release.apk")
+    into rootDir
+    rename 'bort-ota-release.apk', 'MemfaultBortOta.apk'
+}
+
+import java.nio.file.Paths
+
+task exportPem(type: Exec) {
+    commandLine 'keytool',
+            '-export',
+            '-rfc',
+            '-keystore', keystoreFilePath,
+            '-alias', keystoreProperties['keyAlias'],
+            '-file', Paths.get(rootDir.toString(), "MemfaultBortOta.x509.pem"),
+            '-storepass', keystoreProperties['storePassword']
+}
+
+
+afterEvaluate {
+    assembleRelease.finalizedBy copyReleaseApk, exportPem
+}

@@ -5,9 +5,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.DropBoxManager
+import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.DROPBOX_ENTRY_ADDED_RECEIVER_QUALIFIED_NAME
 import com.memfault.bort.shared.INTENT_ACTION_DROPBOX_ENTRY_ADDED
-import com.memfault.usagereporter.BuildConfig
 import com.memfault.usagereporter.USER_CURRENT
 import com.memfault.usagereporter.UserHandle
 

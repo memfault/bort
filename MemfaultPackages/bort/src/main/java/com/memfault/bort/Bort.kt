@@ -8,18 +8,29 @@ import androidx.work.Configuration
 import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
+import com.memfault.bort.metrics.BORT_CRASH
+import com.memfault.bort.metrics.BORT_STARTED
+import com.memfault.bort.metrics.metrics
+import com.memfault.bort.settings.selectSettingsToMap
 import com.memfault.bort.shared.Logger
 
 open class Bort : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        val defaultExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            // Ensure that the metric is written to disk before the process dies; synchronous = true
+            metrics()?.increment(BORT_CRASH, synchronous = true)
+            defaultExceptionHandler?.uncaughtException(thread, throwable)
+        }
 
         Logger.TAG = "bort"
         Logger.TAG_TEST = "bort-test"
 
         appComponentsBuilder = initComponents()
 
+        metrics()?.increment(BORT_STARTED)
         logDebugInfo()
 
         if (!appComponents().isEnabled()) {
@@ -34,7 +45,8 @@ open class Bort : Application(), Configuration.Provider {
         Logger.logEventBortSdkEnabled(appComponents().isEnabled())
 
         with(appComponents().settingsProvider) {
-            Logger.minLevel = minLogLevel
+            Logger.minLogcatLevel = minLogcatLevel
+            Logger.minStructuredLevel = minStructuredLogLevel
             Logger.eventLogEnabled = this::eventLogEnabled
             Logger.logEvent(
                 "bort-oncreate",
@@ -48,50 +60,18 @@ open class Bort : Application(), Configuration.Provider {
                 "bugreport.enabled=${bugReportSettings.dataSourceEnabled}",
                 "dropbox.enabled=${dropBoxSettings.dataSourceEnabled}",
             )
-            Logger.v(
-                """
-                |Settings (${this.javaClass.simpleName}):
-                |  device=${appComponents().deviceIdProvider.deviceId()}
-                |  minLogLevel=$minLogLevel
-                |  isRuntimeEnableRequired=$isRuntimeEnableRequired
-                |  eventLogEnabled=${Logger.eventLogEnabled()}
-                |  build=${Build.TYPE}
-                |Http Api Settings:
-                |  deviceBaseUrl=${httpApiSettings.deviceBaseUrl}
-                |  filesBaseUrl=${httpApiSettings.filesBaseUrl}
-                |  ingressBaseUrl=${httpApiSettings.ingressBaseUrl}
-                |  uploadNetworkConstraint=${httpApiSettings.uploadNetworkConstraint}
-                |  connectTimeout=${httpApiSettings.connectTimeout.inSeconds}s
-                |  writeTimeout=${httpApiSettings.writeTimeout.inSeconds}s
-                |  readTimeout=${httpApiSettings.readTimeout.inSeconds}s
-                |  callTimeout=${httpApiSettings.callTimeout.inSeconds}s
-                |Device Info Settings:
-                |  androidBuildVersionKey=${deviceInfoSettings.androidBuildVersionKey}
-                |  androidHardwareVersionKey=${deviceInfoSettings.androidHardwareVersionKey}
-                |  androidSerialNumberKey=${deviceInfoSettings.androidSerialNumberKey}
-                |Bug Report Settings:
-                |  dataSourceEnabled=${bugReportSettings.dataSourceEnabled}
-                |  requestInterval=${bugReportSettings.requestInterval.inHours}h
-                |  defaultOptions=${bugReportSettings.defaultOptions}
-                |  maxStorageBytes=${bugReportSettings.maxStorageBytes}
-                |  maxStoredAge=${bugReportSettings.maxStoredAge}
-                |  maxUploadAttempts=${bugReportSettings.maxUploadAttempts}
-                |  firstBugReportDelayAfterBoot=${bugReportSettings.firstBugReportDelayAfterBoot}
-                |DropBox Settings:
-                |  dataSourceEnabled=${dropBoxSettings.dataSourceEnabled}
-                |Metrics Settings:
-                |  dataSourceEnabled=${metricsSettings.dataSourceEnabled}
-                |  collectionInterval=${metricsSettings.collectionInterval}
-                |BatteryStats Settings:
-                |  dataSourceEnabled=${batteryStatsSettings.dataSourceEnabled}
-                |SDK Version Info:
-                |  appVersionName=${sdkVersionInfo.appVersionName}
-                |  appVersionCode=${sdkVersionInfo.appVersionCode}
-                |  currentGitSha=${sdkVersionInfo.currentGitSha}
-                |  upstreamGitSha=${sdkVersionInfo.upstreamGitSha}
-                |  upstreamVersionName=${sdkVersionInfo.upstreamVersionName}
-                |  upstreamVersionCode=${sdkVersionInfo.upstreamVersionCode}
-                """.trimMargin()
+            Logger.i(
+                "bort.oncreate",
+                selectSettingsToMap() + mapOf(
+                    "device" to appComponents().deviceIdProvider.deviceId(),
+                    "build" to Build.TYPE,
+                    "appVersionName" to sdkVersionInfo.appVersionName,
+                    "appVersionCode" to sdkVersionInfo.appVersionCode,
+                    "currentGitSha" to sdkVersionInfo.currentGitSha,
+                    "upstreamGitSha" to sdkVersionInfo.upstreamGitSha,
+                    "upstreamVersionName" to sdkVersionInfo.upstreamVersionName,
+                    "upstreamVersionCode" to sdkVersionInfo.upstreamVersionCode,
+                )
             )
         }
     }

@@ -26,8 +26,11 @@ open class DynamicSettingsProvider(
 
     private val settings by settingsCache
 
-    override val minLogLevel: LogLevel
-        get() = LogLevel.fromInt(settings.bortMinLogLevel) ?: LogLevel.VERBOSE
+    override val minLogcatLevel: LogLevel
+        get() = LogLevel.fromInt(settings.bortMinLogcatLevel) ?: LogLevel.VERBOSE
+
+    override val minStructuredLogLevel: LogLevel
+        get() = LogLevel.fromInt(settings.bortMinStructuredLogLevel) ?: LogLevel.INFO
 
     override val eventLogEnabled: Boolean
         get() = settings.bortEventLogEnabled

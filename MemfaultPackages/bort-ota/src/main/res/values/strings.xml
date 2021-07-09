@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<resources>
+    <string name="app_name">Software Updates</string>
+
+    <!-- Main preference screen strings -->
+    <string name="preference_title_check_for_updates">Check for updates</string>
+    <string name="preference_summary_check_for_updates">Prefer downloading over Wi-Fi where possible to avoid surcharges on your data plan.</string>
+
+    <string name="preference_title_auto_download_over_wifi">Auto download over Wi-fi</string>
+    <string name="preference_summary_auto_download_over_wifi">Start downloads automatically if connected to Wi-Fi networks</string>
+
+    <string name="preference_title_last_update">Last Update</string>
+    <string name="preference_summary_last_update">The last update was installed on May 4, 1998</string>
+    <string name="install_update">Install Update</string>
+    <string name="update_available">Update Available</string>
+    <string name="software_version">Version: %1$s</string>
+    <string name="not_now">Not now</string>
+    <string name="download_update">Download Update</string>
+    <string name="verification_failed">Update verification failed, please retry…</string>
+    <string name="latest_version_already_installed">The latest version is already installed…</string>
+</resources>

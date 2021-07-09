@@ -54,29 +54,30 @@ class DynamicSettingsProviderTest {
     fun testInvalidation() {
         val storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider = mockk {
             every { get() } returns
-                SETTINGS_FIXTURE.toSettings().copy(bortMinLogLevel = LogLevel.VERBOSE.level) andThen
-                SETTINGS_FIXTURE.toSettings().copy(bortMinLogLevel = LogLevel.INFO.level)
+                SETTINGS_FIXTURE.toSettings().copy(bortMinLogcatLevel = LogLevel.VERBOSE.level) andThen
+                SETTINGS_FIXTURE.toSettings().copy(bortMinLogcatLevel = LogLevel.INFO.level)
         }
 
         val settings = DynamicSettingsProvider(storedSettingsPreferenceProvider)
 
         // The first call will use the value in resources
-        assertEquals(LogLevel.VERBOSE, settings.minLogLevel)
+        assertEquals(LogLevel.VERBOSE, settings.minLogcatLevel)
 
         // The second call will still operate on a cached settings value
-        assertEquals(LogLevel.VERBOSE, settings.minLogLevel)
+        assertEquals(LogLevel.VERBOSE, settings.minLogcatLevel)
 
         // This will cause settings to be reconstructed on the next call, which will
         // read the new min_log_level from shared preferences
         settings.invalidate()
-        assertEquals(LogLevel.INFO, settings.minLogLevel)
+        assertEquals(LogLevel.INFO, settings.minLogcatLevel)
     }
 }
 
 internal val EXPECTED_SETTINGS = FetchedSettings(
     batteryStatsCommandTimeout = 60.seconds.boxed(),
     batteryStatsDataSourceEnabled = false,
-    bortMinLogLevel = 2,
+    bortMinLogcatLevel = 5,
+    bortMinStructuredLogLevel = 3,
     bortSettingsUpdateInterval = 1234.milliseconds.boxed(),
     bortEventLogEnabled = true,
     bugReportCollectionInterval = 1234.milliseconds.boxed(),
@@ -173,7 +174,8 @@ internal val SETTINGS_FIXTURE = """
               "data": {
                 "battery_stats.data_source_enabled": false,
                 "battery_stats.command_timeout_ms" : 60000,
-                "bort.min_log_level": 2,
+                "bort.min_log_level": 5,
+                "bort.min_structured_log_level": 3,
                 "bort.event_log_enabled": true,
                 "bort.settings_update_interval_ms": 1234,
                 "bug_report.collection_interval_ms": 1234,
@@ -274,7 +276,7 @@ internal val SETTINGS_FIXTURE_WITH_MISSING_FIELDS = """
               "data": {
                 "battery_stats.data_source_enabled": false,
                 "battery_stats.command_timeout_ms" : 60000,
-                "bort.min_log_level": 2,
+                "bort.min_log_level": 5,
                 "bort.event_log_enabled": true,
                 "bort.settings_update_interval_ms": 1234,
                 "bug_report.collection_interval_ms": 1234,

@@ -2,7 +2,12 @@ package com.memfault.bort.shared
 
 import android.util.EventLog
 import android.util.Log
-import com.memfault.bort.structuredlog.StructuredLog
+import com.memfault.bort.customevent.CustomEvent
+import com.memfault.bort.customevent.CustomEvent.timestamp
+import com.memfault.bort.internal.ILogger
+import org.json.JSONArray
+import org.json.JSONException
+import org.json.JSONObject
 
 enum class LogLevel(val level: Int) {
     NONE(0),
@@ -29,105 +34,104 @@ object Logger {
     var eventLogEnabled: () -> Boolean = { true }
 
     @JvmStatic
-    var minLevel: LogLevel =
-        LogLevel.NONE
+    var minLogcatLevel: LogLevel = LogLevel.NONE
 
     @JvmStatic
-    fun e(message: String) = log(
+    var minStructuredLevel: LogLevel = LogLevel.NONE
+
+    @JvmStatic
+    fun e(tag: String, payload: Map<String, Any>, t: Throwable? = null) = structuredLog(
         LogLevel.ERROR,
-        message
+        tag,
+        payload,
+        t,
     )
 
     @JvmStatic
-    fun w(message: String) = log(
+    fun e(message: String, t: Throwable? = null) = logcat(
+        LogLevel.ERROR,
+        message,
+        t
+    )
+
+    @JvmStatic
+    fun w(tag: String, payload: Map<String, Any>, t: Throwable? = null) = structuredLog(
         LogLevel.WARN,
-        message
+        tag,
+        payload,
+        t,
     )
 
     @JvmStatic
-    fun i(message: String) = log(
+    fun w(message: String, t: Throwable? = null) = logcat(
+        LogLevel.WARN,
+        message,
+        t
+    )
+
+    @JvmStatic
+    fun i(tag: String, payload: Map<String, Any>, t: Throwable? = null) = structuredLog(
         LogLevel.INFO,
-        message
+        tag,
+        payload,
+        t,
     )
 
     @JvmStatic
-    fun d(message: String) = log(
+    fun i(message: String, t: Throwable? = null) = logcat(
+        LogLevel.INFO,
+        message,
+        t
+    )
+
+    @JvmStatic
+    fun d(tag: String, payload: Map<String, Any>, t: Throwable? = null) = structuredLog(
         LogLevel.DEBUG,
-        message
+        tag,
+        payload,
+        t,
     )
 
     @JvmStatic
-    fun v(message: String) = log(
+    fun d(message: String, t: Throwable? = null) = logcat(
+        LogLevel.DEBUG,
+        message,
+        t
+    )
+
+    @JvmStatic
+    fun v(tag: String, payload: Map<String, Any>, t: Throwable? = null) = structuredLog(
         LogLevel.VERBOSE,
-        message
+        tag,
+        payload,
+        t,
     )
 
     @JvmStatic
-    fun test(message: String) = log(
+    fun v(message: String, t: Throwable? = null) = logcat(
+        LogLevel.VERBOSE,
+        message,
+        t
+    )
+
+    @JvmStatic
+    fun test(tag: String, payload: Map<String, Any>, t: Throwable? = null) = structuredLog(
         LogLevel.TEST,
-        message
+        tag,
+        payload,
+        t,
     )
 
     @JvmStatic
-    fun e(message: String, t: Throwable) = log(
-        LogLevel.ERROR,
-        message,
-        t
-    )
-
-    @JvmStatic
-    fun w(message: String, t: Throwable) = log(
-        LogLevel.WARN,
-        message,
-        t
-    )
-
-    @JvmStatic
-    fun i(message: String, t: Throwable) = log(
-        LogLevel.INFO,
-        message,
-        t
-    )
-
-    @JvmStatic
-    fun d(message: String, t: Throwable) = log(
-        LogLevel.DEBUG,
-        message,
-        t
-    )
-
-    @JvmStatic
-    fun v(message: String, t: Throwable) = log(
-        LogLevel.VERBOSE,
-        message,
-        t
-    )
-
-    @JvmStatic
-    fun test(message: String, t: Throwable) =
-        log(
+    fun test(message: String, t: Throwable? = null) =
+        logcat(
             LogLevel.TEST,
             message,
             t
         )
 
-    @JvmStatic
-    fun log(level: LogLevel, message: String) {
-        if (level > minLevel) return
-        when (level) {
-            LogLevel.ERROR -> Log.e(TAG, message)
-            LogLevel.WARN -> Log.w(TAG, message)
-            LogLevel.INFO -> Log.i(TAG, message)
-            LogLevel.DEBUG -> Log.d(TAG, message)
-            LogLevel.VERBOSE -> Log.v(TAG, message)
-            LogLevel.TEST -> Log.v(TAG_TEST, message)
-            else -> return
-        }
-    }
-
-    @JvmStatic
-    fun log(level: LogLevel, message: String, t: Throwable) {
-        if (level > minLevel) return
+    private fun logcat(level: LogLevel, message: String, t: Throwable? = null) {
+        if (level > minLogcatLevel) return
         when (level) {
             LogLevel.ERROR -> Log.e(TAG, message, t)
             LogLevel.WARN -> Log.w(TAG, message, t)
@@ -136,6 +140,35 @@ object Logger {
             LogLevel.VERBOSE -> Log.v(TAG, message, t)
             LogLevel.TEST -> Log.v(TAG_TEST, message, t)
             else -> return
+        }
+    }
+
+    private fun structuredLog(level: LogLevel, tag: String, payload: Map<String, Any>, t: Throwable? = null) {
+        logcat(level, "$tag: $payload", t)
+        if (level > minStructuredLevel) return
+        val jsonObject = JSONObject(payload)
+        // Add any throwable stacktrace as an array, so that we can see the first few lines in the log popup.
+        t?.let { jsonObject.put("throwable", JSONArray(it.stackTraceToString().lines().take(5))) }
+        // Don't crash if we were passed invalid json
+        try {
+            writeInternalStructureLog(tag, jsonObject.toString())
+        } catch (e: JSONException) {
+            writeInternalStructureLog("error.logging.$tag", payload.toString())
+        }
+    }
+
+    /**
+     * Write an internal (only visible on timeline with debug mode enabled) structured log, using reflection
+     * (we don't expose the logInternal API publicly).
+     */
+    private fun writeInternalStructureLog(tag: String, message: String) {
+        try {
+            val obtainLogger = CustomEvent::class.java.getDeclaredMethod("obtainRemoteLogger")
+            obtainLogger.isAccessible = true
+            val logger = obtainLogger.invoke(null) as ILogger?
+            logger?.logInternal(timestamp(), tag, message)
+        } catch (ex: Exception) {
+            logcat(LogLevel.ERROR, "Failed to write structured log", ex)
         }
     }
 
@@ -151,10 +184,5 @@ object Logger {
         if (eventLogEnabled()) {
             EventLog.writeEvent(40000001, if (isEnabled) 1 else 0)
         }
-    }
-
-    @JvmStatic
-    fun structured(data: String, tag: String = TAG) {
-        StructuredLog.log(tag, data)
     }
 }

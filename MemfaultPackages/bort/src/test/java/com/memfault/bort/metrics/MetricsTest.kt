@@ -56,6 +56,25 @@ class BuiltinMetricsStoreTest {
 
         assert(tags.map { metricForTraceTag(it) }.toList() == expectation)
     }
+
+    @Test
+    fun testValueStore() {
+        val registry = makeFakeMetricRegistry()
+        val store = BuiltinMetricsStore(registry)
+
+        store.addValue("latency", 300f)
+        store.addValue("latency", 490f)
+        store.addValue("latency", 350f)
+
+        assert(
+            store.collectMetrics() == mapOf(
+                "latency_count" to 3f,
+                "latency_sum" to 1140f,
+                "latency_max" to 490f,
+                "latency_min" to 300f,
+            )
+        )
+    }
 }
 
 fun makeFakeMetricRegistry(): MetricRegistry =

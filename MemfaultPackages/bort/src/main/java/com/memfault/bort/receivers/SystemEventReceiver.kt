@@ -46,6 +46,11 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         }
 
         goAsync {
+            if (!bortEnabledProvider.requiresRuntimeEnable()) {
+                DumpsterClient().setBortEnabled(true)
+                DumpsterClient().setStructuredLogEnabled(settingsProvider.structuredLogSettings.dataSourceEnabled)
+            }
+
             applyReporterServiceSettings(
                 reporterServiceConnector,
                 settingsProvider,

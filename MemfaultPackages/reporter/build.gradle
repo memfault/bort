@@ -19,8 +19,6 @@ android {
         versionCode loadVersionCode() as Integer
         versionName loadVersionName() as String
 
-        buildConfigField "String", "BORT_APPLICATION_ID", "\"" + bortProperty("BORT_APPLICATION_ID") + "\""
-
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 

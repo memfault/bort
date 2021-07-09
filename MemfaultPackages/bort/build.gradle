@@ -6,7 +6,7 @@ apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlinx-serialization'
 apply from: "../properties.gradle"
 
-def keystoreProperties = loadKeystoreProperties()
+def keystoreProperties = loadBortKeystoreProperties()
 def keystoreFilePath = getKeystoreFilePath()
 def generatedSettingsAssets = getBortSettingsAssetsPath(project.rootProject.rootDir)
 
@@ -88,7 +88,7 @@ android {
 
 dependencies {
     implementation project(':bort-shared')
-    implementation project(':structured-log-lib')
+    implementation project(':custom-event-lib')
 
     implementation deps.kotlin.stdlib
     implementation deps.kotlin.coroutines
@@ -112,6 +112,8 @@ dependencies {
     testRuntimeOnly deps.test.junitJupiterEngine
     testRuntimeOnly deps.test.junitVintageEngine
     testImplementation deps.test.coroutines
+    // Required for unit tests to access JSONObject
+    testImplementation deps.test.json
     testImplementation deps.test.mockk
     testImplementation deps.test.mockWebServer
     testImplementation deps.test.robolectric

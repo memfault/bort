@@ -51,7 +51,7 @@ class SettingsUpdateTaskTest {
                 val map = mockk<TokenBucketMap>()
                 val bucket = mockk<TokenBucket>()
                 every {
-                    bucket.take(any())
+                    bucket.take(any(), tag = "settings")
                 } returns true
                 every {
                     map.upsertBucket(any(), any(), any())
@@ -63,7 +63,7 @@ class SettingsUpdateTaskTest {
 
     @Test
     fun testValidResponse() {
-        val response = SETTINGS_FIXTURE.toSettings().copy(bortMinLogLevel = LogLevel.NONE.level)
+        val response = SETTINGS_FIXTURE.toSettings().copy(bortMinLogcatLevel = LogLevel.NONE.level)
         val service = mockk<SettingsUpdateService> {
             coEvery { settings(any(), any(), any()) } answers {
                 FetchedSettings.FetchedSettingsContainer(SETTINGS_FIXTURE.toSettings())

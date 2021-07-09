@@ -1,5 +1,33 @@
 # Memfault Bort Changelog
 
+## v3.6.0 - July 9, 2021
+
+#### :boom: Breaking Changes
+
+- Structured Logging (introduced in 3.5.0) has been renamed to Custom Events.
+  Any code using the `StructuredLog` API from the `structured-log-lib` library
+  (now removed) must be changed to call the equivalent methods in the
+  `CustomEvent` API from the `custom-event-lib` library.
+
+#### :chart_with_upwards_trend: Improvements
+
+- Fixed Custom Events (formerly: Structured Logs) on devices where
+  `RUNTIME_ENABLE_REQUIRED=false`. These devices would fail to upload events.
+- Fixed SDK validation script (`bort_cli.py --validate-sdk-integration`) when
+  running on Windows (this previously reported incorrect failures).
+- Added new metrics and Custom Events reporting the behavior and impact of the
+  Bort SDK, to enable Memfault to track down any issues that may arise with
+  Bort.
+- The SDK patch script now works correctly when cuttlefish emulator directories
+  are missing.
+
+#### :house: Internal
+
+- OTA update client: a new OTA update client is included in this release. This
+  is not yet ready for use (and is not yet documented), and is not included when
+  building. The new OTA update client will be available in a future Bort
+  release.
+
 ## v3.5.0 - June 2, 2021
 
 #### :rocket: New Features

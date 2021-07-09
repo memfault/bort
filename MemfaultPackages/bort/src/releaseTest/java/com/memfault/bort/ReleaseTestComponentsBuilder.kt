@@ -6,6 +6,10 @@ import androidx.preference.PreferenceManager
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import com.memfault.bort.dropbox.testDropBoxEntryProcessors
+import com.memfault.bort.http.logAttempt
+import com.memfault.bort.http.logFailure
+import com.memfault.bort.http.logTimeout
+import com.memfault.bort.http.logTimings
 import com.memfault.bort.requester.BugReportRequestWorker
 import com.memfault.bort.selfTesting.SelfTestWorker
 import com.memfault.bort.settings.DataScrubbingSettings
@@ -33,21 +37,27 @@ internal class ReleaseTestComponentsBuilder(
 ) {
     init {
         loggingInterceptor = Interceptor { chain ->
-            val request: Request = chain.request()
-            val t1: Long = System.nanoTime()
-            Logger.v("Sending request ${request.url} on ${chain.connection()} ${request.headers}")
-            val response: Response = chain.proceed(request)
-            val t2: Long = System.nanoTime()
-            Logger.v(
-                """Received response for ${response.request.url} in ${String.format("%.1f", (t2 - t1) / 1e6)} ms
+            logTimeout {
+                logAttempt()
+                val request: Request = chain.request()
+                val t1: Long = System.nanoTime()
+                Logger.v("Sending request ${request.url} on ${chain.connection()} ${request.headers}")
+                val response: Response = chain.proceed(request)
+                val t2: Long = System.nanoTime()
+                val delta = (t2 - t1) / 1e6
+                logTimings(delta.toLong())
+                Logger.v(
+                    """Received response for ${response.request.url} in ${String.format("%.1f", delta)} ms
                    ${response.headers}
-                """.trimIndent()
-            )
-            if (!response.isSuccessful) {
-                Logger.w("Request failed! code=${response.code}, message=${response.message}")
-            }
+                    """.trimIndent()
+                )
+                if (!response.isSuccessful) {
+                    logFailure(response.code)
+                    Logger.w("Request failed! code=${response.code}, message=${response.message}")
+                }
 
-            response
+                response
+            }
         }
 
         interceptingWorkerFactory = object : InterceptingWorkerFactory {
@@ -126,7 +136,7 @@ class PersistentSettingsProvider(
     // TODO: review this, the backend will override settings through dynamic settings update
     //  and lower the log level from TEST to whatever is the default (usually verbose) and
     //  it makes some tests fail
-    override val minLogLevel = LogLevel.TEST
+    override val minLogcatLevel = LogLevel.TEST
 
     // Backend might return this as disabled but e2e tests require it
     override val dropBoxSettings = object : DropBoxSettings by super.dropBoxSettings {

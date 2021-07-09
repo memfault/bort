@@ -67,4 +67,6 @@ class BortEnabledTestProvider(private var enabled: Boolean = true) : BortEnabled
     override fun isEnabled(): Boolean {
         return enabled
     }
+
+    override fun requiresRuntimeEnable(): Boolean = true
 }

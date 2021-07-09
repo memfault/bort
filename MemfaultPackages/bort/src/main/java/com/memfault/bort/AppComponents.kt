@@ -101,6 +101,7 @@ data class AppComponents(
     val jitterDelayProvider: JitterDelayProvider,
     val dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider,
     val bortSystemCapabilities: BortSystemCapabilities,
+    val metrics: BuiltinMetricsStore,
 ) {
     open class Builder(
         private val context: Context,
@@ -390,7 +391,7 @@ data class AppComponents(
                             getTokenBucketFactory = {
                                 RealTokenBucketFactory(
                                     defaultCapacity = 2,
-                                    defaultPeriod = settingsProvider.bugReportSettings.requestInterval / 2,
+                                    defaultPeriod = settingsProvider.bugReportSettings.requestInterval * 0.8,
                                 )
                             },
                         )
@@ -471,6 +472,7 @@ data class AppComponents(
                 jitterDelayProvider = jitterDelayProvider,
                 dropBoxProcessedEntryCursorProvider = dropBoxProcessedEntryCursorProvider,
                 bortSystemCapabilities = bortSystemCapabilities,
+                metrics = builtinMetricsStore,
             )
         }
     }
@@ -590,6 +592,7 @@ class DefaultWorkerFactory(
                 deviceInfoProvider = deviceInfoProvider,
                 builtinMetricsStore = builtinMetricsStore,
                 tokenBucketStore = metricsPeriodicTaskTokenBucketStore,
+                packageManagerClient = packageManagerClient,
             )
             BugReportRequestTimeoutTask::class.qualifiedName -> BugReportRequestTimeoutTask(
                 context = context,
@@ -656,6 +659,8 @@ class BortAlwaysEnabledProvider : BortEnabledProvider {
     override fun isEnabled(): Boolean {
         return true
     }
+
+    override fun requiresRuntimeEnable(): Boolean = false
 }
 
 /** A preference-backed provider of the user's opt in state. */
@@ -671,4 +676,5 @@ class PreferenceBortEnabledProvider(
     override fun setEnabled(isOptedIn: Boolean) = setValue(isOptedIn)
 
     override fun isEnabled(): Boolean = getValue()
+    override fun requiresRuntimeEnable(): Boolean = true
 }

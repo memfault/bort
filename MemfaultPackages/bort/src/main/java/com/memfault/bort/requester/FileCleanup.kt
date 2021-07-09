@@ -1,6 +1,9 @@
 package com.memfault.bort.requester
 
 import com.memfault.bort.fileExt.deleteSilently
+import com.memfault.bort.metrics.BUG_REPORT_DELETED_OLD
+import com.memfault.bort.metrics.BUG_REPORT_DELETED_STORAGE
+import com.memfault.bort.metrics.metrics
 import com.memfault.bort.shared.Logger
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -35,11 +38,13 @@ internal fun cleanupBugReports(
         bytesUsed += file.length()
         if (bytesUsed > maxBugReportStorageBytes) {
             Logger.d("cleanupBugReports: Over bugreport storage limit: deleting ${file.name}")
+            metrics()?.increment(BUG_REPORT_DELETED_STORAGE)
             file.deleteSilently()
         } else if (maxBugReportAge != ZERO) {
             val age = (timeNowMs - file.lastModified()).toDuration(TimeUnit.MILLISECONDS)
             if (age > maxBugReportAge) {
                 Logger.d("Older than max bugreport age: deleting ${file.name}")
+                metrics()?.increment(BUG_REPORT_DELETED_OLD)
                 file.deleteSilently()
             }
         }

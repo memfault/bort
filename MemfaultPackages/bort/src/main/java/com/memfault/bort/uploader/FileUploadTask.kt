@@ -67,7 +67,7 @@ internal class FileUploadTask(
 ) : Task<FileUploadTaskInput>() {
     suspend fun upload(file: File, payload: FileUploadPayload, shouldCompress: Boolean): TaskResult {
         fun fail(message: String): TaskResult {
-            Logger.e("$message file=(${file.path})")
+            Logger.w("upload.failed", mapOf("message" to message, "file" to file.path))
             return TaskResult.FAILURE
         }
 

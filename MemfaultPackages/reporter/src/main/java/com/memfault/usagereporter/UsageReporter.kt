@@ -18,13 +18,13 @@ class UsageReporter : Application() {
 
         // Reads a previously-set log level
         val preferenceManager = PreferenceManager.getDefaultSharedPreferences(this)
-        Logger.minLevel = RealLogLevelPreferenceProvider(preferenceManager).getLogLevel()
+        Logger.minLogcatLevel = RealLogLevelPreferenceProvider(preferenceManager).getLogLevel()
 
         with(BuildConfigSdkVersionInfo) {
             Logger.v(
                 """
                 |Settings:
-                |  minLogLevel=${Logger.minLevel}
+                |  minLogLevel=${Logger.minLogcatLevel}
                 |  build=${Build.TYPE}
                 |SDK Version Info:
                 |  appVersionName=$appVersionName

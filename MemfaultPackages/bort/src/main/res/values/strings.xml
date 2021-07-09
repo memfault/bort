@@ -8,4 +8,12 @@
     <string name="update_structured_log_config_description">Allows the application to pass
         configuration updates to the structured log daemon.
     </string>
+    <string name="read_software_update_settings">Read Software Update Settings</string>
+    <string name="read_software_update_settings_description">Allows an application to read software
+        update configurations from Bort.
+    </string>
+    <string name="add_internal_metrics">Add internal metrics</string>
+    <string name="add_internal_metrics_description">Allows an application to add internal metrics
+        via Bort.
+    </string>
 </resources>

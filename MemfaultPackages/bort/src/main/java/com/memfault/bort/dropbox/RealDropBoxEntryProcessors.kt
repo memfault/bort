@@ -87,7 +87,6 @@ fun realDropBoxEntryProcessors(
         tokenBucketStore = structuredLogTokenBucketStore,
         enqueueFileUpload = enqueueFileUpload,
         combinedTimeProvider = combinedTimeProvider,
-        builtinMetricsStore = builtinMetricsStore,
         structuredLogDataSourceEnabledConfig = { settingsProvider.structuredLogSettings.dataSourceEnabled }
     )
     return mapOf(

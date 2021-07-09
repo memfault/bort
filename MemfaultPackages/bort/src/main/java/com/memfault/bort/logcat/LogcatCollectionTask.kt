@@ -29,7 +29,9 @@ class LogcatCollectionTask(
     override fun convertAndValidateInputData(inputData: Data) = Unit
 
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult {
-        if (!tokenBucketStore.takeSimple()) return TaskResult.FAILURE
+        if (!tokenBucketStore.takeSimple(tag = "logcat")) {
+            return TaskResult.FAILURE
+        }
 
         val now = combinedTimeProvider.now()
         val result = logcatCollector.collect() ?: return TaskResult.SUCCESS

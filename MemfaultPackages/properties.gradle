@@ -10,14 +10,23 @@ ext.bortProperty = { propName ->
     return bortProperties[propName]
 }
 
-ext.loadKeystoreProperties = {
-    ext.keystorePropertiesFile = rootProject.file(bortProperty("BORT_KEYSTORE_PROPERTIES_PATH"))
+ext.loadKeystoreProperties = { propName ->
+    ext.keystorePropertiesFile = rootProject.file(bortProperty(propName))
 
     def keystoreProperties = new Properties()
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
     ext.keystoreProperties = keystoreProperties
     return keystoreProperties
 }
+
+ext.loadBortKeystoreProperties = {
+    return loadKeystoreProperties("BORT_KEYSTORE_PROPERTIES_PATH")
+}
+
+ext.loadBortOtaKeystoreProperties = {
+    return loadKeystoreProperties("BORT_OTA_KEYSTORE_PROPERTIES_PATH")
+}
+
 
 ext.getKeystoreFilePath = {
     def relativePath = ext.keystoreProperties['storeFile']

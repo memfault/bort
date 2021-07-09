@@ -5,6 +5,7 @@ import androidx.work.Data
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.FileUploadToken
 import com.memfault.bort.HeartbeatFileUploadPayload
+import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
@@ -30,6 +31,7 @@ class MetricsCollectionTask(
     private val deviceInfoProvider: DeviceInfoProvider,
     private val builtinMetricsStore: BuiltinMetricsStore,
     private val tokenBucketStore: TokenBucketStore,
+    private val packageManagerClient: PackageManagerClient,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -49,7 +51,7 @@ class MetricsCollectionTask(
                 collectionTime = now,
                 heartbeatIntervalMs = heartbeatInterval.toLongMilliseconds(),
                 customMetrics = emptyMap(),
-                builtinMetrics = builtinMetricsStore.collectMetrics() + constantBuiltinMetrics,
+                builtinMetrics = builtinMetricsStore.collectMetrics() + builtinMetrics(packageManagerClient),
                 attachments = HeartbeatFileUploadPayload.Attachments(
                     batteryStats = HeartbeatFileUploadPayload.Attachments.BatteryStats(
                         file = FileUploadToken(
@@ -67,7 +69,9 @@ class MetricsCollectionTask(
     }
 
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult {
-        if (!tokenBucketStore.takeSimple()) return TaskResult.FAILURE
+        if (!tokenBucketStore.takeSimple(tag = "metrics")) {
+            return TaskResult.FAILURE
+        }
 
         val now = combinedTimeProvider.now()
         val heartbeatInterval =
@@ -90,6 +94,7 @@ class MetricsCollectionTask(
             return TaskResult.FAILURE
         } catch (e: Exception) {
             Logger.e("Failed to collect batterystats", e)
+            metrics()?.increment(BATTERYSTATS_FAILED)
             return TaskResult.FAILURE
         }
 

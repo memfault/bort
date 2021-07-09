@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+    <Preference app:key="check_for_updates"
+        app:icon="@drawable/ic_baseline_system_update_24"
+        app:title="@string/preference_title_check_for_updates"
+        app:summary="@string/preference_summary_check_for_updates" />
+</PreferenceScreen>

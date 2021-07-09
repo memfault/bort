@@ -82,7 +82,7 @@ class TokenBucketStoreTest {
             ).edit { map ->
                 val bucket = map.upsertBucket(key = key, capacity = capacity, period = period)
                 assertNotNull(bucket)
-                bucket?.take() // decrements count
+                bucket?.take(tag = "test") // decrements count
                 blockResult
             }
         )
@@ -174,10 +174,10 @@ class TokenBucketStoreTest {
             getTokenBucketFactory = { tokenBucketFactory },
         )
         assertEquals(true, store.edit { it.isFull })
-        assertEquals(false, store.edit { it.upsertBucket(key)?.take() })
+        assertEquals(false, store.edit { it.upsertBucket(key)?.take(tag = "test") })
         store.reset()
         assertEquals(StoredTokenBucketMap(), storage.map)
         assertEquals(false, store.edit { it.isFull })
-        assertEquals(true, store.edit { it.upsertBucket(key)?.take() })
+        assertEquals(true, store.edit { it.upsertBucket(key)?.take(tag = "test") })
     }
 }

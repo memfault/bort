@@ -21,6 +21,7 @@ logging.basicConfig(format="%(message)s", level=logging.INFO)
 
 DEFAULT_ENCODING = "utf-8"
 PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
+PLACEHOLDER_BORT_OTA_APP_ID = "vnd.myandroid.bort.otaappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
 RELEASES = range(8, 11 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -204,7 +205,7 @@ class PatchAOSPCommand(Command):
             logging.info("Skipping patch %r: already applied!", patch_relpath)
             return True
 
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, FileNotFoundError):
             return False
 
     def _apply_patch(self, repo_subdir, patch_relpath, content):
@@ -243,15 +244,17 @@ def _replace_placeholders_in_file(file_abspath, mapping):
 
 
 class PatchBortCommand(Command):
-    def __init__(self, path, bort_app_id, vendor_feature_name=None):
+    def __init__(self, path, bort_app_id, bort_ota_app_id=None, vendor_feature_name=None):
         self._path = path
         self._bort_app_id = bort_app_id
+        self._bort_ota_app_id = bort_ota_app_id
         self._vendor_feature_name = vendor_feature_name or bort_app_id
 
     @classmethod
     def register(cls, create_parser):
         parser = create_parser(cls, "patch-bort")
         parser.add_argument("--bort-app-id", type=android_application_id_type, required=True)
+        parser.add_argument("--bort-ota-app-id", type=android_application_id_type, required=False)
         parser.add_argument(
             "--vendor-feature-name", type=str, help="Defaults to the provided Application ID"
         )
@@ -265,13 +268,18 @@ class PatchBortCommand(Command):
         for file_relpath in [
             "bort.properties",
         ]:
+            replacements = {
+                PLACEHOLDER_BORT_APP_ID: self._bort_app_id,
+                PLACEHOLDER_FEATURE_NAME: self._vendor_feature_name,
+            }
+
+            if self._bort_ota_app_id:
+                replacements[PLACEHOLDER_BORT_OTA_APP_ID] = self._bort_ota_app_id
+
             file_abspath = os.path.join(self._path, file_relpath)
             _replace_placeholders_in_file(
                 file_abspath,
-                mapping={
-                    PLACEHOLDER_BORT_APP_ID: self._bort_app_id,
-                    PLACEHOLDER_FEATURE_NAME: self._vendor_feature_name,
-                },
+                mapping=replacements,
             )
 
 
@@ -289,11 +297,12 @@ def _get_shell_cmd_output_and_errors(
             sys.exit(str(arg_error))
 
     try:
-        output = subprocess.check_output(_shell_command(), stderr=sys.stderr)
-        result: str = output.decode("utf-8")[:-1]  # Trim trailing newline
-        # In case the host system is Windows, adb will used \r\n as line endings,
-        # replace them with Unix-style line endings:
-        result.replace("\r\n", "\n")
+        # In case the host system is Windows, adb will used \r\n as line endings, and this breaks our regexes, so
+        # configure universal newlines.
+        output = subprocess.check_output(
+            _shell_command(), stderr=sys.stderr, encoding="utf-8", universal_newlines=True
+        )
+        result: str = output[:-1]  # Trim trailing newline
         return result, []
     except subprocess.CalledProcessError as error:
         return None, [str(error)]

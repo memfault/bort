@@ -9,7 +9,6 @@ import com.memfault.bort.PackageNameAllowList
 import com.memfault.bort.TombstoneFileUploadMetadata
 import com.memfault.bort.logcat.FakeNextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
-import com.memfault.bort.metrics.DROP_BOX_TRACES_DROP_COUNT
 import com.memfault.bort.metrics.makeFakeMetricRegistry
 import com.memfault.bort.metrics.metricForTraceTag
 import com.memfault.bort.parsers.EXAMPLE_NATIVE_BACKTRACE
@@ -139,7 +138,7 @@ class TombstoneEntryProcessorTest {
             // Check that dropped items are counted correctly
             assert(
                 (runs - TEST_BUCKET_CAPACITY + 1).toFloat()
-                    == builtInMetricsStore.collect(DROP_BOX_TRACES_DROP_COUNT)
+                    == builtInMetricsStore.collect("rate_limit_applied_dropbox_SYSTEM_TOMBSTONE")
             )
             verify(exactly = TEST_BUCKET_CAPACITY) { mockHandleEventOfInterest(any()) }
         }

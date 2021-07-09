@@ -5,6 +5,8 @@ import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
+import com.memfault.bort.metrics.SETTINGS_CHANGED
+import com.memfault.bort.metrics.metrics
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.takeSimple
@@ -27,7 +29,9 @@ class SettingsUpdateTask(
     override val getMaxAttempts: () -> Int = { 1 }
 
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult {
-        if (!tokenBucketStore.takeSimple()) return TaskResult.FAILURE
+        if (!tokenBucketStore.takeSimple(tag = "settings")) {
+            return TaskResult.FAILURE
+        }
         return try {
             val deviceInfo = deviceInfoProvider.getDeviceInfo()
             val new = settingsUpdateServiceFactory().settings(
@@ -40,6 +44,7 @@ class SettingsUpdateTask(
             val changed = old != new
 
             if (changed) {
+                metrics()?.increment(SETTINGS_CHANGED)
                 storedSettingsPreferenceProvider.set(new)
 
                 // Force a reload on the next settings read

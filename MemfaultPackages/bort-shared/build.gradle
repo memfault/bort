@@ -21,6 +21,7 @@ android {
         buildConfigField "int", "UPSTREAM_VERSION_CODE", "${upstreamVersionCode()}"
         buildConfigField "String", "UPSTREAM_GIT_SHA", "\"${upstreamGitSha()}\""
         buildConfigField "String", "CURRENT_GIT_SHA", "\"${currentGitSha()}\""
+        buildConfigField "String", "BORT_APPLICATION_ID", "\"" + bortProperty("BORT_APPLICATION_ID") + "\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -50,7 +51,7 @@ android {
 }
 
 dependencies {
-    implementation project(':structured-log-lib')
+    implementation project(':custom-event-lib')
 
     implementation deps.kotlin.stdlib
     implementation deps.kotlin.coroutines

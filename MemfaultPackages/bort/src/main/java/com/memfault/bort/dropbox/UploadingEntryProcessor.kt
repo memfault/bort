@@ -9,7 +9,6 @@ import com.memfault.bort.PackageNameAllowList
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
-import com.memfault.bort.metrics.DROP_BOX_TRACES_DROP_COUNT
 import com.memfault.bort.metrics.metricForTraceTag
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BaseBootRelativeTime
@@ -59,10 +58,10 @@ class UploadingEntryProcessor(
     override val tags: List<String>
         get() = delegate.tags
 
-    private fun allowedByRateLimit(tokenBucketKey: String): Boolean =
+    private fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean =
         tokenBucketStore.edit { map ->
             val bucket = map.upsertBucket(tokenBucketKey) ?: return@edit false
-            bucket.take()
+            bucket.take(tag = "dropbox_$tag")
         }
 
     override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
@@ -82,8 +81,7 @@ class UploadingEntryProcessor(
 
             builtinMetricsStore.increment(metricForTraceTag(entry.tag))
 
-            if (!allowedByRateLimit(info.tokenBucketKey)) {
-                builtinMetricsStore.increment(DROP_BOX_TRACES_DROP_COUNT)
+            if (!allowedByRateLimit(info.tokenBucketKey, entry.tag)) {
                 return
             }
 

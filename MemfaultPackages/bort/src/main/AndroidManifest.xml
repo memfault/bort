@@ -24,6 +24,18 @@
         android:description="@string/update_structured_log_config_description"
         android:protectionLevel="signature|privileged" />
 
+    <permission
+        android:name="com.memfault.bort.permission.READ_SOFTWARE_UPDATE_SETTINGS"
+        android:label="@string/read_software_update_settings"
+        android:description="@string/read_software_update_settings_description"
+        android:protectionLevel="signature|privileged" />
+
+    <permission
+        android:name="com.memfault.bort.permission.ADD_INTERNAL_METRICS"
+        android:label="@string/add_internal_metrics"
+        android:description="@string/add_internal_metrics_description"
+        android:protectionLevel="signature|privileged" />
+
     <!-- Prevent app being installed on non-vendor devices -->
     <uses-feature android:name="${bortFeatureName}" />
 
@@ -103,6 +115,20 @@
                 <action android:name="com.memfault.intent.action.BORT_ENABLE" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name=".receivers.MetricsReceiver"
+            android:permission="com.memfault.bort.permission.ADD_INTERNAL_METRICS">
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.INTERNAL_METRIC" />
+            </intent-filter>
+        </receiver>
+
+        <provider
+            android:authorities="com.memfault.bort.softwareupdate.settings"
+            android:name=".settings.SoftwareUpdateSettingsContentProvider"
+            android:exported="true"
+            android:readPermission="com.memfault.bort.permission.READ_SOFTWARE_UPDATE_SETTINGS" />
     </application>
 
 </manifest>

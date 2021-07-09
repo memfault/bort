@@ -154,8 +154,7 @@ internal open class BugReportRequestWorker(
 
     override fun doWork(): Result =
         if (Bort.appComponents().isEnabled() &&
-            tokenBucketStore.takeSimple() &&
-            requestBugReport(
+            tokenBucketStore.takeSimple(tag = "bugreport_periodic") && requestBugReport(
                     context = applicationContext,
                     pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
                     request = inputData.toBugReportOptions(),
