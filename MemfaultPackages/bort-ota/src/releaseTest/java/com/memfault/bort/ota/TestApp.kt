@@ -78,12 +78,12 @@ class TestApp : App() {
     }
 
     private fun createTestActionHandler(context: Context): UpdateActionHandler {
+        val settingsProvider = BortSoftwareUpdateSettingsProvider(context.contentResolver)
         return RecoveryBasedUpdateActionHandler(
-            softwareUpdateChecker = createTestSoftwareUpdateChecker(
-                BortSoftwareUpdateSettingsProvider(context.contentResolver)
-            ),
+            softwareUpdateChecker = createTestSoftwareUpdateChecker(settingsProvider),
             recoveryInterface = createLoggingRecoveryInterface(),
             startUpdateDownload = { DownloadOtaService.download(context, it) },
+            currentSoftwareVersion = settingsProvider.settings()?.currentVersion ?: "n/a",
             metricLogger = RealMetricLogger(context),
         )
     }

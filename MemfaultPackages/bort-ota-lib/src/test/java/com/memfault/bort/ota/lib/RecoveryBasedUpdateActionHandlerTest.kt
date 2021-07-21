@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
+private const val OLD_SOFTWARE_VERSION = "old"
+
 class RecoveryBasedUpdateActionHandlerTest {
     private lateinit var softwareUpdateChecker: SoftwareUpdateChecker
     private lateinit var recoveryInterface: RecoveryInterface
@@ -40,7 +42,13 @@ class RecoveryBasedUpdateActionHandlerTest {
             every { this@mockk.invoke(any()) } answers { }
         }
         handler =
-            RecoveryBasedUpdateActionHandler(softwareUpdateChecker, recoveryInterface, startUpdateDownload, { })
+            RecoveryBasedUpdateActionHandler(
+                softwareUpdateChecker = softwareUpdateChecker,
+                recoveryInterface = recoveryInterface,
+                startUpdateDownload = startUpdateDownload,
+                currentSoftwareVersion = OLD_SOFTWARE_VERSION,
+                metricLogger = { },
+            )
     }
 
     suspend fun setState(state: State) = collectedStates.add(state)
@@ -111,10 +119,8 @@ class RecoveryBasedUpdateActionHandlerTest {
 
     @Test
     fun testInstallUpdateSucceeds() = runBlocking {
-        // This should never happen in a real use case because install only ever happens after the update is verified
-        // and a verified update will always be able to call install(). Nevertheless, test that we go back to idle.
         handler.handle(State.ReadyToInstall(ota!!, path = "dummy"), Action.InstallUpdate, ::setState, ::triggerEvent)
-        assertEquals(listOf<State>(), collectedStates)
+        assertEquals(listOf<State>(State.RebootedForInstallation(ota!!, OLD_SOFTWARE_VERSION)), collectedStates)
         assertEquals(listOf<Event>(), collectedEvents)
         verify(exactly = 1) { recoveryInterface.install(File("dummy")) }
     }
@@ -125,7 +131,15 @@ class RecoveryBasedUpdateActionHandlerTest {
         // and a verified update will always be able to call install(). Nevertheless, test that we go back to idle.
         every { recoveryInterface.install(any()) } throws IllegalStateException("oops")
         handler.handle(State.ReadyToInstall(ota!!, path = "dummy"), Action.InstallUpdate, ::setState, ::triggerEvent)
-        assertEquals(listOf(State.Idle), collectedStates)
+        assertEquals(
+            listOf(
+                // Shortly transitioned while attempted rebooting
+                State.RebootedForInstallation(ota!!, OLD_SOFTWARE_VERSION),
+                // Then back to idle because it failed
+                State.Idle,
+            ),
+            collectedStates
+        )
         assertEquals(listOf<Event>(), collectedEvents)
         verify(exactly = 1) { recoveryInterface.install(File("dummy")) }
     }

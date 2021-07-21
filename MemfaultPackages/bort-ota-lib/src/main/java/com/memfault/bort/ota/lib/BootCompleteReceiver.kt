@@ -11,13 +11,13 @@ import androidx.work.WorkManager
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.InternalMetric
 import com.memfault.bort.shared.InternalMetric.Companion.OTA_BOOT_COMPLETED
+import com.memfault.bort.shared.InternalMetric.Companion.OTA_REBOOT_UPDATE_ERROR
+import com.memfault.bort.shared.InternalMetric.Companion.OTA_REBOOT_UPDATE_SUCCESS
 import com.memfault.bort.shared.InternalMetric.Companion.sendMetric
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.goAsync
 import java.io.File
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 /**
  * This receiver ensures that the initial state of the updater is correctly set once the device boots. It deletes
@@ -44,6 +44,23 @@ class BootCompleteReceiver : BroadcastReceiver() {
 
         schedulePeriodicUpdateCheck(context, updater.settings.updateCheckIntervalMs)
         goAsync {
+            when (val currentState = updater.updateState.value) {
+                // When booting from this state, a reboot to update was requested. If the version changed, report this
+                // as a success, otherwise as an error.
+                is State.RebootedForInstallation -> {
+                    val updateSuccessful = currentState.updatingFromVersion != updater.settings.currentVersion
+                    context.sendMetric(
+                        InternalMetric(
+                            key = if (updateSuccessful) OTA_REBOOT_UPDATE_SUCCESS else OTA_REBOOT_UPDATE_ERROR
+                        )
+                    )
+                    // Emit actions if clients want to let users know about update failures
+                    updater.triggerEvent(
+                        if (updateSuccessful) Event.RebootToUpdateSucceeded
+                        else Event.RebootToUpdateFailed
+                    )
+                }
+            }
             updater.setState(State.Idle)
         }
     }
@@ -67,20 +84,5 @@ class BootCompleteReceiver : BroadcastReceiver() {
 
     private fun deleteUpdateFileIfExists() {
         File(OTA_PATH).let { if (it.exists()) it.delete() }
-    }
-}
-
-private fun BroadcastReceiver.goAsync(
-    coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Default),
-    block: suspend () -> Unit
-) {
-    val result = goAsync()
-    coroutineScope.launch {
-        try {
-            block()
-        } finally {
-            // Always call finish(), even if the coroutineScope was cancelled
-            result.finish()
-        }
     }
 }

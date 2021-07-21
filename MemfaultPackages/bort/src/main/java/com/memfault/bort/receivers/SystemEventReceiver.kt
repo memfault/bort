@@ -16,6 +16,7 @@ import com.memfault.bort.logcat.handleTimeChanged
 import com.memfault.bort.readLinuxBootId
 import com.memfault.bort.settings.applyReporterServiceSettings
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.goAsync
 
 class SystemEventReceiver : BortEnabledFilteringReceiver(
     setOf(

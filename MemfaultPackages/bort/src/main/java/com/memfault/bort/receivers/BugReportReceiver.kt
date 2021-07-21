@@ -9,6 +9,7 @@ import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.shared.INTENT_EXTRA_BUG_REPORT_REQUEST_ID
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.goAsync
 import com.memfault.bort.uploader.BugReportFileUploadContinuation
 import com.memfault.bort.uploader.enqueueFileUploadTask
 import java.io.File

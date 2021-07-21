@@ -47,6 +47,8 @@ data class InternalMetric(
         const val OTA_INSTALL_RECOVERY = "ota_install_recovery"
         const val OTA_INSTALL_RECOVERY_FAILED = "ota_install_recovery_failed"
         const val OTA_INSTALL_RECOVERY_VERIFICATION_FAILED = "ota_install_recovery_verification_failed"
+        const val OTA_REBOOT_UPDATE_SUCCESS = "ota_reboot_update_success"
+        const val OTA_REBOOT_UPDATE_ERROR = "ota_reboot_update_error"
 
         fun fromIntent(intent: Intent): InternalMetric? = try {
             val json = intent.getStringExtra(CONTENT_VALUES_KEY) ?: ""

@@ -36,6 +36,7 @@ class RecoveryBasedUpdateActionHandler(
     private val softwareUpdateChecker: SoftwareUpdateChecker,
     private val recoveryInterface: RecoveryInterface,
     private val startUpdateDownload: (url: String) -> Unit,
+    private val currentSoftwareVersion: String,
     private val metricLogger: MetricLogger,
 ) : UpdateActionHandler {
     override suspend fun handle(
@@ -86,6 +87,7 @@ class RecoveryBasedUpdateActionHandler(
             }
             is Action.InstallUpdate -> {
                 if (state is State.ReadyToInstall && state.path != null) {
+                    setState(State.RebootedForInstallation(state.ota, currentSoftwareVersion))
                     if (!installUpdate(File(state.path))) {
                         // Back to square one, this should not happen, ever. At this point the update is verified
                         // and calling install will necessarily succeed. But go back to idle just in case.
@@ -157,6 +159,7 @@ fun realRecoveryBasedUpdateActionHandler(
         softwareUpdateChecker = realSoftwareUpdateChecker(settings, metricLogger),
         startUpdateDownload = { url -> DownloadOtaService.download(context, url) },
         recoveryInterface = RealRecoveryInterface(context),
+        currentSoftwareVersion = settings.currentVersion,
         metricLogger = metricLogger,
     )
 }

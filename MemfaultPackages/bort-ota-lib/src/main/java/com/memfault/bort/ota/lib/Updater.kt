@@ -59,6 +59,14 @@ sealed class State {
     data class ReadyToInstall(val ota: Ota, val path: String? = null) : State()
 
     /**
+     * The device was rebooted to install the update.
+     * @param ota The update metadata.
+     * @param updatingFromVersion The version we are updating from.
+     */
+    @Serializable
+    data class RebootedForInstallation(val ota: Ota, val updatingFromVersion: String) : State()
+
+    /**
      * The update has failed.
      * @param ota The update metadata.
      * @param message A description on why the update failed.
@@ -122,6 +130,16 @@ sealed class Event {
      * There are no new available updates.
      */
     object NoUpdatesAvailable : Event()
+
+    /**
+     * The device rebooted and a new update was successful installed.
+     */
+    object RebootToUpdateSucceeded : Event()
+
+    /**
+     * The device rebooted and the update failed.
+     */
+    object RebootToUpdateFailed : Event()
 }
 
 /**
@@ -192,13 +210,17 @@ class Updater private constructor(
             state = updateState.value,
             action = action,
             setState = ::setState,
-            triggerEvent = _events::emit
+            triggerEvent = ::triggerEvent,
         )
     }
 
     fun setState(state: State) {
         stateStore.store(state)
         _updateState.value = state
+    }
+
+    suspend fun triggerEvent(event: Event) {
+        _events.emit(event)
     }
 
     companion object {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.memfault.bort.receivers
+package com.memfault.bort.shared
 
 import android.content.BroadcastReceiver
 import kotlinx.coroutines.CoroutineScope

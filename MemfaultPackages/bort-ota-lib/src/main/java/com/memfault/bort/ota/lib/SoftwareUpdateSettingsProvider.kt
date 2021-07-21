@@ -11,7 +11,7 @@ interface SoftwareUpdateSettingsProvider {
 }
 
 class BortSoftwareUpdateSettingsProvider(
-    val resolver: ContentResolver
+    private val resolver: ContentResolver
 ) : SoftwareUpdateSettingsProvider {
     override fun settings(): SoftwareUpdateSettings? =
         resolver.query(

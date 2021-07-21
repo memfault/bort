@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import com.memfault.bort.dropbox.enqueueDropBoxQueryTask
 import com.memfault.bort.shared.INTENT_ACTION_DROPBOX_ENTRY_ADDED
+import com.memfault.bort.shared.goAsync
 
 class DropBoxEntryAddedReceiver : BortEnabledFilteringReceiver(
     setOf(INTENT_ACTION_DROPBOX_ENTRY_ADDED)

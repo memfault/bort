@@ -1,5 +1,13 @@
 # Memfault Bort Changelog
 
+## v3.6.1 - July 21, 2021
+
+#### :chart_with_upwards_trend: Improvements
+
+- In 3.6.0, the OTA app had ot be configured with an application ID and
+  certificate (even though not being included in the build). This is fixed - OTA
+  app configuration is no longer required when not being used.
+
 ## v3.6.0 - July 9, 2021
 
 #### :boom: Breaking Changes
