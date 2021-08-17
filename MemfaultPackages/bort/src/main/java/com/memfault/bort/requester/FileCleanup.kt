@@ -34,19 +34,23 @@ internal fun cleanupBugReports(
     val filesNewestFirst = bugReportDir.listFiles()?.toList()?.sortedByDescending { it.lastModified() } ?: return
 
     var bytesUsed: Long = 0
+    val deleted = mutableListOf<String>()
     filesNewestFirst.filter { it.isFile }.forEach { file ->
         bytesUsed += file.length()
         if (bytesUsed > maxBugReportStorageBytes) {
-            Logger.d("cleanupBugReports: Over bugreport storage limit: deleting ${file.name}")
+            deleted.add("storage: ${file.name}")
             metrics()?.increment(BUG_REPORT_DELETED_STORAGE)
             file.deleteSilently()
         } else if (maxBugReportAge != ZERO) {
             val age = (timeNowMs - file.lastModified()).toDuration(TimeUnit.MILLISECONDS)
             if (age > maxBugReportAge) {
-                Logger.d("Older than max bugreport age: deleting ${file.name}")
+                deleted.add("age: ${file.name}")
                 metrics()?.increment(BUG_REPORT_DELETED_OLD)
                 file.deleteSilently()
             }
         }
+    }
+    if (!deleted.isEmpty()) {
+        Logger.i("bugreport_cleanup_deleted", mapOf("deleted" to deleted))
     }
 }

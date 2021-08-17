@@ -93,7 +93,7 @@ class MetricsCollectionTask(
             Logger.w("Unable to connect to ReporterService to run batterystats")
             return TaskResult.FAILURE
         } catch (e: Exception) {
-            Logger.e("Failed to collect batterystats", e)
+            Logger.e("Failed to collect batterystats", mapOf(), e)
             metrics()?.increment(BATTERYSTATS_FAILED)
             return TaskResult.FAILURE
         }

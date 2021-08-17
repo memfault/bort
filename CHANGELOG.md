@@ -1,5 +1,14 @@
 # Memfault Bort Changelog
 
+## v3.6.2 - August 17, 2021
+
+#### :chart_with_upwards_trend: Improvements
+
+- Fix "Bort enabled" log (previously included incorrect "enabled" value).
+- Improve Bort internal logging and metrics.
+- Make periodic bugreport rate-limiting remotely controlled. This fixes an issue
+  where some bugreport collection was being rate-limited.
+
 ## v3.6.1 - July 21, 2021
 
 #### :chart_with_upwards_trend: Improvements

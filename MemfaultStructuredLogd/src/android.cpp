@@ -99,10 +99,11 @@ void createService(const char* storagePath) {
     signal(SIGTERM, signal_handler);
     std::thread dumpThread(&Dumper::run, dumper);
 
-    std::thread timeChangeDetector(detectTimeChanges, [storage](uint64_t time){
-        logRtcSync(storage, time);
-        ALOGV("time updated: %" PRIu64, time);
-    });
+    // Removed until we figure out how to either rate-limit, or use a metric instead.
+//    std::thread timeChangeDetector(detectTimeChanges, [storage](uint64_t time){
+//        logRtcSync(storage, time);
+//        ALOGV("time updated: %" PRIu64, time);
+//    });
 
     // This log is used in E2E testing to signal test readiness:
     ALOGT("MemfaultStructuredLogd ready");
@@ -110,7 +111,7 @@ void createService(const char* storagePath) {
     IPCThreadState::self()->joinThreadPool();
 
     // rtc change detetor handles sigterm
-    timeChangeDetector.join();
+//    timeChangeDetector.join();
 
     dumper->terminate();
     dumpThread.join();

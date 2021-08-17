@@ -93,6 +93,8 @@ open class DynamicSettingsProvider(
             get() = settings.bugReportFirstBugReportDelayAfterBoot.duration
         override val rateLimitingSettings: RateLimitingSettings
             get() = settings.bugReportRequestRateLimitingSettings
+        override val periodicRateLimitingPercentOfPeriod: Int
+            get() = settings.bugReportPeriodicRateLimitingPercentOfPeriod
     }
 
     override val dropBoxSettings = object : DropBoxSettings {

@@ -14,6 +14,8 @@ import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.enqueueWorkOnce
+import com.memfault.bort.metrics.UPLOAD_FILE_FILE_MISSING
+import com.memfault.bort.metrics.metrics
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.shared.Logger
 import java.io.File
@@ -77,6 +79,7 @@ internal class FileUploadTask(
         }
 
         if (!file.exists()) {
+            metrics()?.increment(UPLOAD_FILE_FILE_MISSING)
             return fail("File does not exist")
         }
 

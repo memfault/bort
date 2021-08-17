@@ -92,6 +92,7 @@ internal val EXPECTED_SETTINGS = FetchedSettings(
     bugReportMaxStoredAge = 0.days.boxed(),
     bugReportMaxUploadAttempts = 15,
     bugReportOptionsMinimal = true,
+    bugReportPeriodicRateLimitingPercentOfPeriod = 50,
     dataScrubbingRules = listOf(
         AndroidAppIdScrubbingRule("com.memfault.*"),
         AndroidAppIdScrubbingRule("com.yolo.*"),
@@ -185,6 +186,7 @@ internal val SETTINGS_FIXTURE = """
                 "bug_report.max_stored_age_ms" : 0,
                 "bug_report.max_upload_attempts": 15,
                 "bug_report.options.minimal": true,
+                "bug_report.periodic_rate_limiting_percent": 50,
                 "bug_report.request_rate_limiting_settings": {
                     "default_capacity": 3,
                     "default_period_ms": 1800000,

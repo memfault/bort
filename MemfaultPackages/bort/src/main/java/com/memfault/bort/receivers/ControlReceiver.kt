@@ -72,7 +72,7 @@ abstract class BaseControlReceiver : FilteringReceiver(
         if (wasEnabled == isNowEnabled) {
             return
         }
-        Logger.i(if (wasEnabled) "bort.enabled" else "bort.disabled", mapOf())
+        Logger.i(if (isNowEnabled) "bort.enabled" else "bort.disabled", mapOf())
 
         bortEnabledProvider.setEnabled(isNowEnabled)
 

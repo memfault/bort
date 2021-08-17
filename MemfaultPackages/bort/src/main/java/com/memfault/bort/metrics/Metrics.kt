@@ -2,6 +2,7 @@ package com.memfault.bort.metrics
 
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
+import android.os.Build
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.BuildConfig
 import com.memfault.bort.PackageManagerClient
@@ -15,6 +16,7 @@ const val BORT_STARTED = "bort_started"
 const val REQUEST_ATTEMPT = "request_attempt"
 const val REQUEST_TIMING = "request_timing"
 const val REQUEST_FAILED = "request_failed"
+const val UPLOAD_FILE_FILE_MISSING = "upload_failed_file_missing"
 const val RATE_LIMIT_APPLIED = "rate_limit_applied"
 const val BUG_REPORT_DELETED_STORAGE = "bug_report_deleted_storage"
 const val BUG_REPORT_DELETED_OLD = "bug_report_deleted_old"
@@ -25,6 +27,7 @@ private const val DROP_BOX_TRACE_TAG_COUNT_PER_HOUR_TEMPLATE = "drop_box_trace_%
 private const val BORT_VERSION_CODE = "bort_version_code"
 private const val USAGE_REPORTER_VERSION_CODE = "usagereporter_version_code"
 private const val RUNTIME_ENABLE_REQUIRED = "runtime_enable_required"
+private const val OS_VERSION = "os_version"
 
 // Value metrics are stored using 3 values:
 private const val VALUE_COUNT_POSTFIX = "_count"
@@ -184,6 +187,7 @@ suspend fun builtinMetrics(packageManagerClient: PackageManagerClient): Map<Stri
     BORT_VERSION_CODE to BuildConfig.VERSION_CODE.toFloat(),
     USAGE_REPORTER_VERSION_CODE to packageManagerClient.getUsageReporterVersion().toFloat(),
     RUNTIME_ENABLE_REQUIRED to if (BuildConfig.RUNTIME_ENABLE_REQUIRED) 1f else 0f,
+    OS_VERSION to Build.VERSION.SDK_INT.toFloat(),
 )
 
 /**

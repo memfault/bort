@@ -60,6 +60,9 @@ data class FetchedSettings(
     @SerialName("bug_report.options.minimal")
     val bugReportOptionsMinimal: Boolean,
 
+    @SerialName("bug_report.periodic_rate_limiting_percent")
+    val bugReportPeriodicRateLimitingPercentOfPeriod: Int = 50,
+
     @SerialName("data_scrubbing.rules")
     val dataScrubbingRules: List<DataScrubbingRule>,
 

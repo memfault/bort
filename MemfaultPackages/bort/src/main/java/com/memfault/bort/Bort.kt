@@ -3,7 +3,6 @@ package com.memfault.bort
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
-import android.os.Build
 import androidx.work.Configuration
 import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
@@ -11,7 +10,6 @@ import androidx.work.WorkerParameters
 import com.memfault.bort.metrics.BORT_CRASH
 import com.memfault.bort.metrics.BORT_STARTED
 import com.memfault.bort.metrics.metrics
-import com.memfault.bort.settings.selectSettingsToMap
 import com.memfault.bort.shared.Logger
 
 open class Bort : Application(), Configuration.Provider {
@@ -29,6 +27,8 @@ open class Bort : Application(), Configuration.Provider {
         Logger.TAG_TEST = "bort-test"
 
         appComponentsBuilder = initComponents()
+        // Build the app components (before we try to use Metrics, which needs them to be created).
+        appComponents()
 
         metrics()?.increment(BORT_STARTED)
         logDebugInfo()
@@ -62,15 +62,8 @@ open class Bort : Application(), Configuration.Provider {
             )
             Logger.i(
                 "bort.oncreate",
-                selectSettingsToMap() + mapOf(
-                    "device" to appComponents().deviceIdProvider.deviceId(),
-                    "build" to Build.TYPE,
+                mapOf(
                     "appVersionName" to sdkVersionInfo.appVersionName,
-                    "appVersionCode" to sdkVersionInfo.appVersionCode,
-                    "currentGitSha" to sdkVersionInfo.currentGitSha,
-                    "upstreamGitSha" to sdkVersionInfo.upstreamGitSha,
-                    "upstreamVersionName" to sdkVersionInfo.upstreamVersionName,
-                    "upstreamVersionCode" to sdkVersionInfo.upstreamVersionCode,
                 )
             )
         }

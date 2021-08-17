@@ -25,6 +25,7 @@ interface BugReportSettings {
     val maxUploadAttempts: Int
     val firstBugReportDelayAfterBoot: Duration
     val rateLimitingSettings: RateLimitingSettings
+    val periodicRateLimitingPercentOfPeriod: Int
 }
 
 interface DropBoxSettings {

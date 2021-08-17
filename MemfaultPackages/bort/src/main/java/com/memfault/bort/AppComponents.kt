@@ -128,6 +128,9 @@ data class AppComponents(
         var jitterDelayProvider: JitterDelayProvider? = null
 
         fun build(): AppComponents {
+            val builtinMetricsStore = BuiltinMetricsStore(
+                registry = SharedPreferencesMetricRegistry(metricsSharedPreferences)
+            )
             val storedSettingsPreferenceProvider = RealStoredSettingsPreferenceProvider(
                 sharedPreferences = sharedPreferences,
                 getBundledConfig = {
@@ -203,9 +206,6 @@ data class AppComponents(
                     jitterDelayProvider = jitterDelayProvider
                 )
             }
-            val builtinMetricsStore = BuiltinMetricsStore(
-                registry = SharedPreferencesMetricRegistry(metricsSharedPreferences)
-            )
             val fileUploadHoldingArea = FileUploadHoldingArea(
                 sharedPreferences = context.getSharedPreferences(
                     FILE_UPLOAD_HOLDING_AREA_PREFERENCE_FILE_NAME,
@@ -391,7 +391,8 @@ data class AppComponents(
                             getTokenBucketFactory = {
                                 RealTokenBucketFactory(
                                     defaultCapacity = 2,
-                                    defaultPeriod = settingsProvider.bugReportSettings.requestInterval * 0.8,
+                                    defaultPeriod = settingsProvider.bugReportSettings.requestInterval *
+                                        settingsProvider.bugReportSettings.periodicRateLimitingPercentOfPeriod / 100,
                                 )
                             },
                         )

@@ -54,7 +54,7 @@ buildscript {
             'result'                           : '1.1.9',
             'retrofit'                         : '2.9.0',
             'robolectric'                      : '4.5.1',
-            'work'                             : '2.4.0',
+            'work'                             : '2.5.0',
             'jackson'                          : '2.12.1',
             'zjsonpatch'                       : '0.4.11',
     ]
