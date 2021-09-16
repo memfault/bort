@@ -87,23 +87,6 @@ internal class PreparedUploaderTest {
     }
 
     @Test
-    fun uploadRequestToExternalServer() {
-        server.enqueue(
-            MockResponse()
-                .setBody(UPLOAD_RESPONSE)
-        )
-        runBlocking {
-            createUploader(server).upload(
-                loadTestFileFromResources(),
-                UPLOAD_URL
-            )
-        }
-        // Verify that the the request is routed to an external server, not the `baseUrl`
-        val recordedRequest = server.takeRequest(5, TimeUnit.MILLISECONDS)
-        assertNull(recordedRequest)
-    }
-
-    @Test
     fun commitBugReport() {
         server.enqueue(MockResponse())
         runBlocking {

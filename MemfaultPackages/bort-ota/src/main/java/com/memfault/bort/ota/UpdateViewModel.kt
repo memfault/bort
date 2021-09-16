@@ -21,4 +21,8 @@ class UpdateViewModel(private val updater: Updater) : ViewModel() {
     fun installUpdate() {
         viewModelScope.launch { updater.perform(Action.InstallUpdate) }
     }
+
+    fun reboot() {
+        viewModelScope.launch { updater.perform(Action.Reboot) }
+    }
 }

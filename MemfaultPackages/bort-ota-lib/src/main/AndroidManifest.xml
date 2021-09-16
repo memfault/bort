@@ -35,6 +35,7 @@
         <receiver android:name=".BootCompleteReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.memfault.intent.action.OTA_SETTINGS_CHANGED" />
             </intent-filter>
         </receiver>
     </application>

@@ -118,6 +118,10 @@ interface StructuredLogSettings {
     val minStorageThresholdBytes: Long
 }
 
+interface OtaSettings {
+    val updateCheckInterval: Duration
+}
+
 interface SettingsProvider {
     val minLogcatLevel: LogLevel
     val minStructuredLogLevel: LogLevel
@@ -138,6 +142,7 @@ interface SettingsProvider {
     val dataScrubbingSettings: DataScrubbingSettings
     val packageManagerSettings: PackageManagerSettings
     val structuredLogSettings: StructuredLogSettings
+    val otaSettings: OtaSettings
 
     fun invalidate()
 }

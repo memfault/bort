@@ -9,7 +9,6 @@ import com.memfault.bort.Bort
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.SOFTWARE_TYPE
 import com.memfault.bort.shared.SoftwareUpdateSettings
-import kotlin.time.minutes
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 
@@ -33,14 +32,12 @@ class SoftwareUpdateSettingsContentProvider : BaseContentProvider() {
     private fun gatherConfig(): SoftwareUpdateSettings {
         // TODO: This does not run in the main thread, is runBlocking ok?
         val deviceInfo = runBlocking { deviceInfoProvider.getDeviceInfo() }
-        // TODO: Get this from remote settings once that's available
-        val updateInterval = 15.minutes.toLongMilliseconds()
         return SoftwareUpdateSettings(
             deviceSerial = deviceInfo.deviceSerial,
             currentVersion = deviceInfo.softwareVersion,
             hardwareVersion = deviceInfo.hardwareVersion,
             softwareType = SOFTWARE_TYPE,
-            updateCheckIntervalMs = updateInterval,
+            updateCheckIntervalMs = settings.otaSettings.updateCheckInterval.toLongMilliseconds(),
             baseUrl = settings.httpApiSettings.deviceBaseUrl,
             projectApiKey = settings.httpApiSettings.projectKey,
         )

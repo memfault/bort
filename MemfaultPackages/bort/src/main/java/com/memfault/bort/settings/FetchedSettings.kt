@@ -7,6 +7,7 @@ import com.memfault.bort.time.BoxedDuration
 import com.memfault.bort.time.DurationAsMillisecondsLong
 import com.memfault.bort.time.boxed
 import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.hours
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -157,6 +158,10 @@ data class FetchedSettings(
 
     @SerialName("metrics.data_source_enabled")
     val metricsDataSourceEnabled: Boolean,
+
+    @SerialName("ota.update_check_interval_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val otaUpdateCheckInterval: BoxedDuration = 12.hours.boxed(),
 
     @SerialName("package_manager.command_timeout_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)

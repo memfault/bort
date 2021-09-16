@@ -5,8 +5,6 @@ import android.content.SharedPreferences
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.SoftwareUpdateSettings
-import java.lang.IllegalArgumentException
-import java.lang.IllegalStateException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -73,6 +71,21 @@ sealed class State {
      */
     @Serializable
     data class UpdateFailed(val ota: Ota, val message: String) : State()
+
+    /**
+     * The update is finalizing (preparing partitions, optimizing applications). Only used in A/B flows.
+     * @param ota The update metadata.
+     * @param progress The finalization process
+     */
+    @Serializable
+    data class Finalizing(val ota: Ota, val progress: Int = 0) : State()
+
+    /**
+     * The update has finished and the device must reboot. Only used in A/B flows.
+     * @param ota The update metadata.
+     */
+    @Serializable
+    data class RebootNeeded(val ota: Ota) : State()
 }
 
 /**
@@ -110,6 +123,11 @@ sealed class Action {
      * Request installation of the current update.
      */
     object InstallUpdate : Action()
+
+    /**
+     * Request a device reboot
+     */
+    object Reboot : Action()
 }
 
 /**
@@ -140,6 +158,22 @@ sealed class Event {
      * The device rebooted and the update failed.
      */
     object RebootToUpdateFailed : Event()
+
+    /**
+     * The update has finished.
+     */
+    object UpdateFinished : Event()
+}
+
+/**
+ * An Factory for {@link UpdateActionHandler}.
+ */
+interface UpdateActionHandlerFactory {
+    fun create(
+        setState: suspend (state: State) -> Unit,
+        triggerEvent: suspend (event: Event) -> Unit,
+        settings: () -> SoftwareUpdateSettings,
+    ): UpdateActionHandler
 }
 
 /**
@@ -151,8 +185,6 @@ interface UpdateActionHandler {
     suspend fun handle(
         state: State,
         action: Action,
-        setState: suspend (state: State) -> Unit,
-        triggerEvent: suspend (event: Event) -> Unit,
     )
 }
 
@@ -191,9 +223,10 @@ class SharedPreferencesStateStore(
  * The updater keeps the update state and events, delegating all action handling to the passed handler.
  */
 class Updater private constructor(
-    private val actionHandler: UpdateActionHandler,
+    actionHandlerFactory: UpdateActionHandlerFactory,
     private val stateStore: StateStore,
-    val settings: SoftwareUpdateSettings,
+    private val settingsProvider: SoftwareUpdateSettingsProvider?,
+    context: Context,
 ) {
     private val _updateState = MutableStateFlow<State>(State.Idle)
     val updateState: StateFlow<State> = _updateState
@@ -201,16 +234,36 @@ class Updater private constructor(
     private val _events = MutableSharedFlow<Event>()
     val events: SharedFlow<Event> = _events
 
+    private var _settings: SoftwareUpdateSettings = fetchSettings(context)
+
+    private val actionHandler = actionHandlerFactory.create(
+        setState = ::setState,
+        triggerEvent = _events::emit,
+        settings = { _settings }
+    )
+
     init {
         _updateState.value = stateStore.read() ?: State.Idle
+    }
+
+    fun settings() = _settings
+
+    fun updateSettings(context: Context) {
+        _settings = fetchSettings(context)
+    }
+
+    private fun fetchSettings(context: Context): SoftwareUpdateSettings {
+        return (settingsProvider ?: BortSoftwareUpdateSettingsProvider(context.contentResolver)).settings()
+            ?: throw IllegalStateException(
+                "Could not read config from Bort, " +
+                    "this is likely an integration issue, please contact Memfault support"
+            )
     }
 
     suspend fun perform(action: Action) {
         actionHandler.handle(
             state = updateState.value,
             action = action,
-            setState = ::setState,
-            triggerEvent = ::triggerEvent,
         )
     }
 
@@ -226,7 +279,7 @@ class Updater private constructor(
     companion object {
         fun create(
             context: Context,
-            actionHandler: UpdateActionHandler? = null,
+            actionHandlerFactory: UpdateActionHandlerFactory? = null,
             stateStore: StateStore? = null,
             settingsProvider: SoftwareUpdateSettingsProvider? = null
         ): Updater {
@@ -234,36 +287,27 @@ class Updater private constructor(
             Logger.minLogcatLevel = LogLevel.DEBUG
             Logger.TAG = "bort-ota"
 
-            // Use the Bort software update settings provider by default
-            val settings =
-                (settingsProvider ?: BortSoftwareUpdateSettingsProvider(context.contentResolver)).settings()
-                    ?: throw IllegalStateException(
-                        "Could not read config from Bort, " +
-                            "this is likely an integration issue, please contact Memfault support"
-                    )
-
             val store = stateStore ?: SharedPreferencesStateStore(
                 context.getSharedPreferences(
                     DEFAULT_STATE_PREFERENCE_FILE, Context.MODE_PRIVATE
                 )
             )
 
-            val handler = actionHandler ?: createDefaultActionHandler(context, settings)
+            val handlerFactory = actionHandlerFactory ?: createDefaultActionHandlerFactory(context)
 
             return Updater(
-                actionHandler = handler,
+                actionHandlerFactory = handlerFactory,
                 stateStore = store,
-                settings = settings
+                settingsProvider = settingsProvider,
+                context = context,
             )
         }
 
-        private fun createDefaultActionHandler(
+        private fun createDefaultActionHandlerFactory(
             context: Context,
-            settings: SoftwareUpdateSettings
-        ): UpdateActionHandler =
-            if (isAbDevice(context))
-                throw IllegalStateException("A/B update flow is not yet supported, please contact Memfault support.")
-            else realRecoveryBasedUpdateActionHandler(context, settings)
+        ): UpdateActionHandlerFactory =
+            if (isAbDevice(context)) realABUpdateActionHandlerFactory(context)
+            else realRecoveryBasedUpdateActionHandlerFactory(context)
 
         private fun isAbDevice(context: Context): Boolean =
             !SystemPropertyProxy.get(context, "ro.boot.slot_suffix").isNullOrBlank() ||

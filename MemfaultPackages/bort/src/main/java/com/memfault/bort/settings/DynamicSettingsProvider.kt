@@ -178,6 +178,11 @@ open class DynamicSettingsProvider(
             get() = settings.structuredLogMinStorageThresholdBytes
     }
 
+    override val otaSettings = object : OtaSettings {
+        override val updateCheckInterval: Duration
+            get() = settings.otaUpdateCheckInterval.duration
+    }
+
     override fun invalidate() {
         Logger.d("settings invalidating")
         settingsCache.invalidate()

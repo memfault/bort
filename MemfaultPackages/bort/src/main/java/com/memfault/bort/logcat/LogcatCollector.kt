@@ -51,6 +51,7 @@ class LogcatCollector(
     private val packageNameAllowList: PackageNameAllowList,
     private val packageManagerClient: PackageManagerClient,
     private val now: () -> BaseAbsoluteTime = AbsoluteTime.Companion::now,
+    private val kernelOopsDetectorFactory: () -> KernelOopsDetector,
 ) {
     suspend fun collect(): LogcatCollectorResult? {
         temporaryFileFactory.createTemporaryFile(
@@ -106,6 +107,8 @@ class LogcatCollector(
         command: LogcatCommand,
         allowedUids: Set<Int>,
     ) = withContext(Dispatchers.IO) {
+        val kernelOopsDetector = kernelOopsDetectorFactory()
+
         val lastLogTime = try {
             outputFile.outputStream().use {
                 runLogcat(it, command, timeoutConfig())
@@ -118,6 +121,7 @@ class LogcatCollector(
                     scrubbedFile.outputStream().bufferedWriter().use { scrubbedWriter ->
                         val scrubber = dataScrubber()
                         lines.toLogcatLines(command)
+                            .onEach { kernelOopsDetector.process(it) }
                             .map { it.scrub(scrubber, allowedUids) }
                             .onEach { it.writeTo(scrubbedWriter) }
                             .asIterable()
@@ -137,10 +141,14 @@ class LogcatCollector(
             null
         }
 
-        lastLogTime?.let {
+        val lastLogTimeOrFallback = lastLogTime?.let {
             AbsoluteTime(it.plusNanos(1))
         } ?: now().also {
             Logger.w("Failed to parse last timestamp from logs, falling back to current time")
+        }
+
+        lastLogTimeOrFallback.also {
+            kernelOopsDetector.finish(it)
         }
     }
 }

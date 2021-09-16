@@ -29,6 +29,7 @@
                 android:layout_marginTop="4dp"
                 />
             <FrameLayout
+                android:id="@+id/release_notes_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="#e1e1e1"

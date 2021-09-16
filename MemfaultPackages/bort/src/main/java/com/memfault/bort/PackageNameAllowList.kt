@@ -1,6 +1,7 @@
 package com.memfault.bort
 
 import com.memfault.bort.settings.ConfigValue
+import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import com.memfault.bort.shared.PackageManagerCommand.Util.isValidAndroidApplicationId
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -17,13 +18,18 @@ class RuleBasedPackageNameAllowList(
     private var cachedRules: List<AndroidAppIdScrubbingRule> = emptyList()
     private val cacheLock: ReentrantLock = ReentrantLock()
 
+    // Always allow memfault packages (but not as part of main rules config - that would force package scrubbing to
+    // be enabled below).
+    private val internalPackages = listOf(BuildConfig.APPLICATION_ID, APPLICATION_ID_MEMFAULT_USAGE_REPORTER)
+
     override operator fun contains(packageName: String?): Boolean {
         return packageName == null || !packageName.isValidAndroidApplicationId() ||
             matchesRules(regexesFor(rulesConfig()), packageName)
     }
 
     private fun matchesRules(regexes: List<Regex>, packageName: String): Boolean =
-        regexes.isEmpty() || regexes.any { it.containsMatchIn(packageName) }
+        regexes.isEmpty() || regexes.any { it.containsMatchIn(packageName) } ||
+            internalPackages.any { it == packageName }
 
     private fun regexesFor(rulesConfig: List<AndroidAppIdScrubbingRule>): List<Regex> = cacheLock.withLock {
         when (cachedRules) {

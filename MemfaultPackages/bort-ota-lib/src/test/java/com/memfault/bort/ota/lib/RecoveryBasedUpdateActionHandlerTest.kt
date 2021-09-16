@@ -46,6 +46,8 @@ class RecoveryBasedUpdateActionHandlerTest {
                 softwareUpdateChecker = softwareUpdateChecker,
                 recoveryInterface = recoveryInterface,
                 startUpdateDownload = startUpdateDownload,
+                setState = ::setState,
+                triggerEvent = ::triggerEvent,
                 currentSoftwareVersion = OLD_SOFTWARE_VERSION,
                 metricLogger = { },
             )
@@ -56,7 +58,7 @@ class RecoveryBasedUpdateActionHandlerTest {
 
     @Test
     fun testCheckForUpdate() = runBlockingTest {
-        handler.handle(State.Idle, Action.CheckForUpdate(), ::setState, ::triggerEvent)
+        handler.handle(State.Idle, Action.CheckForUpdate())
         assertEquals(listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!)), collectedStates)
         assertEquals(listOf<Event>(), collectedEvents)
     }
@@ -64,14 +66,14 @@ class RecoveryBasedUpdateActionHandlerTest {
     @Test
     fun testCheckForUpdateAlreadyAtLatest() = runBlockingTest {
         ota = null
-        handler.handle(State.Idle, Action.CheckForUpdate(), ::setState, ::triggerEvent)
+        handler.handle(State.Idle, Action.CheckForUpdate())
         assertEquals(listOf(State.CheckingForUpdates, State.Idle), collectedStates)
         assertEquals(listOf<Event>(Event.NoUpdatesAvailable), collectedEvents)
     }
 
     @Test
     fun testDownloadUpdate() = runBlockingTest {
-        handler.handle(State.UpdateAvailable(ota!!), Action.DownloadUpdate, ::setState, ::triggerEvent)
+        handler.handle(State.UpdateAvailable(ota!!), Action.DownloadUpdate)
         assertEquals(listOf(State.UpdateDownloading(ota!!)), collectedStates)
         assertEquals(listOf<Event>(), collectedEvents)
         verify(exactly = 1) { startUpdateDownload.invoke(ota!!.url) }
@@ -79,8 +81,8 @@ class RecoveryBasedUpdateActionHandlerTest {
 
     @Test
     fun testUpdateDownloadProgress() = runBlockingTest {
-        handler.handle(State.UpdateDownloading(ota!!), Action.DownloadProgress(50), ::setState, ::triggerEvent)
-        handler.handle(State.UpdateDownloading(ota!!), Action.DownloadProgress(100), ::setState, ::triggerEvent)
+        handler.handle(State.UpdateDownloading(ota!!), Action.DownloadProgress(50))
+        handler.handle(State.UpdateDownloading(ota!!), Action.DownloadProgress(100))
         assertEquals(
             listOf(
                 State.UpdateDownloading(ota!!, progress = 50),
@@ -93,7 +95,7 @@ class RecoveryBasedUpdateActionHandlerTest {
 
     @Test
     fun testDownloadCompletedVerificationOk() = runBlocking {
-        handler.handle(State.UpdateDownloading(ota!!), Action.DownloadCompleted("dummy"), ::setState, ::triggerEvent)
+        handler.handle(State.UpdateDownloading(ota!!), Action.DownloadCompleted("dummy"))
         assertEquals(listOf(State.ReadyToInstall(ota!!, "dummy")), collectedStates)
         assertEquals(listOf<Event>(), collectedEvents)
 
@@ -103,7 +105,7 @@ class RecoveryBasedUpdateActionHandlerTest {
     @Test
     fun testDownloadCompletedVerificationFailed() = runBlocking {
         every { recoveryInterface.verifyOrThrow(any()) } throws IllegalStateException("oops")
-        handler.handle(State.UpdateDownloading(ota!!), Action.DownloadCompleted("dummy"), ::setState, ::triggerEvent)
+        handler.handle(State.UpdateDownloading(ota!!), Action.DownloadCompleted("dummy"))
         assertEquals(listOf(State.Idle), collectedStates)
         assertEquals(listOf(Event.VerificationFailed), collectedEvents)
 
@@ -112,14 +114,14 @@ class RecoveryBasedUpdateActionHandlerTest {
 
     @Test
     fun testDownloadFailed() = runBlocking {
-        handler.handle(State.UpdateDownloading(ota!!), Action.DownloadFailed, ::setState, ::triggerEvent)
+        handler.handle(State.UpdateDownloading(ota!!), Action.DownloadFailed)
         assertEquals(listOf(State.UpdateAvailable(ota!!)), collectedStates)
         assertEquals(listOf(Event.DownloadFailed), collectedEvents)
     }
 
     @Test
     fun testInstallUpdateSucceeds() = runBlocking {
-        handler.handle(State.ReadyToInstall(ota!!, path = "dummy"), Action.InstallUpdate, ::setState, ::triggerEvent)
+        handler.handle(State.ReadyToInstall(ota!!, path = "dummy"), Action.InstallUpdate)
         assertEquals(listOf<State>(State.RebootedForInstallation(ota!!, OLD_SOFTWARE_VERSION)), collectedStates)
         assertEquals(listOf<Event>(), collectedEvents)
         verify(exactly = 1) { recoveryInterface.install(File("dummy")) }
@@ -130,7 +132,7 @@ class RecoveryBasedUpdateActionHandlerTest {
         // This should never happen in a real use case because install only ever happens after the update is verified
         // and a verified update will always be able to call install(). Nevertheless, test that we go back to idle.
         every { recoveryInterface.install(any()) } throws IllegalStateException("oops")
-        handler.handle(State.ReadyToInstall(ota!!, path = "dummy"), Action.InstallUpdate, ::setState, ::triggerEvent)
+        handler.handle(State.ReadyToInstall(ota!!, path = "dummy"), Action.InstallUpdate)
         assertEquals(
             listOf(
                 // Shortly transitioned while attempted rebooting

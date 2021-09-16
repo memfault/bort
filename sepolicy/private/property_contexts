@@ -1,2 +1,2 @@
 vendor.memfault.         u:object_r:memfault_prop:s0
-persist.vendor.memfault. u:object_r:memfault_prop:s0
+persist.system.memfault. u:object_r:system_prop:s0

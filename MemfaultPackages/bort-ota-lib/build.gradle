@@ -45,6 +45,7 @@ android {
 
 dependencies {
     implementation project(':bort-shared')
+    compileOnly files('libs/update_engine.jar')
     implementation deps.kotlin.stdlib
     implementation deps.kotlin.coroutines
     implementation deps.result

@@ -19,3 +19,6 @@ const val APPLICATION_ID_MEMFAULT_USAGE_REPORTER = "com.memfault.usagereporter"
 const val REPORTER_SERVICE_QUALIFIED_NAME = "$APPLICATION_ID_MEMFAULT_USAGE_REPORTER.ReporterService"
 
 const val PERMISSION_REPORTER_ACCESS = "$APPLICATION_ID_MEMFAULT_USAGE_REPORTER.permission.REPORTER_ACCESS"
+
+const val INTENT_ACTION_OTA_SETTINGS_CHANGED = "com.memfault.intent.action.OTA_SETTINGS_CHANGED"
+const val OTA_RECEIVER_CLASS = "com.memfault.bort.ota.lib.BootCompleteReceiver"

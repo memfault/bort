@@ -8,8 +8,4 @@ add_service(dumpstate, memfault_dumpster_service)
 dontaudit dumpstate dumpstate:binder call;
 
 # Allow setting the bort enabled property
-if_sdk_version_gteq(28, `
-  typeattribute dumpstate system_writes_vendor_properties_violators;
-', `')
-
-set_prop(dumpstate, memfault_prop);
+set_prop(dumpstate, system_prop);

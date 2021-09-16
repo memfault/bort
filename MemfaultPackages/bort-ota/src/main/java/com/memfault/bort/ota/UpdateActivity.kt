@@ -10,6 +10,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.ViewModelProvider
@@ -69,7 +70,7 @@ class UpdateActivity : AppCompatActivity() {
     }
 
     private fun handle(state: State) {
-        when (state) {
+        val forceExhaustiveWhen: Any = when (state) {
             is State.Idle ->
                 supportFragmentManager.beginTransaction()
                     .replace(R.id.settings_container, MainPreferenceFragment())
@@ -90,7 +91,22 @@ class UpdateActivity : AppCompatActivity() {
                 supportFragmentManager.beginTransaction()
                     .replace(R.id.settings_container, UpdateReadyFragment())
                     .commit()
-            else -> throw IllegalStateException("$state not yet implemented")
+            is State.Finalizing -> {
+                getByTagOrReplace("finalizing_update") { FinalizingUpdateFragment() }
+                    .setProgress(state.progress)
+            }
+            is State.RebootNeeded ->
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.settings_container, RebootNeededFragment())
+                    .commit()
+            is State.RebootedForInstallation ->
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.settings_container, FinalizingUpdateFragment())
+                    .commit()
+            is State.UpdateFailed ->
+                supportFragmentManager.beginTransaction()
+                    .replace(R.id.settings_container, UpdateFailedFragment())
+                    .commit()
         }
     }
 
@@ -130,6 +146,12 @@ class MainPreferenceFragment : PreferenceFragmentCompat() {
     }
 }
 
+class UpdateFailedFragment : Fragment() {
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+        return inflater.inflate(R.layout.update_failed_fragment, container, false)
+    }
+}
+
 class CheckingForUpdatesFragment : Fragment() {
     lateinit var progressBar: ProgressBar
 
@@ -156,6 +178,8 @@ class UpdateAvailableFragment : Fragment() {
         val state = updateViewModel.state.value as State.UpdateAvailable
 
         val layout = inflater.inflate(R.layout.update_available_layout, container, false)
+        val hasReleaseNotes = state.ota.releaseNotes.isNotBlank()
+        layout.findViewById<TextView>(R.id.release_notes_container).isVisible = hasReleaseNotes
         layout.findViewById<TextView>(R.id.release_notes).text = state.ota.releaseNotes
         layout.findViewById<TextView>(R.id.version).text = getString(R.string.software_version, state.ota.version)
         layout.findViewById<Button>(R.id.download_update).setOnClickListener {
@@ -180,6 +204,45 @@ class UpdateReadyFragment : Fragment() {
         layout.findViewById<Button>(R.id.download_update).apply {
             setText(R.string.install_update)
             setOnClickListener { updateViewModel.installUpdate() }
+        }
+        layout.findViewById<Button>(R.id.maybe_later).setOnClickListener {
+            activity?.finish()
+        }
+        return layout
+    }
+}
+
+class FinalizingUpdateFragment : Fragment() {
+    lateinit var progressBar: ProgressBar
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+        val layout = inflater.inflate(R.layout.finalizing_update_layout, container, false)
+        progressBar = layout.findViewById(R.id.progress_bar)
+        return layout
+    }
+
+    fun setProgress(progress: Int) {
+        if (this::progressBar.isInitialized) {
+            progressBar.isIndeterminate = progress == 0
+            progressBar.min = 0
+            progressBar.max = 100
+            progressBar.progress = progress
+        }
+    }
+}
+
+class RebootNeededFragment : Fragment() {
+    private val updateViewModel by activityViewModels<UpdateViewModel>()
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+        val state = updateViewModel.state.value as State.RebootNeeded
+
+        val layout = inflater.inflate(R.layout.update_available_layout, container, false)
+        layout.findViewById<TextView>(R.id.release_notes).text = state.ota.releaseNotes
+        layout.findViewById<TextView>(R.id.version).text = getString(R.string.software_version, state.ota.version)
+        layout.findViewById<Button>(R.id.download_update).apply {
+            setText(R.string.reboot)
+            setOnClickListener { updateViewModel.reboot() }
         }
         layout.findViewById<Button>(R.id.maybe_later).setOnClickListener {
             activity?.finish()

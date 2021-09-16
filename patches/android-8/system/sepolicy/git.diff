@@ -26,7 +26,7 @@ index da5f9adde..d6cb5c04d 100644
 --- a/private/file.te
 +++ b/private/file.te
 @@ -5,3 +5,6 @@ typealias app_data_file alias download_file;
- 
+
  # /proc/config.gz
  type config_gz, fs_type;
 +
@@ -46,10 +46,10 @@ index 536975894..5d3d6b376 100644
 +/system/bin/MemfaultStructuredLogd        u:object_r:memfault_structured_exec:s0
 diff --git a/private/memfault_structured.te b/private/memfault_structured.te
 new file mode 100644
-index 000000000..51a1936dd
+index 000000000..425cb94d6
 --- /dev/null
 +++ b/private/memfault_structured.te
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,41 @@
 +type memfault_structured, domain;
 +type memfault_structured_exec, exec_type, file_type;
 +
@@ -88,23 +88,20 @@ index 000000000..51a1936dd
 +# Allow access to /proc/sys/kernel/random/boot_id
 +allow memfault_structured proc:file { getattr open read };
 +
-+# Allow reading the vendor.memfault.* property namespace
-+get_prop(memfault_structured, memfault_prop)
-+
 +# Dumpstate will not be able to call into memfault_structured, prevent logging
 +# to avoid a CTS failure: https://cs.android.com/android/platform/superproject/+/master:cts/hostsidetests/security/src/android/security/cts/SELinuxHostTest.java;l=1026-1044;drc=09af02f580279437fd9ee3c3a6de5789397fa291
 +dontaudit dumpstate memfault_structured:binder call;
 diff --git a/private/property_contexts b/private/property_contexts
-index 8eb2f28b2..cba0fdda6 100644
+index 8eb2f28b2..9c3076fca 100644
 --- a/private/property_contexts
 +++ b/private/property_contexts
 @@ -112,3 +112,7 @@ wlan.                   u:object_r:wifi_prop:s0
- 
+
  # hwservicemanager properties
  hwservicemanager.       u:object_r:hwservicemanager_prop:s0
 +
 +# memfault properties
-+persist.vendor.memfault. u:object_r:memfault_prop:s0
++persist.system.memfault. u:object_r:system_prop:s0
 +vendor.memfault.         u:object_r:memfault_prop:s0
 diff --git a/private/service_contexts b/private/service_contexts
 index a82243ffb..21d9969f2 100644

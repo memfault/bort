@@ -355,7 +355,7 @@ def test_parse_keytool_printcert_sha256() -> None:
 def test_parse_keytool_printcert_sha256_failure() -> None:
     import pytest
 
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(Exception, match="Failed to extract SHA256 fingerprint") as excinfo:
         _parse_keytool_printcert_sha256("the output", ["keytool", "cmd", "xyz"])
     assert "keytool cmd xyz" in str(excinfo.value)
     assert "the output" in str(excinfo.value)
@@ -380,7 +380,7 @@ def test_parse_apksigner_cert_sha256() -> None:
 def test_check_signatures_mismatch():
     import pytest
 
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match="signature does not match"):
         _check_signatures(
             output_file="output.txt",
             apk_file="app.apk",

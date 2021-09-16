@@ -1,13 +1,18 @@
 package com.memfault.bort.settings
 
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.os.RemoteException
 import com.github.michaelbull.result.onFailure
 import com.memfault.bort.BortJson
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.customevent.CustomEvent
+import com.memfault.bort.shared.BuildConfig
+import com.memfault.bort.shared.INTENT_ACTION_OTA_SETTINGS_CHANGED
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.OTA_RECEIVER_CLASS
 
 fun realSettingsUpdateCallback(
     context: Context,
@@ -34,6 +39,13 @@ fun realSettingsUpdateCallback(
         Logger.eventLogEnabled = this::eventLogEnabled
         Logger.i("settings.updated", selectSettingsToMap())
     }
+
+    // Notify OTA app that settings changed (if it is installed).
+    context.sendBroadcast(
+        Intent(INTENT_ACTION_OTA_SETTINGS_CHANGED).apply {
+            component = ComponentName.createRelative(BuildConfig.BORT_OTA_APPLICATION_ID, OTA_RECEIVER_CLASS)
+        }
+    )
 }
 
 suspend fun applyReporterServiceSettings(

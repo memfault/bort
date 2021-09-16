@@ -22,4 +22,6 @@
     <string name="update_failed">Device Update Failed</string>
     <string name="update_succeeded_content">Your device is now running the latest available version.</string>
     <string name="update_failed_content">There was an error while updating your device, make sure it is fully charged and retry.</string>
+    <string name="finalizing_the_update">Finalizing the update</string>
+    <string name="reboot">Reboot</string>
 </resources>

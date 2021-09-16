@@ -53,6 +53,26 @@ class PackageNameAllowListTest {
     }
 
     @Test
+    fun doesNotFilterMemfaultPackages() {
+        val allowList = RuleBasedPackageNameAllowList { FIXTURE }
+
+        assertEquals(
+            listOf(
+                "/one",
+                "SystemServer",
+                "netd",
+                "com.memfault.usagereporter",
+            ),
+            listOf(
+                "/one",
+                "SystemServer",
+                "netd",
+                "com.memfault.usagereporter",
+            ).filter { it in allowList }
+        )
+    }
+
+    @Test
     fun noFiltersMatchEverything() {
         val allowList = RuleBasedPackageNameAllowList { listOf() }
         assertEquals(

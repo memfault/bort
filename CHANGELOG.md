@@ -1,5 +1,22 @@
 # Memfault Bort Changelog
 
+## v3.7.0 - September 15, 2021
+
+#### :rocket: New Features
+
+- OTA Update Client: Bort now includes a full OTA Update client.
+  [See documentation](https://mflt.io/android-ota-update-client) for more
+  information.
+
+#### :chart_with_upwards_trend: Improvements
+
+- Enable Bort to collect internal logs when custom log scrubbing rules are in
+  place.
+- Fix an issue during SDK integration, where Bort sepolicy files can be included
+  multiple times, resulting in build errors.
+- Added the ability to collect kernel oops' in Caliper.
+- Fix an issue causing a CTS/GMS test failure.
+
 ## v3.6.2 - August 17, 2021
 
 #### :chart_with_upwards_trend: Improvements

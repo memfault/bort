@@ -20,6 +20,7 @@ import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.settings.RealStoredSettingsPreferenceProvider
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.StoredSettingsPreferenceProvider
+import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.shared.LogcatPriority

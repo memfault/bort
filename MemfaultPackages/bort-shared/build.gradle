@@ -22,6 +22,7 @@ android {
         buildConfigField "String", "UPSTREAM_GIT_SHA", "\"${upstreamGitSha()}\""
         buildConfigField "String", "CURRENT_GIT_SHA", "\"${currentGitSha()}\""
         buildConfigField "String", "BORT_APPLICATION_ID", "\"" + bortProperty("BORT_APPLICATION_ID") + "\""
+        buildConfigField "String", "BORT_OTA_APPLICATION_ID", "\"" + bortProperty("BORT_OTA_APPLICATION_ID") + "\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

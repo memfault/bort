@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.Resources
 import android.os.Looper
+import android.os.SystemClock
 import androidx.preference.PreferenceManager
 import androidx.work.Data
 import androidx.work.ListenableWorker
@@ -20,6 +21,7 @@ import com.memfault.bort.http.GzipRequestInterceptor
 import com.memfault.bort.http.LoggingNetworkInterceptor
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.ingress.IngressService
+import com.memfault.bort.logcat.KernelOopsDetector
 import com.memfault.bort.logcat.LogcatCollectionTask
 import com.memfault.bort.logcat.LogcatCollector
 import com.memfault.bort.logcat.NextLogcatCidProvider
@@ -49,7 +51,9 @@ import com.memfault.bort.settings.SettingsUpdateService
 import com.memfault.bort.settings.SettingsUpdateTask
 import com.memfault.bort.settings.StoredSettingsPreferenceProvider
 import com.memfault.bort.settings.realSettingsUpdateCallback
+import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.PreferenceKeyProvider
+import com.memfault.bort.time.BaseAbsoluteTime
 import com.memfault.bort.time.RealBootRelativeTimeProvider
 import com.memfault.bort.time.RealCombinedTimeProvider
 import com.memfault.bort.tokenbucket.RealTokenBucketFactory
@@ -66,6 +70,8 @@ import com.memfault.bort.uploader.PreparedUploadService
 import com.memfault.bort.uploader.PreparedUploader
 import com.memfault.bort.uploader.enqueueFileUploadTask
 import java.io.File
+import kotlin.time.hours
+import kotlin.time.milliseconds
 import kotlin.time.toJavaDuration
 import kotlinx.serialization.ExperimentalSerializationApi
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -397,6 +403,20 @@ data class AppComponents(
                             },
                         )
                     },
+                kernelOopsTokenBucketStore =
+                    tokenBucketStoreRegistry.createAndRegisterStore(context, "kernel_oops") { storage ->
+                        TokenBucketStore(
+                            storage = storage,
+                            getMaxBuckets = { 1 },
+                            getTokenBucketFactory = {
+                                RealTokenBucketFactory(
+                                    // TODO: MFLT-4344 Add rate limiting settings for Caliper kernel oops collection
+                                    defaultCapacity = 3,
+                                    defaultPeriod = 6.hours,
+                                )
+                            },
+                        )
+                    },
                 logcatPeriodicTaskTokenBucketStore =
                     tokenBucketStoreRegistry.createAndRegisterStore(context, "logcat_periodic") { storage ->
                         TokenBucketStore(
@@ -441,6 +461,11 @@ data class AppComponents(
                 packageManagerClient = packageManagerClient,
                 dumpsterClient = dumpsterClient,
                 interceptingFactory = interceptingWorkerFactory,
+                handleEventOfInterestAtAbsoluteTime = { absoluteTime ->
+                    val millisAgo = maxOf(0, System.currentTimeMillis() - absoluteTime.timestamp.toEpochMilli())
+                    val elapsedRealtime = SystemClock.elapsedRealtime() - millisAgo
+                    fileUploadHoldingArea.handleEventOfInterest(elapsedRealtime.milliseconds)
+                }
             )
 
             val httpTaskCallFactory = HttpTaskCallFactory.fromContextAndConstraints(
@@ -518,6 +543,7 @@ class DefaultWorkerFactory(
     private val storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider,
     private val periodicWorkRequesters: List<PeriodicWorkRequester>,
     private val bugReportPeriodicTaskTokenBucketStore: TokenBucketStore,
+    private val kernelOopsTokenBucketStore: TokenBucketStore,
     private val logcatPeriodicTaskTokenBucketStore: TokenBucketStore,
     private val metricsPeriodicTaskTokenBucketStore: TokenBucketStore,
     private val settingsUpdatePeriodicTaskTokenBucketStore: TokenBucketStore,
@@ -526,6 +552,7 @@ class DefaultWorkerFactory(
     private val packageManagerClient: PackageManagerClient,
     private val dumpsterClient: DumpsterClient,
     private val interceptingFactory: InterceptingWorkerFactory? = null,
+    private val handleEventOfInterestAtAbsoluteTime: (BaseAbsoluteTime) -> Unit,
 ) : WorkerFactory(), TaskFactory {
     override fun createWorker(
         appContext: Context,
@@ -611,6 +638,12 @@ class DefaultWorkerFactory(
                     timeoutConfig = settingsProvider.logcatSettings::commandTimeout,
                     packageNameAllowList = packageNameAllowList,
                     packageManagerClient = packageManagerClient,
+                    kernelOopsDetectorFactory = {
+                        KernelOopsDetector(
+                            tokenBucketStore = kernelOopsTokenBucketStore,
+                            handleEventOfInterest = handleEventOfInterestAtAbsoluteTime,
+                        )
+                    }
                 ),
                 fileUploadHoldingArea = fileUploadHoldingArea,
                 combinedTimeProvider = RealCombinedTimeProvider(context),

@@ -7,7 +7,6 @@ import com.memfault.bort.Bort
 import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.DeviceIdProvider
 import com.memfault.bort.DeviceInfoProvider
-import com.memfault.bort.JitterDelayProvider
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
@@ -15,6 +14,7 @@ import com.memfault.bort.ingress.IngressService
 import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.TokenBucketStoreRegistry

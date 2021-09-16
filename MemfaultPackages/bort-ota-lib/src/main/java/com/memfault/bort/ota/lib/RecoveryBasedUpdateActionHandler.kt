@@ -36,14 +36,14 @@ class RecoveryBasedUpdateActionHandler(
     private val softwareUpdateChecker: SoftwareUpdateChecker,
     private val recoveryInterface: RecoveryInterface,
     private val startUpdateDownload: (url: String) -> Unit,
+    private val setState: suspend (state: State) -> Unit,
+    private val triggerEvent: suspend (event: Event) -> Unit,
     private val currentSoftwareVersion: String,
     private val metricLogger: MetricLogger,
 ) : UpdateActionHandler {
     override suspend fun handle(
         state: State,
         action: Action,
-        setState: suspend (state: State) -> Unit,
-        triggerEvent: suspend (event: Event) -> Unit
     ) {
         when (action) {
             is Action.CheckForUpdate -> {
@@ -150,16 +150,23 @@ class RealRecoveryInterface(
     }
 }
 
-fun realRecoveryBasedUpdateActionHandler(
+fun realRecoveryBasedUpdateActionHandlerFactory(
     context: Context,
-    settings: SoftwareUpdateSettings,
-): UpdateActionHandler {
-    val metricLogger = RealMetricLogger(context)
-    return RecoveryBasedUpdateActionHandler(
-        softwareUpdateChecker = realSoftwareUpdateChecker(settings, metricLogger),
-        startUpdateDownload = { url -> DownloadOtaService.download(context, url) },
-        recoveryInterface = RealRecoveryInterface(context),
-        currentSoftwareVersion = settings.currentVersion,
-        metricLogger = metricLogger,
-    )
+): UpdateActionHandlerFactory = object : UpdateActionHandlerFactory {
+    override fun create(
+        setState: suspend (state: State) -> Unit,
+        triggerEvent: suspend (event: Event) -> Unit,
+        settings: () -> SoftwareUpdateSettings,
+    ): UpdateActionHandler {
+        val metricLogger = RealMetricLogger(context)
+        return RecoveryBasedUpdateActionHandler(
+            softwareUpdateChecker = realSoftwareUpdateChecker(settings, metricLogger),
+            startUpdateDownload = { url -> DownloadOtaService.download(context, url) },
+            recoveryInterface = RealRecoveryInterface(context),
+            setState = setState,
+            triggerEvent = triggerEvent,
+            currentSoftwareVersion = settings().currentVersion,
+            metricLogger = metricLogger,
+        )
+    }
 }

@@ -17,6 +17,7 @@ data class LogcatLine(
     val uid: Int? = null,
     val lineUpToTag: String? = null,
     val message: String? = null,
+    val buffer: String? = null,
 )
 
 class LogcatParser(
@@ -24,6 +25,8 @@ class LogcatParser(
     val command: LogcatCommand,
     val uidDecoder: (String) -> Int = android.os.Process::getUidForName
 ) {
+    private var buffer: String? = null
+
     private val uidCache: MutableMap<String, Int?> = mutableMapOf()
     init {
         // The parsing assumes these formatting flags are used:
@@ -39,6 +42,17 @@ class LogcatParser(
         ) {
             "Unsupported logcat command: $command"
         }
+    }
+
+    private fun parseSeparator(line: String): LogcatLine {
+        // logcat source code: https://cs.android.com/android/_/android/platform/system/logging/+/f45bd38d476ae2fafa34edc4445b9b6a346803f0:logcat/logcat.cpp;l=241-242;drc=f45bd38d476ae2fafa34edc4445b9b6a346803f0
+        // Example separators:
+        // --------- beginning of kernel
+        // --------- switch to main
+        if (line.startsWith("-")) {
+            buffer = line.substringAfterLast(" ", "").ifEmpty { buffer }
+        }
+        return LogcatLine(message = line, buffer = buffer)
     }
 
     fun parse(): Sequence<LogcatLine> {
@@ -59,8 +73,8 @@ class LogcatParser(
                 //  java.util.regex.PatternSyntaxException: named capturing group is missing trailing '>' near index 6
                 val upToTag = result.groups.get(UP_TO_TAG_GROUP)?.value
                 val msg = result.groups.get(MSG_GROUP)?.value
-                LogcatLine(time, uid, upToTag, msg)
-            } ?: LogcatLine(message = line)
+                LogcatLine(time, uid, upToTag, msg, buffer)
+            } ?: parseSeparator(line)
         }
     }
 

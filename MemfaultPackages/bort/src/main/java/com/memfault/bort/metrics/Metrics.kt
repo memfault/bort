@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.BuildConfig
 import com.memfault.bort.PackageManagerClient
+import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import java.util.Locale
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
@@ -180,7 +181,9 @@ fun metricForTraceTag(tag: String) = DROP_BOX_TRACE_TAG_COUNT_PER_HOUR_TEMPLATE
 private var cachedReporterVersion: Long? = null
 
 private suspend fun PackageManagerClient.getUsageReporterVersion(): Long = cachedReporterVersion
-    ?: findPackageByApplicationId("com.memfault.usagereporter")?.versionCode.also { cachedReporterVersion = it }
+    ?: findPackageByApplicationId(APPLICATION_ID_MEMFAULT_USAGE_REPORTER)?.versionCode.also {
+        cachedReporterVersion = it
+    }
     ?: 0
 
 suspend fun builtinMetrics(packageManagerClient: PackageManagerClient): Map<String, Float> = mapOf(

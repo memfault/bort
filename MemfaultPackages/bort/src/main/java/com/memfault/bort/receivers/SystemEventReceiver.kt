@@ -47,10 +47,10 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         }
 
         goAsync {
-            if (!bortEnabledProvider.requiresRuntimeEnable()) {
-                DumpsterClient().setBortEnabled(true)
-                DumpsterClient().setStructuredLogEnabled(settingsProvider.structuredLogSettings.dataSourceEnabled)
-            }
+            val bortEnabled = !bortEnabledProvider.requiresRuntimeEnable() ||
+                bortEnabledProvider.isEnabled()
+            DumpsterClient().setBortEnabled(bortEnabled)
+            DumpsterClient().setStructuredLogEnabled(settingsProvider.structuredLogSettings.dataSourceEnabled)
 
             applyReporterServiceSettings(
                 reporterServiceConnector,

@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 private const val INTENT_EXTRA_ECHO_STRING = "echo"
+private const val INTENT_EXTRA_BACKGROUND = "background"
 
 /**
  * A broadcast receiver that listens to test events.
@@ -23,10 +24,11 @@ class TestReceiver : BroadcastReceiver() {
                 testLog("bort-ota echo ${intent.getStringExtra(INTENT_EXTRA_ECHO_STRING)}")
             }
             "com.memfault.intent.action.TEST_BORT_OTA_CHECK_FOR_UPDATE" -> {
+                val background = intent.getBooleanExtra(INTENT_EXTRA_BACKGROUND, false)
                 CoroutineScope(Dispatchers.Default).launch {
                     with(context.applicationContext.updater()) {
                         setState(State.Idle)
-                        perform(Action.CheckForUpdate())
+                        perform(Action.CheckForUpdate(background = background))
                     }
                 }
             }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.memfault.bort.ota.lib.Action
 import com.memfault.bort.ota.lib.BortSoftwareUpdateSettingsProvider
+import com.memfault.bort.ota.lib.Event
 import com.memfault.bort.ota.lib.MemfaultSoftwareUpdateChecker
 import com.memfault.bort.ota.lib.Ota
 import com.memfault.bort.ota.lib.RealMetricLogger
@@ -13,8 +14,10 @@ import com.memfault.bort.ota.lib.SoftwareUpdateChecker
 import com.memfault.bort.ota.lib.SoftwareUpdateSettingsProvider
 import com.memfault.bort.ota.lib.State
 import com.memfault.bort.ota.lib.UpdateActionHandler
+import com.memfault.bort.ota.lib.UpdateActionHandlerFactory
 import com.memfault.bort.ota.lib.Updater
 import com.memfault.bort.ota.lib.download.DownloadOtaService
+import com.memfault.bort.shared.SoftwareUpdateSettings
 import java.io.File
 import java.lang.IllegalStateException
 import kotlinx.coroutines.CoroutineScope
@@ -69,7 +72,13 @@ class TestApp : App() {
     override fun createComponents(applicationContext: Context): AppComponents {
         val updater = Updater.create(
             context = applicationContext,
-            actionHandler = createTestActionHandler(applicationContext),
+            actionHandlerFactory = object : UpdateActionHandlerFactory {
+                override fun create(
+                    setState: suspend (state: State) -> Unit,
+                    triggerEvent: suspend (event: Event) -> Unit,
+                    settings: () -> SoftwareUpdateSettings,
+                ): UpdateActionHandler = createTestActionHandler(applicationContext, setState, triggerEvent)
+            }
         )
 
         return object : AppComponents {
@@ -77,7 +86,11 @@ class TestApp : App() {
         }
     }
 
-    private fun createTestActionHandler(context: Context): UpdateActionHandler {
+    private fun createTestActionHandler(
+        context: Context,
+        setState: suspend (state: State) -> Unit,
+        triggerEvent: suspend (event: Event) -> Unit,
+    ): UpdateActionHandler {
         val settingsProvider = BortSoftwareUpdateSettingsProvider(context.contentResolver)
         return RecoveryBasedUpdateActionHandler(
             softwareUpdateChecker = createTestSoftwareUpdateChecker(settingsProvider),
@@ -85,6 +98,8 @@ class TestApp : App() {
             startUpdateDownload = { DownloadOtaService.download(context, it) },
             currentSoftwareVersion = settingsProvider.settings()?.currentVersion ?: "n/a",
             metricLogger = RealMetricLogger(context),
+            setState = setState,
+            triggerEvent = triggerEvent,
         )
     }
 
@@ -96,9 +111,11 @@ class TestApp : App() {
         object : SoftwareUpdateChecker {
             override suspend fun getLatestRelease(): Ota? =
                 MemfaultSoftwareUpdateChecker.create(
-                    settings = provider.settings()?.also {
-                        testLog("api key = ${it.projectApiKey}")
-                    } ?: throw IllegalStateException("Could not obtain settings from Bort"),
+                    settings = {
+                        provider.settings()?.also {
+                            testLog("api key = ${it.projectApiKey}")
+                        } ?: throw IllegalStateException("Could not obtain settings from Bort")
+                    },
                     metricLogger = RealMetricLogger(this@TestApp),
                 ).getLatestRelease().also { testLog("ota = ${it ?: "nada"}") }
         }

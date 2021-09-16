@@ -18,6 +18,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
 import java.io.File
 import java.io.OutputStream
 import java.time.Instant
@@ -46,6 +47,7 @@ class LogcatCollectorTest {
     lateinit var logcatOutput: String
     lateinit var mockPackageNameAllowList: PackageNameAllowList
     lateinit var mockPackageManagerClient: PackageManagerClient
+    lateinit var kernelOopsDetector: KernelOopsDetector
     var tempFile: File? = null
 
     @BeforeEach
@@ -80,6 +82,8 @@ class LogcatCollectorTest {
             }
         }
 
+        kernelOopsDetector = mockk(relaxed = true)
+
         collector = LogcatCollector(
             temporaryFileFactory = TestTemporaryFileFactory,
             nextLogcatStartTimeProvider = startTimeProvider,
@@ -91,6 +95,7 @@ class LogcatCollectorTest {
             timeoutConfig = 1::minutes,
             packageNameAllowList = mockPackageNameAllowList,
             packageManagerClient = mockPackageManagerClient,
+            kernelOopsDetectorFactory = { kernelOopsDetector }
         )
     }
 
@@ -141,6 +146,8 @@ class LogcatCollectorTest {
             AbsoluteTime(Instant.ofEpochSecond(1610973242, 1)), // Note: +1 nsec
             startTimeProvider.nextStart,
         )
+        verify { kernelOopsDetector.process(any()) }
+        verify(exactly = 1) { kernelOopsDetector.finish(any()) }
     }
 
     @Test
@@ -152,6 +159,8 @@ class LogcatCollectorTest {
             startTimeProvider.nextStart,
         )
         assertNotNull(result)
+        verify { kernelOopsDetector.process(any()) }
+        verify(exactly = 1) { kernelOopsDetector.finish(any()) }
     }
 
     @Test
@@ -168,6 +177,8 @@ class LogcatCollectorTest {
             startTimeProvider.nextStart,
         )
         assertNotNull(result)
+        verify { kernelOopsDetector.process(any()) }
+        verify(exactly = 1) { kernelOopsDetector.finish(any()) }
     }
 
     @Test

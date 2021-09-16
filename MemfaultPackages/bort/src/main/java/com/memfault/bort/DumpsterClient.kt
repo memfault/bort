@@ -95,7 +95,7 @@ class DumpsterClient(
     }
 
     /**
-     * Sets a system property (persist.vendor.memfault.bort.enabled) so that other components may enable / disable
+     * Sets a system property (persist.system.memfault.bort.enabled) so that other components may enable / disable
      * themselves when bort enabled state changes.
      */
     suspend fun setBortEnabled(enabled: Boolean) {
@@ -108,7 +108,7 @@ class DumpsterClient(
     }
 
     /**
-     * Sets a system property (persist.vendor.memfault.structured.enabled) so that the structured log daemon may
+     * Sets a system property (persist.system.memfault.structured.enabled) so that the structured log daemon may
      * be started/stopped by init as needed.
      */
     suspend fun setStructuredLogEnabled(enabled: Boolean) {

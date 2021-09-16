@@ -9,7 +9,6 @@ import androidx.work.workDataOf
 import com.memfault.bort.BortJson
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploader
-import com.memfault.bort.JitterDelayProvider
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
@@ -17,6 +16,7 @@ import com.memfault.bort.enqueueWorkOnce
 import com.memfault.bort.metrics.UPLOAD_FILE_FILE_MISSING
 import com.memfault.bort.metrics.metrics
 import com.memfault.bort.settings.BortEnabledProvider
+import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
 import java.io.File
 import kotlin.time.minutes
@@ -140,7 +140,7 @@ fun enqueueFileUploadTask(
         context,
         FileUploadTaskInput(file, payload, continuation, shouldCompress).toWorkerInputData()
     ) {
-        setInitialDelay(jitterDelayProvider.randomJitterDelay().toJavaDuration())
+        setInitialDelay(jitterDelayProvider.randomJitterDelay())
         setConstraints(getUploadConstraints())
         setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())
         addTag(debugTag)

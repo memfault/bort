@@ -55,12 +55,21 @@ class LogcatParserTest {
                     "2021-01-18 12:33:17.718860224 +0000  root     0 I chatty  : ",
                     "uid=0(root) logd identical 11 lines"
                 ),
-                LogcatLine(null, null, null, "--------- beginning of kernel"),
+                LogcatLine(null, null, null, "--------- beginning of kernel", "kernel"),
                 LogcatLine(
                     Instant.ofEpochSecond(1610973242, 168273087),
                     9008,
                     "2021-01-18 12:34:02.168273087 +0000  9008  9009 I ServiceManager: ",
                     "Waiting for service AtCmdFwd...",
+                    "kernel"
+                ),
+                LogcatLine(null, null, null, "--------- switch to main", "main"),
+                LogcatLine(
+                    Instant.ofEpochSecond(1610973313, 22471886),
+                    0,
+                    "2021-01-18 12:35:13.022471886 +0000  root     0 E foo  : ",
+                    "bar",
+                    "main"
                 ),
             ),
             LogcatParser(
@@ -68,6 +77,8 @@ class LogcatParserTest {
                     "2021-01-18 12:33:17.718860224 +0000  root     0 I chatty  : uid=0(root) logd identical 11 lines",
                     "--------- beginning of kernel",
                     "2021-01-18 12:34:02.168273087 +0000  9008  9009 I ServiceManager: Waiting for service AtCmdFwd...",
+                    "--------- switch to main",
+                    "2021-01-18 12:35:13.022471886 +0000  root     0 E foo  : bar",
                 ),
                 COMMAND,
                 ::dummyUidParser

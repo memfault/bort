@@ -12,6 +12,7 @@ import com.memfault.bort.time.boxed
 import io.mockk.every
 import io.mockk.mockk
 import kotlin.time.days
+import kotlin.time.hours
 import kotlin.time.milliseconds
 import kotlin.time.minutes
 import kotlin.time.seconds
@@ -151,6 +152,7 @@ internal val EXPECTED_SETTINGS = FetchedSettings(
     ),
     metricsCollectionInterval = 91011.milliseconds.boxed(),
     metricsDataSourceEnabled = false,
+    otaUpdateCheckInterval = 12.hours.boxed(),
     packageManagerCommandTimeout = 60.seconds.boxed(),
     rebootEventsDataSourceEnabled = true,
     rebootEventsRateLimitingSettings = RateLimitingSettings(
@@ -247,6 +249,7 @@ internal val SETTINGS_FIXTURE = """
                 "logcat.filter_specs": [{"priority": "W", "tag": "*"}, {"priority": "V", "tag": "bort"}],
                 "metrics.collection_interval_ms": 91011,
                 "metrics.data_source_enabled": false,
+                "ota.update_check_interval_ms": 43200000,
                 "package_manager.command_timeout_ms" : 60000,
                 "reboot_events.data_source_enabled": true,
                 "reboot_events.rate_limiting_settings": {

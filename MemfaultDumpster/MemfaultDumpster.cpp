@@ -19,8 +19,8 @@
 #include "android-9/file.h"
 
 #define DUMPSTER_SERVICE_NAME "memfault_dumpster"
-#define BORT_ENABLED_PROPERTY "persist.vendor.memfault.bort.enabled"
-#define STRUCTURED_ENABLED_PROPERTY "persist.vendor.memfault.structured.enabled"
+#define BORT_ENABLED_PROPERTY "persist.system.memfault.bort.enabled"
+#define STRUCTURED_ENABLED_PROPERTY "persist.system.memfault.structured.enabled"
 
 using android::os::dumpstate::CommandOptions;
 using android::os::dumpstate::RunCommandToFd;

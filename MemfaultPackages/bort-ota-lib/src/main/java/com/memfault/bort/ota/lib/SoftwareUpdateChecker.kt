@@ -17,7 +17,6 @@ data class Ota(
     val url: String,
     val version: String,
     val releaseNotes: String,
-    // Extension point for arbitrary metadata required for A/B updates
     val metadata: Map<String, String> = emptyMap()
 )
 
@@ -27,22 +26,22 @@ interface SoftwareUpdateChecker {
 
 class MemfaultSoftwareUpdateChecker private constructor(
     private val memfault: MemfaultCloud,
-    private val settings: SoftwareUpdateSettings,
+    private val settings: () -> SoftwareUpdateSettings,
     private val metricLogger: MetricLogger,
 ) : SoftwareUpdateChecker {
     override suspend fun getLatestRelease(): Ota? =
         memfault
-            .getLatestRelease(settings.toDeviceInfo())
+            .getLatestRelease(settings().toDeviceInfo())
             ?.toGenericOta()
 
     companion object {
         fun create(
-            settings: SoftwareUpdateSettings,
+            settings: () -> SoftwareUpdateSettings,
             metricLogger: MetricLogger,
         ): SoftwareUpdateChecker {
             val cloud = MemfaultCloud.Builder().apply {
-                setApiKey(apiKey = settings.projectApiKey)
-                baseApiUrl = settings.baseUrl
+                setApiKey(apiKey = settings().projectApiKey)
+                baseApiUrl = settings().baseUrl
             }.build()
             return MemfaultSoftwareUpdateChecker(cloud, settings, metricLogger)
         }
@@ -84,9 +83,10 @@ private fun MemfaultOtaPackage.toGenericOta(): Ota = Ota(
     url = this.location,
     version = this.appVersion,
     releaseNotes = this.releaseNotes,
+    metadata = this.extraInfo,
 )
 
 fun realSoftwareUpdateChecker(
-    settings: SoftwareUpdateSettings,
+    settings: () -> SoftwareUpdateSettings,
     metricLogger: MetricLogger,
 ): SoftwareUpdateChecker = MemfaultSoftwareUpdateChecker.create(settings, metricLogger)

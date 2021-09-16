@@ -5,13 +5,14 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.memfault.bort.BortSystemCapabilities
-import com.memfault.bort.JitterDelayProvider
 import com.memfault.bort.periodicWorkRequest
 import com.memfault.bort.requester.PeriodicWorkRequester
+import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.toJavaDuration
 
 private const val WORK_TAG = "SETTINGS_UPDATE"
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.$WORK_TAG"
@@ -40,8 +41,8 @@ internal fun restartPeriodicSettingsUpdate(
         setConstraints(httpApiSettings.uploadConstraints)
         // Use delay to prevent running the task again immediately after a settings update:
         val settingsDelay = if (delayAfterSettingsUpdate) updateInterval else ZERO
-        val initialDelay = settingsDelay + jitterDelayProvider.randomJitterDelay()
-        setInitialDelay(initialDelay.toLongMilliseconds(), TimeUnit.MILLISECONDS)
+        val initialDelay = settingsDelay.toJavaDuration() + jitterDelayProvider.randomJitterDelay()
+        setInitialDelay(initialDelay.toMillis(), TimeUnit.MILLISECONDS)
     }.also { workRequest ->
         WorkManager.getInstance(context)
             .enqueueUniquePeriodicWork(
