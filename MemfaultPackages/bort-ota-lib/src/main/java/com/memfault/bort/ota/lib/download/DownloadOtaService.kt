@@ -276,7 +276,7 @@ class DownloadOtaService : Service() {
         runOnUpdater { perform(Action.DownloadCompleted(path.absolutePath)) }
     }
 
-    private fun downloadFailed(cause: Throwable) {
+    private fun downloadFailed(@Suppress("UNUSED_PARAMETER") cause: Throwable) {
         notificationManager.notify(
             NOTIFICATION_ID,
             notificationBuilder.apply {

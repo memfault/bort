@@ -6,12 +6,15 @@ import com.memfault.bort.settings.FileUploadHoldingAreaSettings
 import com.memfault.bort.settings.HttpApiSettings
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.settings.NetworkConstraint
+import com.memfault.bort.settings.RateLimitingSettings
 import com.memfault.bort.shared.LogcatFilterSpec
+import com.memfault.bort.time.boxed
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import java.io.File
 import kotlin.time.Duration
+import kotlin.time.hours
 import kotlin.time.minutes
 import kotlin.time.seconds
 import org.junit.jupiter.api.Test
@@ -58,6 +61,12 @@ class AppComponentsTest {
                     override val collectionInterval = 15.minutes
                     override val commandTimeout: Duration = 1.minutes
                     override val filterSpecs: List<LogcatFilterSpec> = emptyList()
+                    override val kernelOopsDataSourceEnabled = true
+                    override val kernelOopsRateLimitingSettings = RateLimitingSettings(
+                        defaultCapacity = 3,
+                        defaultPeriod = 6.hours.boxed(),
+                        maxBuckets = 1,
+                    )
                 }
                 every { fileUploadHoldingAreaSettings } returns object : FileUploadHoldingAreaSettings {
                     override val trailingMargin = 5.minutes

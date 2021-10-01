@@ -7,18 +7,28 @@ import com.memfault.bort.tokenbucket.takeSimple
 
 private const val OOPS_TOKEN_START = "------------[ cut here ]------------"
 
+interface LogcatLineProcessor {
+    fun process(line: LogcatLine)
+    fun finish(lastLogTime: BaseAbsoluteTime)
+}
+
+object NoopLogcatLineProcessor : LogcatLineProcessor {
+    override fun process(line: LogcatLine) {}
+    override fun finish(lastLogTime: BaseAbsoluteTime) {}
+}
+
 class KernelOopsDetector(
     private val tokenBucketStore: TokenBucketStore,
     private val handleEventOfInterest: (time: BaseAbsoluteTime) -> Unit,
     foundOops: Boolean = false,
-) {
+) : LogcatLineProcessor {
     var foundOops: Boolean = foundOops
         private set
 
     /**
      * Called for every logcat line, including separators
      */
-    fun process(line: LogcatLine) {
+    override fun process(line: LogcatLine) {
         if (foundOops) return
         if (line.buffer != "kernel") return
         if (line.message != OOPS_TOKEN_START) return
@@ -28,7 +38,7 @@ class KernelOopsDetector(
     /**
      * Called at the end of processing a logcat file
      */
-    fun finish(lastLogTime: BaseAbsoluteTime) {
+    override fun finish(lastLogTime: BaseAbsoluteTime) {
         if (!foundOops) return
         if (!tokenBucketStore.takeSimple(tag = "oops")) return
         handleEventOfInterest(lastLogTime)

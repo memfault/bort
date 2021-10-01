@@ -199,13 +199,13 @@ def fail(msg):
     sys.exit(msg)
 
 
-class SignatureException(Exception):
+class SignatureError(Exception):
     pass
 
 
 def _check_signatures(*, output_file, apk_file, pem_file, apk_cert_sha256s, pem_sha256):
     if pem_sha256 not in apk_cert_sha256s:
-        raise SignatureException(
+        raise SignatureError(
             """MemfaultBort.apk signature does not match MemfaultBort.x509.pem certificate file!
   {} is signed with certificate(s) having the following SHA256 fingerprints:
     {}
@@ -240,7 +240,7 @@ def _cmd_check_signature(*, output_file, apk_file, pem_file):
             apk_cert_sha256s=apk_cert_sha256s,
             pem_sha256=pem_sha256,
         )
-    except SignatureException as e:
+    except SignatureError as e:
         fail(str(e))
 
 

@@ -137,6 +137,10 @@ open class DynamicSettingsProvider(
             get() = settings.logcatCommandTimeout.duration
         override val filterSpecs: List<LogcatFilterSpec>
             get() = settings.logcatFilterSpecs
+        override val kernelOopsDataSourceEnabled
+            get() = settings.logcatKernelOopsDataSourceEnabled
+        override val kernelOopsRateLimitingSettings
+            get() = settings.logcatKernelOopsRateLimitingSettings
     }
 
     override val fileUploadHoldingAreaSettings = object : FileUploadHoldingAreaSettings {

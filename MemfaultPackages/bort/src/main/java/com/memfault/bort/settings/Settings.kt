@@ -53,6 +53,8 @@ interface LogcatSettings {
     val collectionInterval: Duration
     val commandTimeout: Duration
     val filterSpecs: List<LogcatFilterSpec>
+    val kernelOopsDataSourceEnabled: Boolean
+    val kernelOopsRateLimitingSettings: RateLimitingSettings
 }
 
 interface FileUploadHoldingAreaSettings {

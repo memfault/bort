@@ -150,6 +150,12 @@ internal val EXPECTED_SETTINGS = FetchedSettings(
         LogcatFilterSpec(priority = LogcatPriority.WARN, tag = "*"),
         LogcatFilterSpec(priority = LogcatPriority.VERBOSE, tag = "bort"),
     ),
+    logcatKernelOopsDataSourceEnabled = true,
+    logcatKernelOopsRateLimitingSettings = RateLimitingSettings(
+        defaultCapacity = 3,
+        defaultPeriod = 6.hours.boxed(),
+        maxBuckets = 1,
+    ),
     metricsCollectionInterval = 91011.milliseconds.boxed(),
     metricsDataSourceEnabled = false,
     otaUpdateCheckInterval = 12.hours.boxed(),
@@ -247,6 +253,12 @@ internal val SETTINGS_FIXTURE = """
                 "logcat.command_timeout_ms" : 60000,
                 "logcat.data_source_enabled": False,
                 "logcat.filter_specs": [{"priority": "W", "tag": "*"}, {"priority": "V", "tag": "bort"}],
+                "logcat.kernel_oops.data_source_enabled": true,
+                "logcat.kernel_oops.rate_limiting_settings": {
+                    "default_capacity": 3,
+                    "default_period_ms": 21600000,
+                    "max_buckets": 1
+                },
                 "metrics.collection_interval_ms": 91011,
                 "metrics.data_source_enabled": false,
                 "ota.update_check_interval_ms": 43200000,

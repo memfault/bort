@@ -26,6 +26,7 @@ const val BATTERYSTATS_FAILED = "batterystats_failed"
 const val MAX_ATTEMPTS = "max_attempts"
 private const val DROP_BOX_TRACE_TAG_COUNT_PER_HOUR_TEMPLATE = "drop_box_trace_%s_count"
 private const val BORT_VERSION_CODE = "bort_version_code"
+private const val BORT_UPSTREAM_VERSION_CODE = "bort_upstream_version_code"
 private const val USAGE_REPORTER_VERSION_CODE = "usagereporter_version_code"
 private const val RUNTIME_ENABLE_REQUIRED = "runtime_enable_required"
 private const val OS_VERSION = "os_version"
@@ -188,6 +189,7 @@ private suspend fun PackageManagerClient.getUsageReporterVersion(): Long = cache
 
 suspend fun builtinMetrics(packageManagerClient: PackageManagerClient): Map<String, Float> = mapOf(
     BORT_VERSION_CODE to BuildConfig.VERSION_CODE.toFloat(),
+    BORT_UPSTREAM_VERSION_CODE to com.memfault.bort.shared.BuildConfig.UPSTREAM_VERSION_CODE.toFloat(),
     USAGE_REPORTER_VERSION_CODE to packageManagerClient.getUsageReporterVersion().toFloat(),
     RUNTIME_ENABLE_REQUIRED to if (BuildConfig.RUNTIME_ENABLE_REQUIRED) 1f else 0f,
     OS_VERSION to Build.VERSION.SDK_INT.toFloat(),

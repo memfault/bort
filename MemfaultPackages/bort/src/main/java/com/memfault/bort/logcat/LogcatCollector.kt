@@ -51,7 +51,7 @@ class LogcatCollector(
     private val packageNameAllowList: PackageNameAllowList,
     private val packageManagerClient: PackageManagerClient,
     private val now: () -> BaseAbsoluteTime = AbsoluteTime.Companion::now,
-    private val kernelOopsDetectorFactory: () -> KernelOopsDetector,
+    private val kernelOopsDetectorFactory: () -> LogcatLineProcessor,
 ) {
     suspend fun collect(): LogcatCollectorResult? {
         temporaryFileFactory.createTemporaryFile(

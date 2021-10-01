@@ -25,6 +25,7 @@ import com.memfault.bort.logcat.KernelOopsDetector
 import com.memfault.bort.logcat.LogcatCollectionTask
 import com.memfault.bort.logcat.LogcatCollector
 import com.memfault.bort.logcat.NextLogcatCidProvider
+import com.memfault.bort.logcat.NoopLogcatLineProcessor
 import com.memfault.bort.logcat.RealNextLogcatCidProvider
 import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
 import com.memfault.bort.logcat.runLogcat
@@ -70,7 +71,6 @@ import com.memfault.bort.uploader.PreparedUploadService
 import com.memfault.bort.uploader.PreparedUploader
 import com.memfault.bort.uploader.enqueueFileUploadTask
 import java.io.File
-import kotlin.time.hours
 import kotlin.time.milliseconds
 import kotlin.time.toJavaDuration
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -409,10 +409,10 @@ data class AppComponents(
                             storage = storage,
                             getMaxBuckets = { 1 },
                             getTokenBucketFactory = {
+                                val settings = settingsProvider.logcatSettings.kernelOopsRateLimitingSettings
                                 RealTokenBucketFactory(
-                                    // TODO: MFLT-4344 Add rate limiting settings for Caliper kernel oops collection
-                                    defaultCapacity = 3,
-                                    defaultPeriod = 6.hours,
+                                    defaultCapacity = settings.defaultCapacity,
+                                    defaultPeriod = settings.defaultPeriod.duration,
                                 )
                             },
                         )
@@ -639,10 +639,10 @@ class DefaultWorkerFactory(
                     packageNameAllowList = packageNameAllowList,
                     packageManagerClient = packageManagerClient,
                     kernelOopsDetectorFactory = {
-                        KernelOopsDetector(
+                        if (settingsProvider.logcatSettings.kernelOopsDataSourceEnabled) KernelOopsDetector(
                             tokenBucketStore = kernelOopsTokenBucketStore,
                             handleEventOfInterest = handleEventOfInterestAtAbsoluteTime,
-                        )
+                        ) else NoopLogcatLineProcessor
                     }
                 ),
                 fileUploadHoldingArea = fileUploadHoldingArea,

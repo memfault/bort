@@ -152,6 +152,16 @@ data class FetchedSettings(
     @SerialName("logcat.filter_specs")
     val logcatFilterSpecs: List<LogcatFilterSpec>,
 
+    @SerialName("logcat.kernel_oops.data_source_enabled")
+    val logcatKernelOopsDataSourceEnabled: Boolean = true,
+
+    @SerialName("logcat.kernel_oops.rate_limiting_settings")
+    val logcatKernelOopsRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+        defaultCapacity = 3,
+        defaultPeriod = 6.hours.boxed(),
+        maxBuckets = 1,
+    ),
+
     @SerialName("metrics.collection_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val metricsCollectionInterval: BoxedDuration,

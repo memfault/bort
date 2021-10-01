@@ -13,7 +13,12 @@ class MockTokenBucketFactory(
     defaultPeriod: Duration,
     val mockElapsedRealtime: MockElapsedRealtime = MockElapsedRealtime(),
 ) : TokenBucketFactory(defaultCapacity, defaultPeriod) {
-    override fun create(count: Int, capacity: Int, period: Duration): TokenBucket =
+    override fun create(
+        count: Int,
+        capacity: Int,
+        period: Duration,
+        periodStartElapsedRealtime: Duration?
+    ): TokenBucket =
         TokenBucket(
             capacity = capacity,
             period = period,

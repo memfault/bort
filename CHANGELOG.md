@@ -1,5 +1,13 @@
 # Memfault Bort Changelog
 
+## v3.7.1 - September 30, 2021
+
+#### :chart_with_upwards_trend: Improvements
+
+- Fix a rate-limiting issue which sometimes caused regular data collection to be
+  missed.
+- Added internal logging for the upstream Bort version code.
+
 ## v3.7.0 - September 15, 2021
 
 #### :rocket: New Features

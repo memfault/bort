@@ -62,7 +62,7 @@ class TokenBucketStore(
 
     private fun readMap() = cachedMap ?: storage.readMap().mapValues { (_, storedBucket) ->
         with(storedBucket) {
-            getTokenBucketFactory().create(count, capacity, period.duration)
+            getTokenBucketFactory().create(count, capacity, period.duration, periodStartElapsedRealtime.duration)
         }
     }.also {
         cachedMap = it
