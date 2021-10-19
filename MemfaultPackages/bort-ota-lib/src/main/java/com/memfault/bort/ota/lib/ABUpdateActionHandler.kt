@@ -134,16 +134,20 @@ interface CachedOtaProvider {
 }
 
 class SharedPreferenceCachedOtaProvider(sharedPreferences: SharedPreferences) :
-    PreferenceKeyProvider<String?>(sharedPreferences, null, CACHED_OTA_KEY), CachedOtaProvider {
+    PreferenceKeyProvider<String>(sharedPreferences, EMPTY, CACHED_OTA_KEY), CachedOtaProvider {
     override fun get(): Ota? {
         val stored = getValue()
-        return if (stored != null) Json { encodeDefaults = true }.decodeFromString(Ota.serializer(), stored)
+        return if (stored != EMPTY) Json { encodeDefaults = true }.decodeFromString(Ota.serializer(), stored)
         else null
     }
 
     override fun set(ota: Ota?) {
-        if (ota == null) setValue(null)
+        if (ota == null) setValue(EMPTY)
         else setValue(Json { encodeDefaults = true }.encodeToString(Ota.serializer(), ota))
+    }
+
+    companion object {
+        private const val EMPTY = ""
     }
 }
 
@@ -174,7 +178,7 @@ interface AndroidUpdateEngineCallback {
 }
 
 class RealAndroidUpdateEngine : AndroidUpdateEngine {
-    private lateinit var updateEngine: UpdateEngine
+    private val updateEngine = UpdateEngine()
 
     override fun bind(callback: AndroidUpdateEngineCallback) {
         updateEngine.bind(object : UpdateEngineCallback() {

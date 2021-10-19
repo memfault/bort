@@ -1,0 +1,12 @@
+diff --git a/target/product/base.mk b/target/product/base.mk
+index bc3710c61f..6b0d966a97 100644
+--- a/target/product/base.mk
++++ b/target/product/base.mk
+@@ -186,3 +186,7 @@ PRODUCT_COPY_FILES += $(call add-to-product-copy-files-if-exists,\
+     frameworks/base/config/dirty-image-objects:system/etc/dirty-image-objects)
+
+ $(call inherit-product, $(SRC_TARGET_DIR)/product/embedded.mk)
++
++# Memfault SDK patch version
++PRODUCT_PROPERTY_OVERRIDES += \
++    vendor.memfault.bort.version.patch=manually_patched

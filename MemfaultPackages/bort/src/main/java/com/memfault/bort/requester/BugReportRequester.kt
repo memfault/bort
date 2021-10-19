@@ -12,10 +12,12 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.memfault.bort.Bort
+import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.BugReportRequestStatus
 import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.broadcastReply
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.settings.BugReportSettings
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
@@ -28,10 +30,12 @@ import com.memfault.bort.tokenbucket.takeSimple
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
+import kotlinx.coroutines.runBlocking
 
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.REQUEST_PERIODIC_BUGREPORT"
 private const val WORK_INTERVAL_PREFERENCE_KEY = "com.memfault.bort.work.BUGREPORT_INTERVAL"
 private const val WORK_INTERVAL_PREFERENCE_ABSENT = -1L
+private const val WORK_TAG = "BUGREPORT_PERIODIC"
 
 private const val MINIMAL_INPUT_DATA_KEY = "minimal"
 
@@ -49,6 +53,8 @@ internal fun requestBugReport(
     request: BugReportRequest,
     requestTimeout: Duration = BugReportRequestTimeoutTask.DEFAULT_TIMEOUT,
     bugReportSettings: BugReportSettings,
+    bortSystemCapabilities: BortSystemCapabilities,
+    builtInMetricsStore: BuiltinMetricsStore,
 ): Boolean {
     // First, cleanup the bugreport filestore.
     cleanupBugReports(
@@ -57,6 +63,14 @@ internal fun requestBugReport(
         maxBugReportAge = bugReportSettings.maxStoredAge,
         timeNowMs = System.currentTimeMillis(),
     )
+
+    // Dump internal metrics to logs, if SDK is not capable of uploading them as metrics.
+
+    // Important: don't do this on devices which do support uploading metrics: calling collectMetrics is a destructive
+    // operation (resets all metrics after collecting them).
+    if (!runBlocking { bortSystemCapabilities.supportsCaliperMetrics() }) {
+        Logger.i("Internal metrics: ${builtInMetricsStore.collectMetrics()}")
+    }
 
     val (success, _) = pendingBugReportRequestAccessor.compareAndSwap(request) { it == null }
     if (!success) {
@@ -106,6 +120,7 @@ class BugReportRequester(
             requestInterval.inHours.toLong(),
             TimeUnit.HOURS
         ).also { builder ->
+            builder.addTag(WORK_TAG)
             builder.setInputData(
                 BugReportRequest(
                     options = bugReportSettings.defaultOptions,
@@ -150,15 +165,25 @@ internal open class BugReportRequestWorker(
     private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
     private val tokenBucketStore: TokenBucketStore,
     private val bugReportSettings: BugReportSettings,
+    private val bortSystemCapabilities: BortSystemCapabilities,
+    private val builtInMetricsStore: BuiltinMetricsStore
 ) : Worker(appContext, workerParameters) {
 
     override fun doWork(): Result =
         if (Bort.appComponents().isEnabled() &&
-            tokenBucketStore.takeSimple(tag = "bugreport_periodic") && requestBugReport(
-                    context = applicationContext,
-                    pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
-                    request = inputData.toBugReportOptions(),
-                    bugReportSettings = bugReportSettings
-                )
+            tokenBucketStore.takeSimple(tag = BUGREPORT_RATE_LIMITING_TAG) && captureBugReport()
         ) Result.success() else Result.failure()
+
+    open fun captureBugReport(): Boolean = requestBugReport(
+        context = applicationContext,
+        pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
+        request = inputData.toBugReportOptions(),
+        bugReportSettings = bugReportSettings,
+        bortSystemCapabilities = bortSystemCapabilities,
+        builtInMetricsStore = builtInMetricsStore,
+    )
+
+    companion object {
+        const val BUGREPORT_RATE_LIMITING_TAG = "bugreport_periodic"
+    }
 }

@@ -1,3 +1,13 @@
+BORT_PATH := vendor/memfault/bort
+GRADLE_PROPERTIES := MemfaultPackages/gradle.properties
+BORT_MAJOR_VERSION := $(shell cat $(BORT_PATH)/$(GRADLE_PROPERTIES) | grep UPSTREAM_MAJOR_VERSION | cut -f2 -d"=")
+BORT_MINOR_VERSION := $(shell cat $(BORT_PATH)/$(GRADLE_PROPERTIES) | grep UPSTREAM_MINOR_VERSION | cut -f2 -d"=")
+BORT_PATCH_VERSION := $(shell cat $(BORT_PATH)/$(GRADLE_PROPERTIES) | grep UPSTREAM_PATCH_VERSION | cut -f2 -d"=")
+BORT_VERSION := $(BORT_MAJOR_VERSION).$(BORT_MINOR_VERSION).$(BORT_PATCH_VERSION)
+
+PRODUCT_PROPERTY_OVERRIDES += \
+  vendor.memfault.bort.version.sdk=$(BORT_VERSION)
+
 PRODUCT_PACKAGES += \
   MemfaultBort \
   MemfaultDumpstateRunner \

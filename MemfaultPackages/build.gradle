@@ -139,4 +139,14 @@ subprojects {
         android = true
         outputColorName = "RED"
     }
+
+    afterEvaluate {
+        if (rootProject.properties["BORT_SKIP_LINT_VITAL"] == "1") {
+            android {
+                lintOptions {
+                    checkReleaseBuilds false
+                }
+            }
+        }
+    }
 }

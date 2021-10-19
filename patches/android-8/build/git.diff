@@ -1,9 +1,21 @@
+diff --git a/core/tasks/vendor_module_check.mk b/core/tasks/vendor_module_check.mk
+index ae967c686..15ec8d2de 100644
+--- a/core/tasks/vendor_module_check.mk
++++ b/core/tasks/vendor_module_check.mk
+@@ -30,6 +30,7 @@ _vendor_owner_whitelist := \
+         invensense \
+         intel \
+         lge \
++        memfault \
+         moto \
+         mtk \
+         nvidia \
 diff --git a/target/board/generic_arm64/BoardConfig.mk b/target/board/generic_arm64/BoardConfig.mk
-index 46c8865a4f..1bcaace388 100644
+index 46c8865a4..1bcaace38 100644
 --- a/target/board/generic_arm64/BoardConfig.mk
 +++ b/target/board/generic_arm64/BoardConfig.mk
 @@ -96,3 +96,7 @@ DEVICE_MATRIX_FILE   := device/generic/goldfish/compatibility_matrix.xml
- 
+
  BOARD_PROPERTY_OVERRIDES_SPLIT_ENABLED := true
  BOARD_SEPOLICY_DIRS += build/target/board/generic/sepolicy
 +
@@ -11,7 +23,7 @@ index 46c8865a4f..1bcaace388 100644
 +include vendor/memfault/bort/BoardConfig.mk
 +
 diff --git a/target/board/generic_x86_64/BoardConfig.mk b/target/board/generic_x86_64/BoardConfig.mk
-index 883dd2e5c4..f6ca5c6ac0 100755
+index 883dd2e5c..f6ca5c6ac 100755
 --- a/target/board/generic_x86_64/BoardConfig.mk
 +++ b/target/board/generic_x86_64/BoardConfig.mk
 @@ -60,3 +60,7 @@ DEVICE_MATRIX_FILE   := device/generic/goldfish/compatibility_matrix.xml
@@ -22,13 +34,25 @@ index 883dd2e5c4..f6ca5c6ac0 100755
 +TARGET_BOOTLOADER_BOARD_NAME := generic-x86_64
 +include vendor/memfault/bort/BoardConfig.mk
 +
+diff --git a/target/product/base.mk b/target/product/base.mk
+index 9e3862379..9a433ba9c 100644
+--- a/target/product/base.mk
++++ b/target/product/base.mk
+@@ -164,3 +164,7 @@ PRODUCT_COPY_FILES += $(call add-to-product-copy-files-if-exists,\
+     frameworks/base/config/dirty-image-objects:system/etc/dirty-image-objects)
+
+ $(call inherit-product, $(SRC_TARGET_DIR)/product/embedded.mk)
++
++# Memfault SDK patch version
++PRODUCT_PROPERTY_OVERRIDES += \
++    vendor.memfault.bort.version.patch=manually_patched
 diff --git a/target/product/emulator.mk b/target/product/emulator.mk
-index 0e1e581cdd..ea0e792d06 100644
+index 0e1e581cd..ea0e792d0 100644
 --- a/target/product/emulator.mk
 +++ b/target/product/emulator.mk
 @@ -151,3 +151,9 @@ PRODUCT_PACKAGE_OVERLAYS := device/generic/goldfish/overlay
  PRODUCT_CHARACTERISTICS := emulator
- 
+
  PRODUCT_FULL_TREBLE_OVERRIDE := true
 +
 +# Enforce privapp-permissions whitelist.

@@ -46,6 +46,12 @@ android {
         }
     }
 
+    variantFilter { variant ->
+        if (variant.buildType.name.endsWith('debug')) {
+            variant.setIgnore(true);
+        }
+    }
+
     lintOptions {
         abortOnError true
     }
@@ -120,4 +126,5 @@ task exportPem(type: Exec) {
 
 afterEvaluate {
     assembleRelease.finalizedBy copyReleaseApk, exportPem
+    assembleReleaseTest.finalizedBy exportPem
 }

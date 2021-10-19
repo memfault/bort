@@ -4,6 +4,7 @@ import com.memfault.bort.time.BoxedDuration
 import io.mockk.spyk
 import io.mockk.verify
 import kotlin.time.milliseconds
+import kotlin.time.minutes
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
@@ -125,14 +126,51 @@ class TokenBucketStoreTest {
             storage = storage,
             getMaxBuckets = { 1 },
             getTokenBucketFactory = { tokenBucketFactory },
-        ).handleLinuxReboot()
+        ).handleLinuxReboot(previousUptime = 38842.milliseconds)
 
         verify(exactly = 1) {
             storage.writeMap(
                 StoredTokenBucketMap(
                     mapOf(
                         key to initialBucket.copy(
-                            periodStartElapsedRealtime = BoxedDuration(mockElapsedRealtime.now)
+                            periodStartElapsedRealtime = BoxedDuration((-206497).milliseconds)
+                        )
+                    )
+                )
+            )
+        }
+    }
+
+    @Test
+    fun handleBoot_uptimeLessThanPreviousElapsedTimed() {
+        val initialBucket = StoredTokenBucket(
+            count = 3,
+            capacity = capacity,
+            period = BoxedDuration(period),
+            periodStartElapsedRealtime = BoxedDuration(38842.milliseconds)
+        )
+        val storage = spyk(
+            MockTokenBucketStorage(
+                map = StoredTokenBucketMap(
+                    mapOf(
+                        key to initialBucket
+                    )
+                )
+            )
+        )
+
+        TokenBucketStore(
+            storage = storage,
+            getMaxBuckets = { 1 },
+            getTokenBucketFactory = { tokenBucketFactory },
+        ).handleLinuxReboot(previousUptime = 12345.milliseconds)
+
+        verify(exactly = 1) {
+            storage.writeMap(
+                StoredTokenBucketMap(
+                    mapOf(
+                        key to initialBucket.copy(
+                            periodStartElapsedRealtime = BoxedDuration((-3).minutes)
                         )
                     )
                 )

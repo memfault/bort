@@ -1,0 +1,12 @@
+diff --git a/target/product/base_vendor.mk b/target/product/base_vendor.mk
+index 584327c..1b16ab1 100644
+--- a/target/product/base_vendor.mk
++++ b/target/product/base_vendor.mk
+@@ -69,3 +69,7 @@ PRODUCT_PACKAGES += \
+ # VINTF data for vendor image
+ PRODUCT_PACKAGES += \
+     device_compatibility_matrix.xml \
++
++# Memfault SDK patch version
++PRODUCT_PROPERTY_OVERRIDES += \
++    vendor.memfault.bort.version.patch=manually_patched

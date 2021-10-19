@@ -1,5 +1,6 @@
 package com.memfault.bort.ota.lib
 
+import android.content.SharedPreferences
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -233,5 +234,18 @@ class ABUpdateActionHandlerTest {
             ),
             collectedEvents
         )
+    }
+
+    @Test
+    fun testCachedOtaProviderHandlesEmpty() {
+        val editor = mockk<SharedPreferences.Editor> {
+            every { putString(any(), any()) } returns this
+            every { apply() } returns Unit
+        }
+        val prefs = mockk<SharedPreferences> {
+            every { edit() } returns editor
+        }
+        val provider = SharedPreferenceCachedOtaProvider(prefs)
+        provider.set(null)
     }
 }

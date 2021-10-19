@@ -2,6 +2,9 @@ package com.memfault.bort.shared
 
 import android.content.SharedPreferences
 
+/**
+ * Does not support nullable types.
+ */
 abstract class PreferenceKeyProvider<T>(
     private val sharedPreferences: SharedPreferences,
     private val defaultValue: T,

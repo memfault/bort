@@ -11,6 +11,7 @@ import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.ingress.IngressService
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.SettingsProvider
@@ -56,6 +57,7 @@ abstract class FilteringReceiver(
     protected lateinit var jitterDelayProvider: JitterDelayProvider
     protected lateinit var dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider
     protected lateinit var bortSystemCapabilities: BortSystemCapabilities
+    protected lateinit var builtInMetricsStore: BuiltinMetricsStore
 
     override fun onReceive(context: Context?, intent: Intent?) {
         Logger.v("Received action=${intent?.action}")
@@ -89,6 +91,7 @@ abstract class FilteringReceiver(
         jitterDelayProvider = it.jitterDelayProvider
         dropBoxProcessedEntryCursorProvider = it.dropBoxProcessedEntryCursorProvider
         bortSystemCapabilities = it.bortSystemCapabilities
+        builtInMetricsStore = it.metrics
     }
 
     abstract fun onIntentReceived(context: Context, intent: Intent, action: String)

@@ -1,11 +1,23 @@
+diff --git a/target/product/base_vendor.mk b/target/product/base_vendor.mk
+index 471340b..39326e7 100644
+--- a/target/product/base_vendor.mk
++++ b/target/product/base_vendor.mk
+@@ -81,3 +81,7 @@ PRODUCT_PACKAGES += \
+ # /vendor. TODO(b/141648565): Don't install these unless they're needed.
+ PRODUCT_PACKAGES += \
+     applypatch
++
++# Memfault SDK patch version
++PRODUCT_PROPERTY_OVERRIDES += \
++    vendor.memfault.bort.version.patch=manually_patched
 diff --git a/target/product/mainline.mk b/target/product/mainline.mk
 index 22436e6..a1dae7e 100644
 --- a/target/product/mainline.mk
 +++ b/target/product/mainline.mk
 @@ -28,6 +28,9 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/telephony_product.mk)
- 
+
  $(call inherit-product, frameworks/base/data/sounds/AllAudio.mk)
- 
+
 +# Memfault Bort
 +$(call inherit-product, vendor/memfault/bort/product.mk)
 +
@@ -19,7 +31,7 @@ index a787707..87c2167 100644
 @@ -24,6 +24,9 @@ $(call inherit-product-if-exists, vendor/google/security/adb/vendor_key.mk)
  # Enable updating of APEXes
  $(call inherit-product, $(SRC_TARGET_DIR)/product/updatable_apex.mk)
- 
+
 +# Memfault Bort
 +$(call inherit-product, vendor/memfault/bort/product.mk)
 +

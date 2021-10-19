@@ -2,8 +2,11 @@ package com.memfault.bort.tokenbucket
 
 import android.content.Context
 import com.memfault.bort.TOKEN_STORE_PREFERENCE_FILE_NAME_TEMPLATE
+import com.memfault.bort.time.UptimeTracker
 
-class TokenBucketStoreRegistry {
+class TokenBucketStoreRegistry(
+    private val updateTracker: UptimeTracker,
+) {
     private val registry: MutableMap<String, TokenBucketStore> = mutableMapOf()
 
     operator fun set(key: String, store: TokenBucketStore) {
@@ -13,7 +16,7 @@ class TokenBucketStoreRegistry {
 
     fun handleLinuxReboot() {
         registry.forEach { _, store ->
-            store.handleLinuxReboot()
+            store.handleLinuxReboot(updateTracker.getPreviousUptime())
         }
     }
 

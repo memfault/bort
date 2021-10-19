@@ -1,10 +1,12 @@
 package com.memfault.bort.tokenbucket
 
+import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.BoxedDuration
 import com.memfault.bort.time.DurationAsMillisecondsLong
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.time.Duration
+import kotlin.time.minutes
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -33,20 +35,30 @@ class TokenBucketStore(
     private val storage: TokenBucketStorage,
     private val getMaxBuckets: () -> Int,
     private val getTokenBucketFactory: () -> TokenBucketFactory,
-    val elapsedRealtime: () -> Duration = ::realElapsedRealtime,
 ) {
     private val lock = ReentrantLock()
     private var cachedMap: Map<String, TokenBucket>? = null
 
-    fun handleLinuxReboot() = lock.withLock {
+    fun handleLinuxReboot(previousUptime: Duration) = lock.withLock {
         // After rebooting Linux, the
         // periodStartElapsedRealtime needs to be reset. We don't know the elapsedRealtime() value when the reboot
         // happened, so just "restart" to the current elapsedRealtime(). Effectively, the token feeding periods are
         // restarted and thus will the next token "feed" be delayed.
         storage.writeMap(
             StoredTokenBucketMap(
-                storage.readMap().mapValues { (_, storedBucket) ->
-                    storedBucket.copy(periodStartElapsedRealtime = BoxedDuration(elapsedRealtime()))
+                storage.readMap().mapValues { (key, storedBucket) ->
+                    // Time period in previous boot uptime, since last token was fed.
+                    val previousBootTimeLeftOver = previousUptime - storedBucket.periodStartElapsedRealtime.duration
+                    Logger.d(
+                        "handleLinuxReboot tokenBucket key=$key " +
+                            "previousBootTimeLeftOver=$previousBootTimeLeftOver"
+                    )
+                    Logger.logEvent(
+                        "handleLinuxReboot tokenBucket key=$key " +
+                            "previousBootTimeLeftOver=$previousBootTimeLeftOver"
+                    )
+                    val newValue = -previousBootTimeLeftOver.coerceAtLeast(Duration.ZERO) - BOOT_TIME
+                    storedBucket.copy(periodStartElapsedRealtime = BoxedDuration(newValue))
                 }
             )
         )
@@ -91,6 +103,11 @@ class TokenBucketStore(
                 writeMap(finalMap)
             }
         }
+    }
+
+    companion object {
+        // Rough time taken to boot (to ensure that we keep feed tokens in case of a boot loop).
+        private val BOOT_TIME = 3.minutes
     }
 }
 

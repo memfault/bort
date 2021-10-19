@@ -20,11 +20,13 @@ LOG_FILE = "validate-sdk-integration.log"
 logging.basicConfig(format="%(message)s", level=logging.INFO)
 
 DEFAULT_ENCODING = "utf-8"
+PLACEHOLDER_BORT_AOSP_PATCH_VERSION = "manually_patched"
 PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_BORT_OTA_APP_ID = "vnd.myandroid.bort.otaappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
 RELEASES = range(8, 11 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+GRADLE_PROPERTIES = os.path.join(SCRIPT_DIR, "MemfaultPackages", "gradle.properties")
 PYTHON_MIN_VERSION = ("3", "6", "0")
 USAGE_REPORTER_APPLICATION_ID = "com.memfault.usagereporter"
 USAGE_REPORTER_APK_PATH = (
@@ -86,6 +88,20 @@ def _replace_placeholders(content, mapping):
         content = content.replace(placeholder, value)
 
     return content
+
+
+def _get_bort_version():
+    properties = {}
+    with open(GRADLE_PROPERTIES) as properties_file:
+        for line in properties_file:
+            matches = re.match(r"^([A-Z_]+)=(.*)\s+$", line)
+            if matches:
+                properties[matches.group(1)] = matches.group(2)
+    return "%s.%s.%s" % (
+        properties["UPSTREAM_MAJOR_VERSION"],
+        properties["UPSTREAM_MINOR_VERSION"],
+        properties["UPSTREAM_PATCH_VERSION"],
+    )
 
 
 class Command(abc.ABC):
@@ -178,6 +194,10 @@ class PatchAOSPCommand(Command):
     def _apply_all_patches(self):
         glob_pattern = os.path.join(self._patches_dir, "**", "git.diff")
 
+        mapping = {
+            PLACEHOLDER_BORT_AOSP_PATCH_VERSION: _get_bort_version(),
+        }
+
         for patch_abspath in glob.iglob(glob_pattern, recursive=True):
             patch_relpath = os.path.relpath(patch_abspath, self._patches_dir)
             repo_subdir = os.path.dirname(patch_relpath)
@@ -187,7 +207,7 @@ class PatchAOSPCommand(Command):
                 continue
 
             with open(patch_abspath) as patch_file:
-                content = patch_file.read()
+                content = _replace_placeholders(patch_file.read(), mapping)
 
             if not self._force and self._check_patch(repo_subdir, patch_relpath, content):
                 continue  # Already applied!

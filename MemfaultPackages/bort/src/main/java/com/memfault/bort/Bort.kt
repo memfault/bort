@@ -32,6 +32,7 @@ open class Bort : Application(), Configuration.Provider {
 
         metrics()?.increment(BORT_STARTED)
         logDebugInfo()
+        appComponents().uptimeTracker.trackUptimeOnStart()
 
         if (!appComponents().isEnabled()) {
             Logger.test("Bort not enabled, not running app")
@@ -59,6 +60,7 @@ open class Bort : Application(), Configuration.Provider {
                 "upstreamVersionCode=${sdkVersionInfo.upstreamVersionCode}",
                 "bugreport.enabled=${bugReportSettings.dataSourceEnabled}",
                 "dropbox.enabled=${dropBoxSettings.dataSourceEnabled}",
+                "bugreport.periodic.limit.period=${bugReportSettings.periodicRateLimitingPercentOfPeriod}",
             )
             Logger.i(
                 "bort.oncreate",

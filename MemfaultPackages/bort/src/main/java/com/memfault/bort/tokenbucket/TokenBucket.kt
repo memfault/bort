@@ -2,6 +2,8 @@ package com.memfault.bort.tokenbucket
 
 import com.memfault.bort.metrics.RATE_LIMIT_APPLIED
 import com.memfault.bort.metrics.metrics
+import com.memfault.bort.requester.BugReportRequestWorker.Companion.BUGREPORT_RATE_LIMITING_TAG
+import com.memfault.bort.shared.Logger
 import kotlin.math.floor
 import kotlin.time.Duration
 
@@ -47,7 +49,7 @@ class TokenBucket(
      * @return true if successful
      */
     fun take(n: Int = 1, tag: String): Boolean {
-        feed()
+        feed(tag = tag)
         return if (count < n) {
             metrics()?.increment("${RATE_LIMIT_APPLIED}_$tag")
             false
@@ -59,9 +61,20 @@ class TokenBucket(
     /**
      * Re-ups the token count based on the current time.
      */
-    internal fun feed() {
+    internal fun feed(tag: String? = null) {
         val now = elapsedRealtime()
+        // Note that _periodStartElapsedRealtime may be negative, if time was carried over from the previous boot.
         val periods = floor((now - _periodStartElapsedRealtime) / period)
+        if (tag in DEBUG_TAGS) {
+            Logger.d(
+                "feeding $tag: prevCount=$count now=$now " +
+                    "_periodStartElapsedRealtime=$_periodStartElapsedRealtime periods=$periods"
+            )
+            Logger.logEvent(
+                "feeding $tag: prevCount=$count now=$now " +
+                    "_periodStartElapsedRealtime=$_periodStartElapsedRealtime periods=$periods"
+            )
+        }
         if (periods < 1.0) {
             return
         }
@@ -100,5 +113,9 @@ class TokenBucket(
         result = 31 * result + period.hashCode()
         result = 31 * result + periodStartElapsedRealtime.hashCode()
         return result
+    }
+
+    companion object {
+        private val DEBUG_TAGS = listOf(BUGREPORT_RATE_LIMITING_TAG)
     }
 }

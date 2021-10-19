@@ -1,5 +1,15 @@
 # Memfault Bort Changelog
 
+## v3.7.2 - October 18, 2021
+
+#### :chart_with_upwards_trend: Improvements
+
+- Fix a crash when using A/B OTA updates.
+- Disable debug variant.
+- Add system properties for Bort SDK/patch versions.
+- Improved internal observability.
+- Improve rate-limiting behavior after a reboot.
+
 ## v3.7.1 - September 30, 2021
 
 #### :chart_with_upwards_trend: Improvements

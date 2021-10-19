@@ -10,6 +10,7 @@ import com.memfault.bort.http.logAttempt
 import com.memfault.bort.http.logFailure
 import com.memfault.bort.http.logTimeout
 import com.memfault.bort.http.logTimings
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.requester.BugReportRequestWorker
 import com.memfault.bort.selfTesting.SelfTestWorker
 import com.memfault.bort.settings.DataScrubbingSettings
@@ -70,6 +71,8 @@ internal class ReleaseTestComponentsBuilder(
                 reporterServiceConnector: ReporterServiceConnector,
                 pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
                 bugReportPeriodicTaskTokenBucketStore: TokenBucketStore,
+                bortSystemCapabilities: BortSystemCapabilities,
+                builtInMetricsStore: BuiltinMetricsStore,
             ): ListenableWorker? = when (workerClassName) {
                 BugReportRequestWorker::class.qualifiedName ->
                     object : BugReportRequestWorker(
@@ -77,11 +80,13 @@ internal class ReleaseTestComponentsBuilder(
                         workerParameters,
                         pendingBugReportRequestAccessor,
                         bugReportPeriodicTaskTokenBucketStore,
-                        settingsProvider.bugReportSettings
+                        settingsProvider.bugReportSettings,
+                        bortSystemCapabilities = bortSystemCapabilities,
+                        builtInMetricsStore = builtInMetricsStore,
                     ) {
-                        override fun doWork(): Result {
+                        override fun captureBugReport(): Boolean {
                             Logger.i("** MFLT-TEST ** Periodic Bug Report Request")
-                            return Result.success()
+                            return true
                         }
                     }
                 SelfTestWorker::class.qualifiedName -> SelfTestWorker(
