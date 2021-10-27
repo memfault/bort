@@ -84,7 +84,7 @@ internal class ReleaseTestComponentsBuilder(
                         bortSystemCapabilities = bortSystemCapabilities,
                         builtInMetricsStore = builtInMetricsStore,
                     ) {
-                        override fun captureBugReport(): Boolean {
+                        override suspend fun captureBugReport(): Boolean {
                             Logger.i("** MFLT-TEST ** Periodic Bug Report Request")
                             return true
                         }

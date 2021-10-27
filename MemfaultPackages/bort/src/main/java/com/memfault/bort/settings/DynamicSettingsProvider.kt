@@ -35,6 +35,9 @@ open class DynamicSettingsProvider(
     override val eventLogEnabled: Boolean
         get() = settings.bortEventLogEnabled
 
+    override val internalLogToDiskEnabled: Boolean
+        get() = settings.bortInternalLogToDiskEnabled
+
     override val isRuntimeEnableRequired: Boolean = BuildConfig.RUNTIME_ENABLE_REQUIRED
 
     override val settingsUpdateInterval: Duration

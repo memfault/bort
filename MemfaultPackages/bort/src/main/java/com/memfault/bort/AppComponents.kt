@@ -112,6 +112,7 @@ data class AppComponents(
     val bortSystemCapabilities: BortSystemCapabilities,
     val metrics: BuiltinMetricsStore,
     val uptimeTracker: UptimeTracker,
+    val temporaryFileFactory: TemporaryFileFactory,
 ) {
     open class Builder(
         private val context: Context,
@@ -508,6 +509,7 @@ data class AppComponents(
                 bortSystemCapabilities = bortSystemCapabilities,
                 metrics = builtinMetricsStore,
                 uptimeTracker = uptimeTracker,
+                temporaryFileFactory = temporaryFileFactory,
             )
         }
     }

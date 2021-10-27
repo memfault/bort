@@ -3,6 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.memfault.bort.ota">
 
+    <queries>
+        <provider android:authorities="com.memfault.bort.softwareupdate.settings" />
+    </queries>
+
     <application
         android:name=".App"
         android:allowBackup="false"
@@ -12,14 +16,13 @@
         android:theme="@style/Theme.AppCompat.DayNight"
         tools:ignore="MissingApplicationIcon"
         >
-        
+
         <activity android:name=".UpdateActivity"
             android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.settings.SYSTEM_UPDATE_SETTINGS" />
             </intent-filter>
         </activity>
-
     </application>
 
 </manifest>

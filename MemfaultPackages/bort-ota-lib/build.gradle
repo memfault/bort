@@ -8,6 +8,10 @@ android {
     buildToolsVersion versions.buildTools
 
     defaultConfig {
+        manifestPlaceholders = [
+                bortControlPermission: bortProperty("BORT_CONTROL_PERMISSION"),
+        ]
+
         minSdkVersion versions.minSdk
         targetSdkVersion versions.targetSdk
         versionCode loadVersionCode() as Integer

@@ -56,6 +56,7 @@ dependencies {
 
     implementation deps.kotlin.stdlib
     implementation deps.kotlin.coroutines
+    implementation deps.kotlin.coroutinesAndroid
     implementation deps.result
     implementation deps.serialization.json
     implementation deps.serialization.converter

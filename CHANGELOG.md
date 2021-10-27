@@ -1,5 +1,20 @@
 # Memfault Bort Changelog
 
+## v3.7.3 - October 26, 2021
+
+#### :chart_with_upwards_trend: Improvements
+
+- Fix a potential crash after requesting a bugreport via Intent.
+- Sepolicy changes to allow Bort+OTA to run on the latest build of Android 11,
+  and with a target SDK version of 30.
+- Enable requesting an OTA update check via Intent
+  (`com.memfault.intent.action.OTA_CHECK_FOR_UPDATES`).
+
+#### :house: Internal
+
+- Added ability for bort to log to disk, to aid debugging. This is disabled by
+  default.
+
 ## v3.7.2 - October 18, 2021
 
 #### :chart_with_upwards_trend: Improvements

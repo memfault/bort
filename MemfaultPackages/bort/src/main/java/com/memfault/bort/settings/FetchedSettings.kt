@@ -30,6 +30,9 @@ data class FetchedSettings(
     @SerialName("bort.event_log_enabled")
     val bortEventLogEnabled: Boolean,
 
+    @SerialName("bort.internal_log_to_disk_enabled")
+    val bortInternalLogToDiskEnabled: Boolean = false,
+
     @SerialName("bort.settings_update_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val bortSettingsUpdateInterval: BoxedDuration,

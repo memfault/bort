@@ -37,6 +37,7 @@ fun realSettingsUpdateCallback(
         Logger.minLogcatLevel = minLogcatLevel
         Logger.minStructuredLevel = minStructuredLogLevel
         Logger.eventLogEnabled = this::eventLogEnabled
+        Logger.logToDisk = this::internalLogToDiskEnabled
         Logger.i("settings.updated", selectSettingsToMap())
     }
 

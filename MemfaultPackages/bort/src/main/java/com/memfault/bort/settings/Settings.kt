@@ -128,6 +128,7 @@ interface SettingsProvider {
     val minLogcatLevel: LogLevel
     val minStructuredLogLevel: LogLevel
     val eventLogEnabled: Boolean
+    val internalLogToDiskEnabled: Boolean
     val isRuntimeEnableRequired: Boolean
     val settingsUpdateInterval: Duration
 

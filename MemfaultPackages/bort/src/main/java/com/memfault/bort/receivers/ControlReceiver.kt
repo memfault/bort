@@ -16,6 +16,9 @@ import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.getLongOrNull
 import com.memfault.bort.shared.goAsync
 import kotlin.time.milliseconds
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /** Base receiver to handle events that control the SDK. */
 abstract class BaseControlReceiver : FilteringReceiver(
@@ -53,15 +56,17 @@ abstract class BaseControlReceiver : FilteringReceiver(
         val timeout = intent.extras?.getLongOrNull(
             INTENT_EXTRA_BUG_REPORT_REQUEST_TIMEOUT_MS
         )?.let(Long::milliseconds) ?: BugReportRequestTimeoutTask.DEFAULT_TIMEOUT
-        requestBugReport(
-            context,
-            pendingBugReportRequestAccessor,
-            request,
-            timeout,
-            settingsProvider.bugReportSettings,
-            bortSystemCapabilities,
-            builtInMetricsStore
-        )
+        CoroutineScope(Dispatchers.Default).launch {
+            requestBugReport(
+                context,
+                pendingBugReportRequestAccessor,
+                request,
+                timeout,
+                settingsProvider.bugReportSettings,
+                bortSystemCapabilities,
+                builtInMetricsStore
+            )
+        }
     }
 
     private fun onBortEnabled(intent: Intent) {

@@ -9,6 +9,7 @@ import com.memfault.bort.DeviceIdProvider
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.ReporterServiceConnector
+import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.ingress.IngressService
 import com.memfault.bort.metrics.BuiltinMetricsStore
@@ -58,6 +59,7 @@ abstract class FilteringReceiver(
     protected lateinit var dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider
     protected lateinit var bortSystemCapabilities: BortSystemCapabilities
     protected lateinit var builtInMetricsStore: BuiltinMetricsStore
+    protected lateinit var temporaryFileFactory: TemporaryFileFactory
 
     override fun onReceive(context: Context?, intent: Intent?) {
         Logger.v("Received action=${intent?.action}")
@@ -92,6 +94,7 @@ abstract class FilteringReceiver(
         dropBoxProcessedEntryCursorProvider = it.dropBoxProcessedEntryCursorProvider
         bortSystemCapabilities = it.bortSystemCapabilities
         builtInMetricsStore = it.metrics
+        temporaryFileFactory = it.temporaryFileFactory
     }
 
     abstract fun onIntentReceived(context: Context, intent: Intent, action: String)

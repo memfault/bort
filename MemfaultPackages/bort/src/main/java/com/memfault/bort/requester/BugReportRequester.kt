@@ -3,12 +3,12 @@ package com.memfault.bort.requester
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.Worker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.memfault.bort.Bort
@@ -30,7 +30,6 @@ import com.memfault.bort.tokenbucket.takeSimple
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
-import kotlinx.coroutines.runBlocking
 
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.REQUEST_PERIODIC_BUGREPORT"
 private const val WORK_INTERVAL_PREFERENCE_KEY = "com.memfault.bort.work.BUGREPORT_INTERVAL"
@@ -47,7 +46,7 @@ private fun Data.toBugReportOptions(): BugReportRequest = BugReportRequest(
     options = BugReportOptions(minimal = getBoolean(MINIMAL_INPUT_DATA_KEY, false)),
 )
 
-internal fun requestBugReport(
+internal suspend fun requestBugReport(
     context: Context,
     pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
     request: BugReportRequest,
@@ -68,7 +67,7 @@ internal fun requestBugReport(
 
     // Important: don't do this on devices which do support uploading metrics: calling collectMetrics is a destructive
     // operation (resets all metrics after collecting them).
-    if (!runBlocking { bortSystemCapabilities.supportsCaliperMetrics() }) {
+    if (!bortSystemCapabilities.supportsCaliperMetrics()) {
         Logger.i("Internal metrics: ${builtInMetricsStore.collectMetrics()}")
     }
 
@@ -167,14 +166,14 @@ internal open class BugReportRequestWorker(
     private val bugReportSettings: BugReportSettings,
     private val bortSystemCapabilities: BortSystemCapabilities,
     private val builtInMetricsStore: BuiltinMetricsStore
-) : Worker(appContext, workerParameters) {
+) : CoroutineWorker(appContext, workerParameters) {
 
-    override fun doWork(): Result =
+    override suspend fun doWork(): Result =
         if (Bort.appComponents().isEnabled() &&
             tokenBucketStore.takeSimple(tag = BUGREPORT_RATE_LIMITING_TAG) && captureBugReport()
         ) Result.success() else Result.failure()
 
-    open fun captureBugReport(): Boolean = requestBugReport(
+    open suspend fun captureBugReport(): Boolean = requestBugReport(
         context = applicationContext,
         pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
         request = inputData.toBugReportOptions(),

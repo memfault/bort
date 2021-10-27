@@ -6,6 +6,7 @@ import com.memfault.bort.BugReportFileUploadPayload
 import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.INTENT_ACTION_BUGREPORT_FINISHED
 import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
+import com.memfault.bort.addFileToZip
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.shared.INTENT_EXTRA_BUG_REPORT_REQUEST_ID
 import com.memfault.bort.shared.Logger
@@ -13,6 +14,8 @@ import com.memfault.bort.shared.goAsync
 import com.memfault.bort.uploader.BugReportFileUploadContinuation
 import com.memfault.bort.uploader.enqueueFileUploadTask
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private const val WORK_TAG = "com.memfault.bort.work.tag.UPLOAD_BUGREPORT"
 
@@ -35,6 +38,19 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
         }
 
         goAsync {
+            withContext(Dispatchers.IO) {
+                // Add bort internal logs to the bugreport .zip file, if we have any.
+                temporaryFileFactory.createTemporaryFile(
+                    prefix = "internallog",
+                    suffix = null,
+                ).useFile { tempFile, _ ->
+                    val hasInternalLogFile = Logger.uploadAndDeleteLogFile(tempFile)
+                    if (hasInternalLogFile) {
+                        addFileToZip(zipFile = file, newFile = tempFile, newfileName = "bort_logs.txt")
+                    }
+                }
+            }
+
             val dropBoxDataSourceEnabledAndSupported = settingsProvider.dropBoxSettings.dataSourceEnabled &&
                 bortSystemCapabilities.supportsCaliperDropBoxTraces()
 

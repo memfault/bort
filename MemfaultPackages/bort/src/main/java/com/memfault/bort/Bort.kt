@@ -49,6 +49,8 @@ open class Bort : Application(), Configuration.Provider {
             Logger.minLogcatLevel = minLogcatLevel
             Logger.minStructuredLevel = minStructuredLogLevel
             Logger.eventLogEnabled = this::eventLogEnabled
+            Logger.logToDisk = this::internalLogToDiskEnabled
+            Logger.initLogFile(this@Bort)
             Logger.logEvent(
                 "bort-oncreate",
                 "device=${appComponents().deviceIdProvider.deviceId()}",
