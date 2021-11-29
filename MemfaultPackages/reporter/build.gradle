@@ -5,7 +5,6 @@ apply from: "../properties.gradle"
 
 android {
     compileSdkVersion versions.compileSdk
-    buildToolsVersion versions.buildTools
 
     defaultConfig {
         applicationId "com.memfault.usagereporter"
@@ -56,6 +55,7 @@ android {
 dependencies {
     implementation project(':bort-shared')
 
+    implementation deps.kotlin.coroutines
     implementation deps.kotlin.stdlib
     implementation deps.android.preference
     implementation deps.result

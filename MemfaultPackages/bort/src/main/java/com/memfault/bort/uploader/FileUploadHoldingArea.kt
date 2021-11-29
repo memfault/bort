@@ -2,7 +2,7 @@ package com.memfault.bort.uploader
 
 import android.content.SharedPreferences
 import com.memfault.bort.FileAsAbsolutePathSerializer
-import com.memfault.bort.FileUploadPayload
+import com.memfault.bort.LogcatFileUploadPayload
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.getJson
 import com.memfault.bort.putJson
@@ -28,7 +28,7 @@ data class PendingFileUploadEntry(
     val timeSpan: TimeSpan,
 
     @SerialName("payload")
-    val payload: FileUploadPayload,
+    val payload: LogcatFileUploadPayload,
 
     @SerialName("file")
     @Serializable(with = FileAsAbsolutePathSerializer::class)
@@ -66,7 +66,7 @@ fun PendingFileUploadEntry.TimeSpan.contains(time: ElapsedRealtime): Boolean =
  */
 class FileUploadHoldingArea(
     private val sharedPreferences: SharedPreferences,
-    private val enqueueFileUpload: EnqueueFileUpload,
+    private val enqueueUpload: EnqueueUpload,
     /**
      * Function that resets/pushed out the timeout task that will cleanup
      * expired entries by calling handleTimeout().
@@ -105,7 +105,7 @@ class FileUploadHoldingArea(
     fun add(entry: PendingFileUploadEntry) =
         lock.withLock {
             if (eventTimes.any(entry.timeSpan.spanWithMargin()::contains)) {
-                enqueueFileUpload(entry.file, entry.payload, entry.debugTag)
+                enqueueUpload.enqueue(entry.file, entry.payload, entry.debugTag, entry.payload.collectionTime)
             } else {
                 entries = entries + listOf(entry)
                 persist()
@@ -126,7 +126,9 @@ class FileUploadHoldingArea(
             entries = entries.filter { entry ->
                 entry.timeSpan.spanWithMargin().let {
                     if (it.contains(time)) false.also {
-                        enqueueFileUpload(entry.file, entry.payload, entry.debugTag)
+                        enqueueUpload.enqueue(
+                            entry.file, entry.payload, entry.debugTag, entry.payload.collectionTime
+                        )
                     } else if (it.shouldBeDeletedAt(time)) false.also {
                         entry.file.deleteSilently()
                     } else true

@@ -159,6 +159,7 @@ internal val EXPECTED_SETTINGS = FetchedSettings(
     ),
     metricsCollectionInterval = 91011.milliseconds.boxed(),
     metricsDataSourceEnabled = false,
+    metricsSystemProperties = listOf("ro.build.type"),
     otaUpdateCheckInterval = 12.hours.boxed(),
     packageManagerCommandTimeout = 60.seconds.boxed(),
     rebootEventsDataSourceEnabled = true,
@@ -177,6 +178,12 @@ internal val EXPECTED_SETTINGS = FetchedSettings(
         defaultPeriod = 900000.milliseconds.boxed(),
         maxBuckets = 1,
     ),
+    metricReportRateLimitingSettings = RateLimitingSettings(
+        defaultCapacity = 2,
+        defaultPeriod = 1.hours.boxed(),
+        maxBuckets = 1,
+    ),
+    metricReportEnabled = false,
 )
 
 internal val SETTINGS_FIXTURE = """
@@ -263,6 +270,7 @@ internal val SETTINGS_FIXTURE = """
                 },
                 "metrics.collection_interval_ms": 91011,
                 "metrics.data_source_enabled": false,
+                "metrics.system_properties": ["ro.build.type"],
                 "ota.update_check_interval_ms": 43200000,
                 "package_manager.command_timeout_ms" : 60000,
                 "reboot_events.data_source_enabled": true,

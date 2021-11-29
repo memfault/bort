@@ -150,7 +150,8 @@ private fun generateDevConfig(
                        "default_capacity": 1000,
                        "default_period_ms": 15000,
                        "max_buckets": 1
-                   }
+                   },
+                   "metric_report.enabled": true
                 }
             }
     """.trimIndent()

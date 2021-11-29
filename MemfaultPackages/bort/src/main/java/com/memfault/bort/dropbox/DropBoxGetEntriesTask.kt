@@ -99,7 +99,9 @@ fun enqueueDropBoxQueryTask(context: Context) {
         WorkManager.getInstance(context)
             .enqueueUniqueWork(
                 WORK_UNIQUE_NAME_PERIODIC,
-                ExistingWorkPolicy.KEEP,
+                // During tests, KEEP will fail to process files in quick succession, and REPLACE will cancel any jobs
+                // in progress (losing that file) - so use APPEND_OR_REPLACE.
+                ExistingWorkPolicy.APPEND_OR_REPLACE,
                 workRequest
             )
     }

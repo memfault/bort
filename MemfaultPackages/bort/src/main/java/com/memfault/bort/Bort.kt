@@ -11,6 +11,8 @@ import com.memfault.bort.metrics.BORT_CRASH
 import com.memfault.bort.metrics.BORT_STARTED
 import com.memfault.bort.metrics.metrics
 import com.memfault.bort.shared.Logger
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 
 open class Bort : Application(), Configuration.Provider {
 
@@ -33,6 +35,8 @@ open class Bort : Application(), Configuration.Provider {
         metrics()?.increment(BORT_STARTED)
         logDebugInfo()
         appComponents().uptimeTracker.trackUptimeOnStart()
+
+        _appCreated.complete(Unit)
 
         if (!appComponents().isEnabled()) {
             Logger.test("Bort not enabled, not running app")
@@ -77,6 +81,8 @@ open class Bort : Application(), Configuration.Provider {
         @SuppressLint("StaticFieldLeak") // Statically hold the application context only
         private var appComponentsBuilder: AppComponents.Builder? = null
         @Volatile private var appComponents: AppComponents? = null
+        private val _appCreated = CompletableDeferred<Unit>()
+        val appCreated: Deferred<Unit> = _appCreated
 
         internal fun appComponents(): AppComponents {
             appComponents?.let {

@@ -19,11 +19,12 @@ import kotlinx.serialization.json.Json
  */
 class UptimeTracker(
     prefs: SharedPreferences,
-    private val linuxBootId: String,
+    private val readLinuxBootId: () -> String,
 ) {
     private val previousUptimePrefMillis = PreviousUptimePreference(prefs)
     private val currentUptimePrefMillis = CurrentUptimePreference(prefs)
     private val handler = Handler(Looper.getMainLooper())
+    private val linuxBootId by lazy { readLinuxBootId() }
 
     /**
      * Starts tracking device uptime. Call once when Bort process starts.

@@ -62,11 +62,11 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
             ) {
                 DumpsterClient().getprop()?.let { systemProperties ->
                     val rebootEventUploader = RebootEventUploader(
-                        ingressService = ingressService,
                         deviceInfo = deviceInfoProvider.getDeviceInfo(),
                         androidSysBootReason = systemProperties.get(AndroidBootReason.SYS_BOOT_REASON_KEY),
                         tokenBucketStore = rebootEventTokenBucketStore,
-                        getLinuxBootId = ::readLinuxBootId
+                        getLinuxBootId = ::readLinuxBootId,
+                        enqueueUpload = enqueueUpload,
                     )
 
                     val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)

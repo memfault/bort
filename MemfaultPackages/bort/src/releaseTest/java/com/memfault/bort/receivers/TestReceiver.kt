@@ -12,6 +12,7 @@ import androidx.work.WorkManager
 import com.memfault.bort.Bort
 import com.memfault.bort.LastTrackedBootCountProvider
 import com.memfault.bort.PersistentProjectKeyProvider
+import com.memfault.bort.customevent.Reporting
 import com.memfault.bort.logcat.RealNextLogcatCidProvider
 import com.memfault.bort.requester.restartPeriodicLogcatCollection
 import com.memfault.bort.requester.restartPeriodicMetricsCollection
@@ -27,6 +28,7 @@ import kotlin.time.Duration
 import kotlin.time.days
 import kotlin.time.hours
 import kotlin.time.milliseconds
+import kotlinx.coroutines.runBlocking
 
 private const val INTENT_EXTRA_ECHO_STRING = "echo"
 private const val WORK_UNIQUE_NAME_SELF_TEST = "com.memfault.bort.work.SELF_TEST"
@@ -113,6 +115,12 @@ class TestReceiver : FilteringReceiver(
                 )
             }
             "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION" -> {
+                // Drop stored properties so that consecutive e2e tests get the full set of properties
+                runBlocking {
+                    devicePropertiesDb.deviceProperty()
+                        .deleteAll()
+                }
+
                 restartPeriodicMetricsCollection(
                     context = context,
                     // Something long to ensure it does not re-run & interfere with tests:
@@ -121,6 +129,12 @@ class TestReceiver : FilteringReceiver(
                     lastHeartbeatEnd = RealBootRelativeTimeProvider(context).now() - 1.hours,
                     collectImmediately = true,
                 )
+                Reporting.report()
+                    .counter("report_test_metric")
+                    .increment()
+                Reporting.report()
+                    .counter("report_test_metric_internal", internal = true)
+                    .increment()
             }
             "android.intent.action.BOOT_COMPLETED" -> {
                 TestLastTrackedBootCountProvider(

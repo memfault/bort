@@ -172,6 +172,9 @@ data class FetchedSettings(
     @SerialName("metrics.data_source_enabled")
     val metricsDataSourceEnabled: Boolean,
 
+    @SerialName("metrics.system_properties")
+    val metricsSystemProperties: List<String> = listOf("ro.build.type"),
+
     @SerialName("ota.update_check_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val otaUpdateCheckInterval: BoxedDuration = 12.hours.boxed(),
@@ -204,6 +207,25 @@ data class FetchedSettings(
 
     @SerialName("structured_log.rate_limiting_settings")
     val structuredLogRateLimitingSettings: RateLimitingSettings,
+
+    @SerialName("metric_report.rate_limiting_settings")
+    val metricReportRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+        defaultCapacity = 2,
+        defaultPeriod = 1.hours.boxed(),
+        maxBuckets = 1,
+    ),
+
+    @SerialName("mar_file.rate_limiting_settings")
+    val marFileRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+        // TODO This is intentionally high, initially: all files/events will be separate mar uploads until we implement
+        // bundled mar files - at which point this can be reduced to the real expected rate.
+        defaultCapacity = 500,
+        defaultPeriod = 1.hours.boxed(),
+        maxBuckets = 1,
+    ),
+
+    @SerialName("metric_report.enabled")
+    val metricReportEnabled: Boolean = false,
 ) {
     @Serializable
     data class FetchedSettingsContainer(

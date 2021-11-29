@@ -22,3 +22,5 @@ const val PERMISSION_REPORTER_ACCESS = "$APPLICATION_ID_MEMFAULT_USAGE_REPORTER.
 
 const val INTENT_ACTION_OTA_SETTINGS_CHANGED = "com.memfault.intent.action.OTA_SETTINGS_CHANGED"
 const val OTA_RECEIVER_CLASS = "com.memfault.bort.ota.lib.BootCompleteReceiver"
+
+const val CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG = "memfault_file_upload"

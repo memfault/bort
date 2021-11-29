@@ -16,7 +16,7 @@ import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.takeSimple
-import com.memfault.bort.uploader.EnqueueFileUpload
+import com.memfault.bort.uploader.EnqueueUpload
 import java.io.File
 import kotlin.time.Duration
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +24,7 @@ import kotlinx.coroutines.withContext
 
 class MetricsCollectionTask(
     private val batteryStatsHistoryCollector: BatteryStatsHistoryCollector,
-    private val enqueueFileUpload: EnqueueFileUpload,
+    private val enqueueUpload: EnqueueUpload,
     private val nextLogcatCidProvider: NextLogcatCidProvider,
     private val combinedTimeProvider: CombinedTimeProvider,
     private val lastHeartbeatEndTimeProvider: LastHeartbeatEndTimeProvider,
@@ -32,6 +32,9 @@ class MetricsCollectionTask(
     private val builtinMetricsStore: BuiltinMetricsStore,
     private val tokenBucketStore: TokenBucketStore,
     private val packageManagerClient: PackageManagerClient,
+    private val systemPropertiesCollector: SystemPropertiesCollector,
+    private val devicePropertiesStore: DevicePropertiesStore,
+    private val heartbeatReportCollector: HeartbeatReportCollector,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -39,32 +42,45 @@ class MetricsCollectionTask(
     private suspend fun enqueueHeartbeatUpload(
         now: CombinedTime,
         heartbeatInterval: Duration,
-        batteryStatsFile: File,
+        batteryStatsFile: File?,
     ) {
+        val heartbeatReport = heartbeatReportCollector.finishAndCollectHeartbeatReport()
+        val heartbeatReportMetrics = heartbeatReport?.metrics ?: emptyMap()
+        val heartbeatReportInternalMetrics = heartbeatReport?.internalMetrics ?: emptyMap()
+
         val deviceInfo = deviceInfoProvider.getDeviceInfo()
-        enqueueFileUpload(
-            batteryStatsFile,
+        systemPropertiesCollector.updateSystemProperties()
+        updateBuiltinProperties(packageManagerClient, devicePropertiesStore)
+        enqueueUpload.enqueue(
+            // Note: this is the only upload type which may not have a file. To avoid changing the entire PreparedUpload
+            // stack to support this (which is only needed until we migrate the mar), use a fake file.
+            batteryStatsFile ?: File("/dev/null"),
             HeartbeatFileUploadPayload(
                 hardwareVersion = deviceInfo.hardwareVersion,
                 deviceSerial = deviceInfo.deviceSerial,
                 softwareVersion = deviceInfo.softwareVersion,
                 collectionTime = now,
                 heartbeatIntervalMs = heartbeatInterval.toLongMilliseconds(),
-                customMetrics = emptyMap(),
-                builtinMetrics = builtinMetricsStore.collectMetrics() + builtinMetrics(packageManagerClient),
+                customMetrics = devicePropertiesStore.collectDeviceProperties(internal = false) +
+                    heartbeatReportMetrics,
+                builtinMetrics = devicePropertiesStore.collectDeviceProperties(internal = true) +
+                    builtinMetricsStore.collectMetrics() + heartbeatReportInternalMetrics,
                 attachments = HeartbeatFileUploadPayload.Attachments(
-                    batteryStats = HeartbeatFileUploadPayload.Attachments.BatteryStats(
-                        file = FileUploadToken(
-                            md5 = withContext(Dispatchers.IO) {
-                                batteryStatsFile.md5Hex()
-                            },
-                            name = "batterystats.txt",
+                    batteryStats = batteryStatsFile?.let {
+                        HeartbeatFileUploadPayload.Attachments.BatteryStats(
+                            file = FileUploadToken(
+                                md5 = withContext(Dispatchers.IO) {
+                                    batteryStatsFile.md5Hex()
+                                },
+                                name = "batterystats.txt",
+                            )
                         )
-                    )
+                    }
                 ),
                 cidReference = nextLogcatCidProvider.cid,
             ),
-            DEBUG_TAG
+            DEBUG_TAG,
+            collectionTime = now,
         )
     }
 
@@ -84,18 +100,17 @@ class MetricsCollectionTask(
         // clipped when aggregating, so it doesn't matter if there's more.
         val batteryStatsLimit = heartbeatInterval * 2
 
-        // MFLT-2593 Bort: refactor FileUploader / HeartbeatFileUploadPayload to upload w/o batterystats
         val batteryStatsFile = try {
             batteryStatsHistoryCollector.collect(
                 limit = batteryStatsLimit
             )
         } catch (e: RemoteException) {
             Logger.w("Unable to connect to ReporterService to run batterystats")
-            return TaskResult.FAILURE
+            null
         } catch (e: Exception) {
             Logger.e("Failed to collect batterystats", mapOf(), e)
             metrics()?.increment(BATTERYSTATS_FAILED)
-            return TaskResult.FAILURE
+            null
         }
 
         enqueueHeartbeatUpload(now, heartbeatInterval, batteryStatsFile)

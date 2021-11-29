@@ -1,6 +1,9 @@
 package com.memfault.bort.uploader
 
-import com.memfault.bort.BugReportFileUploadPayload
+import com.memfault.bort.FakeCombinedTimeProvider
+import com.memfault.bort.FileUploadToken
+import com.memfault.bort.LogcatCollectionId
+import com.memfault.bort.LogcatFileUploadPayload
 import com.memfault.bort.MockSharedPreferences
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.makeFakeSharedPreferences
@@ -17,13 +20,14 @@ import org.junit.jupiter.api.Test
 
 class FileUploadHoldingAreaTest {
     lateinit var mockSharedPreferences: MockSharedPreferences
-    lateinit var mockEnqueueFileUpload: EnqueueFileUpload
+    lateinit var mockEnqueueUpload: EnqueueUpload
     lateinit var mockResetEventTimeout: () -> Unit
     lateinit var fileUploadHoldingArea: FileUploadHoldingArea
 
     val trailingMargin = 5.seconds
     val eventOfInterestTTL = 7.seconds
     val maxStoredEventsOfInterest = 4
+    val collectionTime = FakeCombinedTimeProvider.now()
 
     lateinit var tempFiles: MutableList<File>
 
@@ -31,11 +35,11 @@ class FileUploadHoldingAreaTest {
     fun setUp() {
         tempFiles = mutableListOf()
         mockSharedPreferences = makeFakeSharedPreferences()
-        mockEnqueueFileUpload = mockk(relaxed = true)
+        mockEnqueueUpload = mockk(relaxed = true)
         mockResetEventTimeout = mockk(relaxed = true)
         fileUploadHoldingArea = FileUploadHoldingArea(
             sharedPreferences = mockSharedPreferences,
-            enqueueFileUpload = mockEnqueueFileUpload,
+            enqueueUpload = mockEnqueueUpload,
             resetEventTimeout = mockResetEventTimeout,
             getTrailingMargin = { trailingMargin },
             getEventOfInterestTTL = { eventOfInterestTTL },
@@ -59,9 +63,17 @@ class FileUploadHoldingAreaTest {
     private fun makeEntry(start: Duration, end: Duration) =
         PendingFileUploadEntry(
             timeSpan = makeSpan(start, end),
-            // NOTE: using the BugReportFileUploadPayload instead of LogcatFileUploadPayload because
-            // its simpler to construct:
-            payload = BugReportFileUploadPayload(requestId = UUID.randomUUID().toString()),
+            payload = LogcatFileUploadPayload(
+                file = FileUploadToken(md5 = "", name = ""),
+                hardwareVersion = "",
+                deviceSerial = "",
+                softwareVersion = "",
+                softwareType = "",
+                collectionTime = collectionTime,
+                command = emptyList(),
+                cid = LogcatCollectionId(UUID.randomUUID()),
+                nextCid = LogcatCollectionId(UUID.randomUUID()),
+            ),
             debugTag = UUID.randomUUID().toString(),
             file = makeTempFile(),
         )
@@ -71,14 +83,14 @@ class FileUploadHoldingAreaTest {
         val entry = makeEntry(9.seconds, 10.seconds)
         fileUploadHoldingArea.handleEventOfInterest(10.seconds)
         fileUploadHoldingArea.add(entry)
-        verify { mockEnqueueFileUpload(entry.file, entry.payload, entry.debugTag) }
+        verify { mockEnqueueUpload.enqueue(entry.file, entry.payload, entry.debugTag, collectionTime) }
     }
 
     @Test
     fun addAndHold() {
         val entry = makeEntry(9.seconds, 10.seconds)
         fileUploadHoldingArea.add(entry)
-        verify(exactly = 0) { mockEnqueueFileUpload(any(), any(), any()) }
+        verify(exactly = 0) { mockEnqueueUpload.enqueue(any(), any(), any(), any()) }
         assertEquals(listOf(entry), fileUploadHoldingArea.readEntries())
     }
 
@@ -109,7 +121,9 @@ class FileUploadHoldingAreaTest {
 
         assertEquals(listOf(expectToHoldEntry), fileUploadHoldingArea.readEntries())
         verify {
-            mockEnqueueFileUpload(expectToUploadEntry.file, expectToUploadEntry.payload, expectToUploadEntry.debugTag)
+            mockEnqueueUpload.enqueue(
+                expectToUploadEntry.file, expectToUploadEntry.payload, expectToUploadEntry.debugTag, collectionTime
+            )
         }
         assertEquals(false, expectToDeleteEntry.file.exists())
     }

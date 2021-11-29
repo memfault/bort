@@ -12,7 +12,6 @@ import com.memfault.bort.shared.INTENT_EXTRA_BUG_REPORT_REQUEST_ID
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.goAsync
 import com.memfault.bort.uploader.BugReportFileUploadContinuation
-import com.memfault.bort.uploader.enqueueFileUploadTask
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -36,6 +35,7 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
             file.deleteSilently()
             return
         }
+        val collectionTime = combinedTimeProvider.now()
 
         goAsync {
             withContext(Dispatchers.IO) {
@@ -54,10 +54,9 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
             val dropBoxDataSourceEnabledAndSupported = settingsProvider.dropBoxSettings.dataSourceEnabled &&
                 bortSystemCapabilities.supportsCaliperDropBoxTraces()
 
-            enqueueFileUploadTask(
-                context = context,
+            enqueueUpload.enqueue(
                 file = file,
-                payload = BugReportFileUploadPayload(
+                metadata = BugReportFileUploadPayload(
                     processingOptions = BugReportFileUploadPayload.ProcessingOptions(
                         processAnrs = !dropBoxDataSourceEnabledAndSupported,
                         processJavaExceptions = !dropBoxDataSourceEnabledAndSupported,
@@ -67,8 +66,8 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
                     ),
                     requestId = requestId,
                 ),
-                getUploadConstraints = settingsProvider.httpApiSettings::uploadConstraints,
                 debugTag = WORK_TAG,
+                collectionTime = collectionTime,
                 continuation = request?.let {
                     BugReportFileUploadContinuation(
                         request = it,
@@ -76,7 +75,6 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
                 },
                 /* Already a .zip file, not much to gain by recompressing */
                 shouldCompress = false,
-                jitterDelayProvider = jitterDelayProvider,
             )
         }
     }

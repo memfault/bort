@@ -6,7 +6,6 @@ apply from: "../properties.gradle"
 
 android {
     compileSdkVersion versions.compileSdk
-    buildToolsVersion versions.buildTools
 
     defaultConfig {
         minSdkVersion versions.minSdk
@@ -23,6 +22,8 @@ android {
         buildConfigField "String", "CURRENT_GIT_SHA", "\"${currentGitSha()}\""
         buildConfigField "String", "BORT_APPLICATION_ID", "\"" + bortProperty("BORT_APPLICATION_ID") + "\""
         buildConfigField "String", "BORT_OTA_APPLICATION_ID", "\"" + bortProperty("BORT_OTA_APPLICATION_ID") + "\""
+        buildConfigField "int", "CLIENT_SERVER_PORT", bortProperty("CLIENT_SERVER_PORT")
+        buildConfigField "String", "CLIENT_SERVER_HOST", "\"" + bortProperty("CLIENT_SERVER_HOST") + "\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -60,8 +61,6 @@ dependencies {
     implementation deps.result
     implementation deps.serialization.json
     implementation deps.serialization.converter
-
-    debugImplementation deps.debug.leakCanary
 
     testImplementation deps.test.junitApi
     testImplementation deps.test.junitJupiterEngine

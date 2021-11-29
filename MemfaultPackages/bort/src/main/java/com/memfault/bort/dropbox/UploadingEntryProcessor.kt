@@ -14,9 +14,10 @@ import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BaseBootRelativeTime
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
+import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.time.toAbsoluteTime
 import com.memfault.bort.tokenbucket.TokenBucketStore
-import com.memfault.bort.uploader.EnqueueFileUpload
+import com.memfault.bort.uploader.EnqueueUpload
 import java.io.File
 
 interface UploadingEntryProcessorDelegate {
@@ -46,7 +47,7 @@ data class EntryInfo(
 class UploadingEntryProcessor(
     private val delegate: UploadingEntryProcessorDelegate,
     private val tempFileFactory: TemporaryFileFactory,
-    private val enqueueFileUpload: EnqueueFileUpload,
+    private val enqueueUpload: EnqueueUpload,
     private val nextLogcatCidProvider: NextLogcatCidProvider,
     private val bootRelativeTimeProvider: BootRelativeTimeProvider,
     private val deviceInfoProvider: DeviceInfoProvider,
@@ -54,6 +55,7 @@ class UploadingEntryProcessor(
     private val builtinMetricsStore: BuiltinMetricsStore,
     private val packageNameAllowList: PackageNameAllowList,
     private val handleEventOfInterest: (eventTime: BaseBootRelativeTime) -> Unit,
+    private val combinedTimeProvider: CombinedTimeProvider,
 ) : EntryProcessor() {
     override val tags: List<String>
         get() = delegate.tags
@@ -67,11 +69,12 @@ class UploadingEntryProcessor(
     override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
         tempFileFactory.createTemporaryFile(entry.tag, ".txt").useFile { tempFile, preventDeletion ->
             tempFile.outputStream().use { outStream ->
-                entry.inputStream.use {
+                val copiedBytes = entry.inputStream.use {
                     inStream ->
                     inStream ?: return@useFile
                     inStream.copyTo(outStream)
                 }
+                if (copiedBytes == 0L) return@useFile
             }
 
             val info = delegate.getEntryInfo(entry, tempFile)
@@ -87,9 +90,9 @@ class UploadingEntryProcessor(
 
             val deviceInfo = deviceInfoProvider.getDeviceInfo()
             val now = bootRelativeTimeProvider.now()
-            enqueueFileUpload(
-                tempFile,
-                DropBoxEntryFileUploadPayload(
+            enqueueUpload.enqueue(
+                file = tempFile,
+                metadata = DropBoxEntryFileUploadPayload(
                     hardwareVersion = deviceInfo.hardwareVersion,
                     deviceSerial = deviceInfo.deviceSerial,
                     softwareVersion = deviceInfo.softwareVersion,
@@ -102,7 +105,8 @@ class UploadingEntryProcessor(
                         now,
                     )
                 ),
-                delegate.debugTag,
+                debugTag = delegate.debugTag,
+                collectionTime = combinedTimeProvider.now(),
             )
 
             preventDeletion()

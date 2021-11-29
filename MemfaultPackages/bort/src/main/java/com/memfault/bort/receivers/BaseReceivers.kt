@@ -11,15 +11,17 @@ import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
-import com.memfault.bort.ingress.IngressService
 import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.metrics.DevicePropertiesDb
 import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.TokenBucketStoreRegistry
+import com.memfault.bort.uploader.EnqueueUpload
 import com.memfault.bort.uploader.FileUploadHoldingArea
 import okhttp3.OkHttpClient
 
@@ -47,7 +49,6 @@ abstract class FilteringReceiver(
     protected lateinit var okHttpClient: OkHttpClient
     protected lateinit var deviceIdProvider: DeviceIdProvider
     protected lateinit var deviceInfoProvider: DeviceInfoProvider
-    protected lateinit var ingressService: IngressService
     protected lateinit var reporterServiceConnector: ReporterServiceConnector
     protected lateinit var pendingBugReportRequestAccessor: PendingBugReportRequestAccessor
     protected lateinit var fileUploadHoldingArea: FileUploadHoldingArea
@@ -60,6 +61,9 @@ abstract class FilteringReceiver(
     protected lateinit var bortSystemCapabilities: BortSystemCapabilities
     protected lateinit var builtInMetricsStore: BuiltinMetricsStore
     protected lateinit var temporaryFileFactory: TemporaryFileFactory
+    protected lateinit var devicePropertiesDb: DevicePropertiesDb
+    protected lateinit var enqueueUpload: EnqueueUpload
+    protected lateinit var combinedTimeProvider: CombinedTimeProvider
 
     override fun onReceive(context: Context?, intent: Intent?) {
         Logger.v("Received action=${intent?.action}")
@@ -82,7 +86,6 @@ abstract class FilteringReceiver(
         okHttpClient = it.okHttpClient
         deviceIdProvider = it.deviceIdProvider
         deviceInfoProvider = it.deviceInfoProvider
-        ingressService = it.ingressService
         reporterServiceConnector = it.reporterServiceConnector
         pendingBugReportRequestAccessor = it.pendingBugReportRequestAccessor
         fileUploadHoldingArea = it.fileUploadHoldingArea
@@ -95,6 +98,9 @@ abstract class FilteringReceiver(
         bortSystemCapabilities = it.bortSystemCapabilities
         builtInMetricsStore = it.metrics
         temporaryFileFactory = it.temporaryFileFactory
+        devicePropertiesDb = it.devicePropertiesDb
+        enqueueUpload = it.enqueueUpload
+        combinedTimeProvider = it.combinedTimeProvider
     }
 
     abstract fun onIntentReceived(context: Context, intent: Intent, action: String)

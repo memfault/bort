@@ -3,12 +3,15 @@ package com.memfault.bort
 import android.content.ComponentName
 import android.content.Context
 import android.os.DropBoxManager
+import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.Messenger
+import android.os.ParcelFileDescriptor
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.runCatching
+import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import com.memfault.bort.shared.BatteryStatsCommand
 import com.memfault.bort.shared.BatteryStatsRequest
@@ -28,6 +31,8 @@ import com.memfault.bort.shared.PackageManagerRequest
 import com.memfault.bort.shared.REPORTER_SERVICE_QUALIFIED_NAME
 import com.memfault.bort.shared.RealServiceMessageConnection
 import com.memfault.bort.shared.ReporterServiceMessage
+import com.memfault.bort.shared.ServerSendFileRequest
+import com.memfault.bort.shared.ServerSendFileResponse
 import com.memfault.bort.shared.ServiceMessage
 import com.memfault.bort.shared.ServiceMessageConnection
 import com.memfault.bort.shared.ServiceMessageReplyHandler
@@ -42,7 +47,9 @@ import com.memfault.bort.shared.result.StdResult
 import com.memfault.bort.shared.result.failure
 import com.memfault.bort.shared.result.mapCatching
 import com.memfault.bort.shared.result.success
+import java.io.File
 import kotlin.time.Duration
+import okhttp3.internal.closeQuietly
 
 typealias ReporterServiceConnection = ServiceMessageConnection<ReporterServiceMessage>
 typealias ReporterServiceConnector = ServiceConnector<ReporterClient>
@@ -138,6 +145,24 @@ class ReporterClient(
             }
         }
 
+    suspend fun uploadFileToServer(file: File): StdResult<Unit> {
+        return withVersion(context = "uploadfile", minimumVersion = MINIMUM_VALID_VERSION_SERVER_FILE_UPLOAD) {
+            val descriptor = ParcelFileDescriptor.open(
+                file, ParcelFileDescriptor.MODE_READ_ONLY, MAIN_THREAD_HANDLER
+            ) {
+                file.deleteSilently()
+            }
+            try {
+                send(ServerSendFileRequest(file.name, descriptor)) { _: ServerSendFileResponse -> }
+            } finally {
+                // Always close the pfd. We expect it to be normally closed by the service (using an
+                // AutoCloseInputStream) but make sure. Not using `use {}` for this, because that can potentially
+                // throw if the resource is already closed (and there wasn't a caught exception).
+                descriptor.closeQuietly()
+            }
+        }
+    }
+
     private suspend inline fun <R> withVersion(
         context: Any,
         minimumVersion: Int = MINIMUM_VALID_VERSION,
@@ -194,5 +219,8 @@ class ReporterClient(
     companion object {
         const val MINIMUM_VALID_VERSION = 3
         const val MINIMUM_VALID_VERSION_LOG_LEVEL = 4
+        const val MINIMUM_VALID_VERSION_SERVER_FILE_UPLOAD = 5
+
+        val MAIN_THREAD_HANDLER: Handler by lazy { Handler(Looper.getMainLooper()!!) }
     }
 }

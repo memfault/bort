@@ -6,6 +6,7 @@ import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploadTokenOnly
 import com.memfault.bort.HeartbeatFileUploadPayload
 import com.memfault.bort.LogcatFileUploadPayload
+import com.memfault.bort.MarFileUploadPayload
 import com.memfault.bort.StructuredLogFileUploadPayload
 import com.memfault.bort.http.ProjectKeyAuthenticated
 import com.memfault.bort.http.gzip
@@ -26,12 +27,12 @@ import retrofit2.http.Url
 @Serializable
 data class PrepareResponseData(
     val upload_url: String,
-    val token: String
+    val token: String,
 )
 
 @Serializable
 data class PrepareResult(
-    val data: PrepareResponseData
+    val data: PrepareResponseData,
 )
 
 interface PreparedUploadService {
@@ -50,32 +51,38 @@ interface PreparedUploadService {
     @ProjectKeyAuthenticated
     suspend fun commit(
         @Path(value = "upload_type") uploadType: String,
-        @Body payload: BugReportFileUploadPayload
+        @Body payload: BugReportFileUploadPayload,
     ): Response<Unit>
 
     @POST("/api/v0/upload/android-logcat")
     @ProjectKeyAuthenticated
     suspend fun commitLogcat(
-        @Body payload: LogcatFileUploadPayload
+        @Body payload: LogcatFileUploadPayload,
     ): Response<Unit>
 
     @POST("/api/v0/upload/android-dropbox-manager-entry/{family}")
     @ProjectKeyAuthenticated
     suspend fun commitDropBoxEntry(
         @Path(value = "family") entryFamily: String,
-        @Body payload: DropBoxEntryFileUploadPayload
+        @Body payload: DropBoxEntryFileUploadPayload,
     ): Response<Unit>
 
     @POST("/api/v0/upload/android-structured")
     @ProjectKeyAuthenticated
     suspend fun commitStructuredLog(
-        @Body payload: StructuredLogFileUploadPayload
+        @Body payload: StructuredLogFileUploadPayload,
     ): Response<Unit>
 
     @POST("/api/v0/events/android-heartbeat")
     @ProjectKeyAuthenticated
     suspend fun commitHeartbeat(
-        @Body commitRequest: HeartbeatFileUploadPayload
+        @Body commitRequest: HeartbeatFileUploadPayload,
+    ): Response<Unit>
+
+    @POST("/api/v0/upload/mar")
+    @ProjectKeyAuthenticated
+    suspend fun commitMar(
+        @Body payload: MarFileUploadPayload,
     ): Response<Unit>
 }
 
@@ -89,7 +96,7 @@ internal interface UploadEventLogger {
  */
 internal class PreparedUploader(
     private val preparedUploadService: PreparedUploadService,
-    private val eventLogger: UploadEventLogger = object : UploadEventLogger {}
+    private val eventLogger: UploadEventLogger = object : UploadEventLogger {},
 ) {
 
     /**
@@ -141,7 +148,7 @@ internal class PreparedUploader(
                 preparedUploadService.commitHeartbeat(
                     payload.copy(
                         attachments = payload.attachments.copy(
-                            batteryStats = payload.attachments.batteryStats.copy(
+                            batteryStats = payload.attachments.batteryStats?.copy(
                                 file = payload.attachments.batteryStats.file.copy(
                                     token = token,
                                 )
@@ -156,6 +163,9 @@ internal class PreparedUploader(
                 preparedUploadService.commitLogcat(
                     payload.copy(file = payload.file.copy(token = token))
                 )
+            }
+            is MarFileUploadPayload -> {
+                preparedUploadService.commitMar(payload.copy(file = payload.file.copy(token = token)))
             }
         }
     }

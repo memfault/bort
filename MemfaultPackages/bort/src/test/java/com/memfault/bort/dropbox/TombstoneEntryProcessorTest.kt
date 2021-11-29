@@ -2,6 +2,7 @@ package com.memfault.bort.dropbox
 
 import com.memfault.bort.DropBoxEntryFileUploadPayload
 import com.memfault.bort.FakeBootRelativeTimeProvider
+import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.PackageManagerClient
@@ -20,7 +21,7 @@ import com.memfault.bort.tokenbucket.MockTokenBucketFactory
 import com.memfault.bort.tokenbucket.MockTokenBucketStorage
 import com.memfault.bort.tokenbucket.StoredTokenBucketMap
 import com.memfault.bort.tokenbucket.TokenBucketStore
-import com.memfault.bort.uploader.EnqueueFileUpload
+import com.memfault.bort.uploader.EnqueueUpload
 import io.mockk.CapturingSlot
 import io.mockk.clearMocks
 import io.mockk.coEvery
@@ -30,6 +31,7 @@ import io.mockk.slot
 import io.mockk.verify
 import kotlin.time.milliseconds
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -42,7 +44,7 @@ val TEST_BUCKET_CAPACITY = 3
 
 class TombstoneEntryProcessorTest {
     lateinit var processor: UploadingEntryProcessor
-    lateinit var mockEnqueueFileUpload: EnqueueFileUpload
+    lateinit var mockEnqueueUpload: EnqueueUpload
     lateinit var fileUploadPayloadSlot: CapturingSlot<FileUploadPayload>
     lateinit var mockPackageManagerClient: PackageManagerClient
     lateinit var builtInMetricsStore: BuiltinMetricsStore
@@ -51,12 +53,12 @@ class TombstoneEntryProcessorTest {
 
     @BeforeEach
     fun setUp() {
-        mockEnqueueFileUpload = mockk(relaxed = true)
+        mockEnqueueUpload = mockk(relaxed = true)
         mockHandleEventOfInterest = mockk(relaxed = true)
 
         fileUploadPayloadSlot = slot<FileUploadPayload>()
         every {
-            mockEnqueueFileUpload(any(), capture(fileUploadPayloadSlot), any())
+            mockEnqueueUpload.enqueue(any(), capture(fileUploadPayloadSlot), any(), any())
         } returns Unit
 
         mockPackageManagerClient = mockk()
@@ -69,7 +71,7 @@ class TombstoneEntryProcessorTest {
                 packageManagerClient = mockPackageManagerClient,
             ),
             tempFileFactory = TestTemporaryFileFactory,
-            enqueueFileUpload = mockEnqueueFileUpload,
+            enqueueUpload = mockEnqueueUpload,
             nextLogcatCidProvider = FakeNextLogcatCidProvider.incrementing(),
             bootRelativeTimeProvider = FakeBootRelativeTimeProvider,
             deviceInfoProvider = FakeDeviceInfoProvider(),
@@ -86,6 +88,7 @@ class TombstoneEntryProcessorTest {
             builtinMetricsStore = builtInMetricsStore,
             handleEventOfInterest = mockHandleEventOfInterest,
             packageNameAllowList = mockPackageNameAllowList,
+            combinedTimeProvider = FakeCombinedTimeProvider,
         )
     }
 
@@ -115,7 +118,7 @@ class TombstoneEntryProcessorTest {
     fun enqueuesFileThatFailedToParseWithoutPackageInfo() {
         // Even though Bort's parsing failed to parse out the processName, ensure it's uploaded it anyway:
         runBlocking {
-            processor.process(mockEntry(text = ""))
+            processor.process(mockEntry(text = "not_empty_but_invalid"))
             val payload = fileUploadPayloadSlot.captured as DropBoxEntryFileUploadPayload
             val metadata = payload.metadata as TombstoneFileUploadMetadata
             assertTrue(metadata.packages.isEmpty())
@@ -133,7 +136,7 @@ class TombstoneEntryProcessorTest {
             (0..runs).forEach {
                 processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "SYSTEM_TOMBSTONE"))
             }
-            verify(exactly = TEST_BUCKET_CAPACITY) { mockEnqueueFileUpload(any(), any(), any()) }
+            verify(exactly = TEST_BUCKET_CAPACITY) { mockEnqueueUpload.enqueue(any(), any(), any(), any()) }
 
             // Check that dropped items are counted correctly
             assert(
@@ -165,7 +168,7 @@ class TombstoneEntryProcessorTest {
 
             val expectedMap = processTags
                 .map { (tag, count) ->
-                    metricForTraceTag(tag) to count.toFloat()
+                    metricForTraceTag(tag) to JsonPrimitive(count.toFloat())
                 }
                 .toMap()
 
@@ -185,6 +188,14 @@ class TombstoneEntryProcessorTest {
         every { mockPackageNameAllowList.contains(any()) } returns false
 
         runBlocking {
+            processor.process(mockEntry(text = "not_empty_but_invalid"))
+            assertFalse(fileUploadPayloadSlot.isCaptured)
+        }
+    }
+
+    @Test
+    fun doesNotEnqueueWhenEmpty() {
+        runBlocking {
             processor.process(mockEntry(text = ""))
             assertFalse(fileUploadPayloadSlot.isCaptured)
         }
@@ -192,7 +203,7 @@ class TombstoneEntryProcessorTest {
 
     @Test
     fun nullEntryInputStream() {
-        val entry = mockEntry(text = "")
+        val entry = mockEntry(text = "not_empty_but_invalid")
         every { entry.getInputStream() } returns null
         runBlocking {
             // Used to raise an exception, but should not!

@@ -1,8 +1,9 @@
 apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlinx-serialization'
 
 android {
     compileSdkVersion versions.compileSdk
-    buildToolsVersion versions.buildTools
 
     defaultConfig {
         minSdkVersion versions.minSdk
@@ -45,6 +46,7 @@ android {
 }
 
 dependencies {
+    implementation deps.serialization.json
     testImplementation deps.test.junitApi
     testImplementation deps.test.junitJupiterEngine
 }

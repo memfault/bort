@@ -11,47 +11,48 @@ import kotlinx.serialization.Serializable
  * TODO: use kotlinx.serialization's polymorphism support
  * When this code was written, retrofit2-kotlinx-serialization-converter did not support it yet.
  * (https://github.com/JakeWharton/retrofit2-kotlinx-serialization-converter/issues/18).
+ *
+ * Must use abstract vals here (rather than constructor parameters via super) because of
+ * https://github.com/Kotlin/kotlinx.serialization/issues/1438.
  */
 @Serializable
-abstract class Event <E : EventInfo>(
-    val type: String,
+abstract class Event<E : EventInfo>(
     val sdk_version: String = SDK_VERSION,
-    val captured_date: String,
-    val hardware_version: String,
-    val device_serial: String,
-    val software_version: String,
-    val event_info: E,
-    val software_type: String = SOFTWARE_TYPE
+    val software_type: String = SOFTWARE_TYPE,
 ) {
-    constructor(
-        type: String,
-        capturedDate: Instant,
-        deviceInfo: DeviceInfo,
-        eventInfo: E
-    ) : this(
-        type = type,
-        captured_date = DateTimeFormatter.ISO_INSTANT.format(capturedDate),
-        hardware_version = deviceInfo.hardwareVersion,
-        device_serial = deviceInfo.deviceSerial,
-        software_version = deviceInfo.softwareVersion,
-        event_info = eventInfo
-    )
+    abstract val type: String
+    abstract val captured_date: String
+    abstract val hardware_version: String
+    abstract val device_serial: String
+    abstract val software_version: String
+    abstract val event_info: E
 }
 
 interface EventInfo
 
 @Serializable
-class RebootEvent : Event<RebootEventInfo> {
-    constructor(
-        capturedDate: Instant,
-        deviceInfo: DeviceInfo,
-        eventInfo: RebootEventInfo
-    ) : super(
-        "android_reboot",
-        capturedDate,
-        deviceInfo,
-        eventInfo
-    )
+class RebootEvent(
+    override val type: String = "android_reboot",
+    override val captured_date: String,
+    override val hardware_version: String,
+    override val device_serial: String,
+    override val software_version: String,
+    override val event_info: RebootEventInfo,
+) : Event<RebootEventInfo>() {
+
+    companion object {
+        fun create(
+            capturedDate: Instant,
+            deviceInfo: DeviceInfo,
+            eventInfo: RebootEventInfo,
+        ) = RebootEvent(
+            hardware_version = deviceInfo.hardwareVersion,
+            device_serial = deviceInfo.deviceSerial,
+            software_version = deviceInfo.softwareVersion,
+            captured_date = DateTimeFormatter.ISO_INSTANT.format(capturedDate),
+            event_info = eventInfo,
+        )
+    }
 }
 
 @Serializable
@@ -60,13 +61,13 @@ data class RebootEventInfo(
     val linux_boot_id: String,
     val reason: String,
     val subreason: String? = null,
-    val details: List<String>? = null
+    val details: List<String>? = null,
 ) : EventInfo {
     companion object {
         fun fromAndroidBootReason(
             bootCount: Int,
             linuxBootId: String,
-            androidBootReason: AndroidBootReason
+            androidBootReason: AndroidBootReason,
         ) =
             RebootEventInfo(
                 bootCount,

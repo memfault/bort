@@ -3,6 +3,7 @@ import static com.memfault.bort.buildsrc.BortSettingsDownloaderKt.getBortSetting
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
+apply plugin: 'kotlin-kapt'
 apply plugin: 'kotlinx-serialization'
 apply from: "../properties.gradle"
 
@@ -12,7 +13,6 @@ def generatedSettingsAssets = getBortSettingsAssetsPath(project.rootProject.root
 
 android {
     compileSdkVersion versions.compileSdk
-    buildToolsVersion versions.buildTools
 
     defaultConfig {
         applicationId bortProperty("BORT_APPLICATION_ID")
@@ -74,6 +74,7 @@ android {
         jvmTarget = JavaVersion.VERSION_1_8.toString()
         freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
         freeCompilerArgs += "-Xopt-in=kotlin.time.ExperimentalTime"
+        freeCompilerArgs += "-Xjvm-default=all"
     }
 
     sourceSets {
@@ -110,9 +111,11 @@ dependencies {
     implementation deps.okhttp
     implementation deps.okio
 
-    implementation deps.jblake2
+    implementation deps.room.runtime
+    kapt deps.room.compiler
+    implementation deps.room.ktx
 
-    debugImplementation deps.debug.leakCanary
+    implementation deps.jblake2
 
     testImplementation deps.test.junitApi
     testRuntimeOnly deps.test.junitJupiterEngine
@@ -123,6 +126,7 @@ dependencies {
     testImplementation deps.test.mockk
     testImplementation deps.test.mockWebServer
     testImplementation deps.test.robolectric
+    testImplementation deps.test.testCore
 }
 
 task copyReleaseApk(type: Copy) {

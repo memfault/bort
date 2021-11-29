@@ -18,6 +18,7 @@ static const int DUMP_AFTER_EVENTS = 50;
 static const int TOKEN_CAPACITY = 5;
 static const int INITIAL_TOKENS = 5;
 static const int MS_PER_TOKEN = 1;
+static const bool METRICS_ENABLED = true;
 
 class TestingConfig : public Config {
 public:
@@ -49,6 +50,10 @@ public:
 
     uint64_t getMinStorageThreshold() override {
         return MIN_STORAGE_THRESHOLD;
+    }
+
+    bool isMetricReportEnabled() override {
+        return METRICS_ENABLED;
     }
 };
 

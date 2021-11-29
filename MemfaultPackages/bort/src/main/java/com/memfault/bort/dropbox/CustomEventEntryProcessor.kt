@@ -9,14 +9,14 @@ import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.TokenBucketStore
-import com.memfault.bort.uploader.EnqueueFileUpload
+import com.memfault.bort.uploader.EnqueueUpload
 
 private const val DROPBOX_ENTRY_TAG = "memfault_structured"
 class StructuredLogEntryProcessor(
     private val temporaryFileFactory: TemporaryFileFactory,
     private val deviceInfoProvider: DeviceInfoProvider,
     private val tokenBucketStore: TokenBucketStore,
-    private val enqueueFileUpload: EnqueueFileUpload,
+    private val enqueueUpload: EnqueueUpload,
     private val combinedTimeProvider: CombinedTimeProvider,
     private val structuredLogDataSourceEnabledConfig: ConfigValue<Boolean>,
 ) : EntryProcessor() {
@@ -52,7 +52,8 @@ class StructuredLogEntryProcessor(
                 return@useFile
             }
 
-            enqueueFileUpload(
+            val time = combinedTimeProvider.now()
+            enqueueUpload.enqueue(
                 tempFile,
                 StructuredLogFileUploadPayload(
                     cid = metadata.cid,
@@ -60,9 +61,10 @@ class StructuredLogEntryProcessor(
                     hardwareVersion = deviceInfo.hardwareVersion,
                     deviceSerial = deviceInfo.deviceSerial,
                     softwareVersion = deviceInfo.softwareVersion,
-                    collectionTime = combinedTimeProvider.now(),
+                    collectionTime = time,
                 ),
-                DROPBOX_ENTRY_TAG
+                DROPBOX_ENTRY_TAG,
+                collectionTime = time,
             )
 
             preventDeletion()

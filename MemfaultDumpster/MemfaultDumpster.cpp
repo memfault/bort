@@ -62,6 +62,7 @@ namespace {
         std::vector<std::string> commandForId(int cmdId) {
             switch (cmdId) {
                 case IDumpster::CMD_ID_GETPROP: return { "/system/bin/getprop" };
+                case IDumpster::CMD_ID_GETPROP_TYPES: return { "/system/bin/getprop", "-T" };
                 case IDumpster::CMD_ID_SET_BORT_ENABLED_PROPERTY_ENABLED: return {
                         "/system/bin/setprop", BORT_ENABLED_PROPERTY, "1"
                 };

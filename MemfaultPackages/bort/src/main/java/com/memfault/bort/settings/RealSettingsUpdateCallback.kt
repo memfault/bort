@@ -72,5 +72,6 @@ private fun FetchedSettings.toStructuredLogDaemonSettings(): StructuredLogDaemon
         structuredLogMaxMessageSizeBytes = structuredLogMaxMessageSizeBytes,
         structuredLogMinStorageThresholdBytes = structuredLogMinStorageThresholdBytes,
         structuredLogNumEventsBeforeDump = structuredLogNumEventsBeforeDump,
-        structuredLogRateLimitingSettings = structuredLogRateLimitingSettings
+        structuredLogRateLimitingSettings = structuredLogRateLimitingSettings,
+        structuredLogMetricReportEnabled = metricReportEnabled,
     )

@@ -6,6 +6,7 @@ import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
 import com.memfault.bort.Bort
+import com.memfault.bort.Bort.Companion.appCreated
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.SOFTWARE_TYPE
 import com.memfault.bort.shared.SoftwareUpdateSettings
@@ -31,16 +32,22 @@ class SoftwareUpdateSettingsContentProvider : BaseContentProvider() {
 
     private fun gatherConfig(): SoftwareUpdateSettings {
         // TODO: This does not run in the main thread, is runBlocking ok?
-        val deviceInfo = runBlocking { deviceInfoProvider.getDeviceInfo() }
-        return SoftwareUpdateSettings(
-            deviceSerial = deviceInfo.deviceSerial,
-            currentVersion = deviceInfo.softwareVersion,
-            hardwareVersion = deviceInfo.hardwareVersion,
-            softwareType = SOFTWARE_TYPE,
-            updateCheckIntervalMs = settings.otaSettings.updateCheckInterval.toLongMilliseconds(),
-            baseUrl = settings.httpApiSettings.deviceBaseUrl,
-            projectApiKey = settings.httpApiSettings.projectKey,
-        )
+        return runBlocking {
+            // Wait for confirmation that bort.onCreate() has happened. That call happens on the main thread, while this
+            // code is running on a ContentProvider thread - so it is a race condition/random which happens first.
+            appCreated.await()
+
+            val deviceInfo = deviceInfoProvider.getDeviceInfo()
+            SoftwareUpdateSettings(
+                deviceSerial = deviceInfo.deviceSerial,
+                currentVersion = deviceInfo.softwareVersion,
+                hardwareVersion = deviceInfo.hardwareVersion,
+                softwareType = SOFTWARE_TYPE,
+                updateCheckIntervalMs = settings.otaSettings.updateCheckInterval.toLongMilliseconds(),
+                baseUrl = settings.httpApiSettings.deviceBaseUrl,
+                projectApiKey = settings.httpApiSettings.projectKey,
+            )
+        }
     }
 
     override fun getType(uri: Uri): String? = null

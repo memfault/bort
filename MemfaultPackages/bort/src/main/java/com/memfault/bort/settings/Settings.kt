@@ -35,6 +35,8 @@ interface DropBoxSettings {
     val kmsgsRateLimitingSettings: RateLimitingSettings
     val structuredLogRateLimitingSettings: RateLimitingSettings
     val tombstonesRateLimitingSettings: RateLimitingSettings
+    val metricReportRateLimitingSettings: RateLimitingSettings
+    val marFileRateLimitingSettings: RateLimitingSettings
     val excludedTags: Set<String>
 }
 
@@ -46,6 +48,7 @@ interface BatteryStatsSettings {
 interface MetricsSettings {
     val dataSourceEnabled: Boolean
     val collectionInterval: Duration
+    val systemProperties: List<String>
 }
 
 interface LogcatSettings {
@@ -118,6 +121,7 @@ interface StructuredLogSettings {
     val numEventsBeforeDump: Long
     val maxMessageSizeBytes: Long
     val minStorageThresholdBytes: Long
+    val metricsReportEnabled: Boolean
 }
 
 interface OtaSettings {

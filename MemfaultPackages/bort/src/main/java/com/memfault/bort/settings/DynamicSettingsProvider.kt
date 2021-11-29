@@ -113,6 +113,10 @@ open class DynamicSettingsProvider(
             get() = settings.dropBoxStructuredLogRateLimitingSettings
         override val tombstonesRateLimitingSettings: RateLimitingSettings
             get() = settings.dropBoxTombstonesRateLimitingSettings
+        override val metricReportRateLimitingSettings: RateLimitingSettings
+            get() = settings.metricReportRateLimitingSettings
+        override val marFileRateLimitingSettings: RateLimitingSettings
+            get() = settings.marFileRateLimitingSettings
         override val excludedTags: Set<String>
             get() = settings.dropBoxExcludedTags
     }
@@ -122,6 +126,8 @@ open class DynamicSettingsProvider(
             get() = settings.metricsDataSourceEnabled
         override val collectionInterval
             get() = settings.metricsCollectionInterval.duration
+        override val systemProperties: List<String>
+            get() = settings.metricsSystemProperties
     }
 
     override val batteryStatsSettings = object : BatteryStatsSettings {
@@ -183,6 +189,8 @@ open class DynamicSettingsProvider(
             get() = settings.structuredLogMaxMessageSizeBytes
         override val minStorageThresholdBytes: Long
             get() = settings.structuredLogMinStorageThresholdBytes
+        override val metricsReportEnabled: Boolean
+            get() = settings.metricReportEnabled
     }
 
     override val otaSettings = object : OtaSettings {

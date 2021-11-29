@@ -11,6 +11,8 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.memfault.bort.clientserver.MarFileWriter
+import com.memfault.bort.clientserver.ServerFileSender
 import com.memfault.bort.dropbox.DropBoxGetEntriesTask
 import com.memfault.bort.dropbox.EntryProcessor
 import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
@@ -31,10 +33,15 @@ import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
 import com.memfault.bort.logcat.runLogcat
 import com.memfault.bort.metrics.BatteryStatsHistoryCollector
 import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.metrics.DevicePropertiesDb
+import com.memfault.bort.metrics.DevicePropertiesStore
+import com.memfault.bort.metrics.HeartbeatReportCollector
+import com.memfault.bort.metrics.LastHeartbeatEndTimeProvider
 import com.memfault.bort.metrics.MetricsCollectionTask
 import com.memfault.bort.metrics.RealLastHeartbeatEndTimeProvider
 import com.memfault.bort.metrics.RealNextBatteryStatsHistoryStartProvider
 import com.memfault.bort.metrics.SharedPreferencesMetricRegistry
+import com.memfault.bort.metrics.SystemPropertiesCollector
 import com.memfault.bort.metrics.runBatteryStats
 import com.memfault.bort.requester.BugReportRequestWorker
 import com.memfault.bort.requester.BugReportRequester
@@ -57,6 +64,7 @@ import com.memfault.bort.settings.realSettingsUpdateCallback
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.time.BaseAbsoluteTime
+import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.time.RealBootRelativeTimeProvider
 import com.memfault.bort.time.RealCombinedTimeProvider
 import com.memfault.bort.time.UptimeTracker
@@ -64,7 +72,8 @@ import com.memfault.bort.tokenbucket.RealTokenBucketFactory
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.TokenBucketStoreRegistry
 import com.memfault.bort.tokenbucket.createAndRegisterStore
-import com.memfault.bort.uploader.EnqueueFileUpload
+import com.memfault.bort.uploader.EnqueuePreparedUploadTask
+import com.memfault.bort.uploader.EnqueueUpload
 import com.memfault.bort.uploader.FileUploadHoldingArea
 import com.memfault.bort.uploader.FileUploadTask
 import com.memfault.bort.uploader.HttpTask
@@ -72,7 +81,6 @@ import com.memfault.bort.uploader.HttpTaskCallFactory
 import com.memfault.bort.uploader.MemfaultFileUploader
 import com.memfault.bort.uploader.PreparedUploadService
 import com.memfault.bort.uploader.PreparedUploader
-import com.memfault.bort.uploader.enqueueFileUploadTask
 import java.io.File
 import kotlin.time.milliseconds
 import kotlin.time.toJavaDuration
@@ -112,7 +120,12 @@ data class AppComponents(
     val bortSystemCapabilities: BortSystemCapabilities,
     val metrics: BuiltinMetricsStore,
     val uptimeTracker: UptimeTracker,
+    val devicePropertiesDb: DevicePropertiesDb,
     val temporaryFileFactory: TemporaryFileFactory,
+    val lastHeartbeatEndTimeProvider: LastHeartbeatEndTimeProvider,
+    val devicePropertiesStore: DevicePropertiesStore,
+    val enqueueUpload: EnqueueUpload,
+    val combinedTimeProvider: CombinedTimeProvider,
 ) {
     open class Builder(
         private val context: Context,
@@ -207,22 +220,38 @@ data class AppComponents(
                 commandTimeoutConfig = settingsProvider.packageManagerSettings::commandTimeout
             )
             val jitterDelayProvider = jitterDelayProvider ?: JitterDelayProvider(applyJitter = true)
-            val enqueueFileUpload: EnqueueFileUpload = { file, metadata, debugTag ->
-                enqueueFileUploadTask(
-                    context = context,
-                    file = file,
-                    payload = metadata,
-                    getUploadConstraints = settingsProvider.httpApiSettings::uploadConstraints,
-                    debugTag = debugTag,
-                    jitterDelayProvider = jitterDelayProvider
-                )
-            }
+            val serverFileSender = ServerFileSender(reporterServiceConnector)
+            val marFileWriter = MarFileWriter(
+                deviceInfoProvider = deviceInfoProvider,
+                settingsProvider = settingsProvider,
+                temporaryFileFactory = temporaryFileFactory,
+            )
+            val httpTaskCallFactory = HttpTaskCallFactory.fromContextAndConstraints(
+                context = context,
+                getUploadConstraints = settingsProvider.httpApiSettings::uploadConstraints,
+                projectKeyInjectingInterceptor = projectKeyInjectingInterceptor,
+                jitterDelayProvider = jitterDelayProvider
+            )
+            val ingressService = IngressService.create(settingsProvider.httpApiSettings, httpTaskCallFactory)
+            val enqueuePreparedUploadTask = EnqueuePreparedUploadTask(
+                context = context,
+                jitterDelayProvider = jitterDelayProvider,
+                constraints = { settingsProvider.httpApiSettings.uploadConstraints },
+            )
+            val enqueueUpload = EnqueueUpload(
+                context = context,
+                serverFileSender = serverFileSender,
+                marFileWriter = marFileWriter,
+                ingressService = ingressService,
+                dumpsterClient = DumpsterClient(),
+                enqueuePreparedUploadTask = enqueuePreparedUploadTask,
+            )
             val fileUploadHoldingArea = FileUploadHoldingArea(
                 sharedPreferences = context.getSharedPreferences(
                     FILE_UPLOAD_HOLDING_AREA_PREFERENCE_FILE_NAME,
                     Context.MODE_PRIVATE
                 ),
-                enqueueFileUpload = enqueueFileUpload,
+                enqueueUpload = enqueueUpload,
                 resetEventTimeout = { FileUploadHoldingAreaTimeoutTask.reschedule(context) },
                 getTrailingMargin = settingsProvider.fileUploadHoldingAreaSettings::trailingMargin,
                 getEventOfInterestTTL = settingsProvider.logcatSettings::collectionInterval,
@@ -230,7 +259,7 @@ data class AppComponents(
                     .fileUploadHoldingAreaSettings::maxStoredEventsOfInterest,
             )
 
-            val uptimeTracker = UptimeTracker(sharedPreferences, readLinuxBootId())
+            val uptimeTracker = UptimeTracker(sharedPreferences, ::readLinuxBootId)
 
             val tokenBucketStoreRegistry = TokenBucketStoreRegistry(uptimeTracker)
             val bugReportRequestsTokenBucketStore = tokenBucketStoreRegistry.createAndRegisterStore(
@@ -268,12 +297,15 @@ data class AppComponents(
                 )
             }
 
+            val heartbeatReportCollector = HeartbeatReportCollector()
+            val combinedTimeProvider = RealCombinedTimeProvider(context)
             val dropBoxSettings = settingsProvider.dropBoxSettings
             val nextLogcatCidProvider = RealNextLogcatCidProvider(sharedPreferences)
+            val lastHeartbeatEndTimeProvider = RealLastHeartbeatEndTimeProvider(sharedPreferences)
             val dropBoxEntryProcessors = realDropBoxEntryProcessors(
                 tempFileFactory = temporaryFileFactory,
                 bootRelativeTimeProvider = bootRelativeTimeProvider,
-                enqueueFileUpload = enqueueFileUpload,
+                enqueueUpload = enqueueUpload,
                 nextLogcatCidProvider = nextLogcatCidProvider,
                 packageManagerClient = packageManagerClient,
                 deviceInfoProvider = deviceInfoProvider,
@@ -332,9 +364,32 @@ data class AppComponents(
                             },
                         )
                     },
+                metricReportTokenBucketStore =
+                    tokenBucketStoreRegistry.createAndRegisterStore(context, "memfault_report") { storage ->
+                        TokenBucketStore(
+                            storage = storage,
+                            getMaxBuckets = { dropBoxSettings.metricReportRateLimitingSettings.maxBuckets },
+                            getTokenBucketFactory = {
+                                RealTokenBucketFactory.from(dropBoxSettings.metricReportRateLimitingSettings)
+                            },
+                        )
+                    },
                 packageNameAllowList = packageNameAllowList,
-                combinedTimeProvider = RealCombinedTimeProvider(context),
+                combinedTimeProvider = combinedTimeProvider,
                 settingsProvider = settingsProvider,
+                heartbeatReportCollector = heartbeatReportCollector,
+                marFileTokenBucketStore = tokenBucketStoreRegistry.createAndRegisterStore(
+                    context,
+                    "mar_file"
+                ) { storage ->
+                    TokenBucketStore(
+                        storage = storage,
+                        getMaxBuckets = { dropBoxSettings.marFileRateLimitingSettings.maxBuckets },
+                        getTokenBucketFactory = {
+                            RealTokenBucketFactory.from(dropBoxSettings.marFileRateLimitingSettings)
+                        },
+                    )
+                },
             ) + extraDropBoxEntryProcessors
 
             val pendingBugReportRequestAccessor = PendingBugReportRequestAccessor(
@@ -372,6 +427,15 @@ data class AppComponents(
                 RealDropBoxLastProcessedEntryProvider(sharedPreferences)
             )
 
+            val devicePropertiesDb = DevicePropertiesDb.create(context)
+            val devicePropertiesStore = DevicePropertiesStore(devicePropertiesDb)
+
+            val devicePropertiesCollector =
+                SystemPropertiesCollector(
+                    devicePropertiesStore = devicePropertiesStore,
+                    propertiesProvider = { settingsProvider.metricsSettings.systemProperties.toSet() },
+                )
+
             val workerFactory = DefaultWorkerFactory(
                 context = context,
                 settingsProvider = settingsProvider,
@@ -382,7 +446,7 @@ data class AppComponents(
                 reporterServiceConnector = reporterServiceConnector,
                 dropBoxEntryProcessors = dropBoxEntryProcessors,
                 dropBoxProcessedEntryCursorProvider = dropBoxProcessedEntryCursorProvider,
-                enqueueFileUpload = enqueueFileUpload,
+                enqueueUpload = enqueueUpload,
                 nextLogcatCidProvider = nextLogcatCidProvider,
                 temporaryFileFactory = temporaryFileFactory,
                 pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
@@ -475,13 +539,9 @@ data class AppComponents(
                     fileUploadHoldingArea.handleEventOfInterest(elapsedRealtime.milliseconds)
                 },
                 bortSystemCapabilities = bortSystemCapabilities,
-            )
-
-            val httpTaskCallFactory = HttpTaskCallFactory.fromContextAndConstraints(
-                context = context,
-                getUploadConstraints = settingsProvider.httpApiSettings::uploadConstraints,
-                projectKeyInjectingInterceptor = projectKeyInjectingInterceptor,
-                jitterDelayProvider = jitterDelayProvider
+                systemPropertiesCollector = devicePropertiesCollector,
+                devicePropertiesStore = devicePropertiesStore,
+                heartbeatReportCollector = heartbeatReportCollector,
             )
 
             return AppComponents(
@@ -494,7 +554,7 @@ data class AppComponents(
                 deviceIdProvider = deviceIdProvider,
                 deviceInfoProvider = deviceInfoProvider,
                 httpTaskCallFactory = httpTaskCallFactory,
-                ingressService = IngressService.create(settingsProvider.httpApiSettings, httpTaskCallFactory),
+                ingressService = ingressService,
                 reporterServiceConnector = reporterServiceConnector,
                 pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
                 fileUploadHoldingArea = fileUploadHoldingArea,
@@ -509,7 +569,12 @@ data class AppComponents(
                 bortSystemCapabilities = bortSystemCapabilities,
                 metrics = builtinMetricsStore,
                 uptimeTracker = uptimeTracker,
+                devicePropertiesDb = devicePropertiesDb,
                 temporaryFileFactory = temporaryFileFactory,
+                lastHeartbeatEndTimeProvider = lastHeartbeatEndTimeProvider,
+                devicePropertiesStore = devicePropertiesStore,
+                enqueueUpload = enqueueUpload,
+                combinedTimeProvider = combinedTimeProvider,
             )
         }
     }
@@ -545,7 +610,7 @@ class DefaultWorkerFactory(
     private val reporterServiceConnector: ReporterServiceConnector,
     private val dropBoxEntryProcessors: Map<String, EntryProcessor>,
     private val dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider,
-    private val enqueueFileUpload: EnqueueFileUpload,
+    private val enqueueUpload: EnqueueUpload,
     private val nextLogcatCidProvider: NextLogcatCidProvider,
     private val temporaryFileFactory: TemporaryFileFactory,
     private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
@@ -567,6 +632,9 @@ class DefaultWorkerFactory(
     private val interceptingFactory: InterceptingWorkerFactory? = null,
     private val handleEventOfInterestAtAbsoluteTime: (BaseAbsoluteTime) -> Unit,
     private val bortSystemCapabilities: BortSystemCapabilities,
+    private val systemPropertiesCollector: SystemPropertiesCollector,
+    private val devicePropertiesStore: DevicePropertiesStore,
+    private val heartbeatReportCollector: HeartbeatReportCollector,
 ) : WorkerFactory(), TaskFactory {
     override fun createWorker(
         appContext: Context,
@@ -631,7 +699,7 @@ class DefaultWorkerFactory(
                     runBatteryStats = reporterServiceConnector::runBatteryStats,
                     timeoutConfig = settingsProvider.batteryStatsSettings::commandTimeout,
                 ),
-                enqueueFileUpload = enqueueFileUpload,
+                enqueueUpload = enqueueUpload,
                 nextLogcatCidProvider = nextLogcatCidProvider,
                 combinedTimeProvider = RealCombinedTimeProvider(context),
                 lastHeartbeatEndTimeProvider = RealLastHeartbeatEndTimeProvider(sharedPreferences),
@@ -639,6 +707,9 @@ class DefaultWorkerFactory(
                 builtinMetricsStore = builtinMetricsStore,
                 tokenBucketStore = metricsPeriodicTaskTokenBucketStore,
                 packageManagerClient = packageManagerClient,
+                systemPropertiesCollector = systemPropertiesCollector,
+                devicePropertiesStore = devicePropertiesStore,
+                heartbeatReportCollector = heartbeatReportCollector,
             )
             BugReportRequestTimeoutTask::class.qualifiedName -> BugReportRequestTimeoutTask(
                 context = context,

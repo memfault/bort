@@ -16,75 +16,13 @@ import com.memfault.bort.internal.ILogger;
  * @see #log(String, String)
  */
 public final class CustomEvent {
-    /**
-     * The service still uses the old name for this feature: structured logging.
-     */
-    private static final String CUSTOM_EVENTD_SERVICE_NAME = "memfault_structured";
     private static final String LOG_TAG = "customevent";
-    private static ILogger cachedLogger;
 
     /**
-     * Obtains a logger remote proxy. This uses reflection on well-known (but hidden)
-     * system APIs instead of doing extensive platform-level changes to expose the service.
-     *
-     *
-     * Although reflection restrictions are being increasingly enforced, this specific method
-     * is allowed:
-     * <ul>
-     *     <li>Android O: no restrictions</li>
-     *     <li>Android P: part of the light-greylist</li>
-     *     <li>Android Q: part of the greylist</li>
-     *     <li>Android R: part of the greylist</li>
-     *     <li>Android S: part of the unsupported (previously known as greylist) list</li>
-     * </ul>
-     *
-     * The instance is cached in cachedLogger to prevent further reflective service manager
-     * queries. The cache is automatically invalidated if the service dies.
-     *
-     * @return A logger instance.
+     * Obtains an instance of the remote logger.
      */
-    @SuppressLint("PrivateApi")
     private static ILogger obtainRemoteLogger() {
-        synchronized (CustomEvent.class) {
-            if (cachedLogger != null) {
-                return cachedLogger;
-            }
-        }
-
-        // Non-public but stable system APIs
-        try {
-            Class<?> serviceManager = Class.forName("android.os.ServiceManager");
-            Method getService = serviceManager.getMethod(
-                    "getService",
-                    String.class);
-            if (getService != null) {
-                IBinder serviceBinder = (IBinder) getService.invoke(
-                        serviceManager,
-                        CUSTOM_EVENTD_SERVICE_NAME);
-
-                synchronized (CustomEvent.class) {
-                    serviceBinder.linkToDeath(new IBinder.DeathRecipient() {
-                        @Override
-                        public void binderDied() {
-                            synchronized (CustomEvent.class) {
-                                cachedLogger = null;
-                            }
-                        }
-                    }, 0);
-                    cachedLogger = ILogger.Stub.asInterface(serviceBinder);
-                    return cachedLogger;
-                }
-            }
-        } catch (ClassNotFoundException ex) {
-            new IllegalStateException("Could not find ServiceManager, please contact Memfault support.", ex)
-                    .printStackTrace();
-        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException ex) {
-            new IllegalStateException("Could not find or call ServiceManager#getService, please contact Memfault support.", ex)
-                    .printStackTrace();
-        } catch (Exception ex) {
-            // ignored
-        }
-        return null;
+        return RemoteLogger.get();
     }
 
     /**
@@ -142,7 +80,8 @@ public final class CustomEvent {
         try {
             ILogger logger = obtainRemoteLogger();
             if (logger == null) {
-                android.util.Log.w(LOG_TAG, "Could not dump, " + CUSTOM_EVENTD_SERVICE_NAME + " not found.");
+                android.util.Log.w(LOG_TAG, "Could not dump, "
+                        + RemoteLogger.CUSTOM_EVENTD_SERVICE_NAME + " not found.");
             } else {
                 logger.triggerDump();
             }
@@ -159,7 +98,8 @@ public final class CustomEvent {
         try {
             ILogger logger = obtainRemoteLogger();
             if (logger == null) {
-                android.util.Log.w(LOG_TAG, "Could not reload, " + CUSTOM_EVENTD_SERVICE_NAME + " not found.");
+                android.util.Log.w(LOG_TAG, "Could not reload, "
+                        + RemoteLogger.CUSTOM_EVENTD_SERVICE_NAME + " not found.");
             } else {
                 logger.reloadConfig(config);
             }

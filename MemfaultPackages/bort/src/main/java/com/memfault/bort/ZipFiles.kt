@@ -33,7 +33,7 @@ fun addFileToZip(zipFile: File, newFile: File, newfileName: String) {
     existingZipFile.deleteSilently()
 }
 
-private fun ZipOutputStream.addZipEntry(entryName: String, inputStream: InputStream) {
+fun ZipOutputStream.addZipEntry(entryName: String, inputStream: InputStream) {
     // Must create a new entry: old one has compressed size etc already set and will error.
     val entry = ZipEntry(entryName)
     putNextEntry(entry)
@@ -48,4 +48,4 @@ private fun ZipOutputStream.addZipEntry(entryName: String, inputStream: InputStr
 }
 
 private const val BUFFER = 2048
-private const val COMPRESSION_LEVEL_HIGHEST = 9
+const val COMPRESSION_LEVEL_HIGHEST = 9

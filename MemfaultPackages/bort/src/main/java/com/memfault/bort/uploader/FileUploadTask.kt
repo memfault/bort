@@ -1,10 +1,6 @@
 package com.memfault.bort.uploader
 
-import android.content.Context
-import androidx.work.BackoffPolicy
-import androidx.work.Constraints
 import androidx.work.Data
-import androidx.work.WorkRequest
 import androidx.work.workDataOf
 import com.memfault.bort.BortJson
 import com.memfault.bort.FileUploadPayload
@@ -12,19 +8,16 @@ import com.memfault.bort.FileUploader
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
-import com.memfault.bort.enqueueWorkOnce
 import com.memfault.bort.metrics.UPLOAD_FILE_FILE_MISSING
 import com.memfault.bort.metrics.metrics
 import com.memfault.bort.settings.BortEnabledProvider
-import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
 import java.io.File
 import kotlin.time.minutes
-import kotlin.time.toJavaDuration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private val BACKOFF_DURATION = 5.minutes
+val BACKOFF_DURATION = 5.minutes
 
 private const val PATH_KEY = "PATH"
 private const val METADATA_KEY = "METADATA"
@@ -125,29 +118,3 @@ internal class FileUploadTask(
     override fun convertAndValidateInputData(inputData: Data): FileUploadTaskInput =
         FileUploadTaskInput.fromData(inputData)
 }
-
-fun enqueueFileUploadTask(
-    context: Context,
-    file: File,
-    payload: FileUploadPayload,
-    getUploadConstraints: () -> Constraints,
-    debugTag: String,
-    continuation: FileUploadContinuation? = null,
-    shouldCompress: Boolean = true,
-    jitterDelayProvider: JitterDelayProvider,
-): WorkRequest =
-    enqueueWorkOnce<FileUploadTask>(
-        context,
-        FileUploadTaskInput(file, payload, continuation, shouldCompress).toWorkerInputData()
-    ) {
-        setInitialDelay(jitterDelayProvider.randomJitterDelay())
-        setConstraints(getUploadConstraints())
-        setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())
-        addTag(debugTag)
-    }
-
-typealias EnqueueFileUpload = (
-    file: File,
-    payload: FileUploadPayload,
-    debugTag: String,
-) -> Unit
