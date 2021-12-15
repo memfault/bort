@@ -37,7 +37,7 @@ class BugReportRequestTimeoutTaskTest {
                 ),
             )
         )
-        BugReportRequestTimeoutTask(context, pendingBugReportRequestAccessor).doWork(requestId)
+        BugReportRequestTimeoutTask(context, pendingBugReportRequestAccessor, mockk(relaxed = true)).doWork(requestId)
         assertNull(pendingBugReportRequestAccessor.get())
         verify(exactly = 1) {
             context.sendBroadcast(any())
@@ -55,7 +55,7 @@ class BugReportRequestTimeoutTaskTest {
                 requestId = requestId,
             )
         )
-        BugReportRequestTimeoutTask(context, pendingBugReportRequestAccessor).doWork("bar")
+        BugReportRequestTimeoutTask(context, pendingBugReportRequestAccessor, mockk(relaxed = true)).doWork("bar")
         assertEquals(requestId, pendingBugReportRequestAccessor.get()?.requestId)
         verify(exactly = 0) {
             context.sendBroadcast(any())

@@ -1,6 +1,7 @@
 package com.memfault.bort.uploader
 
 import androidx.work.Data
+import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.kotlinxJsonConverterFactory
@@ -33,7 +34,8 @@ internal fun createUploader(server: MockWebServer) =
         createRetrofit(server).create(PreparedUploadService::class.java),
         eventLogger = object : UploadEventLogger {
             override fun log(vararg strings: String) {}
-        }
+        },
+        deviceInfoProvider = FakeDeviceInfoProvider(),
     )
 
 fun createRetrofit(server: MockWebServer) =

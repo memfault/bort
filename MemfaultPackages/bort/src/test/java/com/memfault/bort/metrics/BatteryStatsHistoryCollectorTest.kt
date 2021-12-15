@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import io.mockk.coEvery
 import io.mockk.coVerifyOrder
@@ -8,7 +9,6 @@ import io.mockk.slot
 import java.io.File
 import java.io.OutputStream
 import java.lang.Exception
-import kotlin.time.Duration
 import kotlin.time.hours
 import kotlin.time.minutes
 import kotlin.time.seconds
@@ -26,8 +26,7 @@ data class FakeNextBatteryStatsHistoryStartProvider(
 class BatteryStatsHistoryCollectorTest {
     lateinit var collector: BatteryStatsHistoryCollector
     lateinit var nextBatteryStatsHistoryStartProvider: NextBatteryStatsHistoryStartProvider
-    lateinit var mockRunBatteryStats:
-        suspend (outputStream: OutputStream, historyStart: Long, timeout: Duration) -> Unit
+    lateinit var mockRunBatteryStats: RunBatteryStats
     lateinit var batteryStatsOutputByHistoryStart: Map<Long, String>
     var tempFile: File? = null
 
@@ -37,7 +36,9 @@ class BatteryStatsHistoryCollectorTest {
         val outputStreamSlot = slot<OutputStream>()
         val historyStartSlot = slot<Long>()
         mockRunBatteryStats = mockk()
-        coEvery { mockRunBatteryStats(capture(outputStreamSlot), capture(historyStartSlot), any()) } coAnswers {
+        coEvery {
+            mockRunBatteryStats.runBatteryStats(capture(outputStreamSlot), capture(historyStartSlot), any())
+        } coAnswers {
             batteryStatsOutputByHistoryStart[historyStartSlot.captured].let { output ->
                 checkNotNull(output)
                 output.byteInputStream().use {
@@ -45,11 +46,15 @@ class BatteryStatsHistoryCollectorTest {
                 }
             }
         }
+        val settings = object : BatteryStatsSettings {
+            override val dataSourceEnabled = true
+            override val commandTimeout = 1.minutes
+        }
         collector = BatteryStatsHistoryCollector(
             TestTemporaryFileFactory,
             nextBatteryStatsHistoryStartProvider,
             mockRunBatteryStats,
-            1::minutes,
+            settings,
         )
     }
 
@@ -71,7 +76,7 @@ class BatteryStatsHistoryCollectorTest {
             tempFile = collector.collect(limit = 100.seconds)
         }
         coVerifyOrder {
-            mockRunBatteryStats(any(), 1000, 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), 1000, 1.minutes)
         }
         assertEquals(1100, nextBatteryStatsHistoryStartProvider.historyStart)
         assertEquals(batteryStatsOutputByHistoryStart[1000], tempFile?.readText())
@@ -95,8 +100,8 @@ class BatteryStatsHistoryCollectorTest {
             tempFile = collector.collect(limit = 1.hours)
         }
         coVerifyOrder {
-            mockRunBatteryStats(any(), 1000, 1.minutes)
-            mockRunBatteryStats(any(), 0, 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), 1000, 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), 0, 1.minutes)
         }
         assertEquals(505, nextBatteryStatsHistoryStartProvider.historyStart)
         assertEquals(batteryStatsOutputByHistoryStart[0], tempFile?.readText())
@@ -123,8 +128,8 @@ class BatteryStatsHistoryCollectorTest {
             tempFile = collector.collect(limit = 100.seconds)
         }
         coVerifyOrder {
-            mockRunBatteryStats(any(), 1000, 1.minutes)
-            mockRunBatteryStats(any(), 100000, 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), 1000, 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), 100000, 1.minutes)
         }
         assertEquals(100005, nextBatteryStatsHistoryStartProvider.historyStart)
         assertEquals(batteryStatsOutputByHistoryStart[100000], tempFile?.readText())

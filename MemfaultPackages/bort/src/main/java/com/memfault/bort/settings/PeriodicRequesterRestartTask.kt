@@ -6,20 +6,25 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.memfault.bort.BortJson
+import com.memfault.bort.InjectSet
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.oneTimeWorkRequest
 import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.shared.Logger
+import javax.inject.Inject
 
 private const val PERIODIC_REQUESTER_RESTART_TASK_TAG = "PERIODIC_REQUESTER_RESTART_TASK"
 private const val FETCHED_SETTINGS_UPDATE_KEY = "update"
 
-class PeriodicRequesterRestartTask(
-    override val getMaxAttempts: () -> Int,
-    private val periodicWorkRequesters: List<PeriodicWorkRequester>,
+class PeriodicRequesterRestartTask @Inject constructor(
+    private val periodicWorkRequesters: InjectSet<PeriodicWorkRequester>,
+    override val metrics: BuiltinMetricsStore,
 ) : Task<FetchedSettingsUpdate>() {
+    override val getMaxAttempts = { 1 }
+
     override suspend fun doWork(worker: TaskRunnerWorker, input: FetchedSettingsUpdate): TaskResult {
         val old = DynamicSettingsProvider(object : ReadonlyFetchedSettingsProvider {
             override fun get() = input.old

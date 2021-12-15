@@ -13,7 +13,11 @@ endif
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/deps/rapidjson-1.1.0/include $(LOCAL_PATH)/deps/sqlite_modern_cpp-3.2/hdr/
 LOCAL_CLANG := true
 LOCAL_SHARED_LIBRARIES := libbase libbinder liblog libservices libsqlite libutils
+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -le 30 && echo true),true)
 LOCAL_WHOLE_STATIC_LIBRARIES := libgtest_prod
+else
+LOCAL_WHOLE_STATIC_LIBRARIES := libgtest
+endif
 include $(BUILD_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)

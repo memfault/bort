@@ -1,6 +1,7 @@
 package com.memfault.usagereporter
 
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.DropBoxManager
@@ -26,13 +27,22 @@ import com.memfault.bort.shared.ReporterServiceMessage
 import com.memfault.bort.shared.RunCommandContinue
 import com.memfault.bort.shared.RunCommandRequest
 import com.memfault.bort.shared.RunCommandResponse
+import com.memfault.bort.shared.ServerSendFileRequest
+import com.memfault.bort.shared.ServerSendFileResponse
 import com.memfault.bort.shared.ServiceMessage
 import com.memfault.bort.shared.SetLogLevelRequest
 import com.memfault.bort.shared.SetLogLevelResponse
+import com.memfault.bort.shared.SetMetricCollectionIntervalRequest
+import com.memfault.bort.shared.SetMetricCollectionIntervalResponse
 import com.memfault.bort.shared.UnknownMessageException
 import com.memfault.bort.shared.VersionRequest
 import com.memfault.bort.shared.VersionResponse
+import com.memfault.usagereporter.UsageReporter.Companion.b2bClientServer
+import com.memfault.usagereporter.UsageReporter.Companion.reporterMetrics
+import com.memfault.usagereporter.clientserver.B2BClientServer
+import com.memfault.usagereporter.metrics.ReporterMetrics
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
 
 private const val COMMAND_EXECUTOR_MAX_THREADS = 2
 private const val COMMAND_EXECUTOR_TERMINATION_WAIT_SECS: Long = 30
@@ -89,8 +99,11 @@ class ReporterServiceMessageHandler(
     private val dropBoxMessageHandler: DropBoxMessageHandler,
     private val serviceMessageFromMessage: (message: Message) -> ReporterServiceMessage,
     private val setLogLevel: (logLevel: LogLevel) -> Unit,
-    private val getSendReply: (message: Message) -> SendReply
+    private val getSendReply: (message: Message) -> SendReply,
+    private val b2BClientServer: B2BClientServer,
+    private val reporterMetrics: ReporterMetrics,
 ) : Handler.Callback {
+
     override fun handleMessage(message: Message): Boolean {
         val serviceMessage = try {
             serviceMessageFromMessage(message)
@@ -124,6 +137,8 @@ class ReporterServiceMessageHandler(
             is DropBoxGetNextEntryRequest ->
                 dropBoxMessageHandler.handleGetNextEntryRequest(serviceMessage, sendReply)
             is VersionRequest -> handleVersionRequest(sendReply)
+            is ServerSendFileRequest -> handleSendFileRequest(serviceMessage, sendReply)
+            is SetMetricCollectionIntervalRequest -> handleSetMetricIntervalRequest(serviceMessage.interval, sendReply)
             null -> sendReply(ErrorResponse("Unknown Message: $message")).also {
                 Logger.e("Unknown Message: $message")
             }
@@ -135,6 +150,11 @@ class ReporterServiceMessageHandler(
         return true
     }
 
+    private fun handleSendFileRequest(message: ServerSendFileRequest, sendReply: (reply: ServiceMessage) -> Unit) {
+        b2BClientServer.enqueueFile(message.filename, message.descriptor)
+        sendReply(ServerSendFileResponse)
+    }
+
     private fun handleVersionRequest(sendReply: (reply: ServiceMessage) -> Unit) {
         sendReply(VersionResponse(REPORTER_SERVICE_VERSION))
     }
@@ -142,6 +162,11 @@ class ReporterServiceMessageHandler(
     private fun handleSetLogLevelRequest(level: LogLevel, sendReply: (reply: ServiceMessage) -> Unit) {
         setLogLevel(level)
         sendReply(SetLogLevelResponse)
+    }
+
+    private fun handleSetMetricIntervalRequest(interval: Duration, sendReply: (reply: ServiceMessage) -> Unit) {
+        reporterMetrics.setCollectionInterval(interval)
+        sendReply(SetMetricCollectionIntervalResponse)
     }
 
     private fun handleRunCommandRequest(request: RunCommandRequest<*>, sendReply: SendReply) {
@@ -183,7 +208,9 @@ class ReporterService : Service() {
                 Logger.minLogcatLevel = logLevel
                 Logger.test("Reporter received a log level update $logLevel")
             },
-            getSendReply = ::getSendReply
+            getSendReply = ::getSendReply,
+            b2BClientServer = b2bClientServer,
+            reporterMetrics = reporterMetrics,
         )
     }
 
@@ -221,9 +248,6 @@ class ReporterService : Service() {
         }
     }
 
-    private fun getDropBoxManager(): DropBoxManager? =
-        this.getSystemService(DROPBOX_SERVICE) as DropBoxManager?
-
     override fun onBind(intent: Intent): IBinder? {
         Logger.d("ReporterService: onBind: $intent")
         return Messenger(Handler(handlerThread.looper, messageHandler)).also {
@@ -237,6 +261,9 @@ class ReporterService : Service() {
         return false
     }
 }
+
+fun Context.getDropBoxManager(): DropBoxManager? =
+    getSystemService(Service.DROPBOX_SERVICE) as DropBoxManager?
 
 class RealDropBoxFilterSettingsProvider(
     sharedPreferences: SharedPreferences
@@ -254,7 +281,9 @@ class RealLogLevelPreferenceProvider(
     sharedPreferences: SharedPreferences,
 ) : LogLevelPreferenceProvider, PreferenceKeyProvider<Int>(
     sharedPreferences = sharedPreferences,
-    defaultValue = LogLevel.NONE.level,
+    // Defaults to test (just until updated level is received + persisted) - otherwise we might miss logs when
+    // restarting the process during E2E tests.
+    defaultValue = LogLevel.TEST.level,
     preferenceKey = PREFERENCE_LOG_LEVEL,
 ) {
     override fun setLogLevel(logLevel: LogLevel) {
@@ -262,5 +291,5 @@ class RealLogLevelPreferenceProvider(
     }
 
     override fun getLogLevel(): LogLevel =
-        LogLevel.fromInt(super.getValue()) ?: LogLevel.NONE
+        LogLevel.fromInt(super.getValue()) ?: LogLevel.TEST
 }

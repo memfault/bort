@@ -1,17 +1,23 @@
 package com.memfault.bort
 
-import com.memfault.bort.settings.ConfigValue
+import com.memfault.bort.settings.RulesConfig
 import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import com.memfault.bort.shared.PackageManagerCommand.Util.isValidAndroidApplicationId
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.locks.ReentrantLock
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.concurrent.withLock
 
 fun interface PackageNameAllowList {
     operator fun contains(packageName: String?): Boolean
 }
 
-class RuleBasedPackageNameAllowList(
-    private val rulesConfig: ConfigValue<List<AndroidAppIdScrubbingRule>>
+@Singleton
+@ContributesBinding(SingletonComponent::class)
+class RuleBasedPackageNameAllowList @Inject constructor(
+    private val rulesConfig: RulesConfig,
 ) : PackageNameAllowList {
     // These are semi-expensive to compute, so we cache them until rules change
     private var cachedRegexes: List<Regex> = emptyList()
@@ -46,7 +52,7 @@ class RuleBasedPackageNameAllowList(
  * Converts a string containing a star-glob to a Regex. All string elements are escaped in \Q\E, except for
  * asterisks which get converted to a Regex match-any (.*).
  */
-private fun String.toGlobRegex(): Regex =
+fun String.toGlobRegex(): Regex =
     this.split("*")
         .joinToString(
             prefix = "\\Q",

@@ -10,11 +10,15 @@ import com.memfault.bort.parsers.TombstoneParser
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
+import com.memfault.bort.tokenbucket.TokenBucketStore
+import com.memfault.bort.tokenbucket.Tombstone
 import java.io.File
 import java.io.InputStream
+import javax.inject.Inject
 
-class TombstoneUploadingEntryProcessorDelegate(
+class TombstoneUploadingEntryProcessorDelegate @Inject constructor(
     private val packageManagerClient: PackageManagerClient,
+    @Tombstone override val tokenBucketStore: TokenBucketStore,
 ) : UploadingEntryProcessorDelegate {
     override val tags = listOf("SYSTEM_TOMBSTONE")
 

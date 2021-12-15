@@ -1,5 +1,55 @@
 # Memfault Bort Changelog
 
+## v4.0.0-RC1 - December 15, 2021
+
+This preview release contains several features which do not yet have full
+documentation.
+
+#### :rocket: New Features
+
+- Custom Metrics SDK. See the `Reporting` APIs in `reporting-lib`, which is also
+  published as an artifact to Maven Central as
+  `com.memfault.bort:reporting-lib:1.0`.
+- Android 12 support.
+- Bort supports running in client/server mode, on configurations containing
+  multiple connected devices.
+- Bort records storage usage metrics - these are captured automatically.
+- Bort records CPU/skin temperature metrics - these are captured automatically.
+- Bort can capture selected installed app versions as Device Attributes. This is
+  configurable in the dashboard, on the Data Sources tab.
+- Bort can capture selected system properties as Device Attributes. This is
+  configurable in the dashboard, on the Data Sources tab.
+
+#### :chart_with_upwards_trend: Improvements
+
+- Bort will now only run as the primary user, on devices with multiple users.
+- Bort is updated to use the latest version of several tools & libraries
+  (Gradle, Kotlin, Android Gradle Plugin, etc) and a `compileSdkVersion` of 31.
+- Fixed an SELinux violation when Bort accesses DropBoxManager entries on a
+  recent targetSdkVersion.
+- Fixed a race condition which caused a crash when Bort was started by a
+  ContentProvider query.
+- Fixed an edge-case in DropBoxManager processing, which could cause an entry to
+  be missed.
+
+#### :boom: Breaking Changes
+
+- `BUILD_ID_CODE` in `bort.properties` is replaced by `BUILD_ID_CODE_OVERRIDE`.
+  This is now an override, which is disabled by default - and should only be
+  uncommented if required (SDK updates will always increment the build ID
+  internally, so this will not normally be needed).
+- The `custom-event-lib` library has been removed. The `CustomEvent` API is now
+  located in the `reporting-lib` library, which is also now published as an
+  artifact to Maven Central as `com.memfault.bort:reporting-lib:1.0`.
+
+#### :house: Internal
+
+- Bort now uses Maven Central instead of JCenter for dependencies.
+- Added support for the `mar` (Memfault Archive) file format - this enables
+  bundling data into a batched file upload, instead of uploading a separate file
+  for every piece of data. This is not yet enabled by default.
+- Bort is migrated to use the Dagger dependency injection framework.
+
 ## v3.7.3 - October 26, 2021
 
 #### :chart_with_upwards_trend: Improvements

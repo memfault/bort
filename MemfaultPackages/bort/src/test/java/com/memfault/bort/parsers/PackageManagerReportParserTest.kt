@@ -153,7 +153,7 @@ private val PACKAGE_MANAGER_REPORT =
       |      android.permission.BIND_INCALL_SERVICE: granted=true
       |      android.permission.WRITE_SETTINGS: granted=true
       |      android.permission.CONFIGURE_WIFI_DISPLAY: granted=true
-      |    User 0: 
+      |    User 0:
       |      gids=[1065, 3002, 1023, 3003, 3001, 1007]
       |      runtime permissions:
       |        android.permission.READ_CALL_LOG: granted=true, flags=[ SYSTEM_FIXED GRANTED_BY_DEFAULT ]

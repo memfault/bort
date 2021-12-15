@@ -12,6 +12,9 @@ import com.memfault.bort.ota.lib.Ota
 import com.memfault.bort.ota.lib.State
 import com.memfault.bort.ota.lib.Updater
 import com.memfault.bort.ota.lib.UpdaterProvider
+import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.disableAppComponents
+import com.memfault.bort.shared.isPrimaryUser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -25,6 +28,15 @@ open class App : Application(), UpdaterProvider {
 
     override fun onCreate() {
         super.onCreate()
+
+        Logger.TAG = "bort-ota"
+        Logger.TAG_TEST = "bort-ota-test"
+
+        if (!isPrimaryUser()) {
+            Logger.w("bort-ota disabled for secondary user")
+            disableAppComponents(applicationContext)
+            System.exit(0)
+        }
 
         components = createComponents(applicationContext)
 

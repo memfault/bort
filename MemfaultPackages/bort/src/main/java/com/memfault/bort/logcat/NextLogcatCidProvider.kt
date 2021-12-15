@@ -5,7 +5,10 @@ import com.memfault.bort.LogcatCollectionId
 import com.memfault.bort.PREFERENCE_NEXT_LOGCAT_ID
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import java.util.UUID
+import javax.inject.Inject
 
 /**
  * Provides the ID of the block of logcat logs to be collected next.
@@ -19,7 +22,8 @@ interface NextLogcatCidProvider {
     fun rotate(): Pair<LogcatCollectionId, LogcatCollectionId>
 }
 
-class RealNextLogcatCidProvider(
+@ContributesBinding(SingletonComponent::class, boundType = NextLogcatCidProvider::class)
+class RealNextLogcatCidProvider @Inject constructor(
     sharedPreferences: SharedPreferences
 ) : NextLogcatCidProvider, PreferenceKeyProvider<String>(
     sharedPreferences = sharedPreferences,

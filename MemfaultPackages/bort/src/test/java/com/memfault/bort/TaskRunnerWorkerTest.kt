@@ -2,7 +2,9 @@ package com.memfault.bort
 
 import androidx.work.Data
 import androidx.work.workDataOf
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.uploader.mockTaskRunnerWorker
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -12,7 +14,8 @@ private val SAMPLE_TASK_INPUT_DATA_KEY = "key"
 
 class SampleTask(
     val result: TaskResult = TaskResult.SUCCESS,
-    override val getMaxAttempts: () -> Int = { 3 }
+    override val getMaxAttempts: () -> Int = { 3 },
+    override val metrics: BuiltinMetricsStore = mockk(relaxed = true),
 ) : Task<String>() {
 
     var finallyCalled: Boolean = false

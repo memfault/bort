@@ -12,7 +12,7 @@ import com.memfault.bort.tokenbucket.MockTokenBucketFactory
 import com.memfault.bort.tokenbucket.MockTokenBucketStorage
 import com.memfault.bort.tokenbucket.StoredTokenBucketMap
 import com.memfault.bort.tokenbucket.TokenBucketStore
-import com.memfault.bort.uploader.EnqueueFileUpload
+import com.memfault.bort.uploader.EnqueueUpload
 import io.mockk.CapturingSlot
 import io.mockk.every
 import io.mockk.mockk
@@ -38,7 +38,7 @@ private val STRUCTURED_LOG_TEST_BUCKET_CAPACITY = 3
 @Config(manifest = Config.NONE)
 class StructuredLogEntryProcessorTest {
     lateinit var processor: StructuredLogEntryProcessor
-    lateinit var mockEnqueueFileUpload: EnqueueFileUpload
+    lateinit var mockEnqueueUpload: EnqueueUpload
     lateinit var fileUploadPayloadSlot: CapturingSlot<FileUploadPayload>
     lateinit var builtInMetricsStore: BuiltinMetricsStore
     var dataSourceEnabled: Boolean = true
@@ -46,17 +46,17 @@ class StructuredLogEntryProcessorTest {
     @Before
     fun setUp() {
         dataSourceEnabled = true
-        mockEnqueueFileUpload = mockk(relaxed = true)
+        mockEnqueueUpload = mockk(relaxed = true)
 
         fileUploadPayloadSlot = slot()
         every {
-            mockEnqueueFileUpload(any(), capture(fileUploadPayloadSlot), any())
+            mockEnqueueUpload.enqueue(any(), capture(fileUploadPayloadSlot), any(), any())
         } returns Unit
         builtInMetricsStore = BuiltinMetricsStore(makeFakeMetricRegistry())
 
         processor = StructuredLogEntryProcessor(
             temporaryFileFactory = TestTemporaryFileFactory,
-            enqueueFileUpload = mockEnqueueFileUpload,
+            enqueueUpload = mockEnqueueUpload,
             deviceInfoProvider = FakeDeviceInfoProvider(),
             tokenBucketStore = TokenBucketStore(
                 storage = MockTokenBucketStorage(StoredTokenBucketMap()),
@@ -65,6 +65,7 @@ class StructuredLogEntryProcessorTest {
                     MockTokenBucketFactory(
                         defaultCapacity = STRUCTURED_LOG_TEST_BUCKET_CAPACITY,
                         defaultPeriod = 1.milliseconds,
+                        metrics = builtInMetricsStore,
                     )
                 }
             ),
@@ -96,7 +97,9 @@ class StructuredLogEntryProcessorTest {
             (0..runs).forEach {
                 processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
             }
-            verify(exactly = STRUCTURED_LOG_TEST_BUCKET_CAPACITY) { mockEnqueueFileUpload(any(), any(), any()) }
+            verify(exactly = STRUCTURED_LOG_TEST_BUCKET_CAPACITY) {
+                mockEnqueueUpload.enqueue(any(), any(), any(), any())
+            }
             assert(
                 (runs - STRUCTURED_LOG_TEST_BUCKET_CAPACITY + 1).toFloat()
                     == builtInMetricsStore.collect("rate_limit_applied_structured")
@@ -109,7 +112,7 @@ class StructuredLogEntryProcessorTest {
         dataSourceEnabled = false
         runBlocking {
             processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
-            verify(exactly = 0) { mockEnqueueFileUpload(any(), any(), any()) }
+            verify(exactly = 0) { mockEnqueueUpload.enqueue(any(), any(), any(), any()) }
         }
     }
 }

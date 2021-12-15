@@ -5,26 +5,24 @@ import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.SETTINGS_CHANGED
-import com.memfault.bort.metrics.metrics
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.tokenbucket.SettingsUpdate
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.takeSimple
+import javax.inject.Inject
 import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
 
-typealias SettingsUpdateCallback = suspend (
-    settings: SettingsProvider,
-    fetchedSettingsUpdate: FetchedSettingsUpdate
-) -> Unit
-
-class SettingsUpdateTask(
+class SettingsUpdateTask @Inject constructor(
     private val deviceInfoProvider: DeviceInfoProvider,
-    private val settingsUpdateServiceFactory: () -> SettingsUpdateService,
+    private val settingsUpdateService: SettingsUpdateService,
     private val settingsProvider: SettingsProvider,
     private val storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider,
     private val settingsUpdateCallback: SettingsUpdateCallback,
-    private val tokenBucketStore: TokenBucketStore,
+    @SettingsUpdate private val tokenBucketStore: TokenBucketStore,
+    override val metrics: BuiltinMetricsStore,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
 
@@ -34,7 +32,7 @@ class SettingsUpdateTask(
         }
         return try {
             val deviceInfo = deviceInfoProvider.getDeviceInfo()
-            val new = settingsUpdateServiceFactory().settings(
+            val new = settingsUpdateService.settings(
                 deviceInfo.deviceSerial,
                 deviceInfo.softwareVersion,
                 deviceInfo.hardwareVersion,
@@ -44,13 +42,13 @@ class SettingsUpdateTask(
             val changed = old != new
 
             if (changed) {
-                metrics()?.increment(SETTINGS_CHANGED)
+                metrics.increment(SETTINGS_CHANGED)
                 storedSettingsPreferenceProvider.set(new)
 
                 // Force a reload on the next settings read
                 settingsProvider.invalidate()
 
-                settingsUpdateCallback(settingsProvider, FetchedSettingsUpdate(old = old, new = new))
+                settingsUpdateCallback.onSettingsUpdated(settingsProvider, FetchedSettingsUpdate(old = old, new = new))
             }
 
             Logger.test("Settings updated successfully (changed=$changed)")

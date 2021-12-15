@@ -116,4 +116,4 @@ LOCAL_REQUIRED_MODULES := com.memfault.usagereporter.xml
 TARGET_OUT_DATA_APPS_PRIVILEGED := $(TARGET_OUT_DATA)/priv-app
 include $(BUILD_PREBUILT)
 
-include $(LOCAL_PATH)/custom-event-lib/Android.mk
+include $(LOCAL_PATH)/reporting-lib/Android.mk

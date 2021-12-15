@@ -1,99 +1,28 @@
 package com.memfault.bort.dropbox
 
-import com.memfault.bort.DeviceInfoProvider
-import com.memfault.bort.PackageManagerClient
-import com.memfault.bort.PackageNameAllowList
-import com.memfault.bort.TemporaryFileFactory
-import com.memfault.bort.logcat.NextLogcatCidProvider
-import com.memfault.bort.metrics.BuiltinMetricsStore
-import com.memfault.bort.settings.SettingsProvider
-import com.memfault.bort.time.BaseBootRelativeTime
-import com.memfault.bort.time.BootRelativeTimeProvider
-import com.memfault.bort.time.CombinedTimeProvider
-import com.memfault.bort.tokenbucket.TokenBucketStore
-import com.memfault.bort.uploader.EnqueueFileUpload
+import com.memfault.bort.InjectSet
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
+import javax.inject.Inject
 
-fun realDropBoxEntryProcessors(
-    bootRelativeTimeProvider: BootRelativeTimeProvider,
-    tempFileFactory: TemporaryFileFactory,
-    enqueueFileUpload: EnqueueFileUpload,
-    nextLogcatCidProvider: NextLogcatCidProvider,
-    packageManagerClient: PackageManagerClient,
-    deviceInfoProvider: DeviceInfoProvider,
-    builtinMetricsStore: BuiltinMetricsStore,
-    handleEventOfInterest: (eventTime: BaseBootRelativeTime) -> Unit,
-    tombstoneTokenBucketStore: TokenBucketStore,
-    javaExceptionTokenBucketStore: TokenBucketStore,
-    anrTokenBucketStore: TokenBucketStore,
-    kmsgTokenBucketStore: TokenBucketStore,
-    structuredLogTokenBucketStore: TokenBucketStore,
-    packageNameAllowList: PackageNameAllowList,
-    combinedTimeProvider: CombinedTimeProvider,
-    settingsProvider: SettingsProvider,
-): Map<String, EntryProcessor> {
-    val tombstoneEntryProcessor = UploadingEntryProcessor(
-        delegate = TombstoneUploadingEntryProcessorDelegate(
-            packageManagerClient = packageManagerClient,
-        ),
-        tempFileFactory = tempFileFactory,
-        enqueueFileUpload = enqueueFileUpload,
-        nextLogcatCidProvider = nextLogcatCidProvider,
-        bootRelativeTimeProvider = bootRelativeTimeProvider,
-        deviceInfoProvider = deviceInfoProvider,
-        tokenBucketStore = tombstoneTokenBucketStore,
-        builtinMetricsStore = builtinMetricsStore,
-        handleEventOfInterest = handleEventOfInterest,
-        packageNameAllowList = packageNameAllowList,
-    )
-    val javaExceptionEntryProcessor = UploadingEntryProcessor(
-        delegate = JavaExceptionUploadingEntryProcessorDelegate(),
-        tempFileFactory = tempFileFactory,
-        enqueueFileUpload = enqueueFileUpload,
-        nextLogcatCidProvider = nextLogcatCidProvider,
-        bootRelativeTimeProvider = bootRelativeTimeProvider,
-        deviceInfoProvider = deviceInfoProvider,
-        tokenBucketStore = javaExceptionTokenBucketStore,
-        builtinMetricsStore = builtinMetricsStore,
-        handleEventOfInterest = handleEventOfInterest,
-        packageNameAllowList = packageNameAllowList,
-    )
-    val anrEntryProcessor = UploadingEntryProcessor(
-        delegate = AnrUploadingEntryProcessorDelegate(),
-        tempFileFactory = tempFileFactory,
-        enqueueFileUpload = enqueueFileUpload,
-        nextLogcatCidProvider = nextLogcatCidProvider,
-        bootRelativeTimeProvider = bootRelativeTimeProvider,
-        deviceInfoProvider = deviceInfoProvider,
-        tokenBucketStore = anrTokenBucketStore,
-        builtinMetricsStore = builtinMetricsStore,
-        handleEventOfInterest = handleEventOfInterest,
-        packageNameAllowList = packageNameAllowList,
-    )
-    val kmsgEntryProcessor = UploadingEntryProcessor(
-        delegate = KmsgUploadingEntryProcessorDelegate(),
-        tempFileFactory = tempFileFactory,
-        enqueueFileUpload = enqueueFileUpload,
-        nextLogcatCidProvider = nextLogcatCidProvider,
-        bootRelativeTimeProvider = bootRelativeTimeProvider,
-        deviceInfoProvider = deviceInfoProvider,
-        tokenBucketStore = kmsgTokenBucketStore,
-        builtinMetricsStore = builtinMetricsStore,
-        handleEventOfInterest = handleEventOfInterest,
-        packageNameAllowList = packageNameAllowList,
-    )
-    val structuredLogProcessor = StructuredLogEntryProcessor(
-        temporaryFileFactory = tempFileFactory,
-        deviceInfoProvider = deviceInfoProvider,
-        tokenBucketStore = structuredLogTokenBucketStore,
-        enqueueFileUpload = enqueueFileUpload,
-        combinedTimeProvider = combinedTimeProvider,
-        structuredLogDataSourceEnabledConfig = { settingsProvider.structuredLogSettings.dataSourceEnabled }
-    )
-    return mapOf(
-        *tombstoneEntryProcessor.tagPairs(),
-        *javaExceptionEntryProcessor.tagPairs(),
-        *anrEntryProcessor.tagPairs(),
-        *kmsgEntryProcessor.tagPairs(),
-        *structuredLogProcessor.tagPairs(),
-    )
+class DropBoxEntryProcessors @Inject constructor(
+    processors: InjectSet<EntryProcessor>,
+) {
+    val map = processors.flatMap { it.tagPairs() }.toMap()
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class DropboxModule {
+    @Binds @IntoSet
+    abstract fun tombstone(tombstone: UploadingEntryProcessor<TombstoneUploadingEntryProcessorDelegate>): EntryProcessor
+    @Binds @IntoSet
+    abstract fun java(tombstone: UploadingEntryProcessor<JavaExceptionUploadingEntryProcessorDelegate>): EntryProcessor
+    @Binds @IntoSet
+    abstract fun anr(tombstone: UploadingEntryProcessor<AnrUploadingEntryProcessorDelegate>): EntryProcessor
+    @Binds @IntoSet
+    abstract fun kmsg(tombstone: UploadingEntryProcessor<KmsgUploadingEntryProcessorDelegate>): EntryProcessor
 }

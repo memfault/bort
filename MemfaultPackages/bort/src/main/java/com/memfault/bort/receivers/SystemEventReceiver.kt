@@ -6,18 +6,33 @@ import android.provider.Settings
 import androidx.preference.PreferenceManager
 import com.memfault.bort.AndroidBootReason
 import com.memfault.bort.BootCountTracker
+import com.memfault.bort.BortSystemCapabilities
+import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DumpsterClient
+import com.memfault.bort.InjectSet
+import com.memfault.bort.LinuxBootId
 import com.memfault.bort.LinuxRebootTracker
 import com.memfault.bort.RealLastTrackedBootCountProvider
 import com.memfault.bort.RealLastTrackedLinuxBootIdProvider
 import com.memfault.bort.RebootEventUploader
+import com.memfault.bort.ReporterServiceConnector
+import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
 import com.memfault.bort.logcat.handleTimeChanged
-import com.memfault.bort.readLinuxBootId
+import com.memfault.bort.requester.PeriodicWorkRequester
+import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.applyReporterServiceSettings
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.goAsync
+import com.memfault.bort.tokenbucket.Reboots
+import com.memfault.bort.tokenbucket.TokenBucketStore
+import com.memfault.bort.tokenbucket.TokenBucketStoreRegistry
+import com.memfault.bort.uploader.EnqueueUpload
+import com.memfault.bort.uploader.FileUploadHoldingArea
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class SystemEventReceiver : BortEnabledFilteringReceiver(
     setOf(
         Intent.ACTION_BOOT_COMPLETED,
@@ -25,6 +40,18 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         Intent.ACTION_TIME_CHANGED,
     )
 ) {
+    @Inject lateinit var periodicWorkRequesters: InjectSet<PeriodicWorkRequester>
+    @Inject lateinit var dumpsterClient: DumpsterClient
+    @Inject lateinit var settingsProvider: SettingsProvider
+    @Inject lateinit var deviceInfoProvider: DeviceInfoProvider
+    @Inject lateinit var enqueueUpload: EnqueueUpload
+    @Inject lateinit var reporterServiceConnector: ReporterServiceConnector
+    @Inject lateinit var fileUploadHoldingArea: FileUploadHoldingArea
+    @Inject lateinit var tokenBucketStoreRegistry: TokenBucketStoreRegistry
+    @Reboots @Inject lateinit var tokenBucketStore: TokenBucketStore
+    @Inject lateinit var bortSystemCapabilities: BortSystemCapabilities
+    @Inject lateinit var readLinuxBootId: LinuxBootId
+    @Inject lateinit var dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider
 
     private fun onPackageReplaced() {
         goAsync {
@@ -39,7 +66,8 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
 
         if (LinuxRebootTracker(
-                ::readLinuxBootId, RealLastTrackedLinuxBootIdProvider(sharedPreferences)
+                readLinuxBootId,
+                RealLastTrackedLinuxBootIdProvider(sharedPreferences)
             ).checkAndUnset()
         ) {
             tokenBucketStoreRegistry.handleLinuxReboot()
@@ -49,24 +77,25 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         goAsync {
             val bortEnabled = !bortEnabledProvider.requiresRuntimeEnable() ||
                 bortEnabledProvider.isEnabled()
-            DumpsterClient().setBortEnabled(bortEnabled)
-            DumpsterClient().setStructuredLogEnabled(settingsProvider.structuredLogSettings.dataSourceEnabled)
+            dumpsterClient.setBortEnabled(bortEnabled)
+            dumpsterClient.setStructuredLogEnabled(settingsProvider.structuredLogSettings.dataSourceEnabled)
 
             applyReporterServiceSettings(
                 reporterServiceConnector,
                 settingsProvider,
+                bortEnabledProvider,
             )
 
             if (settingsProvider.rebootEventsSettings.dataSourceEnabled &&
                 bortSystemCapabilities.supportsRebootEvents()
             ) {
-                DumpsterClient().getprop()?.let { systemProperties ->
+                dumpsterClient.getprop()?.let { systemProperties ->
                     val rebootEventUploader = RebootEventUploader(
-                        ingressService = ingressService,
                         deviceInfo = deviceInfoProvider.getDeviceInfo(),
                         androidSysBootReason = systemProperties.get(AndroidBootReason.SYS_BOOT_REASON_KEY),
-                        tokenBucketStore = rebootEventTokenBucketStore,
-                        getLinuxBootId = ::readLinuxBootId
+                        tokenBucketStore = tokenBucketStore,
+                        getLinuxBootId = readLinuxBootId,
+                        enqueueUpload = enqueueUpload,
                     )
 
                     val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
@@ -89,6 +118,7 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         RealNextLogcatStartTimeProvider(
             PreferenceManager.getDefaultSharedPreferences(context)
         ).handleTimeChanged()
+        dropBoxProcessedEntryCursorProvider.handleTimeChange()
     }
 
     override fun onReceivedAndEnabled(context: Context, intent: Intent, action: String) {

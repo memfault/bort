@@ -11,18 +11,22 @@ import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.metricForTraceTag
 import com.memfault.bort.time.AbsoluteTime
-import com.memfault.bort.time.BaseBootRelativeTime
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
+import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.time.toAbsoluteTime
 import com.memfault.bort.tokenbucket.TokenBucketStore
-import com.memfault.bort.uploader.EnqueueFileUpload
+import com.memfault.bort.uploader.EnqueueUpload
+import com.memfault.bort.uploader.HandleEventOfInterest
 import java.io.File
+import javax.inject.Inject
 
 interface UploadingEntryProcessorDelegate {
     val tags: List<String>
 
     val debugTag: String
+
+    val tokenBucketStore: TokenBucketStore
 
     suspend fun createMetadata(
         entryInfo: EntryInfo,
@@ -43,23 +47,23 @@ data class EntryInfo(
     val packages: List<FileUploadPayload.Package> = emptyList(),
 )
 
-class UploadingEntryProcessor(
-    private val delegate: UploadingEntryProcessorDelegate,
+class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject constructor(
+    private val delegate: T,
     private val tempFileFactory: TemporaryFileFactory,
-    private val enqueueFileUpload: EnqueueFileUpload,
+    private val enqueueUpload: EnqueueUpload,
     private val nextLogcatCidProvider: NextLogcatCidProvider,
     private val bootRelativeTimeProvider: BootRelativeTimeProvider,
     private val deviceInfoProvider: DeviceInfoProvider,
-    private val tokenBucketStore: TokenBucketStore,
     private val builtinMetricsStore: BuiltinMetricsStore,
     private val packageNameAllowList: PackageNameAllowList,
-    private val handleEventOfInterest: (eventTime: BaseBootRelativeTime) -> Unit,
+    private val handleEventOfInterest: HandleEventOfInterest,
+    private val combinedTimeProvider: CombinedTimeProvider,
 ) : EntryProcessor() {
     override val tags: List<String>
         get() = delegate.tags
 
     private fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean =
-        tokenBucketStore.edit { map ->
+        delegate.tokenBucketStore.edit { map ->
             val bucket = map.upsertBucket(tokenBucketKey) ?: return@edit false
             bucket.take(tag = "dropbox_$tag")
         }
@@ -67,11 +71,12 @@ class UploadingEntryProcessor(
     override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
         tempFileFactory.createTemporaryFile(entry.tag, ".txt").useFile { tempFile, preventDeletion ->
             tempFile.outputStream().use { outStream ->
-                entry.inputStream.use {
+                val copiedBytes = entry.inputStream.use {
                     inStream ->
                     inStream ?: return@useFile
                     inStream.copyTo(outStream)
                 }
+                if (copiedBytes == 0L) return@useFile
             }
 
             val info = delegate.getEntryInfo(entry, tempFile)
@@ -87,7 +92,7 @@ class UploadingEntryProcessor(
 
             val deviceInfo = deviceInfoProvider.getDeviceInfo()
             val now = bootRelativeTimeProvider.now()
-            enqueueFileUpload(
+            enqueueUpload.enqueue(
                 tempFile,
                 DropBoxEntryFileUploadPayload(
                     hardwareVersion = deviceInfo.hardwareVersion,
@@ -102,14 +107,15 @@ class UploadingEntryProcessor(
                         now,
                     )
                 ),
-                delegate.debugTag,
+                debugTag = delegate.debugTag,
+                collectionTime = combinedTimeProvider.now(),
             )
 
             preventDeletion()
 
             // Only consider trace entries as "events of interest" for log collection purposes:
             if (delegate.isTraceEntry(entry)) {
-                handleEventOfInterest(now)
+                handleEventOfInterest.handleEventOfInterest(now)
             }
         }
     }

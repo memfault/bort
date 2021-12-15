@@ -1,6 +1,9 @@
 package com.memfault.bort.time
 
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import java.time.Instant
+import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 import kotlinx.serialization.Serializable
@@ -30,6 +33,13 @@ data class AbsoluteTime(
     companion object {
         fun now() = AbsoluteTime(Instant.ofEpochMilli(System.currentTimeMillis()))
     }
+}
+
+fun interface AbsoluteTimeProvider : () -> AbsoluteTime
+
+@ContributesBinding(SingletonComponent::class)
+class RealAbsoluteTimeProvider @Inject constructor() : AbsoluteTimeProvider {
+    override fun invoke(): AbsoluteTime = AbsoluteTime.now()
 }
 
 fun Long.toAbsoluteTime() = AbsoluteTime(

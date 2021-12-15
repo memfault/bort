@@ -1,5 +1,6 @@
 package com.memfault.bort.tokenbucket
 
+import io.mockk.mockk
 import kotlin.time.milliseconds
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -19,6 +20,7 @@ class TokenBucketMapTest {
             _count = 1,
             _periodStartElapsedRealtime = 0.milliseconds,
             elapsedRealtime = mockElapsedRealtime::get,
+            mockk(relaxed = true),
         )
         tokenBucketFactory = MockTokenBucketFactory(
             defaultCapacity = 1,

@@ -3,12 +3,16 @@ package com.memfault.bort.shared
 import android.os.Bundle
 import android.os.DropBoxManager
 import android.os.Message
+import android.os.ParcelFileDescriptor
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
+import kotlin.time.toDuration
 
 class UnknownMessageException(message: String) : Exception(message)
 class ErrorResponseException(message: String) : Exception(message)
 class UnexpectedResponseException(message: String) : Exception(message)
 
-val REPORTER_SERVICE_VERSION: Int = 4
+val REPORTER_SERVICE_VERSION: Int = 6
 
 // Generic responses:
 val ERROR_RSP = -1
@@ -35,6 +39,14 @@ val RUN_COMMAND_SLEEP_REQ: Int = 502
 val RUN_COMMAND_PACKAGE_MANAGER_REQ: Int = 503
 val RUN_COMMAND_CONT: Int = 600
 val RUN_COMMAND_RSP: Int = 601
+
+// Client/server file upload messages:
+val SEND_FILE_TO_SERVER_REQ: Int = 700
+val SEND_FILE_TO_SERVER_RSP: Int = 701
+
+// Log level messages
+val METRIC_COLLLECTION_INTERVAL_REQ: Int = 801
+val METRIC_COLLLECTION_INTERVAL_RSP: Int = 802
 
 abstract class ReporterServiceMessage : ServiceMessage {
     abstract val messageId: Int
@@ -67,6 +79,12 @@ abstract class ReporterServiceMessage : ServiceMessage {
                 RUN_COMMAND_PACKAGE_MANAGER_REQ -> PackageManagerRequest.fromBundle(message.data)
                 RUN_COMMAND_CONT -> RunCommandContinue()
                 RUN_COMMAND_RSP -> RunCommandResponse.fromBundle(message.data)
+
+                SEND_FILE_TO_SERVER_REQ -> ServerSendFileRequest.fromBundle(message.data)
+                SEND_FILE_TO_SERVER_RSP -> ServerSendFileResponse
+
+                METRIC_COLLLECTION_INTERVAL_REQ -> SetMetricCollectionIntervalRequest.fromBundle(message.data)
+                METRIC_COLLLECTION_INTERVAL_RSP -> SetMetricCollectionIntervalResponse
 
                 ERROR_RSP -> ErrorResponse.fromBundle(message.data)
                 else -> throw UnknownMessageException("Unknown ReporterServiceMessage ID: ${message.what}")
@@ -106,6 +124,7 @@ class VersionResponse(val version: Int) : ReporterServiceMessage() {
 }
 
 private const val LOG_LEVEL = "LOG_LEVEL"
+
 data class SetLogLevelRequest(val level: LogLevel) : ReporterServiceMessage() {
     override val messageId: Int = LOG_LEVEL_SET_REQ
     override fun toBundle(): Bundle = Bundle().apply {
@@ -193,6 +212,7 @@ data class RunCommandResponse(val exitCode: Int?, val didTimeout: Boolean) : Rep
         exitCode?.let { putInt(EXIT_CODE, it) }
         putBoolean(DID_TIMEOUT, didTimeout)
     }
+
     companion object {
         fun fromBundle(bundle: Bundle) = with(bundle) {
             RunCommandResponse(
@@ -277,3 +297,46 @@ data class ErrorResponse(val error: String?) : ReporterServiceMessage() {
         fun fromException(e: Exception) = ErrorResponse(e.stackTraceToString())
     }
 }
+
+private const val FILE_DESCRIPTOR = "FILE_DESCRIPTOR"
+private const val FILE_NAME = "FILE_NAME"
+
+data class ServerSendFileRequest(
+    val filename: String,
+    val descriptor: ParcelFileDescriptor,
+) : ReporterServiceMessage() {
+    override val messageId: Int = SEND_FILE_TO_SERVER_REQ
+    override fun toBundle(): Bundle = Bundle().apply {
+        putString(FILE_NAME, filename)
+        putParcelable(FILE_DESCRIPTOR, descriptor)
+    }
+
+    companion object {
+        fun fromBundle(bundle: Bundle) =
+            ServerSendFileRequest(
+                bundle.getString(FILE_NAME)
+                    ?: throw IllegalArgumentException("ServerSendFileRequest: missing $FILE_NAME"),
+                bundle.getParcelable(FILE_DESCRIPTOR)
+                    ?: throw IllegalArgumentException("ServerSendFileRequest: missing $FILE_DESCRIPTOR")
+            )
+    }
+}
+
+object ServerSendFileResponse : SimpleReporterServiceMessage(SEND_FILE_TO_SERVER_RSP)
+
+private const val METRIC_COLLECTION_INTERVAL = "METRIC_COLLECTION_INTERVAL"
+
+data class SetMetricCollectionIntervalRequest(val interval: Duration) : ReporterServiceMessage() {
+    override val messageId: Int = METRIC_COLLLECTION_INTERVAL_REQ
+    override fun toBundle(): Bundle = Bundle().apply {
+        putLong(METRIC_COLLECTION_INTERVAL, interval.inWholeMilliseconds)
+    }
+
+    companion object {
+        fun fromBundle(bundle: Bundle) = SetMetricCollectionIntervalRequest(
+            bundle.getLong(METRIC_COLLECTION_INTERVAL).toDuration(TimeUnit.MILLISECONDS)
+        )
+    }
+}
+
+object SetMetricCollectionIntervalResponse : SimpleReporterServiceMessage(METRIC_COLLLECTION_INTERVAL_RSP)

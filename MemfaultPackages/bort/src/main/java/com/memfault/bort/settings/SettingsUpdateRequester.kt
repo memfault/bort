@@ -1,5 +1,6 @@
 package com.memfault.bort.settings
 
+import android.app.Application
 import android.content.Context
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
@@ -9,7 +10,10 @@ import com.memfault.bort.periodicWorkRequest
 import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.toJavaDuration
@@ -53,10 +57,10 @@ internal fun restartPeriodicSettingsUpdate(
     }
 }
 
-class SettingsUpdateRequester(
-    private val context: Context,
-    private val httpApiSettings: HttpApiSettings,
-    private val getUpdateInterval: () -> Duration,
+@ContributesMultibinding(scope = SingletonComponent::class)
+class SettingsUpdateRequester @Inject constructor(
+    private val context: Application,
+    private val settings: SettingsProvider,
     private val jitterDelayProvider: JitterDelayProvider,
     private val bortSystemCapabilities: BortSystemCapabilities,
 ) : PeriodicWorkRequester() {
@@ -65,8 +69,8 @@ class SettingsUpdateRequester(
 
         restartPeriodicSettingsUpdate(
             context = context,
-            httpApiSettings = httpApiSettings,
-            updateInterval = getUpdateInterval(),
+            httpApiSettings = settings.httpApiSettings,
+            updateInterval = settings.settingsUpdateInterval,
             delayAfterSettingsUpdate = settingsChanged,
             jitterDelayProvider = jitterDelayProvider,
         )

@@ -7,6 +7,10 @@ import com.memfault.bort.shared.BuildConfigSdkVersionInfo
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.shared.Logger
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 import kotlin.time.Duration
@@ -16,7 +20,9 @@ import kotlin.time.Duration
  * the assets folder or from a shared preferences entry that contains
  * remotely fetched settings.
  */
-open class DynamicSettingsProvider(
+@Singleton
+@ContributesBinding(scope = SingletonComponent::class)
+open class DynamicSettingsProvider @Inject constructor(
     private val storedSettingsPreferenceProvider: ReadonlyFetchedSettingsProvider,
 ) : SettingsProvider {
     @Transient
@@ -64,6 +70,12 @@ open class DynamicSettingsProvider(
             get() = settings.httpApiReadTimeout.duration
         override val callTimeout
             get() = settings.httpApiCallTimeout.duration
+        override val useMarUpload: Boolean
+            get() = settings.httpApiUseMarUpload
+        override val batchMarUploads: Boolean
+            get() = settings.httpApiBatchMarUploads
+        override val batchedMarUploadPeriod: Duration
+            get() = settings.httpApiBatchedMarUploadPeriod.duration
     }
 
     override val deviceInfoSettings = object : DeviceInfoSettings {
@@ -113,6 +125,10 @@ open class DynamicSettingsProvider(
             get() = settings.dropBoxStructuredLogRateLimitingSettings
         override val tombstonesRateLimitingSettings: RateLimitingSettings
             get() = settings.dropBoxTombstonesRateLimitingSettings
+        override val metricReportRateLimitingSettings: RateLimitingSettings
+            get() = settings.metricReportRateLimitingSettings
+        override val marFileRateLimitingSettings: RateLimitingSettings
+            get() = settings.marFileRateLimitingSettings
         override val excludedTags: Set<String>
             get() = settings.dropBoxExcludedTags
     }
@@ -122,6 +138,14 @@ open class DynamicSettingsProvider(
             get() = settings.metricsDataSourceEnabled
         override val collectionInterval
             get() = settings.metricsCollectionInterval.duration
+        override val systemProperties: List<String>
+            get() = settings.metricsSystemProperties
+        override val appVersions: List<String>
+            get() = settings.metricsAppVersions
+        override val maxNumAppVersions: Int
+            get() = settings.metricsMaxNumAppVersions
+        override val reporterCollectionInterval: Duration
+            get() = settings.metricsReporterCollectionInterval.duration
     }
 
     override val batteryStatsSettings = object : BatteryStatsSettings {
@@ -183,6 +207,8 @@ open class DynamicSettingsProvider(
             get() = settings.structuredLogMaxMessageSizeBytes
         override val minStorageThresholdBytes: Long
             get() = settings.structuredLogMinStorageThresholdBytes
+        override val metricsReportEnabled: Boolean
+            get() = settings.metricReportEnabled
     }
 
     override val otaSettings = object : OtaSettings {

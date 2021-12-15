@@ -1,24 +1,45 @@
 package com.memfault.bort
 
 import com.memfault.bort.settings.DeviceInfoSettings
+import com.memfault.bort.shared.Logger
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 interface DeviceInfoProvider {
     suspend fun getDeviceInfo(): DeviceInfo
-
-    // MFLT-3136: properly cache and prime this
-    val lastDeviceInfo: DeviceInfo?
 }
 
-class RealDeviceInfoProvider(
-    private val deviceInfoSettings: DeviceInfoSettings
+@ContributesBinding(SingletonComponent::class)
+@Singleton
+class RealDeviceInfoProvider @Inject constructor(
+    private val deviceInfoSettings: DeviceInfoSettings,
+    private val dumpsterClient: DumpsterClient,
 ) : DeviceInfoProvider {
-    override var lastDeviceInfo: DeviceInfo? = null
-        private set
-
-    override suspend fun getDeviceInfo(): DeviceInfo =
+    private val deviceInfo = CachedAsyncProperty {
         DeviceInfo.fromSettingsAndSystemProperties(
-            deviceInfoSettings, DumpsterClient().getprop() ?: emptyMap(),
-        ).also {
-            lastDeviceInfo = it
+            lastSettings, dumpsterClient.getprop() ?: emptyMap(),
+        )
+    }
+    private var lastSettings = deviceInfoSettings.asParams()
+    private val mutex = Mutex()
+
+    override suspend fun getDeviceInfo(): DeviceInfo = mutex.withLock {
+        if (lastSettings != deviceInfoSettings.asParams()) {
+            Logger.d("Invalidating deviceInfo")
+            lastSettings = deviceInfoSettings.asParams()
+            deviceInfo.invalidate()
         }
+        deviceInfo.get()
+    }
 }
+
+private fun DeviceInfoSettings.asParams() = DeviceInfoParams(
+    androidBuildFormat = androidBuildFormat,
+    androidBuildVersionKey = androidBuildVersionKey,
+    androidHardwareVersionKey = androidHardwareVersionKey,
+    androidSerialNumberKey = androidSerialNumberKey,
+)

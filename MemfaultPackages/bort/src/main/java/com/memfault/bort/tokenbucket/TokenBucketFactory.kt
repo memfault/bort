@@ -1,6 +1,7 @@
 package com.memfault.bort.tokenbucket
 
 import android.os.SystemClock
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.settings.RateLimitingSettings
 import kotlin.time.Duration
 import kotlin.time.milliseconds
@@ -29,7 +30,8 @@ internal fun realElapsedRealtime(): Duration = SystemClock.elapsedRealtime().mil
 
 class RealTokenBucketFactory(
     defaultCapacity: Int,
-    defaultPeriod: Duration
+    defaultPeriod: Duration,
+    private val metrics: BuiltinMetricsStore,
 ) : TokenBucketFactory(defaultCapacity, defaultPeriod) {
     override fun create(
         count: Int,
@@ -43,13 +45,15 @@ class RealTokenBucketFactory(
             _count = count,
             _periodStartElapsedRealtime = periodStartElapsedRealtime ?: realElapsedRealtime(),
             elapsedRealtime = ::realElapsedRealtime,
+            metrics = metrics,
         )
 
     companion object {
-        fun from(rateLimitingSettings: RateLimitingSettings) =
+        fun from(rateLimitingSettings: RateLimitingSettings, metrics: BuiltinMetricsStore) =
             RealTokenBucketFactory(
                 defaultCapacity = rateLimitingSettings.defaultCapacity,
-                defaultPeriod = rateLimitingSettings.defaultPeriod.duration
+                defaultPeriod = rateLimitingSettings.defaultPeriod.duration,
+                metrics = metrics,
             )
     }
 }

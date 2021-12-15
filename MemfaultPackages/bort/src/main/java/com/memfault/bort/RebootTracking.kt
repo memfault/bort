@@ -2,15 +2,18 @@ package com.memfault.bort
 
 import android.content.SharedPreferences
 import android.os.SystemClock
-import com.memfault.bort.ingress.IngressService
 import com.memfault.bort.ingress.RebootEvent
 import com.memfault.bort.ingress.RebootEventInfo
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
+import com.memfault.bort.time.CombinedTime
+import com.memfault.bort.time.boxed
+import com.memfault.bort.tokenbucket.Reboots
 import com.memfault.bort.tokenbucket.TokenBucketStore
-import java.io.File
+import com.memfault.bort.uploader.EnqueueUpload
 import java.time.Instant
 import java.util.concurrent.TimeUnit
+import kotlin.time.milliseconds
 
 interface LastTrackedBootCountProvider {
     var bootCount: Int
@@ -72,15 +75,14 @@ data class AndroidBootReason(
     }
 }
 
-fun readLinuxBootId(): String =
-    File("/proc/sys/kernel/random/boot_id").readText().trim()
+fun interface LinuxBootId : () -> String
 
 internal class RebootEventUploader(
-    val ingressService: IngressService,
     val deviceInfo: DeviceInfo,
     val androidSysBootReason: String?,
-    val tokenBucketStore: TokenBucketStore,
-    private val getLinuxBootId: () -> String
+    @Reboots val tokenBucketStore: TokenBucketStore,
+    private val getLinuxBootId: LinuxBootId,
+    private val enqueueUpload: EnqueueUpload,
 ) {
     private fun createAndUploadCurrentRebootEvent(bootCount: Int) {
         val allowedByRateLimit = tokenBucketStore.edit { map ->
@@ -91,8 +93,9 @@ internal class RebootEventUploader(
             return
         }
 
-        val rebootEvent = RebootEvent(
-            capturedDate = getBootInstant(),
+        val bootInstant = getBootInstant()
+        val rebootEvent = RebootEvent.create(
+            capturedDate = bootInstant,
             deviceInfo = deviceInfo,
             eventInfo = RebootEventInfo.fromAndroidBootReason(
                 bootCount = bootCount,
@@ -100,9 +103,14 @@ internal class RebootEventUploader(
                 androidBootReason = AndroidBootReason.parse(androidSysBootReason)
             )
         )
-        ingressService.uploadRebootEvents(
-            listOf(rebootEvent)
-        ).execute()
+        val rebootTime = CombinedTime(
+            uptime = 0.milliseconds.boxed(),
+            elapsedRealtime = 0.milliseconds.boxed(),
+            linuxBootId = rebootEvent.event_info.linux_boot_id,
+            bootCount = rebootEvent.event_info.boot_count,
+            timestamp = bootInstant,
+        )
+        enqueueUpload.enqueue(rebootEvent, rebootTime)
     }
 
     fun handleUntrackedBootCount(bootCount: Int) = createAndUploadCurrentRebootEvent(bootCount)

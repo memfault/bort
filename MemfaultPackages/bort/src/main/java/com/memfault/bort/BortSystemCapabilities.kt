@@ -2,6 +2,10 @@ package com.memfault.bort
 
 import android.os.RemoteException
 import com.memfault.dumpster.IDumpster
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Helper class to determine whether certain features are supported
@@ -9,9 +13,10 @@ import com.memfault.dumpster.IDumpster
  * are part of the system image, such as MemfaultUsageReporter,
  * MemfaultDumpster, etc.
  */
-class BortSystemCapabilities(
+@Singleton
+class BortSystemCapabilities @Inject constructor(
     dumpsterClient: DumpsterClient,
-    private val reporterServiceConnector: ReporterServiceConnector
+    private val reporterServiceConnector: ReporterServiceConnector,
 ) {
     private val dumpsterVersion: Int? by lazy { dumpsterClient.availableVersion() }
 
@@ -52,8 +57,9 @@ class BortSystemCapabilities(
 
 class CachedAsyncProperty<out T>(val factory: suspend () -> T) {
     private var value: CachedValue<T> = CachedValue.Absent
+    private val mutex = Mutex()
 
-    suspend fun get(): T {
+    suspend fun get(): T = mutex.withLock {
         return when (val cached = value) {
             is CachedValue.Value -> cached.value
             CachedValue.Absent -> factory().also { value = CachedValue.Value(it) }

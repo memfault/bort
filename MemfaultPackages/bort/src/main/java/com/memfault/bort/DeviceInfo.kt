@@ -2,9 +2,15 @@ package com.memfault.bort
 
 import android.os.Build
 import com.memfault.bort.settings.AndroidBuildFormat
-import com.memfault.bort.settings.DeviceInfoSettings
 
 internal const val SOFTWARE_TYPE = "android-build"
+
+data class DeviceInfoParams(
+    val androidBuildFormat: AndroidBuildFormat,
+    val androidBuildVersionKey: String,
+    val androidHardwareVersionKey: String,
+    val androidSerialNumberKey: String,
+)
 
 data class DeviceInfo(
     val deviceSerial: String,
@@ -13,7 +19,7 @@ data class DeviceInfo(
 ) {
     companion object {
         fun fromSettingsAndSystemProperties(
-            settings: DeviceInfoSettings,
+            settings: DeviceInfoParams,
             props: Map<String, String>,
             getBuildFingerprint: () -> String = { Build.FINGERPRINT }
         ): DeviceInfo {
@@ -36,7 +42,7 @@ data class DeviceInfo(
                 .joinToString("-")
 
         fun hardwareVersionFromSettingsAndSystemProperties(
-            settings: DeviceInfoSettings,
+            settings: DeviceInfoParams,
             props: Map<String, String>
         ): String =
             settings.androidHardwareVersionKey.let { key ->

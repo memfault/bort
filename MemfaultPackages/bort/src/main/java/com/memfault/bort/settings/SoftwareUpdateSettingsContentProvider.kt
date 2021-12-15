@@ -5,14 +5,17 @@ import android.content.ContentValues
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.net.Uri
-import com.memfault.bort.Bort
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.SOFTWARE_TYPE
 import com.memfault.bort.shared.SoftwareUpdateSettings
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 
-class SoftwareUpdateSettingsContentProvider : BaseContentProvider() {
+class SoftwareUpdateSettingsContentProvider : ContentProvider() {
     override fun onCreate(): Boolean = true
 
     override fun query(
@@ -31,16 +34,19 @@ class SoftwareUpdateSettingsContentProvider : BaseContentProvider() {
 
     private fun gatherConfig(): SoftwareUpdateSettings {
         // TODO: This does not run in the main thread, is runBlocking ok?
-        val deviceInfo = runBlocking { deviceInfoProvider.getDeviceInfo() }
-        return SoftwareUpdateSettings(
-            deviceSerial = deviceInfo.deviceSerial,
-            currentVersion = deviceInfo.softwareVersion,
-            hardwareVersion = deviceInfo.hardwareVersion,
-            softwareType = SOFTWARE_TYPE,
-            updateCheckIntervalMs = settings.otaSettings.updateCheckInterval.toLongMilliseconds(),
-            baseUrl = settings.httpApiSettings.deviceBaseUrl,
-            projectApiKey = settings.httpApiSettings.projectKey,
-        )
+        return runBlocking {
+            val deviceInfo = runBlocking { entryPoint().deviceInfo().getDeviceInfo() }
+            val settings = entryPoint().settings()
+            SoftwareUpdateSettings(
+                deviceSerial = deviceInfo.deviceSerial,
+                currentVersion = deviceInfo.softwareVersion,
+                hardwareVersion = deviceInfo.hardwareVersion,
+                softwareType = SOFTWARE_TYPE,
+                updateCheckIntervalMs = settings.otaSettings.updateCheckInterval.toLongMilliseconds(),
+                baseUrl = settings.httpApiSettings.deviceBaseUrl,
+                projectApiKey = settings.httpApiSettings.projectKey,
+            )
+        }
     }
 
     override fun getType(uri: Uri): String? = null
@@ -51,14 +57,13 @@ class SoftwareUpdateSettingsContentProvider : BaseContentProvider() {
 
     override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int =
         0
-}
 
-/**
- * A content provider that binds bort components. This operates lazily because, on Android, ContentProviders start
- * before the application class (https://developer.android.com/reference/android/app/Application.html#onCreate())
- */
-abstract class BaseContentProvider : ContentProvider() {
-    private val components by lazy { Bort.appComponents() }
-    protected val deviceInfoProvider: DeviceInfoProvider get() = components.deviceInfoProvider
-    protected val settings: SettingsProvider get() = components.settingsProvider
+    @EntryPoint
+    @InstallIn(SingletonComponent::class)
+    interface ContentProviderEntryPoint {
+        fun deviceInfo(): DeviceInfoProvider
+        fun settings(): SettingsProvider
+    }
+
+    fun entryPoint() = EntryPointAccessors.fromApplication(context, ContentProviderEntryPoint::class.java)
 }

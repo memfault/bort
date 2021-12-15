@@ -76,6 +76,8 @@ class ReporterServiceTest {
             serviceMessageFromMessage = ReporterServiceMessage.Companion::fromMessage,
             getSendReply = { replier::sendReply },
             enqueueCommand = enqueueCommand,
+            b2BClientServer = mockk(),
+            reporterMetrics = mockk(),
         )
     }
 

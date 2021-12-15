@@ -66,11 +66,33 @@ bool sendToDropBox(int nEvents, std::string file) {
     return true;
 }
 
+bool sendMetricReportToDropbox(const Report &report, const std::string &reportJson) {
+    using namespace android::binder;
+    using namespace android::os;
+
+    {
+        std::ofstream reportOutput(STRUCTURED_REPORT_FILE);
+        reportOutput << reportJson;
+    }
+
+    std::unique_ptr<DropBoxManager> dropbox(new DropBoxManager());
+    Status status = dropbox->addFile(String16(STRUCTURED_REPORT_DROPBOX_TAG), STRUCTURED_REPORT_FILE, 0);
+    if (!status.isOk()) {
+        ALOGE("Could not add %s to dropbox", STRUCTURED_REPORT_FILE);
+        return false;
+    }
+    return true;
+}
+
 static std::string readBootId() {
     std::ifstream ifs("/proc/sys/kernel/random/boot_id");
     std::string id;
     ifs >> id;
     return id;
+}
+
+static uint64_t getElapsedRealtime() {
+    return uint64_t(elapsedRealtime());
 }
 
 void createService(const char* storagePath) {
@@ -83,14 +105,25 @@ void createService(const char* storagePath) {
                                                               [](){ return isDropBoxReady(); },
                                                               config->getDumpPeriodMs(),
                                                               true);
-    RateLimiterConfig rateLimiterConfig = config->getRateLimiterConfig();
-    std::unique_ptr<TokenBucketRateLimiter> rateLimiter = std::make_unique<TokenBucketRateLimiter>(rateLimiterConfig, []{
-        return uint64_t(elapsedRealtime());
-    });
-    std::unique_ptr<Logger> logger = std::make_unique<Logger>(
-            storage, dumper, config, rateLimiter
+    RateLimiterConfig structuredLogRateLimiterConfig = config->getRateLimiterConfig();
+    std::unique_ptr<TokenBucketRateLimiter> structuredLogRateLimiter = std::make_unique<TokenBucketRateLimiter>(
+            structuredLogRateLimiterConfig, getElapsedRealtime
     );
-    sp<LoggerService> loggerService(new LoggerService(logger));
+    std::unique_ptr<Logger> logger = std::make_unique<Logger>(
+            storage, dumper, config, structuredLogRateLimiter
+    );
+    std::unique_ptr<TokenBucketRateLimiter> spammyMetricLogRateLimiter = std::make_unique<TokenBucketRateLimiter>(
+            RateLimiterConfig{
+                    .initialCapacity = SPAMMY_METRIC_LOG_RATE_LIMITER_INITIAL_CAPACITY,
+                    .capacity = SPAMMY_METRIC_LOG_RATE_BUCKET_SIZE,
+                    .msPerToken = SPAMMY_METRIC_LOG_RATE_MS_PER_TOKEN,
+            },
+            getElapsedRealtime
+    );
+    std::shared_ptr<StoredReporter> reporter = std::make_shared<StoredReporter>(storage, sendMetricReportToDropbox,
+                                                                                std::move(spammyMetricLogRateLimiter));
+    std::unique_ptr<MetricService> metricService = std::make_unique<MetricService>(reporter, config);
+    sp<LoggerService> loggerService(new LoggerService(logger, metricService));
     defaultServiceManager()->addService(
             String16(STRUCTURED_SERVICE_NAME),
             loggerService,

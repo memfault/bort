@@ -15,7 +15,10 @@ import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.toAbsoluteTime
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.minutes
 
@@ -52,7 +55,8 @@ internal fun restartPeriodicLogcatCollection(
     }
 }
 
-class LogcatCollectionRequester(
+@ContributesMultibinding(SingletonComponent::class)
+class LogcatCollectionRequester @Inject constructor(
     private val context: Context,
     private val logcatSettings: LogcatSettings,
     private val bortSystemCapabilities: BortSystemCapabilities,

@@ -1,6 +1,7 @@
 package com.memfault.bort.metrics
 
 import com.memfault.bort.makeFakeSharedPreferences
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.Test
 
 class BuiltinMetricsStoreTest {
@@ -29,10 +30,10 @@ class BuiltinMetricsStoreTest {
 
         assert(
             store.collectMetrics() == mapOf(
-                "a" to 1.0f,
-                "b" to 1.0f,
-                "c" to 1.0f,
-                "d" to 1.0f,
+                "a" to JsonPrimitive(1.0f),
+                "b" to JsonPrimitive(1.0f),
+                "c" to JsonPrimitive(1.0f),
+                "d" to JsonPrimitive(1.0f),
             )
         )
 
@@ -68,10 +69,10 @@ class BuiltinMetricsStoreTest {
 
         assert(
             store.collectMetrics() == mapOf(
-                "latency_count" to 3f,
-                "latency_sum" to 1140f,
-                "latency_max" to 490f,
-                "latency_min" to 300f,
+                "latency_count" to JsonPrimitive(3f),
+                "latency_sum" to JsonPrimitive(1140f),
+                "latency_max" to JsonPrimitive(490f),
+                "latency_min" to JsonPrimitive(300f),
             )
         )
     }

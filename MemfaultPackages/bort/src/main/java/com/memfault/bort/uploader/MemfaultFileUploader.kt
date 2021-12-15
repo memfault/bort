@@ -1,19 +1,23 @@
 package com.memfault.bort.uploader
 
-import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploader
+import com.memfault.bort.Payload
 import com.memfault.bort.TaskResult
 import com.memfault.bort.asResult
 import com.memfault.bort.shared.Logger
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import java.io.File
+import javax.inject.Inject
 import retrofit2.HttpException
 
-internal class MemfaultFileUploader(
+@ContributesBinding(SingletonComponent::class)
+class MemfaultFileUploader @Inject constructor(
     private val preparedUploader: PreparedUploader
 ) : FileUploader {
-    override suspend fun upload(file: File, payload: FileUploadPayload, shouldCompress: Boolean): TaskResult {
+    override suspend fun upload(file: File, payload: Payload, shouldCompress: Boolean): TaskResult {
         val prepareResponse = try {
-            preparedUploader.prepare()
+            preparedUploader.prepare(file, payload.kind())
         } catch (e: HttpException) {
             Logger.e("prepare", e)
             return TaskResult.RETRY

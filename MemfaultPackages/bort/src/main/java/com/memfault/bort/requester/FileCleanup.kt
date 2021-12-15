@@ -3,7 +3,7 @@ package com.memfault.bort.requester
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.metrics.BUG_REPORT_DELETED_OLD
 import com.memfault.bort.metrics.BUG_REPORT_DELETED_STORAGE
-import com.memfault.bort.metrics.metrics
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.shared.Logger
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -29,6 +29,7 @@ internal fun cleanupBugReports(
     maxBugReportStorageBytes: Int,
     maxBugReportAge: Duration,
     timeNowMs: Long,
+    metrics: BuiltinMetricsStore,
 ) {
     if (!bugReportDir.exists()) return
     val filesNewestFirst = bugReportDir.listFiles()?.toList()?.sortedByDescending { it.lastModified() } ?: return
@@ -39,13 +40,13 @@ internal fun cleanupBugReports(
         bytesUsed += file.length()
         if (bytesUsed > maxBugReportStorageBytes) {
             deleted.add("storage: ${file.name}")
-            metrics()?.increment(BUG_REPORT_DELETED_STORAGE)
+            metrics.increment(BUG_REPORT_DELETED_STORAGE)
             file.deleteSilently()
         } else if (maxBugReportAge != ZERO) {
             val age = (timeNowMs - file.lastModified()).toDuration(TimeUnit.MILLISECONDS)
             if (age > maxBugReportAge) {
                 deleted.add("age: ${file.name}")
-                metrics()?.increment(BUG_REPORT_DELETED_OLD)
+                metrics.increment(BUG_REPORT_DELETED_OLD)
                 file.deleteSilently()
             }
         }

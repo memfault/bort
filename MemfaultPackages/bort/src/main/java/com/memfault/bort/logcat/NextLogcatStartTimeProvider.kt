@@ -7,7 +7,10 @@ import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BaseAbsoluteTime
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import java.time.Instant
+import javax.inject.Inject
 import kotlinx.serialization.SerializationException
 
 /**
@@ -17,7 +20,8 @@ interface NextLogcatStartTimeProvider {
     var nextStart: BaseAbsoluteTime
 }
 
-class RealNextLogcatStartTimeProvider(
+@ContributesBinding(SingletonComponent::class, boundType = NextLogcatStartTimeProvider::class)
+class RealNextLogcatStartTimeProvider @Inject constructor(
     sharedPreferences: SharedPreferences
 ) : NextLogcatStartTimeProvider, PreferenceKeyProvider<String>(
     sharedPreferences = sharedPreferences,

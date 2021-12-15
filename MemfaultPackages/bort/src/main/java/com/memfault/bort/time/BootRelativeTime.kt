@@ -3,7 +3,10 @@ package com.memfault.bort.time
 import android.content.Context
 import android.os.SystemClock
 import android.provider.Settings
-import com.memfault.bort.readLinuxBootId
+import com.memfault.bort.LinuxBootId
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Inject
 import kotlin.time.milliseconds
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -74,7 +77,11 @@ interface BootRelativeTimeProvider {
     fun now(): BootRelativeTime
 }
 
-class RealBootRelativeTimeProvider(private val context: Context) : BootRelativeTimeProvider {
+@ContributesBinding(SingletonComponent::class)
+class RealBootRelativeTimeProvider @Inject constructor(
+    private val context: Context,
+    private val readLinuxBootId: LinuxBootId,
+) : BootRelativeTimeProvider {
     override fun now(): BootRelativeTime =
         getUptimeAndElapsedRealtime().let { (uptime, elapsedRealtime) ->
             BootRelativeTime(
@@ -87,6 +94,6 @@ class RealBootRelativeTimeProvider(private val context: Context) : BootRelativeT
 }
 
 private fun getUptimeAndElapsedRealtime(): Pair<Long, Long> =
-    // Note: this is not 100% accurate. There is a little bit of time spent between these calls, so the timestamps
+// Note: this is not 100% accurate. There is a little bit of time spent between these calls, so the timestamps
     // reflect slightly different moments in time:
     Pair(SystemClock.uptimeMillis(), SystemClock.elapsedRealtime())

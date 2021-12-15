@@ -4,7 +4,11 @@ import com.memfault.bort.DeviceIdProvider
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.shared.SdkVersionInfo
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.hilt.components.SingletonComponent
 import java.util.UUID
+import javax.inject.Inject
+import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
@@ -19,7 +23,8 @@ internal const val QUERY_PARAM_DEVICE_SERIAL = "deviceSerial"
 internal const val X_REQUEST_ID = "X-Request-ID"
 
 /** Inject debug information for requests to memfault or to a local api server */
-class DebugInfoInjectingInterceptor(
+@ContributesMultibinding(SingletonComponent::class)
+class DebugInfoInjectingInterceptor @Inject constructor(
     private val sdkVersionInfo: SdkVersionInfo,
     private val deviceIdProvider: DeviceIdProvider,
     private val bortEnabledProvider: BortEnabledProvider,
@@ -39,7 +44,7 @@ class DebugInfoInjectingInterceptor(
         }
         val xRequestId = UUID.randomUUID().toString()
         val deviceSerial =
-            if (bortEnabledProvider.isEnabled()) deviceInfoProvider.lastDeviceInfo?.deviceSerial ?: ""
+            if (bortEnabledProvider.isEnabled()) runBlocking { deviceInfoProvider.getDeviceInfo().deviceSerial }
             else ""
         val transformedUrl = url.newBuilder().apply {
             linkedMapOf(

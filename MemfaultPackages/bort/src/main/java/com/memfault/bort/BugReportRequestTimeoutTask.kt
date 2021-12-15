@@ -5,6 +5,8 @@ import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.memfault.bort.metrics.BuiltinMetricsStore
+import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.minutes
 import kotlin.time.toJavaDuration
@@ -13,9 +15,10 @@ private const val REQUEST_ID_INPUT_DATA_KEY = "request-id"
 private const val TIMEOUT_WORK_TAG = "BUG_REPORT_TIMEOUT"
 private const val TIMEOUT_WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.BUG_REPORT_TIMEOUT"
 
-class BugReportRequestTimeoutTask(
+class BugReportRequestTimeoutTask @Inject constructor(
     private val context: Context,
     private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
+    override val metrics: BuiltinMetricsStore,
 ) : Task<String?>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data): String? =

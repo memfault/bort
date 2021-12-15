@@ -5,6 +5,7 @@ import com.memfault.bort.parsers.LogcatLine
 import com.memfault.bort.time.BaseAbsoluteTime
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.takeSimple
+import com.memfault.bort.uploader.HandleEventOfInterest
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -16,7 +17,7 @@ import org.junit.jupiter.api.Test
 
 class KernelOopsDetectorTest {
     lateinit var detector: KernelOopsDetector
-    lateinit var mockHandleEventOfInterest: (time: BaseAbsoluteTime) -> Unit
+    lateinit var mockHandleEventOfInterest: HandleEventOfInterest
     lateinit var mockTokenBucketStore: TokenBucketStore
 
     @BeforeEach
@@ -50,7 +51,7 @@ class KernelOopsDetectorTest {
     @Test
     fun finishNoOopsFound() {
         detector.finish(FakeCombinedTimeProvider.now())
-        verify(exactly = 0) { mockHandleEventOfInterest(any()) }
+        verify(exactly = 0) { mockHandleEventOfInterest.handleEventOfInterest(any<BaseAbsoluteTime>()) }
     }
 
     @Test
@@ -58,8 +59,8 @@ class KernelOopsDetectorTest {
         detector = KernelOopsDetector(
             tokenBucketStore = mockTokenBucketStore,
             handleEventOfInterest = mockHandleEventOfInterest,
-            foundOops = true,
         )
+        detector.foundOops = true
         val line: LogcatLine = mockk()
         detector.process(line)
         // line's properties are not accessed:
@@ -77,12 +78,12 @@ class KernelOopsDetectorTest {
         detector = KernelOopsDetector(
             tokenBucketStore = mockTokenBucketStore,
             handleEventOfInterest = mockHandleEventOfInterest,
-            foundOops = true,
         )
+        detector.foundOops = true
         mockLimitRate(limited = true)
 
         detector.finish(FakeCombinedTimeProvider.now())
-        verify(exactly = 0) { mockHandleEventOfInterest(any()) }
+        verify(exactly = 0) { mockHandleEventOfInterest.handleEventOfInterest(any<BaseAbsoluteTime>()) }
     }
 
     @Test
@@ -90,12 +91,12 @@ class KernelOopsDetectorTest {
         detector = KernelOopsDetector(
             tokenBucketStore = mockTokenBucketStore,
             handleEventOfInterest = mockHandleEventOfInterest,
-            foundOops = true,
         )
+        detector.foundOops = true
         mockLimitRate(limited = false)
 
         val time = FakeCombinedTimeProvider.now()
         detector.finish(time)
-        verify(exactly = 1) { mockHandleEventOfInterest(time) }
+        verify(exactly = 1) { mockHandleEventOfInterest.handleEventOfInterest(any<BaseAbsoluteTime>()) }
     }
 }

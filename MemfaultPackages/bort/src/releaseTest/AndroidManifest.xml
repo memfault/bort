@@ -2,17 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.memfault.bort">
-    <application
-        tools:replace="android:name"
-        android:name=".BortReleaseTest"
-        tools:ignore="MissingApplicationIcon">
+    <application>
         <receiver
             android:name=".receivers.TestReceiver"
             tools:ignore="ExportedReceiver">
             <intent-filter>
-                <action android:name="com.memfault.intent.action.TEST_SETTING_SET" />
+                <action android:name="com.memfault.intent.action.TEST_SETTING_SET_PROJECT_KEY" />
+                <action android:name="com.memfault.intent.action.TEST_SETTING_SET_USE_MAR" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="com.memfault.intent.action.TEST_QUERY_BOOT_COMPLETED" />
                 <action android:name="com.memfault.intent.action.TEST_BORT_ECHO" />
                 <action android:name="com.memfault.intent.action.TEST_SELF_TEST" />
             </intent-filter>

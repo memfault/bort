@@ -116,6 +116,17 @@ index a82243ffb..21d9969f2 100644
  meminfo                                   u:object_r:meminfo_service:s0
  midi                                      u:object_r:midi_service:s0
  mount                                     u:object_r:mount_service:s0
+diff --git a/private/system_app.te b/private/system_app.te
+index 4741479f0..e71090190 100644
+--- a/private/system_app.te
++++ b/private/system_app.te
+@@ -93,3 +93,6 @@ read_runtime_log_tags(system_app)
+
+ # app domains which access /dev/fuse should not run as system_app
+ neverallow system_app fuse_device:chr_file *;
++
++# Allow system_app (usage reporter) to read memfault properties
++get_prop(system_app, memfault_prop)
 diff --git a/public/property.te b/public/property.te
 index 95efcaa78..3353f37ff 100644
 --- a/public/property.te

@@ -1,5 +1,6 @@
 package com.memfault.bort.tokenbucket
 
+import io.mockk.mockk
 import kotlin.time.Duration
 import kotlin.time.milliseconds
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -22,7 +23,8 @@ class TokenBucketTest {
             period = 2.milliseconds,
             _count = 0,
             _periodStartElapsedRealtime = 0.milliseconds,
-            elapsedRealtime = mockElapsedRealtime
+            elapsedRealtime = mockElapsedRealtime,
+            metrics = mockk(relaxed = true),
         )
         now = 1.milliseconds
         bucket.feed()
@@ -42,7 +44,8 @@ class TokenBucketTest {
             period = 2.milliseconds,
             _count = 3,
             _periodStartElapsedRealtime = 0.milliseconds,
-            elapsedRealtime = mockElapsedRealtime
+            elapsedRealtime = mockElapsedRealtime,
+            metrics = mockk(relaxed = true),
         )
         assertEquals(false, bucket.take(n = 4, tag = "test"))
         assertEquals(3, bucket.count)
@@ -66,7 +69,8 @@ class TokenBucketTest {
             period = 1.milliseconds,
             _count = 0,
             _periodStartElapsedRealtime = 0.milliseconds,
-            elapsedRealtime = mockElapsedRealtime
+            elapsedRealtime = mockElapsedRealtime,
+            metrics = mockk(relaxed = true),
         )
 
         now = 5.milliseconds
@@ -84,7 +88,8 @@ class TokenBucketTest {
             period = 1.milliseconds,
             _count = 0,
             _periodStartElapsedRealtime = 0.milliseconds,
-            elapsedRealtime = mockElapsedRealtime
+            elapsedRealtime = mockElapsedRealtime,
+            metrics = mockk(relaxed = true),
         )
 
         now = 10.milliseconds
