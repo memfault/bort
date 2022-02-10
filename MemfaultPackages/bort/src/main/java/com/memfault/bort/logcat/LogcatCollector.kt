@@ -15,7 +15,7 @@ import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.parsers.LogcatLine
 import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.parsers.toLogcatLines
-import com.memfault.bort.settings.ConfigValue
+import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.shared.LogcatBufferId
 import com.memfault.bort.shared.LogcatCommand
 import com.memfault.bort.shared.LogcatFilterSpec
@@ -23,12 +23,15 @@ import com.memfault.bort.shared.LogcatFormat
 import com.memfault.bort.shared.LogcatFormatModifier
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
+import com.memfault.bort.time.AbsoluteTimeProvider
 import com.memfault.bort.time.BaseAbsoluteTime
 import java.io.BufferedWriter
 import java.io.File
 import java.io.OutputStream
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import javax.inject.Inject
+import javax.inject.Provider
 import kotlin.time.Duration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -40,26 +43,49 @@ data class LogcatCollectorResult(
     val nextCid: LogcatCollectionId,
 )
 
-class LogcatCollector(
+class LogcatRunner @Inject constructor(
+    private val reporterServiceConnector: ReporterServiceConnector,
+) {
+    suspend fun runLogcat(
+        outputStream: OutputStream,
+        command: LogcatCommand,
+        timeout: Duration,
+    ) {
+        reporterServiceConnector.connect { getClient ->
+            getClient().logcatRun(command, timeout) { invocation ->
+                invocation.awaitInputStream().map { stream ->
+                    stream.copyTo(outputStream)
+                }.andThen {
+                    invocation.awaitResponse(timeout).toErrorIf({ it.exitCode != 0 }) {
+                        Exception("Remote error: $it")
+                    }
+                }
+            }
+        } onFailure {
+            throw it
+        }
+    }
+}
+
+class LogcatCollector @Inject constructor(
+    private val logcatSettings: LogcatSettings,
     private val temporaryFileFactory: TemporaryFileFactory,
     private val nextLogcatStartTimeProvider: NextLogcatStartTimeProvider,
     private val nextLogcatCidProvider: NextLogcatCidProvider,
-    private val runLogcat: suspend (outputStream: OutputStream, command: LogcatCommand, timeout: Duration) -> Unit,
-    private val filterSpecsConfig: ConfigValue<List<LogcatFilterSpec>>,
-    private val dataScrubber: ConfigValue<DataScrubber>,
-    private val timeoutConfig: ConfigValue<Duration>,
-    private val packageNameAllowList: PackageNameAllowList,
+    private val logcatRunner: LogcatRunner,
+    private val now: AbsoluteTimeProvider,
+    private val kernelOopsDetector: Provider<LogcatLineProcessor>,
     private val packageManagerClient: PackageManagerClient,
-    private val now: () -> BaseAbsoluteTime = AbsoluteTime.Companion::now,
-    private val kernelOopsDetectorFactory: () -> LogcatLineProcessor,
+    private val packageNameAllowList: PackageNameAllowList,
+    private val dataScrubber: DataScrubber,
 ) {
-    suspend fun collect(): LogcatCollectorResult? {
+    suspend fun collect(): LogcatCollectorResult {
         temporaryFileFactory.createTemporaryFile(
             "logcat", suffix = ".txt"
         ).useFile { file, preventDeletion ->
             val command = logcatCommand(
                 since = nextLogcatStartTimeProvider.nextStart,
-                filterSpecs = filterSpecsConfig(),
+                filterSpecs = logcatSettings.filterSpecs,
             )
             nextLogcatStartTimeProvider.nextStart = runLogcat(
                 outputFile = file,
@@ -107,11 +133,11 @@ class LogcatCollector(
         command: LogcatCommand,
         allowedUids: Set<Int>,
     ) = withContext(Dispatchers.IO) {
-        val kernelOopsDetector = kernelOopsDetectorFactory()
+        val kernelOopsDetector = kernelOopsDetector.get()
 
         val lastLogTime = try {
             outputFile.outputStream().use {
-                runLogcat(it, command, timeoutConfig())
+                logcatRunner.runLogcat(it, command, logcatSettings.commandTimeout)
             }
 
             outputFile.bufferedReader().useLines { lines ->
@@ -119,7 +145,7 @@ class LogcatCollector(
                     prefix = "logcat-scrubbed", suffix = ".txt"
                 ).useFile { scrubbedFile, preventScrubbedDeletion ->
                     scrubbedFile.outputStream().bufferedWriter().use { scrubbedWriter ->
-                        val scrubber = dataScrubber()
+                        val scrubber = dataScrubber
                         lines.toLogcatLines(command)
                             .onEach { kernelOopsDetector.process(it) }
                             .map { it.scrub(scrubber, allowedUids) }
@@ -150,26 +176,6 @@ class LogcatCollector(
         lastLogTimeOrFallback.also {
             kernelOopsDetector.finish(it)
         }
-    }
-}
-
-suspend fun ReporterServiceConnector.runLogcat(
-    outputStream: OutputStream,
-    command: LogcatCommand,
-    timeout: Duration,
-) {
-    this.connect { getClient ->
-        getClient().logcatRun(command, timeout) { invocation ->
-            invocation.awaitInputStream().map { stream ->
-                stream.copyTo(outputStream)
-            }.andThen {
-                invocation.awaitResponse(timeout).toErrorIf({ it.exitCode != 0 }) {
-                    Exception("Remote error: $it")
-                }
-            }
-        }
-    } onFailure {
-        throw it
     }
 }
 

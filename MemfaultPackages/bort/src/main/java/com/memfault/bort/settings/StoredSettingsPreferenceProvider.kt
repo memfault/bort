@@ -1,10 +1,11 @@
 package com.memfault.bort.settings
 
 import android.content.SharedPreferences
+import android.util.Log
 import com.memfault.bort.BortJson
 import com.memfault.bort.PREFERENCE_FETCHED_SDK_SETTINGS
-import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
+import javax.inject.Inject
 import kotlinx.serialization.SerializationException
 
 private const val INVALID_MARKER = "__NA__"
@@ -18,9 +19,11 @@ interface StoredSettingsPreferenceProvider : ReadonlyFetchedSettingsProvider {
     fun reset()
 }
 
-class RealStoredSettingsPreferenceProvider(
+fun interface BundledConfig : () -> String
+
+class RealStoredSettingsPreferenceProvider @Inject constructor(
     sharedPreferences: SharedPreferences,
-    private val getBundledConfig: () -> String,
+    private val getBundledConfig: BundledConfig,
 ) : StoredSettingsPreferenceProvider, PreferenceKeyProvider<String>(
     sharedPreferences = sharedPreferences,
     defaultValue = INVALID_MARKER,
@@ -33,7 +36,8 @@ class RealStoredSettingsPreferenceProvider(
         } else try {
             FetchedSettings.from(content) { BortJson }
         } catch (ex: SerializationException) {
-            Logger.w("Unable to deserialize settings, falling back to bundled config", ex)
+            // Don't use Logger here - that could cause a stackoverflow.
+            Log.d("bort", "Unable to deserialize settings, falling back to bundled config", ex)
             FetchedSettings.from(getBundledConfig()) { BortJson }
         }
     }

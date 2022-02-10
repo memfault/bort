@@ -14,6 +14,7 @@
 #define MIN_STORAGE_THRESHOLD_BYTES 268435456u
 #define NUM_EVENTS_BEFORE_DUMP 1000
 #define DUMP_PERIOD_MS (2 * 60 * 60 * 1000)
+#define METRIC_REPORTS_ENABLED true
 
 namespace structured {
 
@@ -32,6 +33,7 @@ public:
     virtual uint32_t getNumEventsBeforeDump() = 0;
     virtual uint32_t getMaxMessageSize() = 0;
     virtual uint64_t getMinStorageThreshold() = 0;
+    virtual bool isMetricReportEnabled() = 0;
     typedef std::shared_ptr<Config> SharedPtr;
 };
 
@@ -45,6 +47,7 @@ public:
     uint32_t getNumEventsBeforeDump() override;
     uint32_t getMaxMessageSize() override;
     uint64_t getMinStorageThreshold() override;
+    bool isMetricReportEnabled() override;
 private:
     std::mutex mutex{};
     std::shared_ptr<StorageBackend> storage;
@@ -53,6 +56,7 @@ private:
     uint32_t numEventsBeforeDump;
     uint32_t maxMessageSize;
     uint64_t minStorageTreshold;
+    bool metricReportEnabled;
 
     void _reloadLocked();
 };

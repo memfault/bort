@@ -25,4 +25,7 @@ data class StructuredLogDaemonSettings(
 
     @SerialName("structured_log.rate_limiting_settings")
     val structuredLogRateLimitingSettings: RateLimitingSettings,
+
+    @SerialName("structured_log.metric_report_enabled")
+    val structuredLogMetricReportEnabled: Boolean,
 )

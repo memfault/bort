@@ -1,51 +1,62 @@
 package com.memfault.bort
 
-import android.annotation.SuppressLint
 import android.app.Application
-import android.content.Context
 import androidx.work.Configuration
-import androidx.work.ListenableWorker
-import androidx.work.WorkerFactory
-import androidx.work.WorkerParameters
 import com.memfault.bort.metrics.BORT_CRASH
 import com.memfault.bort.metrics.BORT_STARTED
-import com.memfault.bort.metrics.metrics
+import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.settings.BortEnabledProvider
+import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.disableAppComponents
+import com.memfault.bort.shared.isPrimaryUser
+import com.memfault.bort.time.UptimeTracker
+import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
+import javax.inject.Provider
 
+@HiltAndroidApp
 open class Bort : Application(), Configuration.Provider {
+    @Inject lateinit var metrics: BuiltinMetricsStore
+    @Inject lateinit var bortEnabledProvider: BortEnabledProvider
+    @Inject lateinit var uptimeTracker: UptimeTracker
+    @Inject lateinit var settingsProvider: SettingsProvider
+    @Inject lateinit var workerFactory: Provider<BortWorkerFactory>
+    @Inject lateinit var deviceIdProvider: DeviceIdProvider
 
     override fun onCreate() {
         super.onCreate()
-        val defaultExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
-        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            // Ensure that the metric is written to disk before the process dies; synchronous = true
-            metrics()?.increment(BORT_CRASH, synchronous = true)
-            defaultExceptionHandler?.uncaughtException(thread, throwable)
-        }
 
         Logger.TAG = "bort"
         Logger.TAG_TEST = "bort-test"
 
-        appComponentsBuilder = initComponents()
-        // Build the app components (before we try to use Metrics, which needs them to be created).
-        appComponents()
+        if (!isPrimaryUser()) {
+            Logger.w("bort disabled for secondary user")
+            disableAppComponents(applicationContext)
+            System.exit(0)
+        }
 
-        metrics()?.increment(BORT_STARTED)
-        logDebugInfo()
-        appComponents().uptimeTracker.trackUptimeOnStart()
+        val defaultExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            // Ensure that the metric is written to disk before the process dies; synchronous = true
+            metrics.increment(BORT_CRASH, synchronous = true)
+            defaultExceptionHandler?.uncaughtException(thread, throwable)
+        }
 
-        if (!appComponents().isEnabled()) {
+        metrics.increment(BORT_STARTED)
+        logDebugInfo(bortEnabledProvider, settingsProvider)
+        uptimeTracker.trackUptimeOnStart()
+
+        if (!bortEnabledProvider.isEnabled()) {
             Logger.test("Bort not enabled, not running app")
             return
         }
     }
 
-    open fun initComponents(): AppComponents.Builder = AppComponents.Builder(this)
+    private fun logDebugInfo(bortEnabledProvider: BortEnabledProvider, settingsProvider: SettingsProvider) {
+        Logger.logEventBortSdkEnabled(bortEnabledProvider.isEnabled())
 
-    private fun logDebugInfo() {
-        Logger.logEventBortSdkEnabled(appComponents().isEnabled())
-
-        with(appComponents().settingsProvider) {
+        with(settingsProvider) {
             Logger.minLogcatLevel = minLogcatLevel
             Logger.minStructuredLevel = minStructuredLogLevel
             Logger.eventLogEnabled = this::eventLogEnabled
@@ -53,7 +64,7 @@ open class Bort : Application(), Configuration.Provider {
             Logger.initLogFile(this@Bort)
             Logger.logEvent(
                 "bort-oncreate",
-                "device=${appComponents().deviceIdProvider.deviceId()}",
+                "device=${deviceIdProvider.deviceId()}",
                 "appVersionName=${sdkVersionInfo.appVersionName}",
                 "appVersionCode=${sdkVersionInfo.appVersionCode}",
                 "currentGitSha=${sdkVersionInfo.currentGitSha}",
@@ -73,51 +84,11 @@ open class Bort : Application(), Configuration.Provider {
         }
     }
 
-    companion object {
-        @SuppressLint("StaticFieldLeak") // Statically hold the application context only
-        private var appComponentsBuilder: AppComponents.Builder? = null
-        @Volatile private var appComponents: AppComponents? = null
-
-        internal fun appComponents(): AppComponents {
-            appComponents?.let {
-                return it
-            }
-            return synchronized(this) {
-                val components = appComponents
-                components?.let {
-                    return components
-                }
-                val created = checkNotNull(appComponentsBuilder).build()
-                appComponents = created
-                appComponentsBuilder = null
-                created
-            }
-        }
-
-        internal fun updateComponents(builder: AppComponents.Builder) {
-            synchronized(this) {
-                appComponents = null
-                appComponentsBuilder = builder
-            }
-        }
-    }
-
     override fun getWorkManagerConfiguration(): Configuration =
         Configuration.Builder()
             .setWorkerFactory(
                 // Create a WorkerFactory provider that provides a fresh WorkerFactory. This
                 // ensures the WorkerFactory is always using fresh app components.
-                object : WorkerFactory() {
-                    override fun createWorker(
-                        appContext: Context,
-                        workerClassName: String,
-                        workerParameters: WorkerParameters
-                    ): ListenableWorker? =
-                        appComponents().workerFactory.createWorker(
-                            appContext,
-                            workerClassName,
-                            workerParameters
-                        )
-                }
+                workerFactory.get()
             ).build()
 }

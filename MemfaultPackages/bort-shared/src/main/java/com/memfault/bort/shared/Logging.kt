@@ -4,9 +4,9 @@ import android.content.Context
 import android.os.Process
 import android.util.EventLog
 import android.util.Log
-import com.memfault.bort.customevent.CustomEvent
-import com.memfault.bort.customevent.CustomEvent.timestamp
 import com.memfault.bort.internal.ILogger
+import com.memfault.bort.reporting.CustomEvent
+import com.memfault.bort.reporting.CustomEvent.timestamp
 import com.memfault.bort.shared.LogLevel.Companion.tag
 import java.io.File
 import java.text.SimpleDateFormat

@@ -8,22 +8,26 @@ import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.fileExt.md5Hex
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.time.CombinedTimeProvider
+import com.memfault.bort.tokenbucket.Logcat
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.takeSimple
 import com.memfault.bort.uploader.FileUploadHoldingArea
 import com.memfault.bort.uploader.PendingFileUploadEntry
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class LogcatCollectionTask(
+class LogcatCollectionTask @Inject constructor(
     private val logcatSettings: LogcatSettings,
     private val logcatCollector: LogcatCollector,
     private val fileUploadHoldingArea: FileUploadHoldingArea,
     private val combinedTimeProvider: CombinedTimeProvider,
     private val deviceInfoProvider: DeviceInfoProvider,
-    private val tokenBucketStore: TokenBucketStore,
+    @Logcat private val tokenBucketStore: TokenBucketStore,
+    override val metrics: BuiltinMetricsStore,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -34,7 +38,7 @@ class LogcatCollectionTask(
         }
 
         val now = combinedTimeProvider.now()
-        val result = logcatCollector.collect() ?: return TaskResult.SUCCESS
+        val result = logcatCollector.collect()
         val deviceInfo = deviceInfoProvider.getDeviceInfo()
         fileUploadHoldingArea.add(
             PendingFileUploadEntry(

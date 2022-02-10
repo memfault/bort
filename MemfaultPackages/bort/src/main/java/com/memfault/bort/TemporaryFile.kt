@@ -1,13 +1,22 @@
 package com.memfault.bort
 
+import android.content.Context
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.shared.Logger
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import java.io.File
+import javax.inject.Inject
 
 interface TemporaryFileFactory {
     val temporaryFileDirectory: File?
     fun createTemporaryFile(prefix: String = "tmp", suffix: String?) =
         TemporaryFile(prefix, suffix, temporaryFileDirectory)
+}
+
+@ContributesBinding(SingletonComponent::class)
+class RealTemporaryFileFactory @Inject constructor(context: Context) : TemporaryFileFactory {
+    override val temporaryFileDirectory: File = context.cacheDir
 }
 
 class TemporaryFile(

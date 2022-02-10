@@ -13,7 +13,11 @@ endif
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/deps/rapidjson-1.1.0/include $(LOCAL_PATH)/deps/sqlite_modern_cpp-3.2/hdr/
 LOCAL_CLANG := true
 LOCAL_SHARED_LIBRARIES := libbase libbinder liblog libservices libsqlite libutils
+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -le 30 && echo true),true)
 LOCAL_WHOLE_STATIC_LIBRARIES := libgtest_prod
+else
+LOCAL_WHOLE_STATIC_LIBRARIES := libgtest
+endif
 include $(BUILD_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
@@ -41,3 +45,12 @@ LOCAL_CLANG := true
 LOCAL_SHARED_LIBRARIES := libbase libbinder liblog libservices libsqlite libutils
 LOCAL_STATIC_LIBRARIES := libstructured libgmock
 include $(BUILD_NATIVE_TEST)
+
+include $(CLEAR_VARS)
+LOCAL_MODULE := libstructuredaidl
+LOCAL_SRC_FILES := aidl/com/memfault/bort/internal/ILogger.aidl
+LOCAL_CLANG := true
+LOCAL_SHARED_LIBRARIES := libbase libbinder libutils
+include $(BUILD_SHARED_LIBRARY)
+
+include $(call all-makefiles-under,$(LOCAL_PATH))

@@ -7,10 +7,15 @@ import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.parsers.JavaExceptionParser
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
+import com.memfault.bort.tokenbucket.JavaException
+import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.tokenBucketKey
 import java.io.File
+import javax.inject.Inject
 
-class JavaExceptionUploadingEntryProcessorDelegate : UploadingEntryProcessorDelegate {
+class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
+    @JavaException override val tokenBucketStore: TokenBucketStore,
+) : UploadingEntryProcessorDelegate {
     override val tags = listOf(
         "data_app_crash",
         "data_app_wtf",

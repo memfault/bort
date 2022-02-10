@@ -5,12 +5,27 @@ import android.content.SharedPreferences
 import android.os.Build
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.BuildConfig
+import com.memfault.bort.DumpsterClient
 import com.memfault.bort.PackageManagerClient
+import com.memfault.bort.parsers.Package
 import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
+import com.memfault.bort.shared.BuildConfig as SharedBuildConfig
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import java.util.Locale
 import java.util.concurrent.locks.ReentrantReadWriteLock
+import javax.inject.Inject
+import javax.inject.Qualifier
+import javax.inject.Singleton
+import kotlin.annotation.AnnotationRetention.RUNTIME
+import kotlin.annotation.AnnotationTarget.FIELD
+import kotlin.annotation.AnnotationTarget.FUNCTION
+import kotlin.annotation.AnnotationTarget.PROPERTY_GETTER
+import kotlin.annotation.AnnotationTarget.PROPERTY_SETTER
+import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
 import kotlin.concurrent.read
 import kotlin.concurrent.write
+import kotlinx.serialization.json.JsonPrimitive
 
 const val BORT_CRASH = "bort_crash"
 const val BORT_STARTED = "bort_started"
@@ -26,8 +41,12 @@ const val BATTERYSTATS_FAILED = "batterystats_failed"
 const val MAX_ATTEMPTS = "max_attempts"
 private const val DROP_BOX_TRACE_TAG_COUNT_PER_HOUR_TEMPLATE = "drop_box_trace_%s_count"
 private const val BORT_VERSION_CODE = "bort_version_code"
+private const val BORT_VERSION_NAME = "bort_version_name"
 private const val BORT_UPSTREAM_VERSION_CODE = "bort_upstream_version_code"
+private const val BORT_UPSTREAM_VERSION_NAME = "bort_upstream_version_name"
 private const val USAGE_REPORTER_VERSION_CODE = "usagereporter_version_code"
+private const val USAGE_REPORTER_VERSION_NAME = "usagereporter_version_name"
+private const val DUMPSTER_VERSION = "dumpster_version"
 private const val RUNTIME_ENABLE_REQUIRED = "runtime_enable_required"
 private const val OS_VERSION = "os_version"
 
@@ -71,6 +90,11 @@ private fun Float.nanAsNull(): Float? =
     if (this.isNaN()) null
     else this
 
+@Qualifier
+@Retention(RUNTIME)
+@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
+annotation class Metrics
+
 /**
  * An implementation of metric registry backed by shared preferences, read-write order is guaranteed
  * via local locking in the registry. The registry implementation only guarantees read-write order
@@ -80,8 +104,10 @@ private fun Float.nanAsNull(): Float? =
  * If keys() is used, it is important that the shared preferences instance is used exclusively for
  * metrics to prevent contamination by other uses.
  */
-class SharedPreferencesMetricRegistry(
-    private val preferences: SharedPreferences
+@Singleton
+@ContributesBinding(scope = SingletonComponent::class)
+class SharedPreferencesMetricRegistry @Inject constructor(
+    @Metrics private val preferences: SharedPreferences,
 ) : MetricRegistry {
     private val lock = ReentrantReadWriteLock()
 
@@ -111,7 +137,7 @@ class SharedPreferencesMetricRegistry(
     override fun reduce(
         name: String,
         synchronous: Boolean,
-        newValueFn: (oldValue: Float?) -> Float?
+        newValueFn: (oldValue: Float?) -> Float?,
     ): Float? = lock.write {
         val old = get(name)
         val new = newValueFn(old)
@@ -131,13 +157,9 @@ class SharedPreferencesMetricRegistry(
 /**
  * A store for built-in metrics.
  */
-class BuiltinMetricsStore(
-    private val registry: MetricRegistry
+class BuiltinMetricsStore @Inject constructor(
+    private val registry: MetricRegistry,
 ) {
-    init {
-        metrics = this
-    }
-
     /**
      * Add a simple counting metric: number of times an event happened.
      *
@@ -170,40 +192,60 @@ class BuiltinMetricsStore(
     @VisibleForTesting
     fun get(name: String): Float? = registry.get(name)
 
-    fun collectMetrics(): Map<String, Float> =
+    fun collectMetrics(): Map<String, JsonPrimitive> =
         registry.keys()
-            .map { it to collect(it) }
+            .map { it to JsonPrimitive(collect(it)) }
             .toMap()
 }
 
 fun metricForTraceTag(tag: String) = DROP_BOX_TRACE_TAG_COUNT_PER_HOUR_TEMPLATE
     .format(tag.toLowerCase(Locale.ROOT))
 
-private var cachedReporterVersion: Long? = null
+private var cachedReporterVersion: Package? = null
+private var cachedDumpsterVersion: Int? = null
 
-private suspend fun PackageManagerClient.getUsageReporterVersion(): Long = cachedReporterVersion
-    ?: findPackageByApplicationId(APPLICATION_ID_MEMFAULT_USAGE_REPORTER)?.versionCode.also {
+private suspend fun PackageManagerClient.getUsageReporterVersion(): Package? = cachedReporterVersion
+    ?: findPackageByApplicationId(APPLICATION_ID_MEMFAULT_USAGE_REPORTER)?.also {
         cachedReporterVersion = it
     }
-    ?: 0
 
-suspend fun builtinMetrics(packageManagerClient: PackageManagerClient): Map<String, Float> = mapOf(
-    BORT_VERSION_CODE to BuildConfig.VERSION_CODE.toFloat(),
-    BORT_UPSTREAM_VERSION_CODE to com.memfault.bort.shared.BuildConfig.UPSTREAM_VERSION_CODE.toFloat(),
-    USAGE_REPORTER_VERSION_CODE to packageManagerClient.getUsageReporterVersion().toFloat(),
-    RUNTIME_ENABLE_REQUIRED to if (BuildConfig.RUNTIME_ENABLE_REQUIRED) 1f else 0f,
-    OS_VERSION to Build.VERSION.SDK_INT.toFloat(),
-)
+private fun DumpsterClient.getDumpsterVersion(): Int = cachedDumpsterVersion
+    ?: availableVersion().also {
+        cachedDumpsterVersion = it
+    } ?: 0
 
-/**
- * The metrics instance that can be used by the rest of the application.
- *
- * This is used to avoid injecting a metrics instances into many, many places.
- */
-private var metrics: BuiltinMetricsStore? = null
-
-/**
- * Get the metrics instance. This will almost always return a non-null value (except if called before
- * app init).
- */
-fun metrics() = metrics
+suspend fun updateBuiltinProperties(
+    packageManagerClient: PackageManagerClient,
+    devicePropertiesStore: DevicePropertiesStore,
+    dumpsterClient: DumpsterClient,
+) {
+    devicePropertiesStore.upsert(name = BORT_VERSION_CODE, value = BuildConfig.VERSION_CODE, internal = true)
+    devicePropertiesStore.upsert(name = BORT_VERSION_NAME, value = BuildConfig.VERSION_NAME, internal = true)
+    devicePropertiesStore.upsert(
+        name = BORT_UPSTREAM_VERSION_CODE,
+        value = SharedBuildConfig.UPSTREAM_VERSION_CODE,
+        internal = true,
+    )
+    devicePropertiesStore.upsert(
+        name = BORT_UPSTREAM_VERSION_NAME,
+        value = SharedBuildConfig.UPSTREAM_VERSION_NAME,
+        internal = true,
+    )
+    devicePropertiesStore.upsert(
+        name = USAGE_REPORTER_VERSION_CODE,
+        value = packageManagerClient.getUsageReporterVersion()?.versionCode ?: 0,
+        internal = true,
+    )
+    devicePropertiesStore.upsert(
+        name = USAGE_REPORTER_VERSION_NAME,
+        value = packageManagerClient.getUsageReporterVersion()?.versionName ?: "",
+        internal = true,
+    )
+    devicePropertiesStore.upsert(name = DUMPSTER_VERSION, value = dumpsterClient.getDumpsterVersion(), internal = true)
+    devicePropertiesStore.upsert(
+        name = RUNTIME_ENABLE_REQUIRED,
+        value = BuildConfig.RUNTIME_ENABLE_REQUIRED,
+        internal = true,
+    )
+    devicePropertiesStore.upsert(name = OS_VERSION, value = Build.VERSION.SDK_INT, internal = true)
+}

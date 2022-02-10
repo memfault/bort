@@ -1,10 +1,10 @@
 package com.memfault.bort
 
-import com.memfault.bort.ingress.IngressService
 import com.memfault.bort.tokenbucket.MockTokenBucketFactory
 import com.memfault.bort.tokenbucket.MockTokenBucketStorage
 import com.memfault.bort.tokenbucket.StoredTokenBucketMap
 import com.memfault.bort.tokenbucket.TokenBucketStore
+import com.memfault.bort.uploader.EnqueueUpload
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -64,10 +64,11 @@ private const val TEST_BUCKET_CAPACITY = 5
 class RebootEventUploaderTest {
     @Test
     fun rateLimit() {
-        val ingressService = mockk<IngressService>(relaxed = true)
+        val enqueueUpload = mockk<EnqueueUpload>(relaxed = true) {
+            every { enqueue(any(), any()) } returns Unit
+        }
 
         val uploader = RebootEventUploader(
-            ingressService = ingressService,
             deviceInfo = runBlocking { FakeDeviceInfoProvider().getDeviceInfo() },
             androidSysBootReason = "alarm",
             tokenBucketStore = TokenBucketStore(
@@ -80,13 +81,14 @@ class RebootEventUploaderTest {
                     )
                 },
             ),
-            getLinuxBootId = { "bootid" }
+            getLinuxBootId = { "bootid" },
+            enqueueUpload = enqueueUpload,
         )
 
         repeat(15) {
             uploader.handleUntrackedBootCount(1)
         }
 
-        verify(exactly = TEST_BUCKET_CAPACITY) { ingressService.uploadRebootEvents(any()) }
+        verify(exactly = TEST_BUCKET_CAPACITY) { enqueueUpload.enqueue(any(), any()) }
     }
 }

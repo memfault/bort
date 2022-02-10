@@ -1,8 +1,11 @@
 import static com.memfault.bort.buildsrc.BortSettingsDownloaderKt.getBortSettingsAssetsPath
 
 apply plugin: 'com.android.application'
+apply plugin: 'com.squareup.anvil'
+apply plugin: 'dagger.hilt.android.plugin'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
+apply plugin: 'kotlin-kapt'
 apply plugin: 'kotlinx-serialization'
 apply from: "../properties.gradle"
 
@@ -12,7 +15,6 @@ def generatedSettingsAssets = getBortSettingsAssetsPath(project.rootProject.root
 
 android {
     compileSdkVersion versions.compileSdk
-    buildToolsVersion versions.buildTools
 
     defaultConfig {
         applicationId bortProperty("BORT_APPLICATION_ID")
@@ -74,6 +76,7 @@ android {
         jvmTarget = JavaVersion.VERSION_1_8.toString()
         freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
         freeCompilerArgs += "-Xopt-in=kotlin.time.ExperimentalTime"
+        freeCompilerArgs += "-Xjvm-default=all"
     }
 
     sourceSets {
@@ -92,9 +95,17 @@ android {
     }
 }
 
+kapt {
+    correctErrorTypes true
+    arguments {
+        // This is necessary because of the way we bind Anvil's component to Hilt's.
+        arg("dagger.hilt.disableModulesHaveInstallInCheck", "true")
+    }
+}
+
 dependencies {
     implementation project(':bort-shared')
-    implementation project(':custom-event-lib')
+    implementation project(':reporting-lib')
 
     implementation deps.kotlin.stdlib
     implementation deps.kotlin.coroutines
@@ -110,9 +121,14 @@ dependencies {
     implementation deps.okhttp
     implementation deps.okio
 
+    implementation deps.room.runtime
+    kapt deps.room.compiler
+    implementation deps.room.ktx
+
     implementation deps.jblake2
 
-    debugImplementation deps.debug.leakCanary
+    implementation deps.dagger.hilt
+    kapt deps.dagger.hiltCompiler
 
     testImplementation deps.test.junitApi
     testRuntimeOnly deps.test.junitJupiterEngine
@@ -123,6 +139,7 @@ dependencies {
     testImplementation deps.test.mockk
     testImplementation deps.test.mockWebServer
     testImplementation deps.test.robolectric
+    testImplementation deps.test.testCore
 }
 
 task copyReleaseApk(type: Copy) {

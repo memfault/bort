@@ -1,3 +1,5 @@
+Includes Memfault in the AOSP build.
+
 diff --git a/core/tasks/vendor_module_check.mk b/core/tasks/vendor_module_check.mk
 index ae967c686..15ec8d2de 100644
 --- a/core/tasks/vendor_module_check.mk

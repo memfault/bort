@@ -3,7 +3,11 @@ package com.memfault.bort
 import android.content.SharedPreferences
 import com.memfault.bort.shared.BugReportRequest
 import com.memfault.bort.shared.PreferenceKeyProvider
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.locks.ReentrantLock
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.concurrent.withLock
 
 interface PendingBugReportRequestStorage {
@@ -11,7 +15,8 @@ interface PendingBugReportRequestStorage {
     fun read(): BugReportRequest?
 }
 
-class PendingBugReportRequestAccessor(
+@Singleton
+class PendingBugReportRequestAccessor @Inject constructor(
     private val storage: PendingBugReportRequestStorage,
 ) {
     private val lock: ReentrantLock = ReentrantLock()
@@ -36,7 +41,8 @@ class PendingBugReportRequestAccessor(
         }
 }
 
-class RealPendingBugReportRequestStorage(
+@ContributesBinding(SingletonComponent::class, boundType = PendingBugReportRequestStorage::class)
+class RealPendingBugReportRequestStorage @Inject constructor(
     sharedPreferences: SharedPreferences,
 ) : PendingBugReportRequestStorage, PreferenceKeyProvider<String>(
     sharedPreferences = sharedPreferences,

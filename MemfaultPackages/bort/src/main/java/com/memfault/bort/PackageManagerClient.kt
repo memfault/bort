@@ -10,18 +10,18 @@ import com.github.michaelbull.result.toErrorIf
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.parsers.PackageManagerReportParser
-import com.memfault.bort.settings.ConfigValue
+import com.memfault.bort.settings.TimeoutConfig
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PackageManagerCommand
 import com.memfault.bort.shared.PackageManagerCommand.Util.isValidAndroidApplicationId
-import kotlin.time.Duration
+import javax.inject.Inject
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.mapNotNull
 
-class PackageManagerClient(
+class PackageManagerClient @Inject constructor(
     private val reporterServiceConnector: ReporterServiceConnector,
-    private val commandTimeoutConfig: ConfigValue<Duration>,
+    private val commandTimeoutConfig: TimeoutConfig,
 ) {
     suspend fun findPackagesByProcessName(processName: String): Package? =
         appIdGuessesFromProcessName(processName).asFlow().mapNotNull(::findPackageByApplicationId).firstOrNull()

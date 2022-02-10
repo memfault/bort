@@ -1,5 +1,8 @@
 package com.memfault.bort.shared
 
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
+
 interface SdkVersionInfo {
     val appVersionName: String
     val appVersionCode: Int
@@ -9,6 +12,7 @@ interface SdkVersionInfo {
     val currentGitSha: String
 }
 
+@ContributesBinding(SingletonComponent::class)
 object BuildConfigSdkVersionInfo : SdkVersionInfo {
     override val appVersionName = BuildConfig.APP_VERSION_NAME
     override val appVersionCode = BuildConfig.APP_VERSION_CODE

@@ -1,28 +1,21 @@
 package com.memfault.bort
 
 import com.memfault.bort.settings.AndroidBuildFormat
-import com.memfault.bort.settings.DeviceInfoSettings
-import io.mockk.every
-import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 val TEST_BUILD_FINGERPRINT = "Sony/H8314/H8314:9/52.0.A.3.163/772046555:user/release-keys"
 val fakeGetBuildFingerprint = { TEST_BUILD_FINGERPRINT }
 
 class DeviceInfoFromSettingsAndProperties {
-    lateinit var settings: DeviceInfoSettings
+    private var settings = deviceInfoParams(AndroidBuildFormat.SYSTEM_PROPERTY_ONLY)
 
-    @BeforeEach
-    fun setUp() {
-        settings = mockk {
-            every { androidBuildFormat } returns AndroidBuildFormat.SYSTEM_PROPERTY_ONLY
-            every { androidBuildVersionKey } returns "ro.build.version.incremental"
-            every { androidHardwareVersionKey } returns "ro.product.board"
-            every { androidSerialNumberKey } returns "ro.serialno"
-        }
-    }
+    private fun deviceInfoParams(buildFormat: AndroidBuildFormat) = DeviceInfoParams(
+        androidBuildFormat = buildFormat,
+        androidBuildVersionKey = "ro.build.version.incremental",
+        androidHardwareVersionKey = "ro.product.board",
+        androidSerialNumberKey = "ro.serialno",
+    )
 
     @Test
     fun happyPathHardwareAndDeviceSerial() {
@@ -37,7 +30,7 @@ class DeviceInfoFromSettingsAndProperties {
 
     @Test
     fun happyPathSoftwareVersionSystemPropertyOnly() {
-        every { settings.androidBuildFormat } returns AndroidBuildFormat.SYSTEM_PROPERTY_ONLY
+        settings = deviceInfoParams(AndroidBuildFormat.SYSTEM_PROPERTY_ONLY)
         val props = mapOf(
             "ro.build.version.incremental" to "123"
         )
@@ -47,7 +40,7 @@ class DeviceInfoFromSettingsAndProperties {
 
     @Test
     fun happyPathSoftwareVersionBuildFingerPrintOnly() {
-        every { settings.androidBuildFormat } returns AndroidBuildFormat.BUILD_FINGERPRINT_ONLY
+        settings = deviceInfoParams(AndroidBuildFormat.BUILD_FINGERPRINT_ONLY)
         val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(
             settings, mapOf(), getBuildFingerprint = fakeGetBuildFingerprint
         )
@@ -56,7 +49,7 @@ class DeviceInfoFromSettingsAndProperties {
 
     @Test
     fun happyPathSoftwareVersionBuildFingerPrintAndSystemProperty() {
-        every { settings.androidBuildFormat } returns AndroidBuildFormat.BUILD_FINGERPRINT_AND_SYSTEM_PROPERTY
+        settings = deviceInfoParams(AndroidBuildFormat.BUILD_FINGERPRINT_AND_SYSTEM_PROPERTY)
         val props = mapOf(
             "ro.build.version.incremental" to "123"
         )
@@ -79,10 +72,12 @@ class DeviceInfoFromSettingsAndProperties {
 }
 
 class DeviceInfoLegacy {
-    val settings: DeviceInfoSettings
-        get() = mockk {
-            every { androidHardwareVersionKey } returns ""
-        }
+    private val settings = DeviceInfoParams(
+        androidBuildFormat = AndroidBuildFormat.SYSTEM_PROPERTY_ONLY,
+        androidBuildVersionKey = "ro.build.version.incremental",
+        androidHardwareVersionKey = "",
+        androidSerialNumberKey = "ro.serialno",
+    )
 
     /**
      * When androidHardwareVersionKey is "" use the legacy hardware version scheme:

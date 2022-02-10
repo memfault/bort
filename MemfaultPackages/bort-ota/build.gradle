@@ -8,7 +8,6 @@ def keystoreFilePath = getKeystoreFilePath()
 
 android {
     compileSdkVersion versions.compileSdk
-    buildToolsVersion versions.buildTools
 
     defaultConfig {
         applicationId bortProperty("BORT_OTA_APPLICATION_ID")

@@ -4,6 +4,16 @@ import android.os.RemoteException
 import com.memfault.bort.shared.Logger
 import com.memfault.dumpster.IDumpster
 import com.memfault.dumpster.IDumpsterBasicCommandListener
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Inject
+import javax.inject.Qualifier
+import kotlin.annotation.AnnotationRetention.RUNTIME
+import kotlin.annotation.AnnotationTarget.FIELD
+import kotlin.annotation.AnnotationTarget.FUNCTION
+import kotlin.annotation.AnnotationTarget.PROPERTY_GETTER
+import kotlin.annotation.AnnotationTarget.PROPERTY_SETTER
+import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
@@ -12,7 +22,8 @@ interface DumpsterServiceProvider {
     fun get(logIfMissing: Boolean = true): IDumpster?
 }
 
-internal class DefaultDumpsterServiceProvider : DumpsterServiceProvider {
+@ContributesBinding(scope = SingletonComponent::class)
+class DefaultDumpsterServiceProvider @Inject constructor() : DumpsterServiceProvider {
     override fun get(logIfMissing: Boolean): IDumpster? {
         val dumpster: IDumpster? = IDumpster.Stub.asInterface(
             ServiceManagerProxy.getService(DUMPSTER_SERVICE_NAME)
@@ -59,9 +70,14 @@ private class WrappedService(val service: IDumpster, val basicCommandTimeout: Lo
     }
 }
 
-class DumpsterClient(
-    val serviceProvider: DumpsterServiceProvider = DefaultDumpsterServiceProvider(),
-    val basicCommandTimeout: Long = 5000L
+@Qualifier
+@Retention(RUNTIME)
+@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
+annotation class BasicCommandTimout
+
+class DumpsterClient @Inject constructor(
+    val serviceProvider: DumpsterServiceProvider,
+    @BasicCommandTimout val basicCommandTimeout: Long,
 ) {
     private fun getServiceSilently(): IDumpster? = serviceProvider.get(logIfMissing = false)
 
@@ -90,6 +106,16 @@ class DumpsterClient(
      */
     suspend fun getprop(): Map<String, String>? = withService(minimumVersion = IDumpster.VERSION_INITIAL) {
         return runBasicCommand(IDumpster.CMD_ID_GETPROP)?.let {
+            parseGetpropOutput(it)
+        }
+    }
+
+    /**
+     * Gets all system property types by running the 'getprop -T' program.
+     * @return All system propertiy types, or null in case they could not be retrieved.
+     */
+    suspend fun getpropTypes(): Map<String, String>? = withService(minimumVersion = IDumpster.VERSION_GETPROP_TYPES) {
+        return runBasicCommand(IDumpster.CMD_ID_GETPROP_TYPES)?.let {
             parseGetpropOutput(it)
         }
     }

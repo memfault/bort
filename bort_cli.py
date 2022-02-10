@@ -24,7 +24,7 @@ PLACEHOLDER_BORT_AOSP_PATCH_VERSION = "manually_patched"
 PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_BORT_OTA_APP_ID = "vnd.myandroid.bort.otaappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
-RELEASES = range(8, 11 + 1)
+RELEASES = range(8, 12 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 GRADLE_PROPERTIES = os.path.join(SCRIPT_DIR, "MemfaultPackages", "gradle.properties")
 PYTHON_MIN_VERSION = ("3", "6", "0")
@@ -241,15 +241,14 @@ class PatchAOSPCommand(Command):
             )
             logging.info(output.decode(DEFAULT_ENCODING))
 
-        except (subprocess.CalledProcessError, FileNotFoundError) as error:
-            logging.warning(error)
+        except (subprocess.CalledProcessError, FileNotFoundError):
             if repo_subdir == "device/google/cuttlefish":
-                logging.warning(
+                logging.exception(
                     "Failed to apply %r (only needed for Cuttlefish/AVD)", patch_relpath
                 )
                 self._warnings.append(patch_relpath)
             else:
-                logging.warning("Failed to apply %r", patch_relpath)
+                logging.exception("Failed to apply %r", patch_relpath)
                 self._errors.append(patch_relpath)
 
 
@@ -678,7 +677,7 @@ class ValidateConnectedDevice(Command):
             )
         )
 
-    def _check_bort_permissions(self, bort_package_info: Optional[str], sdk_version: Optional[int]):
+    def _check_bort_permissions(self, bort_package_info: Optional[str], sdk_version: int):
         for permission, min_sdk_version in (
             ("android.permission.FOREGROUND_SERVICE", 28),
             ("android.permission.RECEIVE_BOOT_COMPLETED", 1),
@@ -721,7 +720,7 @@ class ValidateConnectedDevice(Command):
                 )
             return version_names[0]
 
-        versions = set(map(_find_version_names, package_infos))
+        versions = set(_find_version_names(info) for info in package_infos if info)
         if len(versions) > 1:
             self._errors.append(
                 _format_error(description, "Different versions found:", *package_infos)

@@ -1,0 +1,2 @@
+# Allow system_app (usage reporter) to read memfault properties
+get_prop(system_app, memfault_prop)

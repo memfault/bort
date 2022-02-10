@@ -1,3 +1,7 @@
+This patch enables taking bugreports in Minimal Mode. See
+https://docs.memfault.com/docs/android/android-bort/#minimal-mode-bug-report-capture
+for more details on this mode.
+
 diff --git a/cmds/dumpstate/dumpstate.cpp b/cmds/dumpstate/dumpstate.cpp
 index 5f93e9906..8cfd2de41 100644
 --- a/cmds/dumpstate/dumpstate.cpp
@@ -5,7 +9,7 @@ index 5f93e9906..8cfd2de41 100644
 @@ -1268,6 +1268,40 @@ static void DumpstateTelephonyOnly() {
      printf("========================================================\n");
  }
- 
+
 +static void DumpstateMemfaultMinimalMode() {
 +    MYLOGI("Running Dumpstate in Memfault Minimal Mode...\n");
 +

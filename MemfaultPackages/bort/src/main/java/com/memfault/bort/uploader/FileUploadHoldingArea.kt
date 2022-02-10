@@ -1,18 +1,29 @@
 package com.memfault.bort.uploader
 
 import android.content.SharedPreferences
+import android.os.SystemClock
 import com.memfault.bort.FileAsAbsolutePathSerializer
-import com.memfault.bort.FileUploadPayload
+import com.memfault.bort.FileUploadHoldingReschedule
+import com.memfault.bort.LogcatFileUploadPayload
+import com.memfault.bort.UploadHoldingArea
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.getJson
 import com.memfault.bort.putJson
+import com.memfault.bort.settings.FileUploadHoldingAreaSettings
+import com.memfault.bort.settings.LogcatCollectionInterval
+import com.memfault.bort.time.BaseAbsoluteTime
 import com.memfault.bort.time.BaseBootRelativeTime
 import com.memfault.bort.time.BoxedDuration
 import com.memfault.bort.time.DurationAsMillisecondsLong
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import java.io.File
 import java.util.concurrent.locks.ReentrantLock
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.concurrent.withLock
 import kotlin.time.Duration
+import kotlin.time.milliseconds
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -28,7 +39,7 @@ data class PendingFileUploadEntry(
     val timeSpan: TimeSpan,
 
     @SerialName("payload")
-    val payload: FileUploadPayload,
+    val payload: LogcatFileUploadPayload,
 
     @SerialName("file")
     @Serializable(with = FileAsAbsolutePathSerializer::class)
@@ -57,6 +68,12 @@ data class PendingFileUploadEntry(
 fun PendingFileUploadEntry.TimeSpan.contains(time: ElapsedRealtime): Boolean =
     time >= start.duration && time < end.duration
 
+interface HandleEventOfInterest {
+    fun handleEventOfInterest(bootRelativeEventTime: BaseBootRelativeTime)
+    fun handleEventOfInterest(time: ElapsedRealtime)
+    fun handleEventOfInterest(absoluteTime: BaseAbsoluteTime)
+}
+
 /**
  * This class contains the logic to add log files in a "holding area" when no
  * "events of interest" (i.e. traces from DropBox sources) occurred during the span of the log file.
@@ -64,27 +81,19 @@ fun PendingFileUploadEntry.TimeSpan.contains(time: ElapsedRealtime): Boolean =
  * If events happen in the "trailing margin" after the span of the log file, the log file will also
  * be enqueued for uploading as soon as this class handles the event.
  */
-class FileUploadHoldingArea(
-    private val sharedPreferences: SharedPreferences,
-    private val enqueueFileUpload: EnqueueFileUpload,
+@Singleton
+@ContributesBinding(SingletonComponent::class)
+class FileUploadHoldingArea @Inject constructor(
+    @UploadHoldingArea private val sharedPreferences: SharedPreferences,
+    private val enqueueUpload: EnqueueUpload,
     /**
      * Function that resets/pushed out the timeout task that will cleanup
      * expired entries by calling handleTimeout().
      */
-    private val resetEventTimeout: () -> Unit,
-    /**
-     * The period *after* the end of an entry's span, within which occurrence
-     * of an event of interest will cause the entry to be uploaded.
-     */
-    private val getTrailingMargin: () -> Duration,
-    /**
-     * Time that event of interest should remain in the list of recent
-     * events of interest. Should be set to the duration of the largest
-     * collection interval.
-     */
-    private val getEventOfInterestTTL: () -> Duration,
-    private val getMaxStoredEventsOfInterest: () -> Int,
-) {
+    private val resetEventTimeout: FileUploadHoldingReschedule,
+    private val settings: FileUploadHoldingAreaSettings,
+    private val logcatCollectionInterval: LogcatCollectionInterval,
+) : HandleEventOfInterest {
     private val lock = ReentrantLock()
     private var eventTimes: List<ElapsedRealtime> = readEventTimes()
     private var entries: List<PendingFileUploadEntry> = readEntries()
@@ -105,7 +114,7 @@ class FileUploadHoldingArea(
     fun add(entry: PendingFileUploadEntry) =
         lock.withLock {
             if (eventTimes.any(entry.timeSpan.spanWithMargin()::contains)) {
-                enqueueFileUpload(entry.file, entry.payload, entry.debugTag)
+                enqueueUpload.enqueue(entry.file, entry.payload, entry.debugTag, entry.payload.collectionTime)
             } else {
                 entries = entries + listOf(entry)
                 persist()
@@ -116,17 +125,19 @@ class FileUploadHoldingArea(
      * Records the time of the event of interest, prunes old event times that have outlived their TTL,
      * and checks, triggers and cleans pending file uploads.
      */
-    fun handleEventOfInterest(bootRelativeEventTime: BaseBootRelativeTime) =
+    override fun handleEventOfInterest(bootRelativeEventTime: BaseBootRelativeTime) =
         handleEventOfInterest(bootRelativeEventTime.elapsedRealtime.duration)
 
-    fun handleEventOfInterest(time: ElapsedRealtime) {
+    override fun handleEventOfInterest(time: ElapsedRealtime) {
         lock.withLock {
             eventTimes = (eventTimes.filter { it.eventTimeStillAliveAt(time) } + listOf(time))
-                .takeLast(getMaxStoredEventsOfInterest())
+                .takeLast(settings.maxStoredEventsOfInterest)
             entries = entries.filter { entry ->
                 entry.timeSpan.spanWithMargin().let {
                     if (it.contains(time)) false.also {
-                        enqueueFileUpload(entry.file, entry.payload, entry.debugTag)
+                        enqueueUpload.enqueue(
+                            entry.file, entry.payload, entry.debugTag, entry.payload.collectionTime
+                        )
                     } else if (it.shouldBeDeletedAt(time)) false.also {
                         entry.file.deleteSilently()
                     } else true
@@ -135,6 +146,12 @@ class FileUploadHoldingArea(
             persist()
         }
         resetEventTimeout()
+    }
+
+    override fun handleEventOfInterest(absoluteTime: BaseAbsoluteTime) {
+        val millisAgo = maxOf(0, System.currentTimeMillis() - absoluteTime.timestamp.toEpochMilli())
+        val elapsedRealtime = SystemClock.elapsedRealtime() - millisAgo
+        handleEventOfInterest(elapsedRealtime.milliseconds)
     }
 
     private fun clearEntriesAndEventTimes() {
@@ -174,10 +191,10 @@ class FileUploadHoldingArea(
             persist()
         }
 
-    internal fun Duration.eventTimeStillAliveAt(now: ElapsedRealtime) = this + getEventOfInterestTTL() > now
+    internal fun Duration.eventTimeStillAliveAt(now: ElapsedRealtime) = this + logcatCollectionInterval() > now
 
     internal fun PendingFileUploadEntry.TimeSpan.shouldBeDeletedAt(now: ElapsedRealtime) = end.duration <= now
 
     internal fun PendingFileUploadEntry.TimeSpan.spanWithMargin() =
-        copy(end = BoxedElapsedRealtime(end.duration + getTrailingMargin()))
+        copy(end = BoxedElapsedRealtime(end.duration + settings.trailingMargin))
 }

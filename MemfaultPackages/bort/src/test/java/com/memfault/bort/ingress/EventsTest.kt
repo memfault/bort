@@ -57,7 +57,7 @@ class RebootEventUploaderTest {
         val service = createRetrofit(server).create(IngressService::class.java)
         service.uploadRebootEvents(
             listOf(
-                RebootEvent(
+                RebootEvent.create(
                     capturedDate = Instant.ofEpochSecond(0),
                     deviceInfo = DeviceInfo(
                         deviceSerial = "SERIAL",
@@ -77,11 +77,11 @@ class RebootEventUploaderTest {
         val request = server.takeRequest()
 
         assertEquals(
-            """[{"type":"android_reboot","sdk_version":"0.5.0","captured_date":"1970-01-01T00:00:00Z",""" +
-                """"hardware_version":"HARDWARE-XYZ","device_serial":"SERIAL","software_version":"SW-VERSION",""" +
+            """[{"sdk_version":"0.5.0","software_type":"android-build","type":"android_reboot",""" +
+                """"captured_date":"1970-01-01T00:00:00Z","hardware_version":"HARDWARE-XYZ",""" +
+                """"device_serial":"SERIAL","software_version":"SW-VERSION",""" +
                 """"event_info":{"boot_count":1,"linux_boot_id":"230295cb-04d4-40b8-8624-ec37089b9b75",""" +
-                """"reason":"shutdown","subreason":"battery","details":["thermal","50C"]},""" +
-                """"software_type":"android-build"}]""",
+                """"reason":"shutdown","subreason":"battery","details":["thermal","50C"]}}]""",
             request.body.readUtf8()
         )
     }

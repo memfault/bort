@@ -1,0 +1,20 @@
+diff --git a/shared/BoardConfig.mk b/shared/BoardConfig.mk
+index 5f118b093..2f222e236 100644
+--- a/shared/BoardConfig.mk
++++ b/shared/BoardConfig.mk
+@@ -268,3 +268,5 @@ endif
+ BOARD_GENERIC_RAMDISK_KERNEL_MODULES_LOAD := dm-user.ko
+
+ BOARD_HAVE_BLUETOOTH := true
++
++include vendor/memfault/bort/BoardConfig.mk
+diff --git a/shared/device.mk b/shared/device.mk
+index 8647d0175..5f5fef9d3 100644
+--- a/shared/device.mk
++++ b/shared/device.mk
+@@ -670,3 +670,5 @@ PRODUCT_PRODUCT_PROPERTIES += \
+ # Set one_handed_mode translate animation duration milliseconds
+ PRODUCT_PRODUCT_PROPERTIES += \
+     persist.debug.one_handed_translate_animation_duration=300
++
++include vendor/memfault/bort/product.mk

@@ -25,7 +25,9 @@ fun resultForHttpStatusCode(code: Int): TaskResult =
     when (code) {
         in 500..599 -> TaskResult.RETRY
         408 -> TaskResult.RETRY // Request Timeout
-        429 -> TaskResult.RETRY // Too Many Requests
+        // NOTE: The device has sent to many requests and is getting rate limited.
+        // Drop the task, retrying is likely to make the situation worse.
+        429 -> TaskResult.FAILURE // Too Many Requests
         in 200..299 -> TaskResult.SUCCESS
         else -> TaskResult.FAILURE
     }

@@ -13,6 +13,3 @@ fun File.md5Hex(): String =
             hashingSource.hash.hex()
         }
     }
-
-fun File.deleteSilently(): Boolean =
-    try { delete() } catch (e: Exception) { false }

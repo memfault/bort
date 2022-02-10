@@ -1,6 +1,7 @@
 package com.memfault.bort.requester
 
 import com.memfault.bort.fileExt.deleteSilently
+import io.mockk.mockk
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.ZERO
@@ -51,7 +52,8 @@ class FileCleanupTest {
             bugReportDir = folder.root,
             maxBugReportStorageBytes = 2,
             maxBugReportAge = ZERO,
-            timeNowMs = NOW_MS
+            timeNowMs = NOW_MS,
+            metrics = mockk(relaxed = true),
         )
 
         assertFalse(file1_7days_old.exists())
@@ -65,7 +67,8 @@ class FileCleanupTest {
             bugReportDir = folder.root,
             maxBugReportStorageBytes = 3,
             maxBugReportAge = ZERO,
-            timeNowMs = NOW_MS
+            timeNowMs = NOW_MS,
+            metrics = mockk(relaxed = true),
         )
 
         assertTrue(file1_7days_old.exists())
@@ -81,7 +84,8 @@ class FileCleanupTest {
             bugReportDir = folder.root,
             maxBugReportStorageBytes = 3,
             maxBugReportAge = ZERO,
-            timeNowMs = NOW_MS
+            timeNowMs = NOW_MS,
+            metrics = mockk(relaxed = true),
         )
     }
 
@@ -95,7 +99,8 @@ class FileCleanupTest {
             bugReportDir = folder.root,
             maxBugReportStorageBytes = 3,
             maxBugReportAge = ZERO,
-            timeNowMs = NOW_MS
+            timeNowMs = NOW_MS,
+            metrics = mockk(relaxed = true),
         )
     }
 
@@ -105,7 +110,8 @@ class FileCleanupTest {
             bugReportDir = folder.root,
             maxBugReportStorageBytes = 3,
             maxBugReportAge = 2.days,
-            timeNowMs = NOW_MS
+            timeNowMs = NOW_MS,
+            metrics = mockk(relaxed = true),
         )
 
         assertFalse(file1_7days_old.exists())
@@ -119,7 +125,8 @@ class FileCleanupTest {
             bugReportDir = folder.root,
             maxBugReportStorageBytes = 3,
             maxBugReportAge = 1.minutes,
-            timeNowMs = NOW_MS
+            timeNowMs = NOW_MS,
+            metrics = mockk(relaxed = true),
         )
 
         assertFalse(file1_7days_old.exists())

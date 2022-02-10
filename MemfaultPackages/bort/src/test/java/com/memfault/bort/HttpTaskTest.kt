@@ -120,7 +120,7 @@ class HttpTaskTestMaxAttempts {
     @Test
     fun getMaxAttemptsFromInput() {
         val mockClient = mockk<OkHttpClient>(relaxed = true)
-        val task = HttpTask(mockClient)
+        val task = HttpTask(mockClient, mockk(relaxed = true))
         val httpTaskInput = HttpTaskInput(
             "", "", "", "", ByteArray(0), maxAttempts = 123
         )
@@ -139,7 +139,7 @@ class HttpTaskTest {
     @BeforeEach
     fun before() {
         client = OkHttpClient()
-        task = HttpTask(client)
+        task = HttpTask(client, mockk(relaxed = true))
         httpTaskInput = HttpTaskInput(
             url = server.url("/test").toString(),
             method = "POST",

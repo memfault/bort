@@ -10,11 +10,17 @@ import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskResult.SUCCESS
 import com.memfault.bort.TaskRunnerWorker
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.periodicWorkRequest
 import com.memfault.bort.settings.SettingsProvider
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Inject
 import kotlin.time.minutes
 
-class UptimeTickTask : Task<Unit>() {
+class UptimeTickTask @Inject constructor(
+    override val metrics: BuiltinMetricsStore,
+) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
 
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult = SUCCESS
@@ -27,7 +33,8 @@ class UptimeTickTask : Task<Unit>() {
  * Bort SDK versions (where we are missing most of the regular tasks which would ordinarily do
  * this).
  */
-class UptimeTickRequester(
+@ContributesMultibinding(SingletonComponent::class)
+class UptimeTickRequester @Inject constructor(
     private val context: Context,
     private val bortSystemCapabilities: BortSystemCapabilities,
 ) : PeriodicWorkRequester() {

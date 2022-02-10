@@ -13,8 +13,11 @@ import com.memfault.bort.settings.MetricsSettings
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.BootRelativeTime
-import com.memfault.bort.time.RealBootRelativeTimeProvider
+import com.memfault.bort.time.BootRelativeTimeProvider
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.minutes
 
@@ -50,10 +53,12 @@ internal fun restartPeriodicMetricsCollection(
     }
 }
 
-class MetricsCollectionRequester(
+@ContributesMultibinding(SingletonComponent::class)
+class MetricsCollectionRequester @Inject constructor(
     private val context: Context,
     private val metricsSettings: MetricsSettings,
     private val bortSystemCapabilities: BortSystemCapabilities,
+    private val bootRelativeTimeProvider: BootRelativeTimeProvider,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         if (!metricsSettings.dataSourceEnabled) return
@@ -65,7 +70,7 @@ class MetricsCollectionRequester(
         restartPeriodicMetricsCollection(
             context = context,
             collectionInterval = collectionInterval,
-            lastHeartbeatEnd = RealBootRelativeTimeProvider(context).now(),
+            lastHeartbeatEnd = bootRelativeTimeProvider.now(),
         )
     }
 

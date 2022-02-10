@@ -9,3 +9,8 @@ dontaudit dumpstate dumpstate:binder call;
 
 # Allow setting the bort enabled property
 set_prop(dumpstate, system_prop);
+
+# Allow getting vendor.memfault.* props (Android 8 or below):
+if_sdk_version_gteq(28, `', `
+  get_prop(dumpstate, memfault_prop)
+')

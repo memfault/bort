@@ -14,19 +14,9 @@ import retrofit2.http.Tag
 
 internal const val SDK_VERSION = "0.5.0"
 
-internal const val SDK_EVENT_WORK_TAG = "com.memfault.bort.work.tag.UPLOAD_SDK_EVENT"
 internal const val REBOOT_EVENT_WORK_TAG = "com.memfault.bort.work.tag.UPLOAD_REBOOT_EVENT"
 
 interface IngressService {
-    @POST("/api/v0/sdk-events")
-    @ProjectKeyAuthenticated
-    fun uploadCollection(
-        @Body sdkEventCollection: SdkEventCollection,
-        @Tag httpTaskOptions: HttpTaskOptions = HttpTaskOptions(
-            taskTags = listOf(SDK_EVENT_WORK_TAG)
-        )
-    ): Call<Unit>
-
     @POST("/api/v0/events")
     @ProjectKeyAuthenticated
     fun uploadRebootEvents(

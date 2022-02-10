@@ -35,7 +35,7 @@ class BugReportStartReceiver : BroadcastReceiver() {
     }
 }
 
-private object SystemPropertiesProxy {
+object SystemPropertiesProxy {
     @SuppressLint("DiscouragedPrivateApi", "PrivateApi")
     @Throws(IllegalArgumentException::class)
     @JvmStatic
@@ -49,6 +49,18 @@ private object SystemPropertiesProxy {
             setter.invoke(systemProperties, key, value)
         } catch (e: ReflectiveOperationException) {
             throw IllegalArgumentException(e)
+        }
+    }
+
+    @SuppressLint("PrivateApi")
+    fun get(propName: String): String? {
+        try {
+            val clazz = Class.forName("android.os.SystemProperties")
+            val getPropMethod = clazz.getMethod("get", String::class.java)
+            return getPropMethod.invoke(null, propName) as String?
+        } catch (e: ReflectiveOperationException) {
+            Logger.w("Error getting system property", e)
+            return null
         }
     }
 

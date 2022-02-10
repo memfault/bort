@@ -1,5 +1,7 @@
 package com.memfault.bort.tokenbucket
 
+import com.memfault.bort.metrics.BuiltinMetricsStore
+import io.mockk.mockk
 import kotlin.time.Duration
 import kotlin.time.milliseconds
 
@@ -12,6 +14,7 @@ class MockTokenBucketFactory(
     defaultCapacity: Int,
     defaultPeriod: Duration,
     val mockElapsedRealtime: MockElapsedRealtime = MockElapsedRealtime(),
+    val metrics: BuiltinMetricsStore = mockk(relaxed = true),
 ) : TokenBucketFactory(defaultCapacity, defaultPeriod) {
     override fun create(
         count: Int,
@@ -25,5 +28,6 @@ class MockTokenBucketFactory(
             _count = count,
             _periodStartElapsedRealtime = mockElapsedRealtime.get(),
             elapsedRealtime = mockElapsedRealtime::get,
+            metrics = metrics,
         )
 }

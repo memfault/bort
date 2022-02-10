@@ -2,10 +2,11 @@ package com.memfault.bort.uploader
 
 import androidx.work.workDataOf
 import com.memfault.bort.BugReportFileUploadPayload
-import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploader
+import com.memfault.bort.Payload
 import com.memfault.bort.TaskResult
 import io.mockk.coVerify
+import io.mockk.mockk
 import io.mockk.spyk
 import java.io.File
 import java.nio.file.Files
@@ -33,6 +34,13 @@ class FileUploadTaskTest {
         }
     }
 
+    fun fileUploadPayload() = BugReportFileUploadPayload(
+        hardwareVersion = "",
+        deviceSerial = "",
+        softwareVersion = "",
+        softwareType = "",
+    )
+
     @Test
     fun missingPathFails() {
         val worker = mockTaskRunnerWorker(workDataOf())
@@ -41,6 +49,8 @@ class FileUploadTaskTest {
                 delegate = fakeFileUploader(),
                 bortEnabledProvider = BortEnabledTestProvider(),
                 getUploadCompressionEnabled = { true },
+                maxUploadAttempts = { 1 },
+                metrics = mockk(relaxed = true),
             ).doWork(worker)
         }
         assert(result == TaskResult.FAILURE)
@@ -49,15 +59,16 @@ class FileUploadTaskTest {
     @Test
     fun maxUploadAttemptFails() {
         val worker = mockTaskRunnerWorker(
-            FileUploadTaskInput(file, BugReportFileUploadPayload(), shouldCompress = true).toWorkerInputData(),
+            FileUploadTaskInput(file, fileUploadPayload(), shouldCompress = true).toWorkerInputData(),
             runAttemptCount = 4
         )
         val result = runBlocking {
             FileUploadTask(
                 delegate = fakeFileUploader(),
                 bortEnabledProvider = BortEnabledTestProvider(),
-                getMaxAttempts = { 3 },
                 getUploadCompressionEnabled = { true },
+                maxUploadAttempts = { 1 },
+                metrics = mockk(relaxed = true),
             ).doWork(worker)
         }
         assert(result == TaskResult.FAILURE)
@@ -69,7 +80,7 @@ class FileUploadTaskTest {
         val worker = mockTaskRunnerWorker(
             FileUploadTaskInput(
                 File("abcd"),
-                BugReportFileUploadPayload(),
+                fileUploadPayload(),
                 shouldCompress = true
             ).toWorkerInputData()
         )
@@ -78,6 +89,8 @@ class FileUploadTaskTest {
                 delegate = fakeFileUploader(),
                 bortEnabledProvider = BortEnabledTestProvider(),
                 getUploadCompressionEnabled = { true },
+                maxUploadAttempts = { 1 },
+                metrics = mockk(relaxed = true),
             ).doWork(worker)
         }
         assert(result == TaskResult.FAILURE)
@@ -96,6 +109,8 @@ class FileUploadTaskTest {
                 delegate = fakeFileUploader(),
                 bortEnabledProvider = BortEnabledTestProvider(),
                 getUploadCompressionEnabled = { true },
+                maxUploadAttempts = { 1 },
+                metrics = mockk(relaxed = true),
             ).doWork(worker)
         }
         assert(result == TaskResult.FAILURE)
@@ -105,30 +120,34 @@ class FileUploadTaskTest {
     fun fileDeletedOnSuccess() {
         val mockUploader = spyk(fakeFileUploader())
         val worker = mockTaskRunnerWorker(
-            FileUploadTaskInput(file, BugReportFileUploadPayload(), shouldCompress = true).toWorkerInputData()
+            FileUploadTaskInput(file, fileUploadPayload(), shouldCompress = true).toWorkerInputData()
         )
         val result = runBlocking {
             FileUploadTask(
                 delegate = mockUploader,
                 bortEnabledProvider = BortEnabledTestProvider(),
                 getUploadCompressionEnabled = { true },
+                maxUploadAttempts = { 1 },
+                metrics = mockk(relaxed = true),
             ).doWork(worker)
         }
         assert(result == TaskResult.SUCCESS)
         assertFalse(file.exists())
-        coVerify { mockUploader.upload(file, ofType(BugReportFileUploadPayload::class), shouldCompress = true) }
+        coVerify { mockUploader.upload(file, ofType(Payload.LegacyPayload::class), shouldCompress = true) }
     }
 
     @Test
     fun fileDeletedWhenBortDisabled() {
         val worker = mockTaskRunnerWorker(
-            FileUploadTaskInput(file, BugReportFileUploadPayload(), shouldCompress = true).toWorkerInputData()
+            FileUploadTaskInput(file, fileUploadPayload(), shouldCompress = true).toWorkerInputData()
         )
         val result = runBlocking {
             FileUploadTask(
                 delegate = fakeFileUploader(),
                 bortEnabledProvider = BortEnabledTestProvider(enabled = false),
                 getUploadCompressionEnabled = { true },
+                maxUploadAttempts = { 1 },
+                metrics = mockk(relaxed = true),
             ).doWork(worker)
         }
         assert(result == TaskResult.FAILURE)
@@ -140,7 +159,7 @@ internal fun fakeFileUploader(result: TaskResult = TaskResult.SUCCESS): FileUplo
     object : FileUploader {
         override suspend fun upload(
             file: File,
-            payload: FileUploadPayload,
+            payload: Payload,
             shouldCompress: Boolean,
         ): TaskResult = result
     }

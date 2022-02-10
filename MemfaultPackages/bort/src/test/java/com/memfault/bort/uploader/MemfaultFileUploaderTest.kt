@@ -1,6 +1,7 @@
 package com.memfault.bort.uploader
 
 import com.memfault.bort.BugReportFileUploadPayload
+import com.memfault.bort.Payload
 import com.memfault.bort.TaskResult
 import java.io.File
 import java.nio.file.Files
@@ -32,13 +33,22 @@ class MemfaultFileUploaderTest {
         }
     }
 
+    fun fileUploadPayload() = Payload.LegacyPayload(
+        BugReportFileUploadPayload(
+            hardwareVersion = "",
+            deviceSerial = "",
+            softwareVersion = "",
+            softwareType = "",
+        )
+    )
+
     @Test
     fun prepareFailsOnBadCode() {
         server.enqueue(MockResponse().setResponseCode(400))
         val result = runBlocking {
             MemfaultFileUploader(
                 preparedUploader = createUploader(server)
-            ).upload(file, BugReportFileUploadPayload(), shouldCompress = true)
+            ).upload(file, fileUploadPayload(), shouldCompress = true)
         }
         assert(result == TaskResult.FAILURE)
     }
@@ -49,7 +59,7 @@ class MemfaultFileUploaderTest {
         val result = runBlocking {
             MemfaultFileUploader(
                 preparedUploader = createUploader(server)
-            ).upload(file, BugReportFileUploadPayload(), shouldCompress = true)
+            ).upload(file, fileUploadPayload(), shouldCompress = true)
         }
         assert(result == TaskResult.RETRY)
     }
@@ -60,7 +70,7 @@ class MemfaultFileUploaderTest {
         val result = runBlocking {
             MemfaultFileUploader(
                 preparedUploader = createUploader(server)
-            ).upload(file, BugReportFileUploadPayload(), shouldCompress = true)
+            ).upload(file, fileUploadPayload(), shouldCompress = true)
         }
         assert(result == TaskResult.RETRY)
     }

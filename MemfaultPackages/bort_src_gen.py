@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*
+# This file needs to be Python 3.4 compatible (i.e. type annotations must remain in comments).
 import argparse
 import configparser
 import io
@@ -9,7 +10,13 @@ import subprocess
 import sys
 
 try:
-    import pytest
+    from typing import Optional
+except ImportError:
+    if sys.version_info >= (3, 5):
+        pass
+
+try:
+    import pytest  # noqa: M900 # TODO: split out tests
 except:  # noqa
     pass
 
@@ -74,11 +81,12 @@ def _replace_placeholders(content, replacements):
 
 
 def _write_if_changed(content, output_file_abspath):
+    existing_content = None  # type: Optional[str]
     try:
         with open(output_file_abspath) as file:
             existing_content = file.read()
     except OSError:
-        existing_content = None
+        pass
 
     if content == existing_content:
         return  # Don't touch it to avoid rebuilds
@@ -353,8 +361,6 @@ def test_parse_keytool_printcert_sha256() -> None:
 
 
 def test_parse_keytool_printcert_sha256_failure() -> None:
-    import pytest
-
     with pytest.raises(Exception, match="Failed to extract SHA256 fingerprint") as excinfo:
         _parse_keytool_printcert_sha256("the output", ["keytool", "cmd", "xyz"])
     assert "keytool cmd xyz" in str(excinfo.value)
@@ -378,8 +384,6 @@ def test_parse_apksigner_cert_sha256() -> None:
 
 
 def test_check_signatures_mismatch():
-    import pytest
-
     with pytest.raises(Exception, match="signature does not match"):
         _check_signatures(
             output_file="output.txt",

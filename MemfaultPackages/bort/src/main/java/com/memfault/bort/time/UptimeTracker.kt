@@ -3,9 +3,12 @@ package com.memfault.bort.time
 import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
+import com.memfault.bort.LinuxBootId
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.tokenbucket.realElapsedRealtime
-import java.util.concurrent.TimeUnit.MILLISECONDS
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.time.DurationUnit.MILLISECONDS
 import kotlin.time.minutes
 import kotlin.time.toDuration
 import kotlinx.serialization.Serializable
@@ -17,13 +20,15 @@ import kotlinx.serialization.json.Json
  * If Bort process dies, than whenever it starts again (i.e. when any scheduled job fires, or any dropbox entry is
  * received) then we will continue to track uptime.
  */
-class UptimeTracker(
+@Singleton
+class UptimeTracker @Inject constructor(
     prefs: SharedPreferences,
-    private val linuxBootId: String,
+    private val readLinuxBootId: LinuxBootId,
 ) {
     private val previousUptimePrefMillis = PreviousUptimePreference(prefs)
     private val currentUptimePrefMillis = CurrentUptimePreference(prefs)
     private val handler = Handler(Looper.getMainLooper())
+    private val linuxBootId by lazy { readLinuxBootId() }
 
     /**
      * Starts tracking device uptime. Call once when Bort process starts.

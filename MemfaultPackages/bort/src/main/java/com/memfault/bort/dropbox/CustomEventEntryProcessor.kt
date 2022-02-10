@@ -4,21 +4,27 @@ import android.os.DropBoxManager
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.StructuredLogFileUploadPayload
 import com.memfault.bort.TemporaryFileFactory
-import com.memfault.bort.settings.ConfigValue
+import com.memfault.bort.settings.StructuredLogEnabled
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.CombinedTimeProvider
+import com.memfault.bort.tokenbucket.StructuredLog
 import com.memfault.bort.tokenbucket.TokenBucketStore
-import com.memfault.bort.uploader.EnqueueFileUpload
+import com.memfault.bort.uploader.EnqueueUpload
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Inject
 
 private const val DROPBOX_ENTRY_TAG = "memfault_structured"
-class StructuredLogEntryProcessor(
+
+@ContributesMultibinding(SingletonComponent::class)
+class StructuredLogEntryProcessor @Inject constructor(
     private val temporaryFileFactory: TemporaryFileFactory,
     private val deviceInfoProvider: DeviceInfoProvider,
-    private val tokenBucketStore: TokenBucketStore,
-    private val enqueueFileUpload: EnqueueFileUpload,
+    @StructuredLog private val tokenBucketStore: TokenBucketStore,
+    private val enqueueUpload: EnqueueUpload,
     private val combinedTimeProvider: CombinedTimeProvider,
-    private val structuredLogDataSourceEnabledConfig: ConfigValue<Boolean>,
+    private val structuredLogDataSourceEnabledConfig: StructuredLogEnabled,
 ) : EntryProcessor() {
     override val tags: List<String> = listOf(DROPBOX_ENTRY_TAG)
 
@@ -52,7 +58,8 @@ class StructuredLogEntryProcessor(
                 return@useFile
             }
 
-            enqueueFileUpload(
+            val time = combinedTimeProvider.now()
+            enqueueUpload.enqueue(
                 tempFile,
                 StructuredLogFileUploadPayload(
                     cid = metadata.cid,
@@ -60,9 +67,10 @@ class StructuredLogEntryProcessor(
                     hardwareVersion = deviceInfo.hardwareVersion,
                     deviceSerial = deviceInfo.deviceSerial,
                     softwareVersion = deviceInfo.softwareVersion,
-                    collectionTime = combinedTimeProvider.now(),
+                    collectionTime = time,
                 ),
-                DROPBOX_ENTRY_TAG
+                DROPBOX_ENTRY_TAG,
+                collectionTime = time,
             )
 
             preventDeletion()

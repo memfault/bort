@@ -8,6 +8,7 @@ import com.memfault.bort.time.DurationAsMillisecondsLong
 import com.memfault.bort.time.boxed
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.hours
+import kotlin.time.minutes
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -141,6 +142,16 @@ data class FetchedSettings(
     @Serializable(with = DurationAsMillisecondsLong::class)
     val httpApiCallTimeout: BoxedDuration,
 
+    @SerialName("http_api.use_mar_upload")
+    val httpApiUseMarUpload: Boolean = false,
+
+    @SerialName("http_api.batch_mar_uploads")
+    val httpApiBatchMarUploads: Boolean = true,
+
+    @SerialName("http_api.batched_mar_upload_period_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val httpApiBatchedMarUploadPeriod: BoxedDuration = 1.hours.boxed(),
+
     @SerialName("logcat.collection_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val logcatCollectionInterval: BoxedDuration,
@@ -171,6 +182,19 @@ data class FetchedSettings(
 
     @SerialName("metrics.data_source_enabled")
     val metricsDataSourceEnabled: Boolean,
+
+    @SerialName("metrics.system_properties")
+    val metricsSystemProperties: List<String> = listOf("ro.build.type"),
+
+    @SerialName("metrics.app_versions")
+    val metricsAppVersions: List<String> = listOf(),
+
+    @SerialName("metrics.max_num_app_versions")
+    val metricsMaxNumAppVersions: Int = 50,
+
+    @SerialName("metrics.reporter_collection_interval_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val metricsReporterCollectionInterval: BoxedDuration = 10.minutes.boxed(),
 
     @SerialName("ota.update_check_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
@@ -204,6 +228,25 @@ data class FetchedSettings(
 
     @SerialName("structured_log.rate_limiting_settings")
     val structuredLogRateLimitingSettings: RateLimitingSettings,
+
+    @SerialName("metric_report.rate_limiting_settings")
+    val metricReportRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+        defaultCapacity = 2,
+        defaultPeriod = 1.hours.boxed(),
+        maxBuckets = 1,
+    ),
+
+    @SerialName("mar_file.rate_limiting_settings")
+    val marFileRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+        // TODO This is intentionally high, initially: all files/events will be separate mar uploads until we implement
+        // bundled mar files - at which point this can be reduced to the real expected rate.
+        defaultCapacity = 500,
+        defaultPeriod = 1.hours.boxed(),
+        maxBuckets = 1,
+    ),
+
+    @SerialName("metric_report.enabled")
+    val metricReportEnabled: Boolean = true,
 ) {
     @Serializable
     data class FetchedSettingsContainer(

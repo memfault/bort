@@ -6,8 +6,13 @@ import com.memfault.bort.KmsgFileUploadMetadata
 import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
+import com.memfault.bort.tokenbucket.Kmsg
+import com.memfault.bort.tokenbucket.TokenBucketStore
+import javax.inject.Inject
 
-class KmsgUploadingEntryProcessorDelegate : UploadingEntryProcessorDelegate {
+class KmsgUploadingEntryProcessorDelegate @Inject constructor(
+    @Kmsg override val tokenBucketStore: TokenBucketStore,
+) : UploadingEntryProcessorDelegate {
     override val tags = listOf(
         "SYSTEM_LAST_KMSG",
         "SYSTEM_RECOVERY_KMSG",

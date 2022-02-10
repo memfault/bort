@@ -3,8 +3,11 @@ package com.memfault.bort.time
 import android.content.Context
 import android.os.SystemClock
 import android.provider.Settings
-import com.memfault.bort.readLinuxBootId
+import com.memfault.bort.LinuxBootId
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import java.time.Instant
+import javax.inject.Inject
 import kotlin.time.milliseconds
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -36,7 +39,11 @@ interface CombinedTimeProvider {
     fun now(): CombinedTime
 }
 
-class RealCombinedTimeProvider(private val context: Context) : CombinedTimeProvider {
+@ContributesBinding(SingletonComponent::class)
+class RealCombinedTimeProvider @Inject constructor(
+    private val context: Context,
+    private val readLinuxBootId: LinuxBootId,
+) : CombinedTimeProvider {
     override fun now() =
         getUptimeElapsedRealtimeAndTimestamp().let { (uptime, elapsedRealtime, timestamp) ->
             CombinedTime(

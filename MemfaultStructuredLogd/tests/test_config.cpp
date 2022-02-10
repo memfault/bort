@@ -53,6 +53,21 @@ TEST (ConfigTest, ConfigDocumentUpdate) {
     ASSERT_EQ(config->getNumEventsBeforeDump(), 9876u);
     ASSERT_EQ(config->getRateLimiterConfig().capacity, 123u);
     ASSERT_EQ(config->getRateLimiterConfig().msPerToken, 321u);
+    ASSERT_EQ(config->isMetricReportEnabled(), false); // Testing the default
+}
+
+TEST (ConfigTest, MetricReportEnabledNonDefault) {
+    StorageBackend::SharedPtr storage = std::make_shared<Sqlite3StorageBackend>(SQLITE3_FILE, "id");
+    Config::SharedPtr config = std::make_shared<StoredConfig>(storage);
+
+    config->updateConfig(
+            R"j(
+         {
+            "structured_log.metric_report_enabled": true
+         }
+)j"
+    );
+    ASSERT_EQ(config->isMetricReportEnabled(), true);
 }
 
 }

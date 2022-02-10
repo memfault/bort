@@ -14,6 +14,7 @@
 #include <memory>
 
 #include <sqlite_modern_cpp.h>
+#include "metrics.h"
 
 namespace structured {
 
@@ -56,6 +57,20 @@ class StorageBackend {
     virtual ~StorageBackend() = default;
     virtual void addStorageEmtpyListener(OnStorageEmptyListener listener) = 0;
     virtual uint64_t getAvailableSpace() = 0;
+
+    virtual std::unique_ptr<Report> finishReport(uint8_t version, const std::string &name, int64_t endTimestamp,
+                                                 bool startNextReport) = 0;
+    virtual void storeMetricValue(
+            uint8_t version,
+            const std::string &type,
+            uint64_t timestamp,
+            const std::string &eventName,
+            bool internal,
+            uint64_t aggregationTypes,
+            const std::string &value,
+            MetricValueType valueType
+    ) = 0;
+
     typedef std::shared_ptr<StorageBackend> SharedPtr;
 };
 
@@ -119,12 +134,29 @@ class Sqlite3StorageBackend: public StorageBackend {
     void setConfig(const std::string &config) override;
     uint64_t getAvailableSpace() override;
 
+    std::unique_ptr<Report> finishReport(uint8_t version, const std::string &name, int64_t endTimestamp,
+                                         bool startNextReport) override;
+    void storeMetricValue(
+            uint8_t version,
+            const std::string &type,
+            uint64_t timestamp,
+            const std::string &eventName,
+            bool internal,
+            uint64_t aggregationTypes,
+            const std::string &value,
+            MetricValueType valueType
+    ) override;
+
     inline int getBootIdRow() const { return bootIdRow; }
   private:
     void registerBoot(const std::string &bootId);
 
     SqliteDatabase _db;
     sqlite::database_binder _insertStmt;
+    sqlite::database_binder _metricLastValueStmt;
+    sqlite::database_binder _metricInsertStmt;
+    sqlite::database_binder _metricSelectAllStmt;
+    sqlite::database_binder _reportInsertMetadata;
     std::string _path;
     bool _inMemory;
     int64_t bootIdRow;
@@ -138,6 +170,11 @@ class Sqlite3StorageBackend: public StorageBackend {
     void ensureConfig();
     std::pair<std::string, std::string> getCidPair();
     std::vector<OnStorageEmptyListener> storageEmptyListeners;
+
+    std::unique_ptr<Report> collectMetricsLocked(uint8_t version, const std::string &type, uint64_t startTimestamp, uint64_t endTimestamp);
+
+    void ensureReportMetadataLocked(const std::string &type, uint64_t timestamp);
+    void removeReportData(const std::string &name);
 };
 
 }

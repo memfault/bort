@@ -8,21 +8,49 @@ import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.parsers.BatteryStatsParser
 import com.memfault.bort.parsers.BatteryStatsReport
-import com.memfault.bort.settings.ConfigValue
+import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.shared.BatteryStatsCommand
 import com.memfault.bort.shared.Logger
 import java.io.File
 import java.io.OutputStream
+import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.seconds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class BatteryStatsHistoryCollector(
+class RunBatteryStats @Inject constructor(
+    private val reporterServiceConnector: ReporterServiceConnector,
+) {
+    suspend fun runBatteryStats(
+        outputStream: OutputStream,
+        historyStart: Long,
+        timeout: Duration,
+    ) {
+        reporterServiceConnector.connect { getClient ->
+            getClient().batteryStatsRun(
+                BatteryStatsCommand(c = true, historyStart = historyStart),
+                timeout
+            ) { invocation ->
+                invocation.awaitInputStream().map { stream ->
+                    stream.copyTo(outputStream)
+                }.andThen {
+                    invocation.awaitResponse(timeout).toErrorIf({ it.exitCode != 0 }) {
+                        Exception("Remote error: $it")
+                    }
+                }
+            }
+        } onFailure {
+            throw it
+        }
+    }
+}
+
+class BatteryStatsHistoryCollector @Inject constructor(
     private val temporaryFileFactory: TemporaryFileFactory,
     private val nextBatteryStatsHistoryStartProvider: NextBatteryStatsHistoryStartProvider,
-    private val runBatteryStats: suspend (outputStream: OutputStream, historyStart: Long, timeout: Duration) -> Unit,
-    private val timeoutConfig: ConfigValue<Duration>,
+    private val runBatteryStats: RunBatteryStats,
+    private val settings: BatteryStatsSettings,
 ) {
     suspend fun collect(limit: Duration): File {
         temporaryFileFactory.createTemporaryFile(
@@ -87,7 +115,9 @@ class BatteryStatsHistoryCollector(
     ): BatteryStatsReport =
         withContext(Dispatchers.IO) {
             batteryStatsFile.outputStream().use {
-                runBatteryStats(it, historyStart, timeoutConfig())
+                runBatteryStats.runBatteryStats(
+                    it, historyStart, settings.commandTimeout
+                )
             }
             batteryStatsFile.inputStream().use {
                 return@withContext BatteryStatsParser(it).parse()
@@ -96,23 +126,3 @@ class BatteryStatsHistoryCollector(
 }
 
 private val LIMIT_GRACE_MARGIN = 10.seconds
-
-suspend fun ReporterServiceConnector.runBatteryStats(
-    outputStream: OutputStream,
-    historyStart: Long,
-    timeout: Duration,
-) {
-    this.connect { getClient ->
-        getClient().batteryStatsRun(BatteryStatsCommand(c = true, historyStart = historyStart), timeout) { invocation ->
-            invocation.awaitInputStream().map { stream ->
-                stream.copyTo(outputStream)
-            }.andThen {
-                invocation.awaitResponse(timeout).toErrorIf({ it.exitCode != 0 }) {
-                    Exception("Remote error: $it")
-                }
-            }
-        }
-    } onFailure {
-        throw it
-    }
-}

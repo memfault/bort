@@ -35,4 +35,15 @@ interface ILogger {
    * @param config The JSON config object.
    */
   oneway void reloadConfig(String config);
+
+  /**
+   * Finish a report, this will cause metrics to be collected and eventually sent to the backend for
+   * analysis.
+   */
+  oneway void finishReport(String json);
+
+  /**
+   * Adds a metric value to a report.
+   */
+  oneway void addValue(String json);
 }

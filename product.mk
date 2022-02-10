@@ -22,3 +22,9 @@ ifeq ($(TARGET_USES_MFLT_OTA),1)
     $(warning "Building with MemfaultBortOta")
     PRODUCT_PACKAGES += MemfaultBortOta
 endif
+
+ifeq ($(TARGET_BUILD_BORT_UNDER_TEST),1)
+    $(warning "Building with Memfault test dependencies")
+    PRODUCT_PACKAGES += structured-client-example-c \
+                        structured-client-example-cpp
+endif

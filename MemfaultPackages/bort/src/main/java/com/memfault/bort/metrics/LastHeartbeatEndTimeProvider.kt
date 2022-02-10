@@ -7,6 +7,9 @@ import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.time.BaseLinuxBootRelativeTime
 import com.memfault.bort.time.LinuxBootRelativeTime
 import com.memfault.bort.time.boxed
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Inject
 import kotlin.time.milliseconds
 
 /**
@@ -17,7 +20,8 @@ interface LastHeartbeatEndTimeProvider {
     var lastEnd: BaseLinuxBootRelativeTime
 }
 
-class RealLastHeartbeatEndTimeProvider(
+@ContributesBinding(SingletonComponent::class, boundType = LastHeartbeatEndTimeProvider::class)
+class RealLastHeartbeatEndTimeProvider @Inject constructor(
     sharedPreferences: SharedPreferences
 ) : LastHeartbeatEndTimeProvider, PreferenceKeyProvider<String>(
     sharedPreferences = sharedPreferences,

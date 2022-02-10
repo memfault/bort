@@ -54,7 +54,11 @@ namespace {
             } else {
               std::string output;
               const int rv = RunCommandToString(command, output);
+#if PLATFORM_SDK_VERSION <= 30
               listener->onFinished(rv, std::make_unique<android::String16>(output.c_str()));
+#else
+              listener->onFinished(rv, android::String16(output.c_str()));
+#endif
             }
             return android::binder::Status::ok();
         }
@@ -62,6 +66,7 @@ namespace {
         std::vector<std::string> commandForId(int cmdId) {
             switch (cmdId) {
                 case IDumpster::CMD_ID_GETPROP: return { "/system/bin/getprop" };
+                case IDumpster::CMD_ID_GETPROP_TYPES: return { "/system/bin/getprop", "-T" };
                 case IDumpster::CMD_ID_SET_BORT_ENABLED_PROPERTY_ENABLED: return {
                         "/system/bin/setprop", BORT_ENABLED_PROPERTY, "1"
                 };

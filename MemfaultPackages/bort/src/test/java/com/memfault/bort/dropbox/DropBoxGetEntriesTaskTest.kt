@@ -2,7 +2,6 @@ package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
 import android.os.RemoteException
-import android.system.StructStat
 import com.github.michaelbull.result.Result
 import com.memfault.bort.ReporterClient
 import com.memfault.bort.ReporterServiceConnection
@@ -27,7 +26,6 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
-import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlin.time.minutes
@@ -42,10 +40,12 @@ private const val TEST_SERVICE_VERSION = 3
 class DropBoxGetEntriesTaskTest {
     lateinit var mockServiceConnection: ReporterServiceConnection
     lateinit var mockServiceConnector: ReporterServiceConnector
+
     @RelaxedMockK
     lateinit var mockEntryProcessor: EntryProcessor
     lateinit var task: DropBoxGetEntriesTask
     lateinit var lastProcessedEntryProvider: FakeLastProcessedEntryProvider
+    lateinit var pendingTimeChangeProvider: DropBoxPendingTimeChangeProvider
     var mockGetExcludedTags: Set<String> = setOf()
     lateinit var processedEntryCursorProvider: ProcessedEntryCursorProvider
     lateinit var retryDelay: suspend () -> Unit
@@ -63,6 +63,8 @@ class DropBoxGetEntriesTaskTest {
         override val kmsgsRateLimitingSettings = mockRateLimitingSettings
         override val structuredLogRateLimitingSettings = mockRateLimitingSettings
         override val tombstonesRateLimitingSettings = mockRateLimitingSettings
+        override val metricReportRateLimitingSettings = mockRateLimitingSettings
+        override val marFileRateLimitingSettings = mockRateLimitingSettings
         override val excludedTags get() = mockGetExcludedTags
     }
 
@@ -80,16 +82,21 @@ class DropBoxGetEntriesTaskTest {
         val reporterClient = ReporterClient(mockServiceConnection, mockk())
         mockServiceConnector = createMockServiceConnector(reporterClient)
         lastProcessedEntryProvider = FakeLastProcessedEntryProvider(0)
-        processedEntryCursorProvider = ProcessedEntryCursorProvider(lastProcessedEntryProvider)
+        pendingTimeChangeProvider = FakeDropBoxPendingTimeChangeProvider(false)
+        processedEntryCursorProvider = ProcessedEntryCursorProvider(
+            lastProcessedEntryProvider,
+            pendingTimeChangeProvider,
+        )
         task = DropBoxGetEntriesTask(
             reporterServiceConnector = mockServiceConnector,
             cursorProvider = processedEntryCursorProvider,
-            entryProcessors = mapOf(
+            entryProcessors = mapOfProcessors(
                 TEST_TAG to mockEntryProcessor,
                 TEST_TAG_TO_IGNORE to mockEntryProcessor,
             ),
             settings = mockDropboxSettings,
-            retryDelay = suspend { retryDelay() }
+            retryDelay = { retryDelay() },
+            metrics = mockk(relaxed = true),
         )
         retryDelay = suspend { }
     }
@@ -235,15 +242,7 @@ class DropBoxGetEntriesTaskTest {
 
     @Test
     fun ignoreEmptyEntry() {
-        // fstat() is an extension function defined in DropBoxEntryExt.Kt
-        mockkStatic("com.memfault.bort.dropbox.DropBoxEntryExtKt")
         val entry = mockEntry(10, tag_ = TEST_TAG)
-        every {
-            entry.fstat()
-        } returns StructStat(
-            0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0
-        )
         val verifyCloseCalled = mockGetNextEntryReponses(entry, null)
         val result = runBlocking {
             task.doWork()
@@ -296,8 +295,10 @@ class DropBoxGetEntriesTaskTest {
         task = DropBoxGetEntriesTask(
             reporterServiceConnector = mockServiceConnector,
             cursorProvider = processedEntryCursorProvider,
-            entryProcessors = mapOf(),
+            entryProcessors = mapOfProcessors(),
             settings = mockDropboxSettings,
+            retryDelay = { retryDelay() },
+            metrics = mockk(relaxed = true),
         )
         runAndAssertNoop()
     }
@@ -307,11 +308,18 @@ class DropBoxGetEntriesTaskTest {
         task = DropBoxGetEntriesTask(
             reporterServiceConnector = mockServiceConnector,
             cursorProvider = processedEntryCursorProvider,
-            entryProcessors = mapOf(TEST_TAG to mockEntryProcessor),
+            entryProcessors = mapOfProcessors(TEST_TAG to mockEntryProcessor),
             settings = object : DropBoxSettings by mockDropboxSettings {
                 override val dataSourceEnabled = false
-            }
+            },
+            retryDelay = { retryDelay() },
+            metrics = mockk(relaxed = true),
         )
         runAndAssertNoop()
     }
+
+    private fun mapOfProcessors(vararg processors: Pair<String, EntryProcessor>): DropBoxEntryProcessors =
+        mockk(relaxed = true) {
+            every { map } returns mapOf(*processors)
+        }
 }

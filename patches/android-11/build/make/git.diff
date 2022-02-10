@@ -1,3 +1,5 @@
+Added Bort to build/target/product/mainline.mk to whitelist files in /system.
+
 diff --git a/target/product/base_vendor.mk b/target/product/base_vendor.mk
 index 471340b..39326e7 100644
 --- a/target/product/base_vendor.mk

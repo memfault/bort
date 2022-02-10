@@ -14,6 +14,7 @@ static constexpr char kDumpPeriodMs[] = "structured_log.dump_period_ms";
 static constexpr char kNumEventsBeforeDump[] = "structured_log.num_events_before_dump";
 static constexpr char kMaxMessageSizeBytes[] = "structured_log.max_message_size_bytes";
 static constexpr char kMinStorageThresholdBytes[] = "structured_log.min_storage_threshold_bytes";
+static constexpr char kMetricReportEnabled[] = "structured_log.metric_report_enabled";
 
 template<typename T>
 static T _get_config_num(rapidjson::Document &document, const std::string &key, T defaultValue) {
@@ -21,6 +22,13 @@ static T _get_config_num(rapidjson::Document &document, const std::string &key, 
         return defaultValue;
     }
     return document[key.c_str()].Get<T>();
+}
+
+static bool _get_config_bool(rapidjson::Document &document, const std::string &key, bool defaultValue) {
+    if (!document.HasMember(key.c_str()) || !document[key.c_str()].IsBool()) {
+        return defaultValue;
+    }
+    return document[key.c_str()].GetBool();
 }
 
 static RateLimiterConfig
@@ -63,6 +71,7 @@ void StoredConfig::_reloadLocked() {
         this->dumpPeriodMs = DUMP_PERIOD_MS;
         this->minStorageTreshold = MIN_STORAGE_THRESHOLD_BYTES;
         this->maxMessageSize = MAX_MESSAGE_SIZE_BYTES;
+        this->metricReportEnabled = METRIC_REPORTS_ENABLED;
     } else {
         ALOGV("Loading config from storage");
         this->rateLimiterConfig = _get_config_rate_limit(configDocument, kRateLimitingSettings,
@@ -74,6 +83,8 @@ void StoredConfig::_reloadLocked() {
                                               uint64_t(MIN_STORAGE_THRESHOLD_BYTES));
         this->maxMessageSize = _get_config_num(configDocument, kMaxMessageSizeBytes,
                                                MAX_MESSAGE_SIZE_BYTES);
+        this->metricReportEnabled = _get_config_bool(configDocument, kMetricReportEnabled,
+                                               METRIC_REPORTS_ENABLED);
     }
 }
 
@@ -116,6 +127,16 @@ uint32_t StoredConfig::getMaxMessageSize() {
 uint64_t StoredConfig::getMinStorageThreshold() {
     std::unique_lock<std::mutex> lock(mutex);
     return minStorageTreshold;
+}
+
+bool StoredConfig::isMetricReportEnabled() {
+    std::unique_lock<std::mutex> lock(mutex);
+#ifdef BORT_UNDER_TEST
+    // Always enable for bort testing
+    return true;
+#else
+    return metricReportEnabled;
+#endif
 }
 
 }

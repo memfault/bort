@@ -1,7 +1,7 @@
 package com.memfault.bort.tokenbucket
 
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.RATE_LIMIT_APPLIED
-import com.memfault.bort.metrics.metrics
 import com.memfault.bort.requester.BugReportRequestWorker.Companion.BUGREPORT_RATE_LIMITING_TAG
 import com.memfault.bort.shared.Logger
 import kotlin.math.floor
@@ -35,6 +35,7 @@ class TokenBucket(
      * Injectable for testing purposes.
      */
     val elapsedRealtime: () -> Duration = ::realElapsedRealtime,
+    private val metrics: BuiltinMetricsStore,
 ) {
     val count: Int get() = _count
     val periodStartElapsedRealtime: Duration get() = _periodStartElapsedRealtime
@@ -51,7 +52,7 @@ class TokenBucket(
     fun take(n: Int = 1, tag: String): Boolean {
         feed(tag = tag)
         return if (count < n) {
-            metrics()?.increment("${RATE_LIMIT_APPLIED}_$tag")
+            metrics.increment("${RATE_LIMIT_APPLIED}_$tag")
             false
         } else true.also {
             _count -= n
@@ -89,6 +90,7 @@ class TokenBucket(
             _count = _count ?: this._count,
             _periodStartElapsedRealtime = this._periodStartElapsedRealtime,
             elapsedRealtime = this.elapsedRealtime,
+            metrics = this.metrics,
         )
 
     override fun equals(other: Any?): Boolean {

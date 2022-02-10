@@ -11,8 +11,14 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
 import androidx.work.WorkerParameters
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.uploader.limitAttempts
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
@@ -36,6 +42,7 @@ enum class TaskResult {
 
 abstract class Task<I> {
     abstract val getMaxAttempts: () -> Int
+    abstract val metrics: BuiltinMetricsStore
 
     suspend fun doWork(worker: TaskRunnerWorker): TaskResult {
         val input = try {
@@ -46,7 +53,7 @@ abstract class Task<I> {
                 finally(null)
             }
         }
-        return worker.limitAttempts(getMaxAttempts(input), { finally(input) }) {
+        return worker.limitAttempts(getMaxAttempts(input), metrics, { finally(input) }) {
             doWork(worker, input)
         }
     }
@@ -104,10 +111,17 @@ interface TaskFactory {
     fun create(inputData: Data): Task<*>?
 }
 
-class TaskRunnerWorker(
+@AssistedFactory
+@ContributesMultibinding(SingletonComponent::class)
+interface TaskRunnerWorkerFactory : IndividualWorkerFactory {
+    override fun create(workerParameters: WorkerParameters): TaskRunnerWorker
+    override fun type() = TaskRunnerWorker::class
+}
+
+class TaskRunnerWorker @AssistedInject constructor(
     appContext: Context,
-    workerParameters: WorkerParameters,
-    private val taskFactory: TaskFactory
+    @Assisted workerParameters: WorkerParameters,
+    private val taskFactory: BortTaskFactory
 ) : CoroutineWorker(appContext, workerParameters) {
 
     override suspend fun doWork(): Result =

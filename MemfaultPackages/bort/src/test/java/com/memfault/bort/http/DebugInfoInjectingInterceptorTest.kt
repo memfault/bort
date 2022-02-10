@@ -47,8 +47,6 @@ class DebugInfoInjectingInterceptorTest {
 
     @Test
     fun transformMemfaultOrCleartextApiRequests() {
-        deviceInfoProvider.lastDeviceInfo = DEVICE_INFO_FIXTURE
-
         listOf(
             "https://memfault.com/",
             "https://sub.memfault.com/",
@@ -93,7 +91,6 @@ class DebugInfoInjectingInterceptorTest {
 
     @Test
     fun emptyDeviceSerialIfBortNotEnabled() {
-        deviceInfoProvider.lastDeviceInfo = DEVICE_INFO_FIXTURE
         bortEnabledProvider.setEnabled(false)
 
         Request.Builder()

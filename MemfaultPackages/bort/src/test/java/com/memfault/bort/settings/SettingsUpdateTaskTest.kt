@@ -30,6 +30,10 @@ class SettingsUpdateTaskTest {
     private lateinit var settingsProvider: DynamicSettingsProvider
     private lateinit var storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider
     private lateinit var tokenBucketStore: TokenBucketStore
+    val fetchedSettingsUpdateSlot = slot<FetchedSettingsUpdate>()
+    val callback: SettingsUpdateCallback = mockk {
+        coEvery { onSettingsUpdated(any(), capture(fetchedSettingsUpdateSlot)) } returns Unit
+    }
 
     @BeforeEach
     fun setup() {
@@ -72,21 +76,17 @@ class SettingsUpdateTaskTest {
             }
         }
 
-        val fetchedSettingsUpdateSlot = slot<FetchedSettingsUpdate>()
-        val callback: suspend (SettingsProvider, FetchedSettingsUpdate) -> Unit = mockk {
-            coEvery { this@mockk(any(), capture(fetchedSettingsUpdateSlot)) } returns Unit
-        }
-
         runBlocking {
             assertEquals(
                 TaskResult.SUCCESS,
                 SettingsUpdateTask(
                     FakeDeviceInfoProvider(),
-                    { service },
+                    service,
                     settingsProvider,
                     storedSettingsPreferenceProvider,
                     callback,
                     tokenBucketStore,
+                    mockk(relaxed = true),
                 ).doWork(worker)
             )
             // The first call returns the same stored fixture and thus set() won't be called
@@ -100,11 +100,12 @@ class SettingsUpdateTaskTest {
                 TaskResult.SUCCESS,
                 SettingsUpdateTask(
                     FakeDeviceInfoProvider(),
-                    { service },
+                    service,
                     settingsProvider,
                     storedSettingsPreferenceProvider,
                     callback,
                     tokenBucketStore,
+                    mockk(relaxed = true),
                 ).doWork(worker)
             )
             // Check that endpoint was called once, and nothing else
@@ -120,7 +121,7 @@ class SettingsUpdateTaskTest {
                     response
                 )
                 settingsProvider.invalidate()
-                callback(any(), any())
+                callback.onSettingsUpdated(any(), any())
             }
             confirmVerified(settingsProvider)
             assertEquals(fetchedSettingsUpdateSlot.captured.old, SETTINGS_FIXTURE.toSettings())
@@ -139,11 +140,12 @@ class SettingsUpdateTaskTest {
                 TaskResult.SUCCESS,
                 SettingsUpdateTask(
                     FakeDeviceInfoProvider(),
-                    { service },
+                    service,
                     settingsProvider,
                     storedSettingsPreferenceProvider,
-                    { _, _ -> },
+                    callback,
                     tokenBucketStore,
+                    mockk(relaxed = true),
                 ).doWork(worker)
             )
 
@@ -168,11 +170,12 @@ class SettingsUpdateTaskTest {
                 TaskResult.SUCCESS,
                 SettingsUpdateTask(
                     FakeDeviceInfoProvider(),
-                    { service },
+                    service,
                     settingsProvider,
                     storedSettingsPreferenceProvider,
-                    { _, _ -> },
+                    callback,
                     tokenBucketStore,
+                    mockk(relaxed = true),
                 ).doWork(worker)
             )
 

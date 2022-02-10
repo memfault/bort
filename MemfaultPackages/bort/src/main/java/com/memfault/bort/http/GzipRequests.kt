@@ -1,5 +1,8 @@
 package com.memfault.bort.http
 
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Inject
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -14,7 +17,8 @@ import retrofit2.Invocation
 @Retention(AnnotationRetention.RUNTIME)
 annotation class GzipRequest
 
-class GzipRequestInterceptor : Interceptor {
+@ContributesMultibinding(SingletonComponent::class)
+class GzipRequestInterceptor @Inject constructor() : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         return chain.proceed(transformRequest(chain.request()))
     }

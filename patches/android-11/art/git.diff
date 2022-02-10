@@ -1,3 +1,11 @@
+This patch implements an alternative DumpNativeStack() implementation.
+
+In contrast to the libart's original code, this will also dump the GNU Build IDs for each frame,
+which is necessary to be able to desymbolicate the frames accurately.
+
+The implementation is based on code from tombstone.cpp and BacktraceCurrent.cpp
+from the platform/system/core repo.
+
 diff --git a/runtime/native_stack_dump.cc b/runtime/native_stack_dump.cc
 index 74d9033..4f6c10e 100644
 --- a/runtime/native_stack_dump.cc
@@ -5,7 +13,7 @@ index 74d9033..4f6c10e 100644
 @@ -27,6 +27,14 @@
  #include <backtrace/Backtrace.h>
  #include <backtrace/BacktraceMap.h>
- 
+
 +// See comment around line ~80 for more information.
 +#define MEMFAULT_DUMP_NATIVE_STACK (1)
 +
@@ -15,12 +23,12 @@ index 74d9033..4f6c10e 100644
 +#endif
 +
  #if defined(__linux__)
- 
+
  #include <memory>
 @@ -39,6 +47,11 @@
  #include <sys/time.h>
  #include <sys/types.h>
- 
+
 +#if MEMFAULT_DUMP_NATIVE_STACK
 +#include <semaphore.h>
 +#include "android-base/threads.h"
@@ -30,9 +38,9 @@ index 74d9033..4f6c10e 100644
  #include "android-base/stringprintf.h"
  #include "android-base/strings.h"
 @@ -66,6 +79,129 @@ namespace art {
- 
+
  using android::base::StringPrintf;
- 
+
 +#if MEMFAULT_DUMP_NATIVE_STACK
 +
 +// This patch implements an alternative DumpNativeStack() implementation.
@@ -157,14 +165,14 @@ index 74d9033..4f6c10e 100644
 +#else // MEMFAULT_DUMP_NATIVE_STACK
 +
  static constexpr bool kUseAddr2line = !kIsTargetBuild;
- 
+
  std::string FindAddr2line() {
 @@ -416,6 +552,8 @@ void DumpNativeStack(std::ostream& os,
    }
  }
- 
+
 +#endif // MEMFAULT_DUMP_NATIVE_STACK
 +
  #elif defined(__APPLE__)
- 
+
  void DumpNativeStack(std::ostream& os ATTRIBUTE_UNUSED,

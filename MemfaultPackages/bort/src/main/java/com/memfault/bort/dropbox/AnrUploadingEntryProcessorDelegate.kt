@@ -8,9 +8,14 @@ import com.memfault.bort.parsers.AnrParser
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
+import com.memfault.bort.tokenbucket.Anr
+import com.memfault.bort.tokenbucket.TokenBucketStore
 import java.io.File
+import javax.inject.Inject
 
-class AnrUploadingEntryProcessorDelegate : UploadingEntryProcessorDelegate {
+class AnrUploadingEntryProcessorDelegate @Inject constructor(
+    @Anr override val tokenBucketStore: TokenBucketStore,
+) : UploadingEntryProcessorDelegate {
     override val tags = listOf(
         "data_app_anr",
         "system_app_anr",

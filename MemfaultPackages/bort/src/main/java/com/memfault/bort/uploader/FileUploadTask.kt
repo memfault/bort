@@ -1,30 +1,27 @@
 package com.memfault.bort.uploader
 
-import android.content.Context
-import androidx.work.BackoffPolicy
-import androidx.work.Constraints
 import androidx.work.Data
-import androidx.work.WorkRequest
 import androidx.work.workDataOf
 import com.memfault.bort.BortJson
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploader
+import com.memfault.bort.Payload.LegacyPayload
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
-import com.memfault.bort.enqueueWorkOnce
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.UPLOAD_FILE_FILE_MISSING
-import com.memfault.bort.metrics.metrics
 import com.memfault.bort.settings.BortEnabledProvider
-import com.memfault.bort.shared.JitterDelayProvider
+import com.memfault.bort.settings.MaxUploadAttempts
+import com.memfault.bort.settings.UploadCompressionEnabled
 import com.memfault.bort.shared.Logger
 import java.io.File
+import javax.inject.Inject
 import kotlin.time.minutes
-import kotlin.time.toJavaDuration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private val BACKOFF_DURATION = 5.minutes
+val BACKOFF_DURATION = 5.minutes
 
 private const val PATH_KEY = "PATH"
 private const val METADATA_KEY = "METADATA"
@@ -61,11 +58,12 @@ data class FileUploadTaskInput(
     }
 }
 
-internal class FileUploadTask(
+class FileUploadTask @Inject constructor(
     private val delegate: FileUploader,
     private val bortEnabledProvider: BortEnabledProvider,
-    private val getUploadCompressionEnabled: () -> Boolean,
-    override val getMaxAttempts: () -> Int = { 3 },
+    private val getUploadCompressionEnabled: UploadCompressionEnabled,
+    private val maxUploadAttempts: MaxUploadAttempts,
+    override val metrics: BuiltinMetricsStore,
 ) : Task<FileUploadTaskInput>() {
     suspend fun upload(file: File, payload: FileUploadPayload, shouldCompress: Boolean): TaskResult {
         fun fail(message: String): TaskResult {
@@ -79,13 +77,13 @@ internal class FileUploadTask(
         }
 
         if (!file.exists()) {
-            metrics()?.increment(UPLOAD_FILE_FILE_MISSING)
+            metrics.increment(UPLOAD_FILE_FILE_MISSING)
             return fail("File does not exist")
         }
 
         when (
             val result = delegate.upload(
-                file, payload, shouldCompress && getUploadCompressionEnabled()
+                file, LegacyPayload(payload), shouldCompress && getUploadCompressionEnabled()
             )
         ) {
             TaskResult.RETRY -> return result
@@ -124,30 +122,7 @@ internal class FileUploadTask(
 
     override fun convertAndValidateInputData(inputData: Data): FileUploadTaskInput =
         FileUploadTaskInput.fromData(inputData)
+
+    override val getMaxAttempts: () -> Int
+        get() = maxUploadAttempts
 }
-
-fun enqueueFileUploadTask(
-    context: Context,
-    file: File,
-    payload: FileUploadPayload,
-    getUploadConstraints: () -> Constraints,
-    debugTag: String,
-    continuation: FileUploadContinuation? = null,
-    shouldCompress: Boolean = true,
-    jitterDelayProvider: JitterDelayProvider,
-): WorkRequest =
-    enqueueWorkOnce<FileUploadTask>(
-        context,
-        FileUploadTaskInput(file, payload, continuation, shouldCompress).toWorkerInputData()
-    ) {
-        setInitialDelay(jitterDelayProvider.randomJitterDelay())
-        setConstraints(getUploadConstraints())
-        setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())
-        addTag(debugTag)
-    }
-
-typealias EnqueueFileUpload = (
-    file: File,
-    payload: FileUploadPayload,
-    debugTag: String,
-) -> Unit

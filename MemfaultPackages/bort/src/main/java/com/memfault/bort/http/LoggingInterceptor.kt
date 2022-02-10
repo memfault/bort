@@ -1,14 +1,17 @@
 package com.memfault.bort.http
 
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.REQUEST_ATTEMPT
 import com.memfault.bort.metrics.REQUEST_FAILED
 import com.memfault.bort.metrics.REQUEST_TIMING
-import com.memfault.bort.metrics.metrics
 import com.memfault.bort.shared.Logger
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.hilt.components.SingletonComponent
 import java.io.InterruptedIOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.text.DecimalFormat
+import javax.inject.Inject
 import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.Request
@@ -26,9 +29,10 @@ internal fun scrubUrl(url: HttpUrl): HttpUrl =
 // See https://github.com/facebook/fresco/issues/2504#issuecomment-657771489
 private val decimalFormat = DecimalFormat("#.##")
 
-class LoggingNetworkInterceptor : Interceptor {
-    override fun intercept(chain: Interceptor.Chain): Response = logTimeout {
-        logAttempt()
+@ContributesMultibinding(SingletonComponent::class)
+class LoggingNetworkInterceptor @Inject constructor(private val metrics: BuiltinMetricsStore) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response = logTimeout(metrics) {
+        logAttempt(metrics)
         val request: Request = chain.request()
         val xRequestId = request.header(X_REQUEST_ID)
         val obfuscatedProjectKey: String = request.header(PROJECT_KEY_HEADER)?.let {
@@ -47,7 +51,7 @@ Sending request
         val response: Response = chain.proceed(request)
         val t2: Long = System.nanoTime()
         val delta = (t2 - t1) / 1e6
-        logTimings(delta.toLong())
+        logTimings(delta.toLong(), metrics)
         Logger.v(
             """
 Received response for $scrubbedUrl in ${decimalFormat.format(delta)} ms
@@ -55,7 +59,7 @@ Received response for $scrubbedUrl in ${decimalFormat.format(delta)} ms
         )
 
         if (!response.isSuccessful) {
-            logFailure(response.code)
+            logFailure(response.code, metrics)
             Logger.w(
                 """
 Request failed
@@ -69,19 +73,19 @@ Request failed
     }
 }
 
-fun logAttempt() = metrics()?.increment(REQUEST_ATTEMPT)
+fun logAttempt(metrics: BuiltinMetricsStore) = metrics.increment(REQUEST_ATTEMPT)
 
-fun logTimings(timeMs: Long) = metrics()?.addValue(REQUEST_TIMING, timeMs.toFloat())
+fun logTimings(timeMs: Long, metrics: BuiltinMetricsStore) = metrics.addValue(REQUEST_TIMING, timeMs.toFloat())
 
 private fun metricforFailure(tag: String) = "${REQUEST_FAILED}_$tag"
 
-fun logFailure(code: Int) = metrics()?.increment(metricforFailure(code.toString()))
+fun logFailure(code: Int, metrics: BuiltinMetricsStore) = metrics.increment(metricforFailure(code.toString()))
 
-fun logTimeout(block: () -> Response): Response = try {
+fun logTimeout(metrics: BuiltinMetricsStore, block: () -> Response): Response = try {
     block()
 } catch (e: Exception) {
-    if (e is SocketTimeoutException) metrics()?.increment(metricforFailure("timeout_socket"))
-    if (e is InterruptedIOException) metrics()?.increment(metricforFailure("timeout_call"))
-    if (e is ConnectException) metrics()?.increment(metricforFailure("connect"))
+    if (e is SocketTimeoutException) metrics.increment(metricforFailure("timeout_socket"))
+    if (e is InterruptedIOException) metrics.increment(metricforFailure("timeout_call"))
+    if (e is ConnectException) metrics.increment(metricforFailure("connect"))
     throw e
 }

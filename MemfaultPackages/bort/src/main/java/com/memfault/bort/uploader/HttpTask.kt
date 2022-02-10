@@ -12,9 +12,11 @@ import com.memfault.bort.asResult
 import com.memfault.bort.await
 import com.memfault.bort.enqueueWorkOnce
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
 import java.io.IOException
+import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.milliseconds
 import kotlin.time.minutes
@@ -109,8 +111,9 @@ data class HttpTaskInput(
         taskTags.joinToString(", ")
 }
 
-class HttpTask(
-    private val okHttpClient: OkHttpClient
+class HttpTask @Inject constructor(
+    private val okHttpClient: OkHttpClient,
+    override val metrics: BuiltinMetricsStore,
 ) : Task<HttpTaskInput>() {
 
     override val getMaxAttempts: () -> Int = { DEFAULT_MAX_ATTEMPTS }
@@ -154,16 +157,18 @@ class HttpTask(
  */
 data class HttpTaskOptions(
     val maxAttempts: Int? = null,
-    val taskTags: List<String>? = null
+    val taskTags: List<String>? = null,
 )
+
+fun interface EnqueueHttpTask : (HttpTaskInput) -> Unit
 
 /**
  * Retrofit Call Factory that dispatches the request for executing through a HttpTask (AndroidX
  * Worker based executor). Service calls will immediately return with a HTTP 204 "No Content
  * (Enqueued)" Response and a null body.
  */
-class HttpTaskCallFactory(
-    private val enqueueHttpTaskCallback: (HttpTaskInput) -> Unit,
+class HttpTaskCallFactory @Inject constructor(
+    private val enqueueHttpTaskCallback: EnqueueHttpTask,
     private val projectKeyInjectingInterceptor: ProjectKeyInjectingInterceptor,
 ) : Call.Factory {
 
@@ -192,7 +197,7 @@ class HttpTaskCallFactory(
     )
 
     inner class Call(
-        private val request: Request
+        private val request: Request,
     ) : okhttp3.Call {
         private var executed: Boolean = false
 

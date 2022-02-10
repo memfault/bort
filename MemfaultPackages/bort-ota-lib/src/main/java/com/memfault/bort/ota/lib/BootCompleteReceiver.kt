@@ -16,6 +16,7 @@ import com.memfault.bort.shared.InternalMetric.Companion.OTA_REBOOT_UPDATE_ERROR
 import com.memfault.bort.shared.InternalMetric.Companion.OTA_REBOOT_UPDATE_SUCCESS
 import com.memfault.bort.shared.InternalMetric.Companion.sendMetric
 import com.memfault.bort.shared.JitterDelayProvider
+import com.memfault.bort.shared.JitterDelayProvider.ApplyJitter.APPLY
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.goAsync
 import java.io.File
@@ -89,7 +90,7 @@ class BootCompleteReceiver : BroadcastReceiver() {
             updateCheckIntervalMs, TimeUnit.MILLISECONDS
         ).apply {
             setConstraints(constraints)
-            setInitialDelay(JitterDelayProvider(applyJitter = true).randomJitterDelay())
+            setInitialDelay(JitterDelayProvider(applyJitter = APPLY).randomJitterDelay())
         }.build()
 
         WorkManager.getInstance(context)

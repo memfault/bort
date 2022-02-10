@@ -1,3 +1,5 @@
+This patch tracks which version of Memfault patches has been applied, as a system property.
+
 diff --git a/target/product/base_vendor.mk b/target/product/base_vendor.mk
 index 584327c..1b16ab1 100644
 --- a/target/product/base_vendor.mk

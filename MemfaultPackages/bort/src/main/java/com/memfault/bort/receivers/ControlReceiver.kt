@@ -2,19 +2,34 @@ package com.memfault.bort.receivers
 
 import android.content.Context
 import android.content.Intent
+import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.BugReportRequestStatus
 import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.INTENT_ACTION_BORT_ENABLE
 import com.memfault.bort.INTENT_ACTION_BUG_REPORT_REQUESTED
 import com.memfault.bort.INTENT_EXTRA_BORT_ENABLED
+import com.memfault.bort.InjectSet
+import com.memfault.bort.PendingBugReportRequestAccessor
+import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.broadcastReply
-import com.memfault.bort.requester.requestBugReport
+import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.requester.PeriodicWorkRequester
+import com.memfault.bort.requester.StartRealBugReport
+import com.memfault.bort.settings.BortEnabledProvider
+import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.applyReporterServiceSettings
+import com.memfault.bort.settings.reloadCustomEventConfigFrom
 import com.memfault.bort.shared.BugReportRequest
 import com.memfault.bort.shared.INTENT_EXTRA_BUG_REPORT_REQUEST_TIMEOUT_MS
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.getLongOrNull
 import com.memfault.bort.shared.goAsync
+import com.memfault.bort.tokenbucket.BugReportRequestStore
+import com.memfault.bort.tokenbucket.TokenBucketStore
+import com.memfault.bort.uploader.FileUploadHoldingArea
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlin.time.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,8 +39,20 @@ import kotlinx.coroutines.launch
 abstract class BaseControlReceiver : FilteringReceiver(
     setOf(INTENT_ACTION_BORT_ENABLE, INTENT_ACTION_BUG_REPORT_REQUESTED)
 ) {
+    @Inject lateinit var dumpsterClient: DumpsterClient
+    @Inject lateinit var bortEnabledProvider: BortEnabledProvider
+    @Inject lateinit var periodicWorkRequesters: InjectSet<PeriodicWorkRequester>
+    @Inject lateinit var settingsProvider: SettingsProvider
+    @Inject lateinit var pendingBugReportRequestAccessor: PendingBugReportRequestAccessor
+    @Inject lateinit var fileUploadHoldingArea: FileUploadHoldingArea
+    @BugReportRequestStore @Inject lateinit var tokenBucketStore: TokenBucketStore
+    @Inject lateinit var bortSystemCapabilities: BortSystemCapabilities
+    @Inject lateinit var builtInMetricsStore: BuiltinMetricsStore
+    @Inject lateinit var startBugReport: StartRealBugReport
+    @Inject lateinit var reporterServiceConnector: ReporterServiceConnector
+
     private fun allowedByRateLimit(): Boolean =
-        bugReportRequestsTokenBucketStore
+        tokenBucketStore
             .edit { map ->
                 val bucket = map.upsertBucket("control-requested") ?: return@edit false
                 bucket.take(tag = "bugreport_request")
@@ -57,7 +84,7 @@ abstract class BaseControlReceiver : FilteringReceiver(
             INTENT_EXTRA_BUG_REPORT_REQUEST_TIMEOUT_MS
         )?.let(Long::milliseconds) ?: BugReportRequestTimeoutTask.DEFAULT_TIMEOUT
         CoroutineScope(Dispatchers.Default).launch {
-            requestBugReport(
+            startBugReport.requestBugReport(
                 context,
                 pendingBugReportRequestAccessor,
                 request,
@@ -92,6 +119,12 @@ abstract class BaseControlReceiver : FilteringReceiver(
         fileUploadHoldingArea.handleChangeBortEnabled()
 
         goAsync {
+            applyReporterServiceSettings(
+                reporterServiceConnector = reporterServiceConnector,
+                settingsProvider = settingsProvider,
+                bortEnabledProvider = bortEnabledProvider,
+            )
+
             periodicWorkRequesters.forEach {
                 if (isNowEnabled) {
                     it.startPeriodic()
@@ -100,12 +133,13 @@ abstract class BaseControlReceiver : FilteringReceiver(
                 }
             }
 
-            val dumpsterClient = DumpsterClient()
             dumpsterClient.setBortEnabled(isNowEnabled)
             dumpsterClient.setStructuredLogEnabled(
                 isNowEnabled &&
                     settingsProvider.structuredLogSettings.dataSourceEnabled
             )
+            // Pass the new settings to structured logging (after we enable/disable it)
+            reloadCustomEventConfigFrom(settingsProvider.structuredLogSettings)
         }
     }
 
@@ -117,12 +151,16 @@ abstract class BaseControlReceiver : FilteringReceiver(
     }
 }
 
+@AndroidEntryPoint
 @Deprecated("Please target ControlReceiver")
 class RequestBugReportReceiver : BaseControlReceiver()
 
+@AndroidEntryPoint
 @Deprecated("Please target ControlReceiver")
 class BortEnableReceiver : BaseControlReceiver()
 
+@AndroidEntryPoint
 class ShellControlReceiver : BaseControlReceiver()
 
+@AndroidEntryPoint
 class ControlReceiver : BaseControlReceiver()

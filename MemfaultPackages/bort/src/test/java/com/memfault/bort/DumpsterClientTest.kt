@@ -19,7 +19,8 @@ class DumpsterClientTest {
         val client = DumpsterClient(
             serviceProvider = object : DumpsterServiceProvider {
                 override fun get(logIfMissing: Boolean): IDumpster? = null
-            }
+            },
+            basicCommandTimeout = 5000,
         )
         runBlocking {
             assertNull(client.getprop())
@@ -34,7 +35,8 @@ class DumpsterClientTest {
         val client = DumpsterClient(
             serviceProvider = object : DumpsterServiceProvider {
                 override fun get(logIfMissing: Boolean): IDumpster? = service
-            }
+            },
+            basicCommandTimeout = 5000,
         )
         runBlocking {
             assertNull(client.getprop())
@@ -50,7 +52,8 @@ class DumpsterClientTest {
         val client = DumpsterClient(
             serviceProvider = object : DumpsterServiceProvider {
                 override fun get(logIfMissing: Boolean): IDumpster? = service
-            }
+            },
+            basicCommandTimeout = 5000,
         )
         runBlocking {
             assertNull(client.getprop())
@@ -96,7 +99,8 @@ class DumpsterClientTest {
             val client = DumpsterClient(
                 serviceProvider = object : DumpsterServiceProvider {
                     override fun get(logIfMissing: Boolean): IDumpster? = service
-                }
+                },
+                basicCommandTimeout = 5000,
             )
             assertNull(client.getprop())
             verify {
@@ -121,7 +125,8 @@ class DumpsterClientTest {
             val client = DumpsterClient(
                 serviceProvider = object : DumpsterServiceProvider {
                     override fun get(logIfMissing: Boolean): IDumpster? = service
-                }
+                },
+                basicCommandTimeout = 5000,
             )
             assertEquals(client.getprop(), mapOf("Hello" to "World!"))
         }

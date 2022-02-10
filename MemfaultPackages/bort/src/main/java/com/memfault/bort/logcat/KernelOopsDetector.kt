@@ -1,9 +1,13 @@
 package com.memfault.bort.logcat
 
+import androidx.annotation.VisibleForTesting
 import com.memfault.bort.parsers.LogcatLine
 import com.memfault.bort.time.BaseAbsoluteTime
+import com.memfault.bort.tokenbucket.KernelOops
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.takeSimple
+import com.memfault.bort.uploader.HandleEventOfInterest
+import javax.inject.Inject
 
 private const val OOPS_TOKEN_START = "------------[ cut here ]------------"
 
@@ -17,13 +21,11 @@ object NoopLogcatLineProcessor : LogcatLineProcessor {
     override fun finish(lastLogTime: BaseAbsoluteTime) {}
 }
 
-class KernelOopsDetector(
-    private val tokenBucketStore: TokenBucketStore,
-    private val handleEventOfInterest: (time: BaseAbsoluteTime) -> Unit,
-    foundOops: Boolean = false,
+class KernelOopsDetector @Inject constructor(
+    @KernelOops private val tokenBucketStore: TokenBucketStore,
+    private val handleEventOfInterest: HandleEventOfInterest,
 ) : LogcatLineProcessor {
-    var foundOops: Boolean = foundOops
-        private set
+    @VisibleForTesting var foundOops: Boolean = false
 
     /**
      * Called for every logcat line, including separators
@@ -41,6 +43,6 @@ class KernelOopsDetector(
     override fun finish(lastLogTime: BaseAbsoluteTime) {
         if (!foundOops) return
         if (!tokenBucketStore.takeSimple(tag = "oops")) return
-        handleEventOfInterest(lastLogTime)
+        handleEventOfInterest.handleEventOfInterest(lastLogTime)
     }
 }

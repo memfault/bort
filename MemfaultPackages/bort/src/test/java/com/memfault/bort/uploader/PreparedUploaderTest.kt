@@ -10,6 +10,8 @@ import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploadToken
 import com.memfault.bort.LogcatCollectionId
 import com.memfault.bort.LogcatFileUploadPayload
+import com.memfault.bort.Payload.LegacyPayload
+import com.memfault.bort.TemporaryFile
 import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.TombstoneFileUploadMetadata
 import com.memfault.bort.http.PROJECT_KEY_HEADER
@@ -35,6 +37,15 @@ internal class PreparedUploaderTest {
     @get:Rule
     val server = MockWebServer()
 
+    fun fileUploadPayload() = LegacyPayload(
+        BugReportFileUploadPayload(
+            hardwareVersion = "",
+            deviceSerial = "",
+            softwareVersion = "",
+            softwareType = "",
+        )
+    )
+
     @Test
     fun prepareProvidesUrlAndToken() {
         server.enqueue(
@@ -42,7 +53,9 @@ internal class PreparedUploaderTest {
                 .setBody(UPLOAD_RESPONSE)
         )
         val result = runBlocking {
-            createUploader(server).prepare()
+            TemporaryFile().useFile { file, _ ->
+                createUploader(server).prepare(file, fileUploadPayload().kind())
+            }
         }
         assertEquals(SECRET_KEY, server.takeRequest().getHeader(PROJECT_KEY_HEADER))
         assertEquals(UPLOAD_URL, result.body()!!.data.upload_url)
@@ -90,14 +103,15 @@ internal class PreparedUploaderTest {
     fun commitBugReport() {
         server.enqueue(MockResponse())
         runBlocking {
-            createUploader(server).commit("someToken", BugReportFileUploadPayload())
+            createUploader(server).commit("someToken", fileUploadPayload())
         }
         val recordedRequest = server.takeRequest(5, TimeUnit.MILLISECONDS)
         checkNotNull(recordedRequest)
         assertEquals("application/json; charset=utf-8", recordedRequest.getHeader("Content-Type"))
         assertEquals(SECRET_KEY, recordedRequest.getHeader(PROJECT_KEY_HEADER))
         assertEquals(
-            """{"file":{"token":"someToken"},"processing_options":{"process_anrs":true,""" +
+            """{"file":{"token":"someToken"},"hardware_version":"","device_serial":"","software_version":"",""" +
+                """"software_type":"","processing_options":{"process_anrs":true,""" +
                 """"process_java_exceptions":true,"process_last_kmsg":true,"process_recovery_kmsg":true,""" +
                 """"process_tombstones":true},"request_id":null}""",
             recordedRequest.body.readUtf8()
@@ -112,27 +126,29 @@ internal class PreparedUploaderTest {
             val deviceInfo = FakeDeviceInfoProvider().getDeviceInfo()
             createUploader(server).commit(
                 "someToken",
-                DropBoxEntryFileUploadPayload(
-                    hardwareVersion = deviceInfo.hardwareVersion,
-                    softwareVersion = deviceInfo.softwareVersion,
-                    deviceSerial = deviceInfo.deviceSerial,
-                    metadata = TombstoneFileUploadMetadata(
-                        tag = "SYSTEM_TOMBSTONE",
-                        fileTime = 1234.toLong().toAbsoluteTime(),
-                        entryTime = 4321.toLong().toAbsoluteTime(),
-                        packages = listOf(
-                            FileUploadPayload.Package(
-                                id = "com.app",
-                                versionName = "1.0.0",
-                                versionCode = 1,
-                                userId = 1001,
-                                codePath = "/data/app/apk"
-                            )
+                LegacyPayload(
+                    DropBoxEntryFileUploadPayload(
+                        hardwareVersion = deviceInfo.hardwareVersion,
+                        softwareVersion = deviceInfo.softwareVersion,
+                        deviceSerial = deviceInfo.deviceSerial,
+                        metadata = TombstoneFileUploadMetadata(
+                            tag = "SYSTEM_TOMBSTONE",
+                            fileTime = 1234.toLong().toAbsoluteTime(),
+                            entryTime = 4321.toLong().toAbsoluteTime(),
+                            packages = listOf(
+                                FileUploadPayload.Package(
+                                    id = "com.app",
+                                    versionName = "1.0.0",
+                                    versionCode = 1,
+                                    userId = 1001,
+                                    codePath = "/data/app/apk"
+                                )
+                            ),
+                            collectionTime = FakeBootRelativeTimeProvider.now(),
+                            timezone = TimezoneWithId("UTC"),
                         ),
-                        collectionTime = FakeBootRelativeTimeProvider.now(),
-                        timezone = TimezoneWithId("UTC"),
-                    ),
-                    cidReference = generateLogcatCollectionIds().first(),
+                        cidReference = generateLogcatCollectionIds().first(),
+                    )
                 )
             )
         }
@@ -165,19 +181,21 @@ internal class PreparedUploaderTest {
             val deviceInfo = FakeDeviceInfoProvider().getDeviceInfo()
             createUploader(server).commit(
                 "someToken",
-                DropBoxEntryFileUploadPayload(
-                    hardwareVersion = deviceInfo.hardwareVersion,
-                    softwareVersion = deviceInfo.softwareVersion,
-                    deviceSerial = deviceInfo.deviceSerial,
-                    metadata =
-                        AnrFileUploadMetadata(
-                            tag = "data_app_anr",
-                            fileTime = 1234.toLong().toAbsoluteTime(),
-                            entryTime = 4321.toLong().toAbsoluteTime(),
-                            collectionTime = FakeBootRelativeTimeProvider.now(),
-                            timezone = TimezoneWithId("Europe/Amsterdam"),
-                        ),
-                    cidReference = generateLogcatCollectionIds().first(),
+                LegacyPayload(
+                    DropBoxEntryFileUploadPayload(
+                        hardwareVersion = deviceInfo.hardwareVersion,
+                        softwareVersion = deviceInfo.softwareVersion,
+                        deviceSerial = deviceInfo.deviceSerial,
+                        metadata =
+                            AnrFileUploadMetadata(
+                                tag = "data_app_anr",
+                                fileTime = 1234.toLong().toAbsoluteTime(),
+                                entryTime = 4321.toLong().toAbsoluteTime(),
+                                collectionTime = FakeBootRelativeTimeProvider.now(),
+                                timezone = TimezoneWithId("Europe/Amsterdam"),
+                            ),
+                        cidReference = generateLogcatCollectionIds().first(),
+                    )
                 )
             )
         }
@@ -209,15 +227,17 @@ internal class PreparedUploaderTest {
             val deviceInfo = FakeDeviceInfoProvider().getDeviceInfo()
             createUploader(server).commit(
                 "someToken",
-                LogcatFileUploadPayload(
-                    hardwareVersion = deviceInfo.hardwareVersion,
-                    softwareVersion = deviceInfo.softwareVersion,
-                    deviceSerial = deviceInfo.deviceSerial,
-                    collectionTime = FakeCombinedTimeProvider.now(),
-                    file = FileUploadToken("", "aa", "logcat.txt"),
-                    command = listOf("logcat", "-d"),
-                    cid = LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000001")),
-                    nextCid = LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000002")),
+                LegacyPayload(
+                    LogcatFileUploadPayload(
+                        hardwareVersion = deviceInfo.hardwareVersion,
+                        softwareVersion = deviceInfo.softwareVersion,
+                        deviceSerial = deviceInfo.deviceSerial,
+                        collectionTime = FakeCombinedTimeProvider.now(),
+                        file = FileUploadToken("", "aa", "logcat.txt"),
+                        command = listOf("logcat", "-d"),
+                        cid = LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000001")),
+                        nextCid = LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000002")),
+                    )
                 )
             )
         }

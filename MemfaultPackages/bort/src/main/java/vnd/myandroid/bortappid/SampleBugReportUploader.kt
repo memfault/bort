@@ -2,6 +2,7 @@ package vnd.myandroid.bortappid // Update to match your package
 
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploader
+import com.memfault.bort.Payload
 import com.memfault.bort.TaskResult
 import com.memfault.bort.shared.Logger
 import java.io.File
@@ -25,10 +26,10 @@ interface SampleUploadService {
     suspend fun upload(@Part file: RequestBody, @Part metadata: RequestBody): Response<Unit>
 }
 
-fun FileUploadPayload.asRequestBody() =
+fun Payload.asRequestBody() =
     Json.encodeToString(
         FileUploadPayload.serializer(),
-        this
+        (this as Payload.LegacyPayload).payload
     ).toRequestBody("application/json".toMediaType())
 
 class SampleBugReportUploader(
@@ -36,7 +37,7 @@ class SampleBugReportUploader(
     private val apiKey: String
 ) : FileUploader {
 
-    override suspend fun upload(file: File, payload: FileUploadPayload, shouldCompress: Boolean): TaskResult {
+    override suspend fun upload(file: File, payload: Payload, shouldCompress: Boolean): TaskResult {
         val customRetrofit = retrofit.newBuilder()
             .baseUrl(BASE_URL)
             .build()
