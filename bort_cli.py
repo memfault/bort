@@ -13,6 +13,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from typing import Any, Iterable, List, Optional, Tuple
 
 LOG_FILE = "validate-sdk-integration.log"
@@ -36,7 +37,11 @@ MEMFAULT_DUMPSTATE_RUNNER_PATH = "/system/bin/MemfaultDumpstateRunner"
 MEMFAULT_INIT_RC_PATH = "/etc/init/memfault_init.rc"
 MEMFAULT_DUMPSTER_PATH = "/system/bin/MemfaultDumpster"
 MEMFAULT_DUMPSTER_RC_PATH = "/etc/init/memfault_dumpster.rc"
+MEMFAULT_STRUCTURED_RC_PATH = "/etc/init/memfault_structured_logd.rc"
+MEMFAULT_STRUCTURED_DATA_PATH = "/data/system/MemfaultStructuredLogd/"
+MEMFAULT_STRUCTURED_EXEC_PATH = "/system/bin/MemfaultStructuredLogd"
 BORT_APK_PATH = r"package:/system/priv-app/MemfaultBort/MemfaultBort.apk"
+VENDOR_CIL_PATH = "/vendor/etc/selinux/vendor_sepolicy.cil"
 LOG_ENTRY_SEPARATOR = "============================================================"
 
 
@@ -614,7 +619,30 @@ class ValidateConnectedDevice(Command):
     def _query_build_type(self) -> Optional[str]:
         return self._getprop("ro.build.type")
 
-    def _run_checks_requiring_root(self):
+    def _check_vendor_sepolicy_cil(self):
+        with tempfile.NamedTemporaryFile() as vendor_cil:
+            _, errors = _get_shell_cmd_output_and_errors(
+                description="Verifying selinux access rules",
+                cmd=_create_adb_command(
+                    ("pull", VENDOR_CIL_PATH, vendor_cil.name), device=self._device
+                ),
+            )
+            if not errors:
+                with open(vendor_cil.name, "r") as cil:
+                    rules = cil.read()
+                    if not re.search(
+                        r"allow .*_app_.* memfault_dumpster_service \(service_manager \(find\)\)",
+                        rules,
+                    ):
+                        errors.extend(
+                            [
+                                "Expected a selinux rule (allow priv_app memfault_dumpster_service:service_manager find), please recheck integration"
+                            ]
+                        )
+
+            return errors
+
+    def _run_checks_requiring_root(self, sdk_version: int):
         _run_shell_cmd_and_expect(
             description="Restarting ADB with root permissions",
             cmd=_create_adb_command(("root",), device=self._device),
@@ -676,6 +704,44 @@ class ValidateConnectedDevice(Command):
                 device=self._device,
             )
         )
+
+        self._errors.extend(
+            _check_file_ownership_and_secontext(
+                path=MEMFAULT_STRUCTURED_RC_PATH,
+                mode="-rw-r--r--",
+                owner="root",
+                group="root",
+                secontext="u:object_r:system_file:s0",
+                device=self._device,
+            )
+        )
+
+        self._errors.extend(
+            _check_file_ownership_and_secontext(
+                path=MEMFAULT_STRUCTURED_EXEC_PATH,
+                mode="-rwxr-xr-x",
+                owner="root",
+                group="shell",
+                secontext="u:object_r:memfault_structured_exec:s0",
+                directory=True,
+                device=self._device,
+            )
+        )
+
+        self._errors.extend(
+            _check_file_ownership_and_secontext(
+                path=MEMFAULT_STRUCTURED_DATA_PATH,
+                mode="drwx------",
+                owner="system",
+                group="system",
+                secontext="u:object_r:memfault_structured_data_file:s0",
+                directory=True,
+                device=self._device,
+            )
+        )
+
+        if sdk_version >= 28:
+            self._errors.extend(self._check_vendor_sepolicy_cil())
 
     def _check_bort_permissions(self, bort_package_info: Optional[str], sdk_version: int):
         for permission, min_sdk_version in (
@@ -745,17 +811,17 @@ class ValidateConnectedDevice(Command):
             _log_errors(errors)
             sys.exit("Failure: device not found. No tests run.")
 
+        sdk_version = self._query_sdk_version()
+        if not sdk_version:
+            sys.exit("Failure: could not get SDK version.")
+
         build_type = self._query_build_type()
         if build_type == "user":
             logging.info(
                 "'%s' build detected. Skipping validation checks that require adb root!", build_type
             )
         else:
-            self._run_checks_requiring_root()
-
-        sdk_version = self._query_sdk_version()
-        if not sdk_version:
-            sys.exit("Failure: could not get SDK version.")
+            self._run_checks_requiring_root(sdk_version)
 
         self._errors.extend(
             _run_adb_shell_cmd_and_expect(

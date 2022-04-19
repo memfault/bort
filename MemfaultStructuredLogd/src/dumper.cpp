@@ -10,6 +10,7 @@ namespace structured {
 
 void Dumper::run() {
     while (!terminated) {
+        const bool skipLatest = dumpOldEntriesOnBoot;
 
         if (dumpImmediately) dumpImmediately = false;
         else if (dumpOldEntriesOnBoot) {
@@ -17,6 +18,7 @@ void Dumper::run() {
                 ALOGV("Not yet ready for dumping, waiting");
                 std::this_thread::sleep_for(std::chrono::seconds(5));
             }
+            dumpOldEntriesOnBoot = false;
         } else {
             std::unique_lock<std::mutex> lock(dumpMutex);
             auto start = std::chrono::steady_clock::now();
@@ -46,7 +48,6 @@ void Dumper::run() {
             ALOGE("Dumping of structured logs aborted because available storage is lower than the configured threshold");
             continue;
         }
-        const bool skipLatest = dumpOldEntriesOnBoot;
         backend->dump(skipLatest, [&](BootIdDumpView &dumpView) {
             auto cids = dumpView.getCidPair();
             int eventCount = 0;
@@ -63,7 +64,6 @@ void Dumper::run() {
             }
             unlink(dumpFile.c_str());
         });
-        dumpOldEntriesOnBoot = false;
     }
 }
 

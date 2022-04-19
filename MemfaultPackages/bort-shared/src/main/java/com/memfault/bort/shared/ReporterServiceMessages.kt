@@ -7,12 +7,29 @@ import android.os.ParcelFileDescriptor
 import kotlin.time.Duration
 import kotlin.time.DurationUnit.MILLISECONDS
 import kotlin.time.toDuration
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 
 class UnknownMessageException(message: String) : Exception(message)
 class ErrorResponseException(message: String) : Exception(message)
 class UnexpectedResponseException(message: String) : Exception(message)
 
-val REPORTER_SERVICE_VERSION: Int = 6
+const val MINIMUM_VALID_VERSION = 3
+const val MINIMUM_VALID_VERSION_LOG_LEVEL = 4
+const val MINIMUM_VALID_VERSION_SERVER_FILE_UPLOAD = 5
+
+/**
+ * - Added SetMetricCollectionIntervalRequest
+ */
+const val MINIMUM_VALID_VERSION_METRIC_COLLECTION = 6
+
+/**
+ * - Added DROPBOX_TAG to ServerSendFileRequest
+ * - Added SetReporterSettingsRequest
+ */
+const val MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS = 7
+
+val REPORTER_SERVICE_VERSION: Int = MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS
 
 // Generic responses:
 val ERROR_RSP = -1
@@ -47,6 +64,10 @@ val SEND_FILE_TO_SERVER_RSP: Int = 701
 // Log level messages
 val METRIC_COLLLECTION_INTERVAL_REQ: Int = 801
 val METRIC_COLLLECTION_INTERVAL_RSP: Int = 802
+
+// Log level messages
+val REPORTER_SETTINGS_REQ: Int = 901
+val REPORTER_SETTINGS_RSP: Int = 902
 
 abstract class ReporterServiceMessage : ServiceMessage {
     abstract val messageId: Int
@@ -85,6 +106,9 @@ abstract class ReporterServiceMessage : ServiceMessage {
 
                 METRIC_COLLLECTION_INTERVAL_REQ -> SetMetricCollectionIntervalRequest.fromBundle(message.data)
                 METRIC_COLLLECTION_INTERVAL_RSP -> SetMetricCollectionIntervalResponse
+
+                REPORTER_SETTINGS_REQ -> SetReporterSettingsRequest.fromBundle(message.data)
+                REPORTER_SETTINGS_RSP -> SetReporterSettingsResponse
 
                 ERROR_RSP -> ErrorResponse.fromBundle(message.data)
                 else -> throw UnknownMessageException("Unknown ReporterServiceMessage ID: ${message.what}")
@@ -233,9 +257,10 @@ fun Bundle.getCommandRunnerCommand() =
 
 data class BatteryStatsRequest(
     override val command: BatteryStatsCommand,
-    override val runnerOptions: CommandRunnerOptions
+    override val runnerOptions: CommandRunnerOptions,
 ) : RunCommandRequest<BatteryStatsCommand>() {
     override val messageId: Int = RUN_COMMAND_BATTERYSTATS_REQ
+
     companion object {
         fun fromBundle(bundle: Bundle) = BatteryStatsRequest(
             bundle.getCommandRunnerCommand()?.let { BatteryStatsCommand.fromBundle(it) } ?: BatteryStatsCommand(),
@@ -246,9 +271,10 @@ data class BatteryStatsRequest(
 
 data class LogcatRequest(
     override val command: LogcatCommand,
-    override val runnerOptions: CommandRunnerOptions
+    override val runnerOptions: CommandRunnerOptions,
 ) : RunCommandRequest<LogcatCommand>() {
     override val messageId: Int = RUN_COMMAND_LOGCAT_REQ
+
     companion object {
         fun fromBundle(bundle: Bundle) = LogcatRequest(
             bundle.getCommandRunnerCommand()?.let { LogcatCommand.fromBundle(it) } ?: LogcatCommand(),
@@ -259,9 +285,10 @@ data class LogcatRequest(
 
 data class SleepRequest(
     override val command: SleepCommand,
-    override val runnerOptions: CommandRunnerOptions
+    override val runnerOptions: CommandRunnerOptions,
 ) : RunCommandRequest<SleepCommand>() {
     override val messageId: Int = RUN_COMMAND_SLEEP_REQ
+
     companion object {
         fun fromBundle(bundle: Bundle) = SleepRequest(
             bundle.getCommandRunnerCommand()?.let { SleepCommand.fromBundle(it) } ?: SleepCommand(0),
@@ -272,9 +299,10 @@ data class SleepRequest(
 
 data class PackageManagerRequest(
     override val command: PackageManagerCommand,
-    override val runnerOptions: CommandRunnerOptions
+    override val runnerOptions: CommandRunnerOptions,
 ) : RunCommandRequest<PackageManagerCommand>() {
     override val messageId: Int = RUN_COMMAND_PACKAGE_MANAGER_REQ
+
     companion object {
         fun fromBundle(bundle: Bundle) = PackageManagerRequest(
             bundle.getCommandRunnerCommand()?.let { PackageManagerCommand.fromBundle(it) } ?: PackageManagerCommand(),
@@ -299,23 +327,23 @@ data class ErrorResponse(val error: String?) : ReporterServiceMessage() {
 }
 
 private const val FILE_DESCRIPTOR = "FILE_DESCRIPTOR"
-private const val FILE_NAME = "FILE_NAME"
+private const val DROPBOX_TAG = "FILE_NAME"
 
 data class ServerSendFileRequest(
-    val filename: String,
+    val dropboxTag: String,
     val descriptor: ParcelFileDescriptor,
 ) : ReporterServiceMessage() {
     override val messageId: Int = SEND_FILE_TO_SERVER_REQ
     override fun toBundle(): Bundle = Bundle().apply {
-        putString(FILE_NAME, filename)
+        putString(DROPBOX_TAG, dropboxTag)
         putParcelable(FILE_DESCRIPTOR, descriptor)
     }
 
     companion object {
         fun fromBundle(bundle: Bundle) =
             ServerSendFileRequest(
-                bundle.getString(FILE_NAME)
-                    ?: throw IllegalArgumentException("ServerSendFileRequest: missing $FILE_NAME"),
+                bundle.getString(DROPBOX_TAG)
+                    ?: throw IllegalArgumentException("ServerSendFileRequest: missing $DROPBOX_TAG"),
                 bundle.getParcelable(FILE_DESCRIPTOR)
                     ?: throw IllegalArgumentException("ServerSendFileRequest: missing $FILE_DESCRIPTOR")
             )
@@ -340,3 +368,34 @@ data class SetMetricCollectionIntervalRequest(val interval: Duration) : Reporter
 }
 
 object SetMetricCollectionIntervalResponse : SimpleReporterServiceMessage(METRIC_COLLLECTION_INTERVAL_RSP)
+
+/**
+ * A holder for any UsageReporter settings which Bort needs to configure dynamically.
+ *
+ * New settings can be added to this class without updating the interface version - as long as they contain a default
+ * value. This will avoid churn as we make UsageReporter's behaviour more configurable.
+ */
+@Serializable
+data class SetReporterSettingsRequest(
+    val maxFileTransferStorageBytes: Long = 50_000_000,
+) : ReporterServiceMessage() {
+    override val messageId: Int = REPORTER_SETTINGS_REQ
+    override fun toBundle(): Bundle = Bundle().apply {
+        putString(JSON, toJson())
+    }
+
+    fun toJson() = BortSharedJson.encodeToString(serializer(), this)
+
+    companion object {
+        private const val JSON = "JSON"
+
+        fun fromBundle(bundle: Bundle) = fromJson(bundle.getString(JSON)!!)!!
+        fun fromJson(json: String) = try {
+            BortSharedJson.decodeFromString(serializer(), json)
+        } catch (e: SerializationException) {
+            null
+        }
+    }
+}
+
+object SetReporterSettingsResponse : SimpleReporterServiceMessage(REPORTER_SETTINGS_RSP)

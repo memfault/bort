@@ -2,7 +2,6 @@ package com.memfault.bort.settings
 
 import androidx.work.Constraints
 import com.memfault.bort.AndroidAppIdScrubbingRule
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -90,11 +89,4 @@ abstract class SettingsModule {
         @Provides
         fun httpApiSettings(settingsProvider: SettingsProvider) = settingsProvider.httpApiSettings
     }
-
-    // Note: we can't use Anvil to bind these, because it cannot bind an implementation to 2 separate interfaces.
-    @Binds
-    abstract fun readonlyFetchedSettings(real: RealStoredSettingsPreferenceProvider): ReadonlyFetchedSettingsProvider
-
-    @Binds
-    abstract fun storedSettings(real: RealStoredSettingsPreferenceProvider): StoredSettingsPreferenceProvider
 }

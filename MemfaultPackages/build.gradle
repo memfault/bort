@@ -36,13 +36,12 @@ buildscript {
                     'room'                             : '2.4.0',
             ],
             'android'   : [
-                    'androidGradlePlugin'              : '7.0.4',
+                    'androidGradlePlugin'              : '7.1.2',
                     'material'                         : '1.4.0',
             ],
             'dagger'   : [
-                    // Anvil requires the 1-6-0 suffixed version to support kotlin 1.6.0.
-                    'anvil'                            : '2.3.10-1-6-0',
-                    'hilt'                             : '2.40.5',
+                    'anvil'                            : '2.4.0',
+                    'hilt'                             : '2.41',
             ],
             'kotlin'   : [
                     'kotlin'                           : '1.6.10',

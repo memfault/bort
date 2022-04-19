@@ -371,6 +371,7 @@ Sqlite3StorageBackend::collectMetricsLocked(uint8_t version, const std::string &
             std::string lastState;
             bool isInitialStateSwitch = true;
 
+            _metricSelectAllStmt.reset();
             _metricSelectAllStmt << eventName << type >> [&](uint64_t timestamp, const std::string &value) {
                 uint64_t timeDifference = timestamp - currentTime;
 

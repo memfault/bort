@@ -165,8 +165,8 @@ class BuiltinMetricsStore @Inject constructor(
      *
      * @param synchronous should be written to persistent storage immediately?
      */
-    fun increment(name: String, synchronous: Boolean = false) {
-        registry.reduce(name, synchronous) { old -> (old ?: 0.0f) + 1 }
+    fun increment(name: String, synchronous: Boolean = false, incrementBy: Int = 1) {
+        registry.reduce(name, synchronous) { old -> (old ?: 0.0f) + incrementBy }
     }
 
     /**

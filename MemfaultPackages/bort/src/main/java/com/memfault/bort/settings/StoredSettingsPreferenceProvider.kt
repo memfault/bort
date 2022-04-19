@@ -5,6 +5,8 @@ import android.util.Log
 import com.memfault.bort.BortJson
 import com.memfault.bort.PREFERENCE_FETCHED_SDK_SETTINGS
 import com.memfault.bort.shared.PreferenceKeyProvider
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
 import kotlinx.serialization.SerializationException
 
@@ -21,6 +23,8 @@ interface StoredSettingsPreferenceProvider : ReadonlyFetchedSettingsProvider {
 
 fun interface BundledConfig : () -> String
 
+@ContributesBinding(SingletonComponent::class, boundType = ReadonlyFetchedSettingsProvider::class)
+@ContributesBinding(SingletonComponent::class, boundType = StoredSettingsPreferenceProvider::class)
 class RealStoredSettingsPreferenceProvider @Inject constructor(
     sharedPreferences: SharedPreferences,
     private val getBundledConfig: BundledConfig,
@@ -43,15 +47,15 @@ class RealStoredSettingsPreferenceProvider @Inject constructor(
     }
 
     override fun set(settings: FetchedSettings) {
-        super.setValue(
-            BortJson.encodeToString(
-                FetchedSettings.FetchedSettingsContainer.serializer(),
-                FetchedSettings.FetchedSettingsContainer(settings)
-            )
-        )
+        super.setValue(settings.toJson())
     }
 
     override fun reset() {
         set(FetchedSettings.from(getBundledConfig()) { BortJson })
     }
 }
+
+fun FetchedSettings.toJson() = BortJson.encodeToString(
+    FetchedSettings.FetchedSettingsContainer.serializer(),
+    FetchedSettings.FetchedSettingsContainer(this)
+)

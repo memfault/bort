@@ -5,16 +5,17 @@ import android.os.DropBoxManager
 import android.os.ParcelFileDescriptor
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.shared.BuildConfig
-import com.memfault.bort.shared.CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG
 import com.memfault.bort.shared.ClientServerMode
 import com.memfault.bort.shared.ClientServerMode.DISABLED
 import com.memfault.bort.shared.Logger
+import com.memfault.usagereporter.ReporterSettings
 import com.memfault.usagereporter.clientserver.BortMessage.Companion.readMessages
 import com.memfault.usagereporter.clientserver.BortMessage.SendFileMessage
 import com.memfault.usagereporter.clientserver.RealB2BClientServer.Companion.start
 import com.memfault.usagereporter.getDropBoxManager
 import java.io.File
 import java.nio.channels.AsynchronousSocketChannel
+import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.seconds
 import kotlinx.coroutines.CoroutineScope
@@ -36,20 +37,22 @@ import kotlinx.coroutines.selects.whileSelect
  * Host/port are configured in bort.properties.
  */
 interface B2BClientServer {
-    fun enqueueFile(filename: String, descriptor: ParcelFileDescriptor)
+    fun enqueueFile(dropboxTag: String, descriptor: ParcelFileDescriptor)
 
     companion object {
-        fun create(clientServerMode: ClientServerMode, context: Context) = when (clientServerMode) {
-            DISABLED -> NoOpB2BClientServer
-            else -> RealB2BClientServer(
-                clientServerMode = clientServerMode,
-                getDropBoxManager = context::getDropBoxManager,
-                uploadsDir = File(context.filesDir, "client-server-uploads"),
-                cacheDir = context.cacheDir,
-                port = BuildConfig.CLIENT_SERVER_PORT,
-                host = BuildConfig.CLIENT_SERVER_HOST,
-            ).also { it.start() }
-        }
+        fun create(clientServerMode: ClientServerMode, context: Context, reporterSettings: ReporterSettings) =
+            when (clientServerMode) {
+                DISABLED -> NoOpB2BClientServer
+                else -> RealB2BClientServer(
+                    clientServerMode = clientServerMode,
+                    getDropBoxManager = context::getDropBoxManager,
+                    uploadsDir = File(context.filesDir, "client-server-uploads"),
+                    cacheDir = context.cacheDir,
+                    port = BuildConfig.CLIENT_SERVER_PORT,
+                    host = BuildConfig.CLIENT_SERVER_HOST,
+                    reporterSettings = reporterSettings,
+                ).also { it.start() }
+            }
     }
 }
 
@@ -61,8 +64,9 @@ class RealB2BClientServer(
     private val host: String,
     private val port: Int,
     private val retryDelay: Duration = 15.seconds,
+    reporterSettings: ReporterSettings,
 ) : B2BClientServer {
-    val uploadsQueue = RealSendfileQueue(uploadsDir)
+    val uploadsQueue = RealSendfileQueue(uploadsDir, reporterSettings)
     val clientOrServer = create(clientServerMode)
 
     // Only used in E2E tests, where files are looped back using localhost.
@@ -80,8 +84,8 @@ class RealB2BClientServer(
     /**
      * Write the file descriptor to disk, and enqueue for upload to remote Bort instance.
      */
-    override fun enqueueFile(filename: String, descriptor: ParcelFileDescriptor) {
-        val file = createFile(filename)
+    override fun enqueueFile(dropboxTag: String, descriptor: ParcelFileDescriptor) {
+        val file = createFile(dropboxTag)
         ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { input ->
             file.outputStream().use { output ->
                 input.copyTo(output)
@@ -90,7 +94,7 @@ class RealB2BClientServer(
         }
     }
 
-    private fun createFile(filename: String) = File(uploadsDir, filename).apply {
+    private fun createFile(dropboxTag: String) = File(uploadsDir, "${UUID.randomUUID()}.$dropboxTag").apply {
         uploadsDir.mkdirs()
         deleteSilently()
     }
@@ -112,7 +116,7 @@ class RealB2BClientServer(
     }
 
     // Just for test env, where we run both on same device.
-    private fun localTestServer(clientServerMode: ClientServerMode): ServerConnector? =
+    private fun localTestServer(clientServerMode: ClientServerMode): Connector? =
         if (clientServerMode == ClientServerMode.CLIENT && host == LOCALHOST) {
             ServerConnector(
                 port = port,
@@ -122,7 +126,18 @@ class RealB2BClientServer(
                     getDropBoxManager, cacheDir
                 ),
                 retryDelay = retryDelay,
-            ).also { Logger.i("Using test client+server mode") }
+            ).also { Logger.i("Using test client+server mode: client") }
+        } else if (clientServerMode == ClientServerMode.SERVER && host == LOCALHOST) {
+            ClientConnector(
+                host = host,
+                port = port,
+                connectionHandler = ConnectionHandler(
+                    // No-Op Files = not sending files
+                    NoOpSendfileQueue,
+                    getDropBoxManager, cacheDir
+                ),
+                retryDelay = retryDelay,
+            ).also { Logger.i("Using test client+server mode: server") }
         } else null
 
     companion object {
@@ -133,7 +148,7 @@ class RealB2BClientServer(
 }
 
 object NoOpB2BClientServer : B2BClientServer {
-    override fun enqueueFile(filename: String, descriptor: ParcelFileDescriptor) {
+    override fun enqueueFile(dropboxTag: String, descriptor: ParcelFileDescriptor) {
         Logger.w("Received file to forward, but not configured to forward files!")
     }
 }
@@ -157,7 +172,7 @@ class ConnectionHandler(
         whileSelect {
             filesChannel.onReceive { file ->
                 file?.let {
-                    channel.writeMessage(SendFileMessage(file))
+                    channel.writeMessage(SendFileMessage(file, dropboxTag = file.extension))
                     file.deleteSilently()
                     files.pushOldestFile()
                 }
@@ -166,7 +181,7 @@ class ConnectionHandler(
             incomingMessages.onReceive { message ->
                 when (message) {
                     is SendFileMessage -> {
-                        getDropBoxManager()?.addFile(CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG, message.file, 0)
+                        getDropBoxManager()?.addFile(message.dropboxTag, message.file, 0)
                         message.file.deleteSilently()
                     }
                 }

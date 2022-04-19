@@ -8,15 +8,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Sends a file (via UsageReporter) to a Bort instance running on another device, for upload.
+ * Sends a file (via UsageReporter) to a Bort instance running on another device.
  */
-class ServerFileSender @Inject constructor(
+class LinkedDeviceFileSender @Inject constructor(
     private val reporterServiceConnector: ReporterServiceConnector,
 ) {
-    suspend fun sendFileToBortServer(file: File) = withContext(Dispatchers.IO) {
-        Logger.test("sendFileToBortServer: $file")
+    suspend fun sendFileToLinkedDevice(file: File, dropboxTag: String) = withContext(Dispatchers.IO) {
+        Logger.test("sendFileToLinkedDevice: $file")
         reporterServiceConnector.connect { getConnection ->
-            getConnection().uploadFileToServer(file)
+            getConnection().sendFileToLinkedDevice(file, dropboxTag)
         }
     }
 }

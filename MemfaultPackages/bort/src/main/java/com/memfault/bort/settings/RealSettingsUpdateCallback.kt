@@ -13,6 +13,7 @@ import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.INTENT_ACTION_OTA_SETTINGS_CHANGED
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.OTA_RECEIVER_CLASS
+import com.memfault.bort.shared.SetReporterSettingsRequest
 import com.memfault.bort.time.boxed
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.ZERO
@@ -78,6 +79,14 @@ suspend fun applyReporterServiceSettings(
             } else ZERO
             connection.setMetricsCollectionInterval(metricCollectionPeriod).onFailure {
                 Logger.w("could not send metric collection interval to reporter service", it)
+            }
+            connection.setReporterSettings(
+                SetReporterSettingsRequest(
+                    maxFileTransferStorageBytes =
+                        settingsProvider.storageSettings.maxClientServerFileTransferStorageBytes,
+                )
+            ).onFailure {
+                Logger.w("could not send settings to reporter service", it)
             }
         }
     } catch (e: RemoteException) {

@@ -134,6 +134,10 @@ interface OtaSettings {
     val updateCheckInterval: Duration
 }
 
+interface StorageSettings {
+    val maxClientServerFileTransferStorageBytes: Long
+}
+
 interface SettingsProvider {
     val minLogcatLevel: LogLevel
     val minStructuredLogLevel: LogLevel
@@ -156,6 +160,7 @@ interface SettingsProvider {
     val packageManagerSettings: PackageManagerSettings
     val structuredLogSettings: StructuredLogSettings
     val otaSettings: OtaSettings
+    val storageSettings: StorageSettings
 
     fun invalidate()
 }

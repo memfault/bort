@@ -60,15 +60,18 @@ class UsageReporter : Application() {
 
         // This is created in the application, rather than the service, so that it keeps running when the service
         // unbinds.
-        _b2bClientServer = create(clientServerMode, this)
+        _reporterSettings = ReporterSettingsPreferenceProvider(PreferenceManager.getDefaultSharedPreferences(this))
+        _b2bClientServer = create(clientServerMode, this, _reporterSettings)
         _reporterMetrics = ReporterMetrics.create(this)
     }
 
     companion object {
         private lateinit var _b2bClientServer: B2BClientServer
         private lateinit var _reporterMetrics: ReporterMetrics
+        private lateinit var _reporterSettings: ReporterSettingsPreferenceProvider
 
         val b2bClientServer get() = _b2bClientServer
         val reporterMetrics get() = _reporterMetrics
+        val reporterSettings get() = _reporterSettings
     }
 }

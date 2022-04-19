@@ -2,12 +2,13 @@ package com.memfault.bort.uploader
 
 import android.content.Context
 import com.memfault.bort.BugReportFileUploadPayload
-import com.memfault.bort.DumpsterClient
 import com.memfault.bort.FakeCombinedTimeProvider
+import com.memfault.bort.clientserver.CachedClientServerMode
+import com.memfault.bort.clientserver.LinkedDeviceFileSender
 import com.memfault.bort.clientserver.MarFileHoldingArea
 import com.memfault.bort.clientserver.MarFileWriter
-import com.memfault.bort.clientserver.ServerFileSender
 import com.memfault.bort.ingress.IngressService
+import com.memfault.bort.shared.CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG
 import com.memfault.bort.shared.ClientServerMode
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -19,13 +20,9 @@ import org.junit.jupiter.api.Test
 import retrofit2.Call
 
 internal class EnqueueUploadTest {
-    private var clientServerMode: String? = null
-    private val dumpsterClient = mockk<DumpsterClient> {
-        coEvery { getprop() } answers {
-            clientServerMode?.let { mapOf(ClientServerMode.SYSTEM_PROP to it) } ?: emptyMap()
-        }
-    }
-    private val serverFileSender = mockk<ServerFileSender>(relaxed = true)
+    private var clientServerMode: ClientServerMode = ClientServerMode.DISABLED
+    private val cachedClientServerMode = CachedClientServerMode { clientServerMode }
+    private val linkedDeviceFileSender = mockk<LinkedDeviceFileSender>(relaxed = true)
     private val marFile = File("fakepath")
     private val testFile = File("fakemarpath")
     private val marFileWriter = mockk<MarFileWriter> {
@@ -41,10 +38,10 @@ internal class EnqueueUploadTest {
     private val marHoldingArea: MarFileHoldingArea = mockk(relaxed = true)
     private val enqueueUpload = EnqueueUpload(
         context = context,
-        serverFileSender = serverFileSender,
+        linkedDeviceFileSender = linkedDeviceFileSender,
         marFileWriter = marFileWriter,
         ingressService = ingressService,
-        dumpsterClient = dumpsterClient,
+        cachedClientServerMode = cachedClientServerMode,
         enqueuePreparedUploadTask = enqueuePreparedUploadTask,
         useMarUpload = { useMarUpload },
         marHoldingArea = marHoldingArea,
@@ -61,7 +58,7 @@ internal class EnqueueUploadTest {
 
     @Test
     fun enqueueMarFileClientServerUpload_marTrue() {
-        clientServerMode = "client"
+        clientServerMode = ClientServerMode.CLIENT
         useMarUpload = true
         enqueueUpload()
         verifySent(clientServer = true, mar = false, preparedUpload = false)
@@ -70,7 +67,7 @@ internal class EnqueueUploadTest {
 
     @Test
     fun enqueueMarFileClientServerUpload_marFalse() {
-        clientServerMode = "client"
+        clientServerMode = ClientServerMode.CLIENT
         useMarUpload = false
         enqueueUpload()
         verifySent(clientServer = true, mar = false, preparedUpload = false)
@@ -79,7 +76,7 @@ internal class EnqueueUploadTest {
 
     @Test
     fun enqueueMarFileUpload() {
-        clientServerMode = null
+        clientServerMode = ClientServerMode.DISABLED
         useMarUpload = true
         enqueueUpload()
         verifySent(clientServer = false, mar = true, preparedUpload = false)
@@ -88,7 +85,7 @@ internal class EnqueueUploadTest {
 
     @Test
     fun enqueuePreparedUpload() {
-        clientServerMode = null
+        clientServerMode = ClientServerMode.DISABLED
         useMarUpload = false
         enqueueUpload()
         verifySent(clientServer = false, mar = false, preparedUpload = true)
@@ -108,7 +105,7 @@ internal class EnqueueUploadTest {
 
     private fun verifySent(clientServer: Boolean, mar: Boolean, preparedUpload: Boolean) {
         coVerify(exactly = clientServer.times(), timeout = TIMEOUT_MS) {
-            serverFileSender.sendFileToBortServer(marFile)
+            linkedDeviceFileSender.sendFileToLinkedDevice(marFile, CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG)
         }
         coVerify(exactly = preparedUpload.times(), timeout = TIMEOUT_MS) {
             enqueuePreparedUploadTask.upload(testFile, any(), any(), any(), any())

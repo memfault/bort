@@ -123,10 +123,12 @@ sealed class BortMessage {
      */
     data class SendFileMessage(
         val file: File,
+        val dropboxTag: String,
     ) : BortMessage() {
         override val messageType = MESSAGE_TYPE
 
         override suspend fun AsynchronousByteChannel.writeInternal() {
+            writeString(dropboxTag)
             writeFileWithName(file)
         }
 
@@ -134,8 +136,9 @@ sealed class BortMessage {
             const val MESSAGE_TYPE: Long = 0xB087F14E
 
             suspend fun AsynchronousByteChannel.readSendFileMessage(directory: File): BortMessage {
+                val dropboxTag = readString()
                 val file = readFileWithName(directory)
-                return SendFileMessage(file)
+                return SendFileMessage(file, dropboxTag)
             }
         }
     }
@@ -236,6 +239,11 @@ suspend fun AsynchronousByteChannel.writeBytes(size: Int, block: ByteBuffer.() -
 }
 
 private const val END_MARKER: Long = 0xB087E8D
+
+/**
+ * V1 = Initial version.
+ * V2 = Added dropbox tag to file message.
+ */
 @VisibleForTesting
-const val VERSION: Int = 1
+const val VERSION: Int = 2
 private const val BUFFER_SIZE = 1000

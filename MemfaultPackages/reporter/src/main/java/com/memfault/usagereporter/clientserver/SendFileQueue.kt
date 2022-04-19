@@ -1,5 +1,7 @@
 package com.memfault.usagereporter.clientserver
 
+import com.memfault.bort.requester.cleanupFiles
+import com.memfault.usagereporter.ReporterSettings
 import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,13 +18,14 @@ interface SendFileQueue {
 }
 
 class RealSendfileQueue(
-    private val uploadDirectory: File
+    private val uploadDirectory: File,
+    private val reporterSettings: ReporterSettings,
 ) : SendFileQueue {
     private val _nextFile = MutableStateFlow<File?>(null)
     override val nextFile = _nextFile.asStateFlow()
 
     private fun cleanup() {
-        // TODO MFLT-4900 remove oldest files if over storage limit.
+        cleanupFiles(dir = uploadDirectory, maxDirStorageBytes = reporterSettings.maxFileTransferStorageBytes)
     }
 
     // Note: tried using a FileObserver for this (to notify us when the filesystem changes) but it did not work

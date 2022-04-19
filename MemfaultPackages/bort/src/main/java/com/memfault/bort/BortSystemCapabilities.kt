@@ -1,6 +1,7 @@
 package com.memfault.bort
 
 import android.os.RemoteException
+import com.memfault.bort.shared.MINIMUM_VALID_VERSION
 import com.memfault.dumpster.IDumpster
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -41,7 +42,7 @@ class BortSystemCapabilities @Inject constructor(
     private suspend fun hasMinimumValidReporterService(): Boolean =
         when (val version = reporterServiceVersion.get()) {
             null -> false
-            else -> version >= ReporterClient.MINIMUM_VALID_VERSION
+            else -> version >= MINIMUM_VALID_VERSION
         }
 
     fun supportsDynamicSettings() = supportsCaliperDeviceInfo()

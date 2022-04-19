@@ -41,7 +41,7 @@ class DynamicSettingsProviderTest {
     @Test
     fun testParseRemoteSettingsWithMissingFields() {
         assertEquals(
-            EXPECTED_SETTINGS,
+            EXPECTED_SETTINGS_DEFAULT,
             SETTINGS_FIXTURE_WITH_MISSING_FIELDS.toSettings(),
         )
     }
@@ -74,7 +74,7 @@ class DynamicSettingsProviderTest {
     }
 }
 
-internal val EXPECTED_SETTINGS = FetchedSettings(
+internal val EXPECTED_SETTINGS_DEFAULT = FetchedSettings(
     batteryStatsCommandTimeout = 60.seconds.boxed(),
     batteryStatsDataSourceEnabled = false,
     bortMinLogcatLevel = 5,
@@ -192,6 +192,10 @@ internal val EXPECTED_SETTINGS = FetchedSettings(
     metricReportEnabled = true,
 )
 
+private val EXPECTED_SETTINGS = EXPECTED_SETTINGS_DEFAULT.copy(
+    storageMaxClientServerFileTransferStorageBytes = 55000000,
+)
+
 internal val SETTINGS_FIXTURE = """
             {
               "data": {
@@ -300,7 +304,8 @@ internal val SETTINGS_FIXTURE = """
                     "default_capacity": 1000,
                     "default_period_ms": 900000,
                     "max_buckets": 1
-                }
+                },
+                "storage.max_client_server_file_transfer_storage_bytes": 55000000
               }
             }
 """.trimIndent()

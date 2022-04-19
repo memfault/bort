@@ -14,7 +14,6 @@ import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import io.mockk.verify
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerializationException
@@ -27,23 +26,11 @@ import retrofit2.Response
 
 class SettingsUpdateTaskTest {
     private lateinit var worker: TaskRunnerWorker
-    private lateinit var settingsProvider: DynamicSettingsProvider
-    private lateinit var storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider
     private lateinit var tokenBucketStore: TokenBucketStore
-    val fetchedSettingsUpdateSlot = slot<FetchedSettingsUpdate>()
-    val callback: SettingsUpdateCallback = mockk {
-        coEvery { onSettingsUpdated(any(), capture(fetchedSettingsUpdateSlot)) } returns Unit
-    }
+    private lateinit var settingsUpdateHandler: SettingsUpdateHandler
 
     @BeforeEach
     fun setup() {
-        settingsProvider = mockk {
-            every { invalidate() } returns Unit
-        }
-        storedSettingsPreferenceProvider = mockk {
-            every { set(any()) } returns Unit
-            every { get() } returns SETTINGS_FIXTURE.toSettings()
-        }
         worker = mockk {
             every { id } returns UUID.randomUUID()
             every { inputData } returns Data.EMPTY
@@ -63,6 +50,7 @@ class SettingsUpdateTaskTest {
                 slot.captured(map)
             }
         }
+        settingsUpdateHandler = mockk(relaxed = true)
     }
 
     @Test
@@ -70,8 +58,6 @@ class SettingsUpdateTaskTest {
         val response = SETTINGS_FIXTURE.toSettings().copy(bortMinLogcatLevel = LogLevel.NONE.level)
         val service = mockk<SettingsUpdateService> {
             coEvery { settings(any(), any(), any()) } answers {
-                FetchedSettings.FetchedSettingsContainer(SETTINGS_FIXTURE.toSettings())
-            } andThen {
                 FetchedSettings.FetchedSettingsContainer(response)
             }
         }
@@ -82,51 +68,18 @@ class SettingsUpdateTaskTest {
                 SettingsUpdateTask(
                     FakeDeviceInfoProvider(),
                     service,
-                    settingsProvider,
-                    storedSettingsPreferenceProvider,
-                    callback,
                     tokenBucketStore,
                     mockk(relaxed = true),
+                    settingsUpdateHandler,
                 ).doWork(worker)
             )
-            // The first call returns the same stored fixture and thus set() won't be called
-            verify {
-                storedSettingsPreferenceProvider.get()
-            }
-            confirmVerified(storedSettingsPreferenceProvider)
-
-            // The second one will trigger the update
-            assertEquals(
-                TaskResult.SUCCESS,
-                SettingsUpdateTask(
-                    FakeDeviceInfoProvider(),
-                    service,
-                    settingsProvider,
-                    storedSettingsPreferenceProvider,
-                    callback,
-                    tokenBucketStore,
-                    mockk(relaxed = true),
-                ).doWork(worker)
-            )
-            // Check that endpoint was called once, and nothing else
-            coVerify {
-                service.settings(any(), any(), any())
-            }
-            confirmVerified(service)
-
-            // Check that settings was invalidated after a remote update
-            coVerify {
-                storedSettingsPreferenceProvider.get()
-                storedSettingsPreferenceProvider.set(
-                    response
-                )
-                settingsProvider.invalidate()
-                callback.onSettingsUpdated(any(), any())
-            }
-            confirmVerified(settingsProvider)
-            assertEquals(fetchedSettingsUpdateSlot.captured.old, SETTINGS_FIXTURE.toSettings())
-            assertEquals(fetchedSettingsUpdateSlot.captured.new, response)
         }
+        // Check that endpoint was called once, and nothing else
+        coVerify {
+            service.settings(any(), any(), any())
+        }
+        confirmVerified(service)
+        coVerify { settingsUpdateHandler.handleSettingsUpdate(response) }
     }
 
     @Test
@@ -141,11 +94,9 @@ class SettingsUpdateTaskTest {
                 SettingsUpdateTask(
                     FakeDeviceInfoProvider(),
                     service,
-                    settingsProvider,
-                    storedSettingsPreferenceProvider,
-                    callback,
                     tokenBucketStore,
                     mockk(relaxed = true),
+                    settingsUpdateHandler,
                 ).doWork(worker)
             )
 
@@ -154,7 +105,7 @@ class SettingsUpdateTaskTest {
                 service.settings(any(), any(), any())
             }
             confirmVerified(service)
-            confirmVerified(settingsProvider)
+            confirmVerified(settingsUpdateHandler)
         }
     }
 
@@ -171,11 +122,9 @@ class SettingsUpdateTaskTest {
                 SettingsUpdateTask(
                     FakeDeviceInfoProvider(),
                     service,
-                    settingsProvider,
-                    storedSettingsPreferenceProvider,
-                    callback,
                     tokenBucketStore,
                     mockk(relaxed = true),
+                    settingsUpdateHandler,
                 ).doWork(worker)
             )
 
@@ -184,7 +133,7 @@ class SettingsUpdateTaskTest {
                 service.settings(any(), any(), any())
             }
             confirmVerified(service)
-            confirmVerified(settingsProvider)
+            confirmVerified(settingsUpdateHandler)
         }
     }
 }

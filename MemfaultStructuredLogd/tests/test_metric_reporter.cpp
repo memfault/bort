@@ -50,11 +50,20 @@ TEST_F (MetricTest, TimePerHour) {
     reporter->addValue(
             1, "heartbeat", 1634074357043 + 3 * hour, "screen", false, {"TIME_PER_HOUR"}, "off", String
     );
+    reporter->addValue(
+            1, "heartbeat", 1634074357043 + hour, "gps", false, {"TIME_PER_HOUR"}, "on", String
+    );
+    reporter->addValue(
+            1, "heartbeat", 1634074357043 + 3 * hour, "gps", false, {"TIME_PER_HOUR"}, "off", String
+    );
     reporter->finishReport(1u, "heartbeat", 1634074357043u + 4*hour, false);
 
     assertCollectedReports(1);
     assertMetricPresent("heartbeat", "screen Time Per Hour on secs/hour", "2400", Double);
     assertMetricPresent("heartbeat", "screen Time Per Hour off secs/hour", "1200", Double);
+    assertMetricPresent("heartbeat", "gps Time Per Hour on secs/hour", "2400", Double);
+    assertMetricPresent("heartbeat", "gps Time Per Hour off secs/hour", "1200", Double);
+
 }
 
 TEST_F (MetricTest, FinishNonExistingReport) {
@@ -68,7 +77,7 @@ TEST_F (MetricTest, MultipleReportsCrossContamination) {
     reporter->finishReport(1, "a", 98765, false);
 
     assertCollectedReports(1);
-    ASSERT_EQ(reports[0].metrics.size(), 1);
+    ASSERT_EQ(reports[0].metrics.size(), 1u);
     ASSERT_EQ(std::get<0>(reports[0].metrics[0]), "metric_a SUM");
     ASSERT_EQ(std::get<1>(reports[0].metrics[0]), false);
     ASSERT_EQ(std::get<2>(reports[0].metrics[0]), "1");
@@ -81,7 +90,7 @@ TEST_F (MetricTest, TwoLastValueMetrics) {
     reporter->finishReport(1, "a", 98765, false);
 
     assertCollectedReports(1);
-    ASSERT_EQ(reports[0].metrics.size(), 2);
+    ASSERT_EQ(reports[0].metrics.size(), 2u);
     ASSERT_EQ(std::get<0>(reports[0].metrics[0]), "metric_a Latest Value");
     ASSERT_EQ(std::get<0>(reports[0].metrics[1]), "metric_b Latest Value");
 }

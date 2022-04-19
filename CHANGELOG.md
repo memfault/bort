@@ -1,5 +1,23 @@
 # Memfault Bort Changelog
 
+## v4.1.0 - April 18, 2022
+
+#### :chart_with_upwards_trend: Improvements
+
+- Enhanced the
+  [SDK validation tool](https://docs.memfault.com/docs/android/android-getting-started-guide#validating-the-sdk-integration)
+  to check that the `MemfaultStructuredLogD` (Bort's metric collection service)
+  is correctly configured.
+- In a client/server configuration, Bort SDK settings are now forwarded from the
+  server ot the client.
+- Added a maximum file storage limit on the client, in client/server mode.
+- Updated several tool versions (Gradle, AGP, Dagger, etc).
+- Fixed a potential crash in the metric reporting service, when using State
+  Tracker metrics.
+- Compiler and sepolicy fixes for Qualcomm/QSSI Android 12 release.
+- Fixes an issue in `MemfaultStructuredLogD` which could cause an error during
+  startup or shutdown when storage is not available.
+
 ## v4.0.0 - February 09, 2021
 
 4.0.0 includes all changes listed for 4.0.0-RC1 below.

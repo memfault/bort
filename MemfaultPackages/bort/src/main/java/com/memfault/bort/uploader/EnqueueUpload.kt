@@ -2,18 +2,18 @@ package com.memfault.bort.uploader
 
 import android.content.Context
 import androidx.work.BackoffPolicy
-import com.memfault.bort.CachedAsyncProperty
-import com.memfault.bort.DumpsterClient
 import com.memfault.bort.FileUploadPayload
+import com.memfault.bort.clientserver.CachedClientServerMode
+import com.memfault.bort.clientserver.LinkedDeviceFileSender
 import com.memfault.bort.clientserver.MarFileHoldingArea
 import com.memfault.bort.clientserver.MarFileWriter
-import com.memfault.bort.clientserver.ServerFileSender
 import com.memfault.bort.enqueueWorkOnce
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.ingress.IngressService
 import com.memfault.bort.ingress.RebootEvent
 import com.memfault.bort.settings.UploadConstraints
 import com.memfault.bort.settings.UseMarUpload
+import com.memfault.bort.shared.CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG
 import com.memfault.bort.shared.ClientServerMode
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.time.CombinedTime
@@ -33,18 +33,14 @@ import kotlinx.coroutines.launch
 @Singleton
 class EnqueueUpload @Inject constructor(
     private val context: Context,
-    private val serverFileSender: ServerFileSender,
+    private val linkedDeviceFileSender: LinkedDeviceFileSender,
     private val marFileWriter: MarFileWriter,
     private val ingressService: IngressService,
-    private val dumpsterClient: DumpsterClient,
     private val enqueuePreparedUploadTask: EnqueuePreparedUploadTask,
     private val useMarUpload: UseMarUpload,
     private val marHoldingArea: MarFileHoldingArea,
+    private val cachedClientServerMode: CachedClientServerMode,
 ) {
-    private val clientServerMode = CachedAsyncProperty {
-        ClientServerMode.decode(dumpsterClient.getprop()?.get(ClientServerMode.SYSTEM_PROP))
-    }
-
     fun enqueue(rebootEvent: RebootEvent, rebootTime: CombinedTime) {
         CoroutineScope(Dispatchers.IO).launch {
             if (useMarFile()) {
@@ -88,7 +84,7 @@ class EnqueueUpload @Inject constructor(
 
     private suspend fun uploadMarFile(marFile: File) {
         if (isClientServerClient()) {
-            serverFileSender.sendFileToBortServer(marFile)
+            linkedDeviceFileSender.sendFileToLinkedDevice(marFile, CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG)
         } else {
             marHoldingArea.addMarFile(marFile)
         }
@@ -96,7 +92,7 @@ class EnqueueUpload @Inject constructor(
 
     private suspend fun useMarFile() = isClientServerClient() || useMarUpload()
 
-    private suspend fun isClientServerClient() = clientServerMode.get() == ClientServerMode.CLIENT
+    private suspend fun isClientServerClient() = cachedClientServerMode.get() == ClientServerMode.CLIENT
 }
 
 /**

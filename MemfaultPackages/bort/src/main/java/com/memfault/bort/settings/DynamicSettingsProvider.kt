@@ -216,6 +216,11 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.otaUpdateCheckInterval.duration
     }
 
+    override val storageSettings = object : StorageSettings {
+        override val maxClientServerFileTransferStorageBytes: Long
+            get() = settings.storageMaxClientServerFileTransferStorageBytes
+    }
+
     override fun invalidate() {
         Logger.d("settings invalidating")
         settingsCache.invalidate()

@@ -247,6 +247,9 @@ data class FetchedSettings(
 
     @SerialName("metric_report.enabled")
     val metricReportEnabled: Boolean = true,
+
+    @SerialName("storage.max_client_server_file_transfer_storage_bytes")
+    val storageMaxClientServerFileTransferStorageBytes: Long = 50_000_000,
 ) {
     @Serializable
     data class FetchedSettingsContainer(

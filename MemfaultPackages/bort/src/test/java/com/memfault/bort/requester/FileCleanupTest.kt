@@ -1,7 +1,6 @@
 package com.memfault.bort.requester
 
 import com.memfault.bort.fileExt.deleteSilently
-import io.mockk.mockk
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.ZERO
@@ -48,12 +47,11 @@ class FileCleanupTest {
 
     @Test
     fun deleteOldestBugReportFilesOverLimit() {
-        cleanupBugReports(
-            bugReportDir = folder.root,
-            maxBugReportStorageBytes = 2,
-            maxBugReportAge = ZERO,
+        cleanupFiles(
+            dir = folder.root,
+            maxDirStorageBytes = 2,
+            maxFileAge = ZERO,
             timeNowMs = NOW_MS,
-            metrics = mockk(relaxed = true),
         )
 
         assertFalse(file1_7days_old.exists())
@@ -63,12 +61,11 @@ class FileCleanupTest {
 
     @Test
     fun deleteNoBugReportsWhenNotOverLimit() {
-        cleanupBugReports(
-            bugReportDir = folder.root,
-            maxBugReportStorageBytes = 3,
-            maxBugReportAge = ZERO,
+        cleanupFiles(
+            dir = folder.root,
+            maxDirStorageBytes = 3,
+            maxFileAge = ZERO,
             timeNowMs = NOW_MS,
-            metrics = mockk(relaxed = true),
         )
 
         assertTrue(file1_7days_old.exists())
@@ -80,12 +77,11 @@ class FileCleanupTest {
     fun doesNotCrashIfDirectoryDoesNotExist() {
         folder.root.deleteRecursively()
 
-        cleanupBugReports(
-            bugReportDir = folder.root,
-            maxBugReportStorageBytes = 3,
-            maxBugReportAge = ZERO,
+        cleanupFiles(
+            dir = folder.root,
+            maxDirStorageBytes = 3,
+            maxFileAge = ZERO,
             timeNowMs = NOW_MS,
-            metrics = mockk(relaxed = true),
         )
     }
 
@@ -95,23 +91,21 @@ class FileCleanupTest {
         file2_1day_old.deleteSilently()
         file3_1hour_old.deleteSilently()
 
-        cleanupBugReports(
-            bugReportDir = folder.root,
-            maxBugReportStorageBytes = 3,
-            maxBugReportAge = ZERO,
+        cleanupFiles(
+            dir = folder.root,
+            maxDirStorageBytes = 3,
+            maxFileAge = ZERO,
             timeNowMs = NOW_MS,
-            metrics = mockk(relaxed = true),
         )
     }
 
     @Test
     fun deleteOldBugReportsOverMaxAge() {
-        cleanupBugReports(
-            bugReportDir = folder.root,
-            maxBugReportStorageBytes = 3,
-            maxBugReportAge = 2.days,
+        cleanupFiles(
+            dir = folder.root,
+            maxDirStorageBytes = 3,
+            maxFileAge = 2.days,
             timeNowMs = NOW_MS,
-            metrics = mockk(relaxed = true),
         )
 
         assertFalse(file1_7days_old.exists())
@@ -121,12 +115,11 @@ class FileCleanupTest {
 
     @Test
     fun deleteOldBugReportsOverMaxAge_allOverLimit() {
-        cleanupBugReports(
-            bugReportDir = folder.root,
-            maxBugReportStorageBytes = 3,
-            maxBugReportAge = 1.minutes,
+        cleanupFiles(
+            dir = folder.root,
+            maxDirStorageBytes = 3,
+            maxFileAge = 1.minutes,
             timeNowMs = NOW_MS,
-            metrics = mockk(relaxed = true),
         )
 
         assertFalse(file1_7days_old.exists())

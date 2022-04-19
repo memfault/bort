@@ -46,13 +46,15 @@ internal class ProtocolTest {
         to: AsynchronousSocketChannel,
     ) {
         val inputFile = createInputFile()
-        from.writeMessage(SendFileMessage(inputFile))
+        val tag = UUID.randomUUID().toString()
+        from.writeMessage(SendFileMessage(inputFile, tag))
         val outputMessage = to.readMessage(outputFolder)
         check(outputMessage is SendFileMessage)
         outputMessage.file.deleteOnExit()
         assertEquals(inputFile.name, outputMessage.file.name)
         assertEquals(inputFile.length(), outputMessage.file.length())
         assertEquals(inputFile.readText(), outputMessage.file.readText())
+        assertEquals(tag, outputMessage.dropboxTag)
     }
 
     private fun createInputFile(): File {

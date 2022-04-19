@@ -26,6 +26,10 @@ import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatCommand
 import com.memfault.bort.shared.LogcatRequest
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.MINIMUM_VALID_VERSION
+import com.memfault.bort.shared.MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS
+import com.memfault.bort.shared.MINIMUM_VALID_VERSION_LOG_LEVEL
+import com.memfault.bort.shared.MINIMUM_VALID_VERSION_METRIC_COLLECTION
 import com.memfault.bort.shared.PackageManagerCommand
 import com.memfault.bort.shared.PackageManagerRequest
 import com.memfault.bort.shared.REPORTER_SERVICE_QUALIFIED_NAME
@@ -40,6 +44,8 @@ import com.memfault.bort.shared.SetLogLevelRequest
 import com.memfault.bort.shared.SetLogLevelResponse
 import com.memfault.bort.shared.SetMetricCollectionIntervalRequest
 import com.memfault.bort.shared.SetMetricCollectionIntervalResponse
+import com.memfault.bort.shared.SetReporterSettingsRequest
+import com.memfault.bort.shared.SetReporterSettingsResponse
 import com.memfault.bort.shared.SleepCommand
 import com.memfault.bort.shared.SleepRequest
 import com.memfault.bort.shared.UnexpectedResponseException
@@ -59,7 +65,7 @@ typealias ReporterServiceConnector = ServiceConnector<ReporterClient>
 
 class RealReporterServiceConnector @Inject constructor(
     context: Context,
-    @Main val inboundLooper: Looper
+    @Main val inboundLooper: Looper,
 ) : ReporterServiceConnector(
     context,
     ComponentName(
@@ -78,15 +84,14 @@ class RealReporterServiceConnector @Inject constructor(
 
 class ReporterClient(
     val connection: ReporterServiceConnection,
-    val commandRunnerClientFactory: CommandRunnerClientFactory
+    val commandRunnerClientFactory: CommandRunnerClientFactory,
 ) {
     private var cachedVersion: Int? = null
 
     suspend fun getVersion(): Int? =
         cachedVersion ?: sendWithoutVersionCheck(VersionRequest()) { response: VersionResponse ->
             response.version
-        }.fold({ it }, { null }).also {
-            version ->
+        }.fold({ it }, { null }).also { version ->
             cachedVersion = version
         }
 
@@ -107,7 +112,7 @@ class ReporterClient(
     suspend fun <R> sleep(
         delaySeconds: Int,
         timeout: Duration,
-        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>
+        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>,
     ): StdResult<R> =
         withVersion(context = "sleep") {
             commandRunnerClientFactory.create(timeout = timeout).run(block) { options ->
@@ -118,7 +123,7 @@ class ReporterClient(
     suspend fun <R> batteryStatsRun(
         cmd: BatteryStatsCommand,
         timeout: Duration,
-        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>
+        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>,
     ): StdResult<R> =
         withVersion(context = "battery stats") {
             commandRunnerClientFactory.create(timeout = timeout).run(block) { options ->
@@ -140,7 +145,7 @@ class ReporterClient(
     suspend fun <R> packageManagerRun(
         cmd: PackageManagerCommand,
         timeout: Duration,
-        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>
+        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>,
     ): StdResult<R> =
         withVersion(context = "package manager") {
             commandRunnerClientFactory.create(timeout = timeout).run(block) { options ->
@@ -148,15 +153,18 @@ class ReporterClient(
             }
         }
 
-    suspend fun uploadFileToServer(file: File): StdResult<Unit> {
-        return withVersion(context = "uploadfile", minimumVersion = MINIMUM_VALID_VERSION_SERVER_FILE_UPLOAD) {
+    suspend fun sendFileToLinkedDevice(file: File, dropboxTag: String): StdResult<Unit> {
+        return withVersion(
+            context = "uploadfile",
+            minimumVersion = MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS
+        ) {
             val descriptor = ParcelFileDescriptor.open(
                 file, ParcelFileDescriptor.MODE_READ_ONLY, MAIN_THREAD_HANDLER
             ) {
                 file.deleteSilently()
             }
             try {
-                send(ServerSendFileRequest(file.name, descriptor)) { _: ServerSendFileResponse -> }
+                send(ServerSendFileRequest(dropboxTag, descriptor)) { _: ServerSendFileResponse -> }
             } finally {
                 // Always close the pfd. We expect it to be normally closed by the service (using an
                 // AutoCloseInputStream) but make sure. Not using `use {}` for this, because that can potentially
@@ -171,10 +179,18 @@ class ReporterClient(
             send(SetMetricCollectionIntervalRequest(interval)) { _: SetMetricCollectionIntervalResponse -> }
         }
 
+    suspend fun setReporterSettings(settings: SetReporterSettingsRequest): StdResult<Unit> =
+        withVersion(
+            context = "reportersettings",
+            minimumVersion = MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS
+        ) {
+            send(settings) { _: SetReporterSettingsResponse -> }
+        }
+
     private suspend inline fun <R> withVersion(
         context: Any,
         minimumVersion: Int = MINIMUM_VALID_VERSION,
-        block: () -> StdResult<R>
+        block: () -> StdResult<R>,
     ): StdResult<R> =
         getVersion().let { version ->
             if (version ?: 0 >= minimumVersion) {
@@ -200,7 +216,7 @@ class ReporterClient(
 
     private suspend fun sendAndGetReplyHandler(
         message: ReporterServiceMessage,
-        minimumVersion: Int = MINIMUM_VALID_VERSION
+        minimumVersion: Int = MINIMUM_VALID_VERSION,
     ): StdResult<ServiceMessageReplyHandler<ReporterServiceMessage>> =
         withVersion(message, minimumVersion) { runCatching { connection.sendAndGetReplyHandler(message) } }
 
@@ -225,11 +241,6 @@ class ReporterClient(
         }
 
     companion object {
-        const val MINIMUM_VALID_VERSION = 3
-        const val MINIMUM_VALID_VERSION_LOG_LEVEL = 4
-        const val MINIMUM_VALID_VERSION_SERVER_FILE_UPLOAD = 5
-        const val MINIMUM_VALID_VERSION_METRIC_COLLECTION = 6
-
         val MAIN_THREAD_HANDLER: Handler by lazy { Handler(Looper.getMainLooper()!!) }
     }
 }

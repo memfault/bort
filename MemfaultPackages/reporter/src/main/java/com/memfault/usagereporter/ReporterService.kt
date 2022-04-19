@@ -34,11 +34,14 @@ import com.memfault.bort.shared.SetLogLevelRequest
 import com.memfault.bort.shared.SetLogLevelResponse
 import com.memfault.bort.shared.SetMetricCollectionIntervalRequest
 import com.memfault.bort.shared.SetMetricCollectionIntervalResponse
+import com.memfault.bort.shared.SetReporterSettingsRequest
+import com.memfault.bort.shared.SetReporterSettingsResponse
 import com.memfault.bort.shared.UnknownMessageException
 import com.memfault.bort.shared.VersionRequest
 import com.memfault.bort.shared.VersionResponse
 import com.memfault.usagereporter.UsageReporter.Companion.b2bClientServer
 import com.memfault.usagereporter.UsageReporter.Companion.reporterMetrics
+import com.memfault.usagereporter.UsageReporter.Companion.reporterSettings
 import com.memfault.usagereporter.clientserver.B2BClientServer
 import com.memfault.usagereporter.metrics.ReporterMetrics
 import java.util.concurrent.TimeUnit
@@ -102,6 +105,7 @@ class ReporterServiceMessageHandler(
     private val getSendReply: (message: Message) -> SendReply,
     private val b2BClientServer: B2BClientServer,
     private val reporterMetrics: ReporterMetrics,
+    private val reporterSettings: ReporterSettingsPreferenceProvider,
 ) : Handler.Callback {
 
     override fun handleMessage(message: Message): Boolean {
@@ -139,6 +143,7 @@ class ReporterServiceMessageHandler(
             is VersionRequest -> handleVersionRequest(sendReply)
             is ServerSendFileRequest -> handleSendFileRequest(serviceMessage, sendReply)
             is SetMetricCollectionIntervalRequest -> handleSetMetricIntervalRequest(serviceMessage.interval, sendReply)
+            is SetReporterSettingsRequest -> handleSettingsUpdate(serviceMessage, sendReply)
             null -> sendReply(ErrorResponse("Unknown Message: $message")).also {
                 Logger.e("Unknown Message: $message")
             }
@@ -150,8 +155,14 @@ class ReporterServiceMessageHandler(
         return true
     }
 
+    private fun handleSettingsUpdate(message: SetReporterSettingsRequest, sendReply: (reply: ServiceMessage) -> Unit) {
+        reporterSettings.set(message)
+        // Take any actions required after settings have been updated here.
+        sendReply(SetReporterSettingsResponse)
+    }
+
     private fun handleSendFileRequest(message: ServerSendFileRequest, sendReply: (reply: ServiceMessage) -> Unit) {
-        b2BClientServer.enqueueFile(message.filename, message.descriptor)
+        b2BClientServer.enqueueFile(message.dropboxTag, message.descriptor)
         sendReply(ServerSendFileResponse)
     }
 
@@ -211,6 +222,7 @@ class ReporterService : Service() {
             getSendReply = ::getSendReply,
             b2BClientServer = b2bClientServer,
             reporterMetrics = reporterMetrics,
+            reporterSettings = reporterSettings,
         )
     }
 

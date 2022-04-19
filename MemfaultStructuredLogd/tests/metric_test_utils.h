@@ -34,7 +34,7 @@ protected:
     }
 
     void assertCollectedReports(int expectedCount) {
-        ASSERT_EQ(expectedCount, reports.size());
+        ASSERT_EQ((unsigned int) expectedCount, reports.size());
     }
 
     void assertMetricPresent(const std::string& type, const std::string &metric, const std::string &expectedValue,

@@ -17,6 +17,8 @@ import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.IndividualWorkerFactory
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.broadcastReply
+import com.memfault.bort.metrics.BUG_REPORT_DELETED_OLD
+import com.memfault.bort.metrics.BUG_REPORT_DELETED_STORAGE
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.BugReportSettings
@@ -78,14 +80,23 @@ class StartRealBugReport @Inject constructor() : StartBugReport {
         bortSystemCapabilities: BortSystemCapabilities,
         builtInMetricsStore: BuiltinMetricsStore,
     ): Boolean {
-        // First, cleanup the bugreport filestore.
-        cleanupBugReports(
-            bugReportDir = File(context.filesDir, "bugreports"),
-            maxBugReportStorageBytes = bugReportSettings.maxStorageBytes,
-            maxBugReportAge = bugReportSettings.maxStoredAge,
-            timeNowMs = System.currentTimeMillis(),
-            metrics = builtInMetricsStore,
-        )
+        // First, cleanup old bugreport files that:
+        // - Are waiting for connectivity, to be uploaded
+        // - Failed to be deleted (perhaps because of a bug/crash)
+        //
+        // Note that we cannot tell which bugreports are still queued for upload as WorkManager tasks.
+        cleanupFiles(
+            dir = File(context.filesDir, "bugreports"),
+            maxDirStorageBytes = bugReportSettings.maxStorageBytes.toLong(),
+            maxFileAge = bugReportSettings.maxStoredAge,
+        ).apply {
+            if (deletedForAgeCount > 0) {
+                builtInMetricsStore.increment(BUG_REPORT_DELETED_OLD, incrementBy = deletedForAgeCount)
+            }
+            if (deletedForStorageCount > 0) {
+                builtInMetricsStore.increment(BUG_REPORT_DELETED_STORAGE, incrementBy = deletedForAgeCount)
+            }
+        }
 
         // Dump internal metrics to logs, if SDK is not capable of uploading them as metrics.
 

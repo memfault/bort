@@ -6,7 +6,6 @@ import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.metrics.BuiltinMetricsStore
-import com.memfault.bort.metrics.SETTINGS_CHANGED
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.tokenbucket.SettingsUpdate
 import com.memfault.bort.tokenbucket.TokenBucketStore
@@ -18,11 +17,9 @@ import retrofit2.HttpException
 class SettingsUpdateTask @Inject constructor(
     private val deviceInfoProvider: DeviceInfoProvider,
     private val settingsUpdateService: SettingsUpdateService,
-    private val settingsProvider: SettingsProvider,
-    private val storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider,
-    private val settingsUpdateCallback: SettingsUpdateCallback,
     @SettingsUpdate private val tokenBucketStore: TokenBucketStore,
     override val metrics: BuiltinMetricsStore,
+    private val settingsUpdateHandler: SettingsUpdateHandler,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
 
@@ -38,20 +35,7 @@ class SettingsUpdateTask @Inject constructor(
                 deviceInfo.hardwareVersion,
             ).data
 
-            val old = storedSettingsPreferenceProvider.get()
-            val changed = old != new
-
-            if (changed) {
-                metrics.increment(SETTINGS_CHANGED)
-                storedSettingsPreferenceProvider.set(new)
-
-                // Force a reload on the next settings read
-                settingsProvider.invalidate()
-
-                settingsUpdateCallback.onSettingsUpdated(settingsProvider, FetchedSettingsUpdate(old = old, new = new))
-            }
-
-            Logger.test("Settings updated successfully (changed=$changed)")
+            settingsUpdateHandler.handleSettingsUpdate(new)
             TaskResult.SUCCESS
         } catch (e: HttpException) {
             Logger.d("failed to fetch settings from remote endpoint", e)
