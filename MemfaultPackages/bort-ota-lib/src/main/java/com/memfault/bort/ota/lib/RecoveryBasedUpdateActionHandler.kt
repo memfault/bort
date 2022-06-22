@@ -47,7 +47,7 @@ class RecoveryBasedUpdateActionHandler(
     ) {
         when (action) {
             is Action.CheckForUpdate -> {
-                if (state is State.Idle || state is State.UpdateFailed) {
+                if (state.allowsUpdateCheck()) {
                     setState(State.CheckingForUpdates)
                     val ota = softwareUpdateChecker.getLatestRelease()
                     if (ota == null) {

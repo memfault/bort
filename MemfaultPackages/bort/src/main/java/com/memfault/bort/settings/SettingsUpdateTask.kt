@@ -20,6 +20,8 @@ class SettingsUpdateTask @Inject constructor(
     @SettingsUpdate private val tokenBucketStore: TokenBucketStore,
     override val metrics: BuiltinMetricsStore,
     private val settingsUpdateHandler: SettingsUpdateHandler,
+    private val useDeviceConfig: UseDeviceConfig,
+    private val deviceConfigUpdateService: DeviceConfigUpdateService,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
 
@@ -29,13 +31,29 @@ class SettingsUpdateTask @Inject constructor(
         }
         return try {
             val deviceInfo = deviceInfoProvider.getDeviceInfo()
-            val new = settingsUpdateService.settings(
-                deviceInfo.deviceSerial,
-                deviceInfo.softwareVersion,
-                deviceInfo.hardwareVersion,
-            ).data
+            if (useDeviceConfig()) {
+                val deviceConfig = deviceConfigUpdateService.deviceConfig(
+                    DeviceConfigUpdateService.DeviceConfigArgs(
+                        DeviceConfigUpdateService.DeviceInfo(
+                            deviceSerial = deviceInfo.deviceSerial,
+                            hardwareVersion = deviceInfo.hardwareVersion,
+                        )
+                    )
+                )
+                // All parts of the response are technically optional
+                deviceConfig.memfault?.bort?.sdkSettings?.let {
+                    settingsUpdateHandler.handleSettingsUpdate(it)
+                }
+                deviceConfig.memfault?.sampling?.let { /** TODO update sampling config */ }
+            } else {
+                val new = settingsUpdateService.settings(
+                    deviceInfo.deviceSerial,
+                    deviceInfo.softwareVersion,
+                    deviceInfo.hardwareVersion,
+                ).data
+                settingsUpdateHandler.handleSettingsUpdate(new)
+            }
 
-            settingsUpdateHandler.handleSettingsUpdate(new)
             TaskResult.SUCCESS
         } catch (e: HttpException) {
             Logger.d("failed to fetch settings from remote endpoint", e)

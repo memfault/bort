@@ -3,17 +3,16 @@ package com.memfault.bort.settings
 import android.content.ContentProvider
 import android.content.ContentValues
 import android.database.Cursor
-import android.database.MatrixCursor
 import android.net.Uri
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.SOFTWARE_TYPE
 import com.memfault.bort.shared.SoftwareUpdateSettings
+import com.memfault.bort.shared.SoftwareUpdateSettings.Companion.createCursor
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
 
 class SoftwareUpdateSettingsContentProvider : ContentProvider() {
     override fun onCreate(): Boolean = true
@@ -24,13 +23,7 @@ class SoftwareUpdateSettingsContentProvider : ContentProvider() {
         selection: String?,
         selectionArgs: Array<out String>?,
         sortOrder: String?
-    ): Cursor = MatrixCursor(arrayOf("settings")).apply {
-        addRow(
-            listOf(
-                Json.encodeToString(SoftwareUpdateSettings.serializer(), gatherConfig())
-            )
-        )
-    }
+    ): Cursor = createCursor(gatherConfig())
 
     private fun gatherConfig(): SoftwareUpdateSettings {
         // TODO: This does not run in the main thread, is runBlocking ok?

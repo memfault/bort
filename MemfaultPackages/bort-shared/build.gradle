@@ -25,6 +25,7 @@ android {
         buildConfigField "String", "BORT_OTA_APPLICATION_ID", "\"" + bortProperty("BORT_OTA_APPLICATION_ID") + "\""
         buildConfigField "int", "CLIENT_SERVER_PORT", bortProperty("CLIENT_SERVER_PORT")
         buildConfigField "String", "CLIENT_SERVER_HOST", "\"" + bortProperty("CLIENT_SERVER_HOST") + "\""
+        buildConfigField "Boolean", "OTA_AUTO_INSTALL", bortProperty("OTA_AUTO_INSTALL")
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

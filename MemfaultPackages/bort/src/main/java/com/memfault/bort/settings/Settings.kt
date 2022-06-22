@@ -105,6 +105,7 @@ interface HttpApiSettings {
     val useMarUpload: Boolean
     val batchMarUploads: Boolean
     val batchedMarUploadPeriod: Duration
+    val useDeviceConfig: Boolean
 }
 
 interface RebootEventsSettings {

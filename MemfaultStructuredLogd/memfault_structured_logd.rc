@@ -3,12 +3,7 @@ service memfault-structured-logd /system/bin/MemfaultStructuredLogd
     group system log
     disabled
 
-on post-fs-data && property:ro.crypto.state=unsupported
-    mkdir /data/system/MemfaultStructuredLogd/ 0700 system system
-    wait /data/system/MemfaultStructuredLogd/
-    setprop vendor.memfault.data.ready 1
-
-on post-fs-data && property:ro.crypto.state=encrypted
+on post-fs-data
     mkdir /data/system/MemfaultStructuredLogd/ 0700 system system
     wait /data/system/MemfaultStructuredLogd/
     setprop vendor.memfault.data.ready 1

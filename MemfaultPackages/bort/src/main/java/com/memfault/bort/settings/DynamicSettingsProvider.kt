@@ -76,6 +76,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.httpApiBatchMarUploads
         override val batchedMarUploadPeriod: Duration
             get() = settings.httpApiBatchedMarUploadPeriod.duration
+        override val useDeviceConfig: Boolean
+            get() = settings.httpApiUseDeviceConfig
     }
 
     override val deviceInfoSettings = object : DeviceInfoSettings {

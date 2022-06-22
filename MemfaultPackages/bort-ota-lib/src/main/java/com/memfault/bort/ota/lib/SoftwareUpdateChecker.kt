@@ -17,7 +17,8 @@ data class Ota(
     val url: String,
     val version: String,
     val releaseNotes: String,
-    val metadata: Map<String, String> = emptyMap()
+    val metadata: Map<String, String> = emptyMap(),
+    val isForced: Boolean?,
 )
 
 interface SoftwareUpdateChecker {
@@ -84,6 +85,7 @@ private fun MemfaultOtaPackage.toGenericOta(): Ota = Ota(
     version = this.appVersion,
     releaseNotes = this.releaseNotes,
     metadata = this.extraInfo,
+    isForced = this.isForced,
 )
 
 fun realSoftwareUpdateChecker(

@@ -13,6 +13,7 @@ fun interface StructuredLogEnabled : () -> Boolean
 fun interface UploadCompressionEnabled : () -> Boolean
 fun interface BatchMarUploads : () -> Boolean
 fun interface UseMarUpload : () -> Boolean
+fun interface UseDeviceConfig : () -> Boolean
 fun interface ProjectKey : () -> String
 fun interface TimeoutConfig : () -> Duration
 fun interface RulesConfig : () -> List<AndroidAppIdScrubbingRule>
@@ -43,6 +44,10 @@ abstract class SettingsModule {
         @Provides
         fun useMarUpload(settings: SettingsProvider) =
             UseMarUpload { settings.httpApiSettings.useMarUpload }
+
+        @Provides
+        fun useDeviceConfig(settings: SettingsProvider) =
+            UseDeviceConfig { settings.httpApiSettings.useDeviceConfig }
 
         @Provides
         fun structuredLog(settings: SettingsProvider) =

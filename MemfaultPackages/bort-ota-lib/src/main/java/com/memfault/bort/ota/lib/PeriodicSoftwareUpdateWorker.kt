@@ -14,7 +14,7 @@ class PeriodicSoftwareUpdateWorker(
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         val updater = applicationContext.updater()
-        if (updater.updateState.value == State.Idle) {
+        if (updater.updateState.value.allowsUpdateCheck()) {
             updater.perform(Action.CheckForUpdate(background = true))
 
             // suspend until the check is complete, perform above does not necessarily block depending on

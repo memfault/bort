@@ -13,6 +13,7 @@ import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.DevicePropertiesDb
 import com.memfault.bort.metrics.Metrics
 import com.memfault.bort.settings.BundledConfig
+import com.memfault.bort.settings.DeviceConfigUpdateService
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.SettingsUpdateService
 import com.memfault.bort.shared.JitterDelayProvider
@@ -471,6 +472,14 @@ abstract class AppModule {
         @Singleton
         fun settingsUpdateService(okHttpClient: OkHttpClient, settingsProvider: SettingsProvider) =
             SettingsUpdateService.create(
+                okHttpClient = okHttpClient,
+                deviceBaseUrl = settingsProvider.httpApiSettings.deviceBaseUrl
+            )
+
+        @Provides
+        @Singleton
+        fun deviceConfigUpdateService(okHttpClient: OkHttpClient, settingsProvider: SettingsProvider) =
+            DeviceConfigUpdateService.create(
                 okHttpClient = okHttpClient,
                 deviceBaseUrl = settingsProvider.httpApiSettings.deviceBaseUrl
             )

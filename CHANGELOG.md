@@ -1,5 +1,28 @@
 # Memfault Bort Changelog
 
+## v4.2.0-RC1 - Jun 22, 2022
+
+#### :rocket: New Features
+
+- C/C++ API for reporting custom metrics (not yet documented).
+- OTA app can now be configured to auto-install updates (with no user
+  intervention) by setting the `OTA_AUTO_INSTALL` property to `true` in
+  `bort.properties`. In the future, it will be possible to override this in the
+  dashboard.
+
+#### :chart_with_upwards_trend: Improvements
+
+- Fixed an issue where metrics service could not create files on some devices.
+- Added a compile-time check to ensure that Bort sepolicy has been correctly
+  applied.
+- The OTA app will now continue to check for updates while waiting to
+  download/install.
+
+#### :house: Internal
+
+- Bort can optionally fetch device configuration from new `/device-config`
+  endpoint.
+
 ## v4.1.0 - April 18, 2022
 
 #### :chart_with_upwards_trend: Improvements

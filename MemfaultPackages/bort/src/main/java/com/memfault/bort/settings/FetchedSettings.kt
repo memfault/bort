@@ -145,6 +145,9 @@ data class FetchedSettings(
     @SerialName("http_api.use_mar_upload")
     val httpApiUseMarUpload: Boolean = false,
 
+    @SerialName("http_api.use_device_config")
+    val httpApiUseDeviceConfig: Boolean = false,
+
     @SerialName("http_api.batch_mar_uploads")
     val httpApiBatchMarUploads: Boolean = true,
 

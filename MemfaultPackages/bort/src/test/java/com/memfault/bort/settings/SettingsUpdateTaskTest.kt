@@ -61,7 +61,8 @@ class SettingsUpdateTaskTest {
                 FetchedSettings.FetchedSettingsContainer(response)
             }
         }
-
+        val deviceConfigService = mockk<DeviceConfigUpdateService>()
+        val useDeviceConfig = UseDeviceConfig { false }
         runBlocking {
             assertEquals(
                 TaskResult.SUCCESS,
@@ -71,6 +72,8 @@ class SettingsUpdateTaskTest {
                     tokenBucketStore,
                     mockk(relaxed = true),
                     settingsUpdateHandler,
+                    useDeviceConfig,
+                    deviceConfigService,
                 ).doWork(worker)
             )
         }
@@ -87,7 +90,8 @@ class SettingsUpdateTaskTest {
         val service = mockk<SettingsUpdateService> {
             coEvery { settings(any(), any(), any()) } throws SerializationException("invalid data")
         }
-
+        val deviceConfigService = mockk<DeviceConfigUpdateService>()
+        val useDeviceConfig = UseDeviceConfig { false }
         runBlocking {
             assertEquals(
                 TaskResult.SUCCESS,
@@ -97,6 +101,8 @@ class SettingsUpdateTaskTest {
                     tokenBucketStore,
                     mockk(relaxed = true),
                     settingsUpdateHandler,
+                    useDeviceConfig,
+                    deviceConfigService,
                 ).doWork(worker)
             )
 
@@ -115,7 +121,8 @@ class SettingsUpdateTaskTest {
             coEvery { settings(any(), any(), any()) } throws
                 HttpException(Response.error<Any>(500, "".toResponseBody()))
         }
-
+        val deviceConfigService = mockk<DeviceConfigUpdateService>()
+        val useDeviceConfig = UseDeviceConfig { false }
         runBlocking {
             assertEquals(
                 TaskResult.SUCCESS,
@@ -125,6 +132,8 @@ class SettingsUpdateTaskTest {
                     tokenBucketStore,
                     mockk(relaxed = true),
                     settingsUpdateHandler,
+                    useDeviceConfig,
+                    deviceConfigService,
                 ).doWork(worker)
             )
 

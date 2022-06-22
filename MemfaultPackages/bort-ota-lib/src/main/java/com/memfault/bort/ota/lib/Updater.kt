@@ -88,6 +88,11 @@ sealed class State {
     data class RebootNeeded(val ota: Ota) : State()
 }
 
+fun State.allowsUpdateCheck() = when (this) {
+    State.Idle, is State.UpdateAvailable, is State.UpdateFailed -> true
+    else -> false
+}
+
 /**
  * Possible actions issued to the updater which trigger state changes. Actions can be issued by any state listener
  * or by internal components (i.e. the downloader of a recovery Ota will trigger actions when the download is complete).
@@ -281,7 +286,7 @@ class Updater private constructor(
             context: Context,
             actionHandlerFactory: UpdateActionHandlerFactory? = null,
             stateStore: StateStore? = null,
-            settingsProvider: SoftwareUpdateSettingsProvider? = null
+            settingsProvider: SoftwareUpdateSettingsProvider? = null,
         ): Updater {
             Logger.minStructuredLevel = LogLevel.INFO
             Logger.minLogcatLevel = LogLevel.DEBUG

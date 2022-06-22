@@ -7,11 +7,13 @@ import android.content.Intent
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import com.memfault.bort.ota.lib.Action
 import com.memfault.bort.ota.lib.Event
 import com.memfault.bort.ota.lib.Ota
 import com.memfault.bort.ota.lib.State
 import com.memfault.bort.ota.lib.Updater
 import com.memfault.bort.ota.lib.UpdaterProvider
+import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.disableAppComponents
 import com.memfault.bort.shared.isPrimaryUser
@@ -44,8 +46,14 @@ open class App : Application(), UpdaterProvider {
         appStateListenerJob = CoroutineScope(Dispatchers.Main).launch {
             updater().updateState
                 .collect { state ->
-                    if (state is State.UpdateAvailable && state.background) {
+                    if (state is State.UpdateAvailable && shouldAutoInstallOtaUpdate(state.ota)) {
+                        updater().perform(Action.DownloadUpdate)
+                    } else if (state is State.ReadyToInstall && shouldAutoInstallOtaUpdate(state.ota)) {
+                        updater().perform(Action.InstallUpdate)
+                    } else if (state is State.UpdateAvailable && state.background) {
                         sendUpdateNotification(state.ota)
+                    } else {
+                        cancelUpdateNotification()
                     }
                 }
         }
@@ -60,6 +68,25 @@ open class App : Application(), UpdaterProvider {
                         is Event.RebootToUpdateSucceeded -> showUpdateCompleteNotification(success = true)
                     }
                 }
+        }
+    }
+
+    companion object {
+        private fun shouldAutoInstallOtaUpdate(ota: Ota): Boolean = shouldAutoInstallOtaUpdate(
+            ota = ota,
+            defaultValue = BuildConfig.OTA_AUTO_INSTALL,
+            canInstallNow = ::custom_canAutoInstallOtaUpdateNow,
+        )
+
+        internal fun shouldAutoInstallOtaUpdate(
+            ota: Ota,
+            defaultValue: Boolean,
+            canInstallNow: () -> Boolean,
+        ): Boolean {
+            Logger.d("shouldAutoInstallOtaUpdate: isForced = ${ota.isForced} default = $defaultValue")
+            // isForced is optional in OTA response - fall back to default if not set.
+            val autoInstall = ota.isForced ?: defaultValue
+            return autoInstall && canInstallNow()
         }
     }
 
@@ -95,6 +122,11 @@ open class App : Application(), UpdaterProvider {
             .setAutoCancel(true)
             .build()
             .also { notificationManager.notify(UPDATE_AVAILABLE_NOTIFICATION_ID, it) }
+    }
+
+    private fun cancelUpdateNotification() {
+        NotificationManagerCompat.from(this)
+            .cancel(UPDATE_AVAILABLE_NOTIFICATION_ID)
     }
 
     private fun showUpdateCompleteNotification(success: Boolean) {
