@@ -28,7 +28,7 @@ PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
 RELEASES = range(8, 12 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 GRADLE_PROPERTIES = os.path.join(SCRIPT_DIR, "MemfaultPackages", "gradle.properties")
-PYTHON_MIN_VERSION = ("3", "6", "0")
+PYTHON_MIN_VERSION = (3, 6, 0)
 USAGE_REPORTER_APPLICATION_ID = "com.memfault.usagereporter"
 USAGE_REPORTER_APK_PATH = (
     r"package:/system/priv-app/MemfaultUsageReporter/MemfaultUsageReporter.apk"
@@ -899,7 +899,8 @@ class CommandLineInterface:
         EnableBort.register(create_parser)
 
     def run(self):
-        if platform.python_version_tuple() < PYTHON_MIN_VERSION:
+        version = tuple(int(x) for x in platform.python_version_tuple())
+        if version < PYTHON_MIN_VERSION:
             logging.error(
                 "Python %s+ required, found %r",
                 ".".join(PYTHON_MIN_VERSION),
