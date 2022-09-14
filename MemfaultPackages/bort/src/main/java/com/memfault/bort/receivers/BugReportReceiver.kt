@@ -13,6 +13,7 @@ import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.addFileToZip
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.ZipCompressionLevel
 import com.memfault.bort.shared.INTENT_EXTRA_BUG_REPORT_REQUEST_ID
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.goAsync
@@ -38,6 +39,7 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
     @Inject lateinit var enqueueUpload: EnqueueUpload
     @Inject lateinit var combinedTimeProvider: CombinedTimeProvider
     @Inject lateinit var deviceInfoProvider: DeviceInfoProvider
+    @Inject lateinit var zipCompressionLevel: ZipCompressionLevel
 
     override fun onReceivedAndEnabled(context: Context, intent: Intent, action: String) {
         val bugreportPath = intent.getStringExtra(INTENT_EXTRA_BUGREPORT_PATH)
@@ -64,7 +66,12 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
                 ).useFile { tempFile, _ ->
                     val hasInternalLogFile = Logger.uploadAndDeleteLogFile(tempFile)
                     if (hasInternalLogFile) {
-                        addFileToZip(zipFile = file, newFile = tempFile, newfileName = "bort_logs.txt")
+                        addFileToZip(
+                            zipFile = file,
+                            newFile = tempFile,
+                            newfileName = "bort_logs.txt",
+                            compressionLevel = zipCompressionLevel(),
+                        )
                     }
                 }
             }

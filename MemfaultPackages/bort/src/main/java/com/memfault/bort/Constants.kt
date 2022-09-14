@@ -7,6 +7,11 @@ const val INTENT_EXTRA_BUGREPORT_PATH = "com.memfault.intent.extra.BUGREPORT_PAT
 const val INTENT_ACTION_BORT_ENABLE = "com.memfault.intent.action.BORT_ENABLE"
 const val INTENT_EXTRA_BORT_ENABLED = "com.memfault.intent.extra.BORT_ENABLED"
 
+const val INTENT_ACTION_COLLECT_METRICS = "com.memfault.intent.action.REQUEST_METRICS_COLLECTION"
+const val INTENT_ACTION_UPDATE_CONFIGURATION = "com.memfault.intent.action.REQUEST_UPDATE_CONFIGURATION"
+const val INTENT_ACTION_DEV_MODE = "com.memfault.intent.action.DEV_MODE"
+const val INTENT_EXTRA_DEV_MODE_ENABLED = "com.memfault.intent.extra.DEV_MODE_ENABLED"
+
 const val PREFERENCE_BORT_ENABLED = "com.memfault.preference.BORT_ENABLED"
 const val PREFERENCE_DEVICE_ID = "com.memfault.preference.DEVICE_ID"
 const val PREFERENCE_LAST_TRACKED_BOOT_COUNT = "com.memfault.preference.LAST_TRACKED_BOOT_COUNT"
@@ -29,11 +34,7 @@ const val PREFERENCE_PENDING_BUG_REPORT_REQUEST_OPTIONS = "com.memfault.preferen
 const val PREFERENCE_FETCHED_SDK_SETTINGS =
     "com.memfault.preference.PREFERENCE_FETCHED_SDK_SETTINGS"
 
-const val DEFAULT_SETTINGS_ASSET_FILENAME = "settings.json"
-
-// Keep in sync with DUMPSTER_SERVICE_NAME in MemfaultDumpster.cpp!
-const val DUMPSTER_SERVICE_NAME = "memfault_dumpster"
-
 const val METRICS_PREFERENCE_FILE_NAME = "metrics"
 const val FILE_UPLOAD_HOLDING_AREA_PREFERENCE_FILE_NAME = "file_upload_hold"
 const val TOKEN_STORE_PREFERENCE_FILE_NAME_TEMPLATE = "tokens_%s"
+const val PREFERENCE_SAMPLING_CONFIG = "com.memfault.preference.PREFERENCE_SAMPLING_CONFIG"

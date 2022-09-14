@@ -1,0 +1,20 @@
+diff --git a/shared/BoardConfig.mk b/shared/BoardConfig.mk
+index b59b39ca1..4022c89f2 100644
+--- a/shared/BoardConfig.mk
++++ b/shared/BoardConfig.mk
+@@ -288,3 +288,5 @@ BOARD_MOVE_GSI_AVB_KEYS_TO_VENDOR_BOOT := true
+ BOARD_GENERIC_RAMDISK_KERNEL_MODULES_LOAD := dm-user.ko
+
+ BOARD_HAVE_BLUETOOTH := true
++
++include vendor/memfault/bort/BoardConfig.mk
+diff --git a/shared/device.mk b/shared/device.mk
+index 04dedbd57..f7cbeca88 100644
+--- a/shared/device.mk
++++ b/shared/device.mk
+@@ -849,3 +849,5 @@ PRODUCT_PACKAGES += \
+
+ PRODUCT_COPY_FILES += \
+     device/google/cuttlefish/shared/config/pci.ids:$(TARGET_COPY_OUT_VENDOR)/pci.ids
++
++include vendor/memfault/bort/product.mk

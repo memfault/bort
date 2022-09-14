@@ -2,6 +2,7 @@ package com.memfault.bort.metrics
 
 import android.os.RemoteException
 import androidx.work.Data
+import com.memfault.bort.DevMode
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.FileUploadToken
@@ -41,6 +42,7 @@ class MetricsCollectionTask @Inject constructor(
     private val storageStatsCollector: StorageStatsCollector,
     private val appVersionsCollector: AppVersionsCollector,
     private val dumpsterClient: DumpsterClient,
+    private val devMode: DevMode,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -69,7 +71,7 @@ class MetricsCollectionTask @Inject constructor(
                 deviceSerial = deviceInfo.deviceSerial,
                 softwareVersion = deviceInfo.softwareVersion,
                 collectionTime = now,
-                heartbeatIntervalMs = heartbeatInterval.toLongMilliseconds(),
+                heartbeatIntervalMs = heartbeatInterval.inWholeMilliseconds,
                 customMetrics = devicePropertiesStore.collectDeviceProperties(internal = false) +
                     heartbeatReportMetrics,
                 builtinMetrics = devicePropertiesStore.collectDeviceProperties(internal = true) +
@@ -94,7 +96,7 @@ class MetricsCollectionTask @Inject constructor(
     }
 
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult {
-        if (!tokenBucketStore.takeSimple(tag = "metrics")) {
+        if (!devMode.isEnabled() && !tokenBucketStore.takeSimple(tag = "metrics")) {
             return TaskResult.FAILURE
         }
 

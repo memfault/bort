@@ -61,28 +61,12 @@ interface LogcatSettings {
     val filterSpecs: List<LogcatFilterSpec>
     val kernelOopsDataSourceEnabled: Boolean
     val kernelOopsRateLimitingSettings: RateLimitingSettings
+    val storeUnsampled: Boolean
 }
 
 interface FileUploadHoldingAreaSettings {
     val trailingMargin: Duration
     val maxStoredEventsOfInterest: Int
-}
-
-enum class AndroidBuildFormat(val id: String) {
-    SYSTEM_PROPERTY_ONLY("system_property_only"),
-    BUILD_FINGERPRINT_ONLY("build_fingerprint_only"),
-    BUILD_FINGERPRINT_AND_SYSTEM_PROPERTY("build_fingerprint_and_system_property");
-
-    companion object {
-        fun getById(id: String) = AndroidBuildFormat.values().first { it.id == id }
-    }
-}
-
-interface DeviceInfoSettings {
-    val androidBuildFormat: AndroidBuildFormat
-    val androidBuildVersionKey: String
-    val androidHardwareVersionKey: String
-    val androidSerialNumberKey: String
 }
 
 interface HttpApiSettings {
@@ -102,9 +86,15 @@ interface HttpApiSettings {
     val writeTimeout: Duration
     val readTimeout: Duration
     val callTimeout: Duration
+    val zipCompressionLevel: Int
     val useMarUpload: Boolean
     val batchMarUploads: Boolean
     val batchedMarUploadPeriod: Duration
+    val useDeviceConfig: Boolean
+    val deviceConfigInterval: Duration
+    val maxMarFileSizeBytes: Int
+    val maxMarStorageBytes: Long
+    val maxMarUnsampledStoredAge: Duration
 }
 
 interface RebootEventsSettings {

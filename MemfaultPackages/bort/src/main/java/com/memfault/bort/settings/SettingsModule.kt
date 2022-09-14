@@ -13,12 +13,16 @@ fun interface StructuredLogEnabled : () -> Boolean
 fun interface UploadCompressionEnabled : () -> Boolean
 fun interface BatchMarUploads : () -> Boolean
 fun interface UseMarUpload : () -> Boolean
+fun interface UseDeviceConfig : () -> Boolean
 fun interface ProjectKey : () -> String
 fun interface TimeoutConfig : () -> Duration
 fun interface RulesConfig : () -> List<AndroidAppIdScrubbingRule>
 fun interface UploadConstraints : () -> Constraints
 fun interface LogcatCollectionInterval : () -> Duration
 fun interface MaxUploadAttempts : () -> Int
+fun interface MaxMarStorageBytes : () -> Long
+fun interface ZipCompressionLevel : () -> Int
+fun interface MarUnsampledMaxStorageAge : () -> Duration
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -43,6 +47,10 @@ abstract class SettingsModule {
         @Provides
         fun useMarUpload(settings: SettingsProvider) =
             UseMarUpload { settings.httpApiSettings.useMarUpload }
+
+        @Provides
+        fun useDeviceConfig(settings: SettingsProvider) =
+            UseDeviceConfig { settings.httpApiSettings.useDeviceConfig }
 
         @Provides
         fun structuredLog(settings: SettingsProvider) =
@@ -88,5 +96,17 @@ abstract class SettingsModule {
 
         @Provides
         fun httpApiSettings(settingsProvider: SettingsProvider) = settingsProvider.httpApiSettings
+
+        @Provides
+        fun maxMarStorage(settings: SettingsProvider) =
+            MaxMarStorageBytes { settings.httpApiSettings.maxMarStorageBytes }
+
+        @Provides
+        fun zipCompressionLevel(settings: SettingsProvider) =
+            ZipCompressionLevel { settings.httpApiSettings.zipCompressionLevel }
+
+        @Provides
+        fun maxMarUnsampledAge(settings: SettingsProvider) =
+            MarUnsampledMaxStorageAge { settings.httpApiSettings.maxMarUnsampledStoredAge }
     }
 }

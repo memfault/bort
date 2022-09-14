@@ -91,7 +91,7 @@ class ABUpdateActionHandler(
     ) {
         when (action) {
             is Action.CheckForUpdate -> {
-                if (state is State.Idle || state is State.UpdateFailed) {
+                if (state.allowsUpdateCheck()) {
                     setState(State.CheckingForUpdates)
                     val ota = softwareUpdateChecker.getLatestRelease()
                     if (ota == null) {
@@ -124,6 +124,7 @@ class ABUpdateActionHandler(
                     setState(State.Idle)
                 }
             }
+            else -> {}
         }
     }
 }
@@ -209,13 +210,14 @@ class RealAndroidUpdateEngine : AndroidUpdateEngine {
 
 fun realABUpdateActionHandlerFactory(
     context: Context,
+    androidUpdateEngine: AndroidUpdateEngine = RealAndroidUpdateEngine(),
 ) = object : UpdateActionHandlerFactory {
     override fun create(
         setState: suspend (state: State) -> Unit,
         triggerEvent: suspend (event: Event) -> Unit,
         settings: () -> SoftwareUpdateSettings,
     ): UpdateActionHandler = ABUpdateActionHandler(
-        androidUpdateEngine = RealAndroidUpdateEngine(),
+        androidUpdateEngine = androidUpdateEngine,
         softwareUpdateChecker = realSoftwareUpdateChecker(settings, RealMetricLogger(context)),
         setState = setState,
         triggerEvent = triggerEvent,

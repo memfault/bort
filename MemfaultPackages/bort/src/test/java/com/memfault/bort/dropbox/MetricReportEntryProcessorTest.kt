@@ -1,5 +1,6 @@
 package com.memfault.bort.dropbox
 
+import com.memfault.bort.DEV_MODE_DISABLED
 import com.memfault.bort.metrics.HeartbeatReportCollector
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.tokenbucket.MockTokenBucketFactory
@@ -11,7 +12,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Before
@@ -48,6 +49,7 @@ class MetricReportEntryProcessorTest {
             ),
             metricReportEnabledConfig = { metricReportEnabled },
             heartbeatReportCollector = heartbeatReportCollector,
+            devMode = DEV_MODE_DISABLED,
         )
     }
 

@@ -4,7 +4,7 @@ import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.time.boxed
 import java.time.Instant
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 
 object FakeCombinedTimeProvider : CombinedTimeProvider {
     override fun now() = CombinedTime(

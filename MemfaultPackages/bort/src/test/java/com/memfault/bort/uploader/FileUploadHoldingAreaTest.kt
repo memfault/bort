@@ -7,13 +7,20 @@ import com.memfault.bort.LogcatFileUploadPayload
 import com.memfault.bort.MockSharedPreferences
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.makeFakeSharedPreferences
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.FileUploadHoldingAreaSettings
+import com.memfault.bort.settings.LogcatSettings
+import com.memfault.bort.settings.RateLimitingSettings
+import com.memfault.bort.settings.Resolution.NOT_APPLICABLE
+import com.memfault.bort.settings.SamplingConfig
+import com.memfault.bort.shared.LogcatFilterSpec
+import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.verify
 import java.io.File
 import java.util.UUID
 import kotlin.time.Duration
-import kotlin.time.seconds
+import kotlin.time.Duration.Companion.seconds
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -22,8 +29,8 @@ import org.junit.jupiter.api.Test
 class FileUploadHoldingAreaTest {
     lateinit var mockSharedPreferences: MockSharedPreferences
     lateinit var mockEnqueueUpload: EnqueueUpload
-    lateinit var mockResetEventTimeout: () -> Unit
     lateinit var fileUploadHoldingArea: FileUploadHoldingArea
+    private val currentSamplingConfig = mockk<CurrentSamplingConfig> { coEvery { get() } returns SamplingConfig() }
 
     val trailingMarginVal = 5.seconds
     val eventOfInterestTTL = 7.seconds
@@ -32,22 +39,34 @@ class FileUploadHoldingAreaTest {
 
     lateinit var tempFiles: MutableList<File>
 
+    private var storeUnsampledFiles = false
+
     @BeforeEach
     fun setUp() {
         tempFiles = mutableListOf()
         mockSharedPreferences = makeFakeSharedPreferences()
         mockEnqueueUpload = mockk(relaxed = true)
-        mockResetEventTimeout = mockk(relaxed = true)
         val settings = object : FileUploadHoldingAreaSettings {
             override val trailingMargin = trailingMarginVal
             override val maxStoredEventsOfInterest = maxStoredEventsOfInterestVal
         }
+        val logcatSettings = object : LogcatSettings {
+            override val dataSourceEnabled: Boolean get() = TODO("Not used")
+            override val collectionInterval: Duration get() = TODO("Not used")
+            override val commandTimeout: Duration get() = TODO("Not used")
+            override val filterSpecs: List<LogcatFilterSpec> get() = TODO("Not used")
+            override val kernelOopsDataSourceEnabled: Boolean get() = TODO("Not used")
+            override val kernelOopsRateLimitingSettings: RateLimitingSettings get() = TODO("Not used")
+            override val storeUnsampled: Boolean get() = storeUnsampledFiles
+        }
         fileUploadHoldingArea = FileUploadHoldingArea(
             sharedPreferences = mockSharedPreferences,
             enqueueUpload = mockEnqueueUpload,
-            resetEventTimeout = mockResetEventTimeout,
             settings = settings,
             logcatCollectionInterval = { eventOfInterestTTL },
+            logcatSettings = logcatSettings,
+            currentSamplingConfig = currentSamplingConfig,
+            combinedTimeProvider = FakeCombinedTimeProvider,
         )
     }
 
@@ -133,13 +152,6 @@ class FileUploadHoldingAreaTest {
     }
 
     @Test
-    fun eventTimeoutGetsResetWhenHandingEvents() {
-        verify(exactly = 0) { mockResetEventTimeout() }
-        fileUploadHoldingArea.handleEventOfInterest(1.seconds)
-        verify(exactly = 1) { mockResetEventTimeout() }
-    }
-
-    @Test
     fun handleBootCompletedWipesIfLinuxRebooted() {
         val eventTime = 1.seconds
         fileUploadHoldingArea.handleEventOfInterest(eventTime)
@@ -167,12 +179,44 @@ class FileUploadHoldingAreaTest {
 
         fileUploadHoldingArea.handleTimeout(7.seconds)
         assertEquals(false, expectToDeleteEntry.file.exists())
+        verify(exactly = 0) {
+            mockEnqueueUpload.enqueue(
+                file = expectToDeleteEntry.file,
+                metadata = any(),
+                debugTag = expectToDeleteEntry.debugTag,
+                collectionTime = collectionTime,
+            )
+        }
+        assertEquals(listOf(expectToHoldEntry), fileUploadHoldingArea.readEntries())
+    }
+
+    @Test
+    fun handleTimeout_storeUnsampled() {
+        storeUnsampledFiles = true
+        val expectToStoreEntry = makeEntry(1.seconds, 2.seconds)
+
+        assertEquals(7.seconds, 2.seconds + trailingMarginVal)
+        val expectToHoldEntry = makeEntry(7.seconds, 8.seconds)
+
+        listOf(expectToStoreEntry, expectToHoldEntry).forEach {
+            fileUploadHoldingArea.add(it)
+        }
+
+        fileUploadHoldingArea.handleTimeout(7.seconds)
+        verify(exactly = 1) {
+            mockEnqueueUpload.enqueue(
+                file = expectToStoreEntry.file,
+                metadata = expectToStoreEntry.payload.copy(debuggingResolution = NOT_APPLICABLE),
+                debugTag = expectToStoreEntry.debugTag,
+                collectionTime = collectionTime,
+            )
+        }
         assertEquals(listOf(expectToHoldEntry), fileUploadHoldingArea.readEntries())
     }
 
     @Test
     fun maxStoredEventsOfInterest() {
-        val eventTimes = (0..10).map(Int::seconds)
+        val eventTimes = (0..10).map { it.seconds }
         eventTimes.forEach(fileUploadHoldingArea::handleEventOfInterest)
         assertEquals(eventTimes.takeLast(maxStoredEventsOfInterestVal), fileUploadHoldingArea.readEventTimes())
     }

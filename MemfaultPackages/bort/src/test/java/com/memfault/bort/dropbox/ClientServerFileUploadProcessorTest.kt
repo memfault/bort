@@ -1,9 +1,7 @@
 package com.memfault.bort.dropbox
 
-import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.clientserver.MarFileHoldingArea
 import com.memfault.bort.test.util.TestTemporaryFileFactory
-import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.tokenbucket.TokenBucket
 import com.memfault.bort.tokenbucket.TokenBucketMap
 import com.memfault.bort.tokenbucket.TokenBucketStore
@@ -45,20 +43,18 @@ class ClientServerFileUploadProcessorTest {
         runBlocking {
             rateLimit = true
             processor.process(mockEntry(text = FILE_CONTENT.decodeToString()))
-            coVerify(exactly = 0) { marHoldingArea.addMarFile(any()) }
+            coVerify(exactly = 0) { marHoldingArea.addSampledMarFileDirectlyFromOtherDevice(any()) }
         }
     }
 
     @Test
     fun processed() {
         val file = slot<File>()
-        val metadata = slot<FileUploadPayload>()
-        val time = slot<CombinedTime>()
 
         runBlocking {
             rateLimit = false
             processor.process(mockEntry(text = FILE_CONTENT.decodeToString()))
-            coVerify(exactly = 1) { marHoldingArea.addMarFile(capture(file)) }
+            coVerify(exactly = 1) { marHoldingArea.addSampledMarFileDirectlyFromOtherDevice(capture(file)) }
             assertArrayEquals(FILE_CONTENT, file.captured.readBytes())
         }
     }

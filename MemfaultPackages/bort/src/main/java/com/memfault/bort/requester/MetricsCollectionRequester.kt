@@ -19,7 +19,8 @@ import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.time.Duration
-import kotlin.time.minutes
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.DurationUnit
 
 private const val WORK_TAG = "METRICS_COLLECTION"
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.METRICS_COLLECTION"
@@ -28,12 +29,14 @@ private val MINIMUM_COLLECTION_INTERVAL = 15.minutes
 internal fun restartPeriodicMetricsCollection(
     context: Context,
     collectionInterval: Duration,
-    lastHeartbeatEnd: BootRelativeTime,
-    collectImmediately: Boolean = false, // for testing
+    lastHeartbeatEnd: BootRelativeTime? = null,
+    collectImmediately: Boolean = false,
 ) {
-    RealLastHeartbeatEndTimeProvider(
-        PreferenceManager.getDefaultSharedPreferences(context)
-    ).lastEnd = lastHeartbeatEnd
+    lastHeartbeatEnd?.let {
+        RealLastHeartbeatEndTimeProvider(
+            PreferenceManager.getDefaultSharedPreferences(context)
+        ).lastEnd = lastHeartbeatEnd
+    }
 
     periodicWorkRequest<MetricsCollectionTask>(
         collectionInterval,
@@ -41,7 +44,7 @@ internal fun restartPeriodicMetricsCollection(
     ) {
         addTag(WORK_TAG)
         if (!collectImmediately) {
-            setInitialDelay(collectionInterval.inMilliseconds.toLong(), TimeUnit.MILLISECONDS)
+            setInitialDelay(collectionInterval.toLong(DurationUnit.MILLISECONDS), TimeUnit.MILLISECONDS)
         }
     }.also { workRequest ->
         WorkManager.getInstance(context)
@@ -61,16 +64,21 @@ class MetricsCollectionRequester @Inject constructor(
     private val bootRelativeTimeProvider: BootRelativeTimeProvider,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
+        restartPeriodicCollection(resetLastHeartbeatTime = justBooted, collectImmediately = false)
+    }
+
+    suspend fun restartPeriodicCollection(resetLastHeartbeatTime: Boolean, collectImmediately: Boolean) {
         if (!metricsSettings.dataSourceEnabled) return
         if (!bortSystemCapabilities.supportsCaliperMetrics()) return
 
         val collectionInterval = maxOf(MINIMUM_COLLECTION_INTERVAL, metricsSettings.collectionInterval)
-        Logger.test("Collecting metrics every ${collectionInterval.inMinutes} minutes")
+        Logger.test("Collecting metrics every ${collectionInterval.toDouble(DurationUnit.MINUTES)} minutes")
 
         restartPeriodicMetricsCollection(
             context = context,
             collectionInterval = collectionInterval,
-            lastHeartbeatEnd = bootRelativeTimeProvider.now(),
+            lastHeartbeatEnd = if (resetLastHeartbeatTime) bootRelativeTimeProvider.now() else null,
+            collectImmediately = collectImmediately,
         )
     }
 

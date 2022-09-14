@@ -28,26 +28,26 @@ buildscript {
 
     ext.versions = [
             'androidx'   : [
-                    'activityKtx'                      : '1.4.0',
-                    'appcompat'                        : '1.4.0',
-                    'fragmentKtx'                      : '1.4.0',
+                    'activityKtx'                      : '1.5.1',
+                    'appcompat'                        : '1.5.0',
+                    'fragmentKtx'                      : '1.5.2',
                     'preference'                       : '1.1.1',
                     'work'                             : '2.7.1',
-                    'room'                             : '2.4.0',
+                    'room'                             : '2.4.3',
             ],
             'android'   : [
-                    'androidGradlePlugin'              : '7.1.2',
+                    'androidGradlePlugin'              : '7.2.2',
                     'material'                         : '1.4.0',
             ],
             'dagger'   : [
-                    'anvil'                            : '2.4.0',
-                    'hilt'                             : '2.41',
+                    'anvil'                            : '2.4.2',
+                    'hilt'                             : '2.43.2',
             ],
             'kotlin'   : [
-                    'kotlin'                           : '1.6.10',
-                    'kotlinCoroutines'                 : '1.5.2',
+                    'kotlin'                           : '1.7.10',
+                    'kotlinCoroutines'                 : '1.6.3',
                     'retrofitKtxSerializationConverter': '0.8.0',
-                    'ktxSerializationJson'             : '1.3.1',
+                    'ktxSerializationJson'             : '1.3.3',
                     'ktlintGradle'                     : '10.2.0',
             ],
             'minSdk'                           : bortProperty("MIN_SDK_VERSION") as Integer,
@@ -59,16 +59,16 @@ buildscript {
                     'junit'                            : '5.8.1',
                     'json'                             : '20210307',
                     'mockk'                            : '1.12.0',
-                    'robolectric'                      : '4.5.1',
+                    'robolectric'                      : '4.8',
             ],
             'jblake2'                          : '0.4',
-            'memfaultCloud'                    : '2.0.3',
-            'okhttp'                           : '4.9.2',
-            'okio'                             : '3.0.0',
-            'result'                           : '1.1.9',
+            'memfaultCloud'                    : '2.0.4',
+            'okhttp'                           : '4.10.0',
+            'okio'                             : '3.2.0',
+            'result'                           : '1.1.16',
             'retrofit'                         : '2.9.0',
-            'jackson'                          : '2.13.0',
-            'zjsonpatch'                       : '0.4.11',
+            'jackson'                          : '2.13.2',
+            'zjsonpatch'                       : '0.4.12',
     ]
     ext.deps = [
             'android'      : [
@@ -150,7 +150,7 @@ allprojects {
     }
 }
 
-task clean(type: Delete) {
+tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
 

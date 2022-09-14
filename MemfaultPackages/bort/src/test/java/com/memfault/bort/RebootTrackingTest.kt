@@ -8,7 +8,7 @@ import com.memfault.bort.uploader.EnqueueUpload
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals

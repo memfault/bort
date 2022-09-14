@@ -8,7 +8,7 @@ import com.github.michaelbull.result.Result
 import com.memfault.bort.shared.result.failure
 import com.memfault.bort.shared.result.success
 import kotlin.time.Duration
-import kotlin.time.seconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withTimeout
@@ -31,7 +31,7 @@ abstract class ServiceMessageConnection<SM : ServiceMessage> {
     abstract fun sendAndGetReplyHandler(message: SM): ServiceMessageReplyHandler<SM>
     suspend fun sendAndReceive(
         message: SM,
-        timeout: Duration = DEFAULT_REPLY_TIMEOUT
+        timeout: Duration = DEFAULT_REPLY_TIMEOUT,
     ): Result<SM, Exception> = try {
         Result.success(
             withTimeout(timeout) {
@@ -48,14 +48,14 @@ private const val REPLY_CHANNEL_CAPACITY = 2
 
 internal class ReplyMessageHandler<SM : ServiceMessage>(
     looper: Looper,
-    private val messageToServiceMessage: (message: Message) -> SM
+    private val messageToServiceMessage: (message: Message) -> SM,
 ) : Handler(looper), ServiceMessageReplyHandler<SM> {
 
     override val replyChannel = Channel<SM>(REPLY_CHANNEL_CAPACITY)
     override fun handleMessage(msg: Message) {
         messageToServiceMessage(msg).also { serviceMessage ->
             Logger.v("Got serviceMessage: $serviceMessage")
-            if (!replyChannel.offer(serviceMessage)) {
+            if (!replyChannel.trySend(serviceMessage).isSuccess) {
                 Logger.e("Failed to offer message to channel: $serviceMessage")
             }
         }
@@ -65,7 +65,7 @@ internal class ReplyMessageHandler<SM : ServiceMessage>(
 class RealServiceMessageConnection<SM : ServiceMessage>(
     private val outboundMessenger: Messenger,
     private val inboundLooper: Looper,
-    private val messageToServiceMessage: (message: Message) -> SM
+    private val messageToServiceMessage: (message: Message) -> SM,
 ) : ServiceMessageConnection<SM>() {
     override fun sendAndGetReplyHandler(message: SM): ServiceMessageReplyHandler<SM> {
         val replyHandler = ReplyMessageHandler(inboundLooper, messageToServiceMessage)

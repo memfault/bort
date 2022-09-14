@@ -8,7 +8,7 @@ class UpdateViewModelFactory(
     private val appComponents: AppComponents
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel?> create(modelClass: Class<T>): T = when (modelClass) {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T = when (modelClass) {
         UpdateViewModel::class.java -> UpdateViewModel(appComponents.updater()) as T
         else -> throw IllegalStateException("Unknown ViewModel class $modelClass")
     }

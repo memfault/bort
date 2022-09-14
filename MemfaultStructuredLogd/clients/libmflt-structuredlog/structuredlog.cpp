@@ -43,6 +43,21 @@ void StructuredLogger::ensureServiceLocked() {
   }
 }
 
+void StructuredLogger::finishReport(const std::string &json) {
+  std::unique_lock<std::mutex> lock(mInt->mLoggerMutex);
+  ensureServiceLocked();
+  if (mInt->mLogger != nullptr) {
+    mInt->mLogger->finishReport(android::String16(json.c_str()));
+  }
+}
+
+void StructuredLogger::addValue(const std::string &json) {
+  std::unique_lock<std::mutex> lock(mInt->mLoggerMutex);
+  ensureServiceLocked();
+  if (mInt->mLogger != nullptr) {
+    mInt->mLogger->addValue(android::String16(json.c_str()));
+  }
+}
 
 }
 
@@ -58,12 +73,12 @@ void structured_log_destroy(structured_logger_t self) {
 }
 
 void structured_log_with_ts(structured_logger_t self, uint64_t timestamp,
-    const char* tag, const char *message) {
+    const char* tag, const char* message) {
   auto *l = reinterpret_cast<memfault::StructuredLogger*>(self);
   l->log(timestamp, std::string(tag), std::string(message));
 }
 
-void structured_log(structured_logger_t self, const char* tag, const char *message) {
+void structured_log(structured_logger_t self, const char* tag, const char* message) {
   auto *l = reinterpret_cast<memfault::StructuredLogger*>(self);
   l->log(std::string(tag), std::string(message));
 }
@@ -71,4 +86,14 @@ void structured_log(structured_logger_t self, const char* tag, const char *messa
 uint64_t structured_log_timestamp(structured_logger_t self) {
   auto *l = reinterpret_cast<memfault::StructuredLogger*>(self);
   return l->timestamp();
+}
+
+void structured_log_finish_report(structured_logger_t self, const char* json) {
+  auto *l = reinterpret_cast<memfault::StructuredLogger*>(self);
+  l->finishReport(std::string(json));
+}
+
+void structured_log(structured_logger_t self, const char* json) {
+  auto *l = reinterpret_cast<memfault::StructuredLogger*>(self);
+  l->addValue(std::string(json));
 }

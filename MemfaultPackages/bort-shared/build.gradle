@@ -1,9 +1,12 @@
+import static com.memfault.bort.buildsrc.BortSettingsDownloaderKt.getBortSettingsAssetsPath
+
 apply plugin: 'com.android.library'
 apply plugin: 'com.squareup.anvil'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlinx-serialization'
 apply from: "../properties.gradle"
+
+def generatedSettingsAssets = getBortSettingsAssetsPath(project.rootProject.rootDir)
 
 android {
     compileSdkVersion versions.compileSdk
@@ -25,6 +28,8 @@ android {
         buildConfigField "String", "BORT_OTA_APPLICATION_ID", "\"" + bortProperty("BORT_OTA_APPLICATION_ID") + "\""
         buildConfigField "int", "CLIENT_SERVER_PORT", bortProperty("CLIENT_SERVER_PORT")
         buildConfigField "String", "CLIENT_SERVER_HOST", "\"" + bortProperty("CLIENT_SERVER_HOST") + "\""
+        buildConfigField "Boolean", "OTA_AUTO_INSTALL", bortProperty("OTA_AUTO_INSTALL")
+        buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "\"" + bortProperty("MEMFAULT_PROJECT_API_KEY") + "\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -45,6 +50,13 @@ android {
         freeCompilerArgs += "-Xopt-in=kotlin.time.ExperimentalTime"
     }
 
+    sourceSets {
+        main {
+            aidl.srcDirs = ['../../MemfaultDumpster/']
+            assets.srcDirs += [generatedSettingsAssets]
+        }
+    }
+
     testOptions {
         unitTests.returnDefaultValues = true
         unitTests.all {
@@ -56,10 +68,13 @@ android {
 dependencies {
     implementation project(':reporting-lib')
 
+    implementation deps.android.work
     implementation deps.dagger.hilt
+    implementation deps.jblake2
     implementation deps.kotlin.stdlib
     implementation deps.kotlin.coroutines
     implementation deps.kotlin.coroutinesAndroid
+    implementation deps.okhttp
     implementation deps.result
     implementation deps.serialization.json
     implementation deps.serialization.converter

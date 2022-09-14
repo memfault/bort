@@ -9,9 +9,9 @@ import io.mockk.slot
 import java.io.File
 import java.io.OutputStream
 import java.lang.Exception
-import kotlin.time.hours
-import kotlin.time.minutes
-import kotlin.time.seconds
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals

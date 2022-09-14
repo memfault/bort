@@ -3,17 +3,21 @@ package com.memfault.bort.uploader
 import android.content.SharedPreferences
 import android.os.SystemClock
 import com.memfault.bort.FileAsAbsolutePathSerializer
-import com.memfault.bort.FileUploadHoldingReschedule
 import com.memfault.bort.LogcatFileUploadPayload
 import com.memfault.bort.UploadHoldingArea
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.getJson
 import com.memfault.bort.putJson
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.FileUploadHoldingAreaSettings
 import com.memfault.bort.settings.LogcatCollectionInterval
+import com.memfault.bort.settings.LogcatSettings
+import com.memfault.bort.settings.Resolution.NORMAL
+import com.memfault.bort.settings.Resolution.NOT_APPLICABLE
 import com.memfault.bort.time.BaseAbsoluteTime
 import com.memfault.bort.time.BaseBootRelativeTime
 import com.memfault.bort.time.BoxedDuration
+import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.time.DurationAsMillisecondsLong
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
@@ -23,7 +27,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.concurrent.withLock
 import kotlin.time.Duration
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -86,13 +91,11 @@ interface HandleEventOfInterest {
 class FileUploadHoldingArea @Inject constructor(
     @UploadHoldingArea private val sharedPreferences: SharedPreferences,
     private val enqueueUpload: EnqueueUpload,
-    /**
-     * Function that resets/pushed out the timeout task that will cleanup
-     * expired entries by calling handleTimeout().
-     */
-    private val resetEventTimeout: FileUploadHoldingReschedule,
     private val settings: FileUploadHoldingAreaSettings,
     private val logcatCollectionInterval: LogcatCollectionInterval,
+    private val logcatSettings: LogcatSettings,
+    private val currentSamplingConfig: CurrentSamplingConfig,
+    private val combinedTimeProvider: CombinedTimeProvider,
 ) : HandleEventOfInterest {
     private val lock = ReentrantLock()
     private var eventTimes: List<ElapsedRealtime> = readEventTimes()
@@ -111,7 +114,7 @@ class FileUploadHoldingArea @Inject constructor(
             .apply()
     }
 
-    fun add(entry: PendingFileUploadEntry) =
+    fun add(entry: PendingFileUploadEntry) {
         lock.withLock {
             if (eventTimes.any(entry.timeSpan.spanWithMargin()::contains)) {
                 enqueueUpload.enqueue(entry.file, entry.payload, entry.debugTag, entry.payload.collectionTime)
@@ -120,6 +123,8 @@ class FileUploadHoldingArea @Inject constructor(
                 persist()
             }
         }
+        handleTimeout(combinedTimeProvider.now().elapsedRealtime.duration)
+    }
 
     /**
      * Records the time of the event of interest, prunes old event times that have outlived their TTL,
@@ -139,13 +144,13 @@ class FileUploadHoldingArea @Inject constructor(
                             entry.file, entry.payload, entry.debugTag, entry.payload.collectionTime
                         )
                     } else if (it.shouldBeDeletedAt(time)) false.also {
-                        entry.file.deleteSilently()
+                        removeEntry(entry)
                     } else true
                 }
             }
             persist()
         }
-        resetEventTimeout()
+        handleTimeout(combinedTimeProvider.now().elapsedRealtime.duration)
     }
 
     override fun handleEventOfInterest(absoluteTime: BaseAbsoluteTime) {
@@ -155,7 +160,7 @@ class FileUploadHoldingArea @Inject constructor(
     }
 
     private fun clearEntriesAndEventTimes() {
-        entries.forEach { it.file.deleteSilently() }
+        entries.forEach { removeEntry(it) }
         entries = emptyList()
         eventTimes = emptyList()
     }
@@ -178,7 +183,7 @@ class FileUploadHoldingArea @Inject constructor(
             entries = entries.filter { entry ->
                 entry.timeSpan.spanWithMargin().let {
                     if (it.shouldBeDeletedAt(now)) false.also {
-                        entry.file.deleteSilently()
+                        removeEntry(entry)
                     } else true
                 }
             }
@@ -190,6 +195,22 @@ class FileUploadHoldingArea @Inject constructor(
             clearEntriesAndEventTimes()
             persist()
         }
+
+    private fun removeEntry(entry: PendingFileUploadEntry) = runBlocking {
+        // Only keep logs that didn't overlap an event, if (1) we are configured to store them, or, (2) we are in a
+        // logging resolution which would upload them immediately.
+        if (logcatSettings.storeUnsampled || currentSamplingConfig.get().loggingResolution == NORMAL) {
+            // Did not overlap with an event of interest: only has a logging aspect.
+            enqueueUpload.enqueue(
+                file = entry.file,
+                metadata = entry.payload.copy(debuggingResolution = NOT_APPLICABLE),
+                debugTag = entry.debugTag,
+                collectionTime = entry.payload.collectionTime,
+            )
+        } else {
+            entry.file.deleteSilently()
+        }
+    }
 
     internal fun Duration.eventTimeStillAliveAt(now: ElapsedRealtime) = this + logcatCollectionInterval() > now
 

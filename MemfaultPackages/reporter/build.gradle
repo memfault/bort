@@ -1,6 +1,5 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
 apply from: "../properties.gradle"
 
 android {
@@ -67,12 +66,14 @@ dependencies {
     testImplementation deps.test.mockk
 }
 
-task copyReleaseApk(type: Copy) {
-    from file("$buildDir/outputs/apk/release/reporter-release-unsigned.apk")
-    into rootDir
-    rename 'reporter-release-unsigned.apk', 'MemfaultUsageReporter.apk'
-}
-
 afterEvaluate {
-    assembleRelease.finalizedBy copyReleaseApk
+    tasks.named("assembleRelease").configure {
+        doLast {
+            copy {
+                from file("$buildDir/outputs/apk/release/reporter-release-unsigned.apk")
+                into rootDir
+                rename 'reporter-release-unsigned.apk', 'MemfaultUsageReporter.apk'
+            }
+        }
+    }
 }

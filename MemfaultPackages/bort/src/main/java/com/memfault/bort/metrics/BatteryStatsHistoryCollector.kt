@@ -15,7 +15,7 @@ import java.io.File
 import java.io.OutputStream
 import javax.inject.Inject
 import kotlin.time.Duration
-import kotlin.time.seconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -90,11 +90,11 @@ class BatteryStatsHistoryCollector @Inject constructor(
                 continue
             }
 
-            val historyStartLimit = maxOf(0, nextHistoryStart - limit.toLongMilliseconds())
+            val historyStartLimit = maxOf(0, nextHistoryStart - limit.inWholeMilliseconds)
             // Calling batterystats, causes a new item to get written, so NEXT will move further out every
             // time it is called with a historyStart that's before the last item. To avoid getting into an infinite
             // loop, take some margin when testing whether the historyStart meets the limit:
-            val historyStartComparisonLimit = maxOf(0, historyStartLimit - LIMIT_GRACE_MARGIN.toLongMilliseconds())
+            val historyStartComparisonLimit = maxOf(0, historyStartLimit - LIMIT_GRACE_MARGIN.inWholeMilliseconds)
             if (historyStart < historyStartComparisonLimit) {
                 // The NEXT time indicated we've got more data than the limit allows, run it again with the
                 // --history-start set to (NEXT - limit + margin):

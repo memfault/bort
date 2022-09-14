@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.DurationUnit.HOURS
 import kotlin.time.toJavaDuration
 
 private const val WORK_TAG = "SETTINGS_UPDATE"
@@ -33,7 +34,8 @@ internal fun restartPeriodicSettingsUpdate(
         Logger.test("Restarting settings periodic task for testing")
     } else {
         Logger.test(
-            "Requesting settings every ${updateInterval.inHours} hours (delayInitially=$delayAfterSettingsUpdate)"
+            "Requesting settings every ${updateInterval.toDouble(HOURS)} " +
+                "hours (delayInitially=$delayAfterSettingsUpdate)"
         )
     }
 
@@ -65,13 +67,17 @@ class SettingsUpdateRequester @Inject constructor(
     private val bortSystemCapabilities: BortSystemCapabilities,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
+        restartSetttingsUpdate(delayAfterSettingsUpdate = settingsChanged)
+    }
+
+    fun restartSetttingsUpdate(delayAfterSettingsUpdate: Boolean) {
         if (!bortSystemCapabilities.supportsDynamicSettings()) return
 
         restartPeriodicSettingsUpdate(
             context = context,
             httpApiSettings = settings.httpApiSettings,
-            updateInterval = settings.settingsUpdateInterval,
-            delayAfterSettingsUpdate = settingsChanged,
+            updateInterval = settings.sdkSettingsUpdateInterval(),
+            delayAfterSettingsUpdate = delayAfterSettingsUpdate,
             jitterDelayProvider = jitterDelayProvider,
         )
     }
@@ -82,5 +88,13 @@ class SettingsUpdateRequester @Inject constructor(
     }
 
     override fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
-        old.settingsUpdateInterval != new.settingsUpdateInterval
+        old.sdkSettingsUpdateInterval() != new.sdkSettingsUpdateInterval()
+}
+
+/**
+ * Get the correct update interval, based on which endpoint is enabled.
+ */
+private fun SettingsProvider.sdkSettingsUpdateInterval(): Duration = when (httpApiSettings.useDeviceConfig) {
+    true -> httpApiSettings.deviceConfigInterval
+    false -> settingsUpdateInterval
 }

@@ -2,7 +2,7 @@ package com.memfault.bort.tokenbucket
 
 import io.mockk.mockk
 import kotlin.time.Duration
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

@@ -21,6 +21,7 @@ import dagger.assisted.AssistedInject
 import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
+import kotlin.time.DurationUnit
 
 /**
  * Helpers around androidx.work that delegate the actual work to a Task, with
@@ -96,7 +97,7 @@ inline fun <reified K : Task<*>> periodicWorkRequest(
     block: PeriodicWorkRequest.Builder.() -> Unit = {}
 ): PeriodicWorkRequest =
     PeriodicWorkRequestBuilder<TaskRunnerWorker>(
-        repeatInterval.inMilliseconds.toLong(),
+        repeatInterval.toDouble(DurationUnit.MILLISECONDS).toLong(),
         TimeUnit.MILLISECONDS,
     )
         .setInputData(

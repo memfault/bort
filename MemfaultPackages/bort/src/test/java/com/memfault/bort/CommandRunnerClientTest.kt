@@ -19,10 +19,9 @@ import io.mockk.mockk
 import io.mockk.verify
 import java.io.FileInputStream
 import java.io.InputStream
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.channels.sendBlocking
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -109,7 +108,7 @@ class CommandRunnerClientTest {
     @Test
     fun handleUnexpectedContinueMessage() {
         assertNotNull(replyHandler)
-        replyHandler.replyChannel.sendBlocking(ErrorResponse("Uh-oh"))
+        replyHandler.replyChannel.trySend(ErrorResponse("Uh-oh"))
         runBlockingTest {
             assertEquals(
                 Result.success(true),
@@ -121,8 +120,8 @@ class CommandRunnerClientTest {
 
     @Test
     fun handleUnexpectedResultResponse() {
-        replyHandler.replyChannel.sendBlocking(RunCommandContinue())
-        replyHandler.replyChannel.sendBlocking(ErrorResponse("Uh-oh"))
+        replyHandler.replyChannel.trySend(RunCommandContinue())
+        replyHandler.replyChannel.trySend(ErrorResponse("Uh-oh"))
         runBlockingTest {
             assertEquals(
                 Result.success(true),
@@ -138,8 +137,8 @@ class CommandRunnerClientTest {
 
     @Test
     fun happyPath() {
-        replyHandler.replyChannel.sendBlocking(RunCommandContinue())
-        replyHandler.replyChannel.sendBlocking(RunCommandResponse(exitCode = 123, didTimeout = false))
+        replyHandler.replyChannel.trySend(RunCommandContinue())
+        replyHandler.replyChannel.trySend(RunCommandResponse(exitCode = 123, didTimeout = false))
         runBlockingTest {
             assertEquals(
                 Result.success(true),

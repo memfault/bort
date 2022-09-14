@@ -3,6 +3,7 @@ package com.memfault.bort.settings
 import com.memfault.bort.BuildConfig
 import com.memfault.bort.DataScrubbingRule
 import com.memfault.bort.shared.BugReportOptions
+import com.memfault.bort.shared.BuildConfig as SharedBuildConfig
 import com.memfault.bort.shared.BuildConfigSdkVersionInfo
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatFilterSpec
@@ -55,7 +56,7 @@ open class DynamicSettingsProvider @Inject constructor(
             else NetworkConstraint.UNMETERED
         override val uploadCompressionEnabled
             get() = settings.httpApiUploadCompressionEnabled
-        override val projectKey = BuildConfig.MEMFAULT_PROJECT_API_KEY
+        override val projectKey = SharedBuildConfig.MEMFAULT_PROJECT_API_KEY
         override val filesBaseUrl
             get() = settings.httpApiFilesBaseUrl
         override val deviceBaseUrl
@@ -70,24 +71,27 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.httpApiReadTimeout.duration
         override val callTimeout
             get() = settings.httpApiCallTimeout.duration
+        override val zipCompressionLevel: Int
+            get() = settings.httpApiZipCompressionLevel
         override val useMarUpload: Boolean
             get() = settings.httpApiUseMarUpload
         override val batchMarUploads: Boolean
             get() = settings.httpApiBatchMarUploads
         override val batchedMarUploadPeriod: Duration
             get() = settings.httpApiBatchedMarUploadPeriod.duration
+        override val useDeviceConfig: Boolean
+            get() = settings.httpApiUseDeviceConfig
+        override val deviceConfigInterval: Duration
+            get() = settings.httpApiDeviceConfigInterval.duration
+        override val maxMarFileSizeBytes: Int
+            get() = settings.httpApiMaxMarFileSizeBytes
+        override val maxMarStorageBytes: Long
+            get() = settings.httpApiMaxMarStorageBytes
+        override val maxMarUnsampledStoredAge: Duration
+            get() = settings.httpApiMarUnsampledMaxStoredAge.duration
     }
 
-    override val deviceInfoSettings = object : DeviceInfoSettings {
-        override val androidBuildFormat
-            get() = AndroidBuildFormat.getById(settings.deviceInfoAndroidBuildVersionSource)
-        override val androidBuildVersionKey
-            get() = settings.deviceInfoAndroidBuildVersionKey
-        override val androidHardwareVersionKey
-            get() = settings.deviceInfoAndroidHardwareVersionKey
-        override val androidSerialNumberKey
-            get() = settings.deviceInfoAndroidDeviceSerialKey
-    }
+    override val deviceInfoSettings = settings.deviceInfoSettings()
 
     override val sdkVersionInfo = BuildConfigSdkVersionInfo
 
@@ -168,6 +172,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.logcatKernelOopsDataSourceEnabled
         override val kernelOopsRateLimitingSettings
             get() = settings.logcatKernelOopsRateLimitingSettings
+        override val storeUnsampled: Boolean
+            get() = settings.logcatStoreUnsampled
     }
 
     override val fileUploadHoldingAreaSettings = object : FileUploadHoldingAreaSettings {

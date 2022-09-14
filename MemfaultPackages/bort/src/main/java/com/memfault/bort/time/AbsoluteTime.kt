@@ -47,5 +47,5 @@ fun Long.toAbsoluteTime() = AbsoluteTime(
 )
 
 fun Duration.toAbsoluteTime() = AbsoluteTime(
-    Instant.ofEpochMilli(this.toLongMilliseconds())
+    Instant.ofEpochMilli(this.inWholeMilliseconds)
 )

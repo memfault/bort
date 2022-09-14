@@ -3,7 +3,7 @@ package com.memfault.bort.tokenbucket
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import io.mockk.mockk
 import kotlin.time.Duration
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 
 class MockElapsedRealtime {
     var now: Duration = 0.milliseconds

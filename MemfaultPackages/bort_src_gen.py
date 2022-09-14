@@ -222,7 +222,7 @@ def _check_signatures(*, output_file, apk_file, pem_file, apk_cert_sha256s, pem_
                 apk_file, apk_cert_sha256s, pem_file, pem_sha256
             )
         )
-    with open(output_file, "w") as f:
+    with open(output_file, "w+") as f:
         f.write("OK: {}".format(pem_sha256))
 
 
@@ -383,10 +383,12 @@ def test_parse_apksigner_cert_sha256() -> None:
     ]
 
 
-def test_check_signatures_mismatch():
+def test_check_signatures_mismatch(tmp_path):
+    output_file = tmp_path / "signatures.out"
+
     with pytest.raises(Exception, match="signature does not match"):
         _check_signatures(
-            output_file="output.txt",
+            output_file=str(output_file),
             apk_file="app.apk",
             pem_file="cert.pem",
             apk_cert_sha256s=["AA:BB", "EE:FF"],
@@ -394,19 +396,18 @@ def test_check_signatures_mismatch():
         )
 
 
-def test_check_signatures_match():
-    import tempfile
+def test_check_signatures_match(tmp_path):
+    output_file = tmp_path / "signatures.out"
 
-    with tempfile.NamedTemporaryFile(mode="w+") as f:
-        _check_signatures(
-            output_file=f.name,
-            apk_file="app.apk",
-            pem_file="cert.pem",
-            apk_cert_sha256s=["AA:BB", "CC:DD"],
-            pem_sha256="CC:DD",
-        )
+    _check_signatures(
+        output_file=str(output_file),
+        apk_file="app.apk",
+        pem_file="cert.pem",
+        apk_cert_sha256s=["AA:BB", "CC:DD"],
+        pem_sha256="CC:DD",
+    )
 
-        assert f.read() == "OK: CC:DD"
+    assert output_file.read_text() == "OK: CC:DD"
 
 
 def test_apksigner_jar_path_exists():

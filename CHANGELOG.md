@@ -1,5 +1,63 @@
 # Memfault Bort Changelog
 
+## v4.2.0 - September 14th, 2022
+
+#### :rocket: New Features
+
+- Fleet Sampling, including new Memfault Log Collection.
+- Support for Android 12L.
+- Support for Android 13.
+- Adds a Development Mode to Bort, to make the integration and testing
+  experience easier. [See documentation](https://mflt.io/android-dev-mode).
+- C/C++ API for reporting custom metrics (not yet documented).
+- OTA app can now be configured to auto-install updates (with no user
+  intervention) by setting the `OTA_AUTO_INSTALL` property to `true` in
+  `bort.properties`. In the future, it will be possible to override this in the
+  dashboard. Also adds a `custom_canAutoInstallOtaUpdateNow` callback (in
+  `autoInstallRules.kt`) to customize this logic.
+  [See documentation](https://mflt.io/android-ota-background).
+- Custom log scrubbing rules can be defined in `CustomLogScrubber.kt`.
+  [See documentation](https://mflt.io/android-custom-scrubbing).
+
+#### :chart_with_upwards_trend: Improvements
+
+- OTA will now automatically reboot after applying an A/B update.
+- Adds configurable limits to `mar` file size. Multiple bundled `mar` files may
+  now be created if over the limit.
+- Adds configurable limits for total `mar` file storage (by size/age).
+- Fixed an issue where devices running a Qualcomm QSSI Android 12 build may fail
+  to collect custom metrics.
+- The OTA app can now fall back to using default settings if it cannot fetch
+  updated settings from the Bort app.
+- Force Bort's OTA settings ContentProvider to be queryable, to work around an
+  issue on some devices where the OTA app could not request settings from the
+  Bort app.
+- Updated several libraries/tools used by Bort, including Gradle, AGP, Dagger,
+  etc.
+- Improved Bort build speed, and removed many spammy java/kotlin warnings during
+  compilation.
+- Fixed an issue where the `mar` bundling task may not get scheduled (causing no
+  files to get uploaded until the next device reboot) after changing a specific
+  combination of SDK settings.
+- Made zip compression level configurable.
+- Adds an OTA update check task to the Bort CLI:
+  `bort_cli.py ota-check --bort-ota-app-id your.bort.ota.app.id`
+- Fixed an issue where metrics service could not create files on some devices
+  due to encryption state.
+- Added a compile-time check to ensure that Bort SELinux policy has been correctly
+  applied.
+- The OTA app will now continue to check for updates while waiting to
+  download/install.
+
+#### :house: Internal
+
+- Added internal metrics around `mar` storage/usage.
+- Changed the default API endpoint from `api.memfault.com` to
+  `device.memfault.com` (to match remote settings configuration).
+- Added the device software version to the `device-config` server call.
+- Bort can optionally fetch device configuration from new `/device-config`
+  endpoint.
+
 ## v4.1.0 - April 18, 2022
 
 #### :chart_with_upwards_trend: Improvements

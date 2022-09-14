@@ -8,6 +8,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.memfault.bort.DEV_MODE_DISABLED
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.INTENT_ACTION_OTA_SETTINGS_CHANGED
 import com.memfault.bort.shared.InternalMetric
@@ -67,6 +68,7 @@ class BootCompleteReceiver : BroadcastReceiver() {
                         else Event.RebootToUpdateFailed
                     )
                 }
+                else -> {}
             }
             updater.setState(State.Idle)
         }
@@ -90,7 +92,7 @@ class BootCompleteReceiver : BroadcastReceiver() {
             updateCheckIntervalMs, TimeUnit.MILLISECONDS
         ).apply {
             setConstraints(constraints)
-            setInitialDelay(JitterDelayProvider(applyJitter = APPLY).randomJitterDelay())
+            setInitialDelay(JitterDelayProvider(applyJitter = APPLY, devMode = DEV_MODE_DISABLED).randomJitterDelay())
         }.build()
 
         WorkManager.getInstance(context)

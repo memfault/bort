@@ -174,7 +174,7 @@ class DownloadOtaService : Service() {
                 .addNetworkInterceptor { chain ->
                     val originalResponse = chain.proceed(chain.request())
                     originalResponse.newBuilder()
-                        .body(originalResponse.body()?.withProgressCallback(progressCallback, downloadOffset))
+                        .body(originalResponse.body?.withProgressCallback(progressCallback, downloadOffset))
                         .build()
                 }
                 .eventListener(object : EventListener() {
@@ -197,7 +197,7 @@ class DownloadOtaService : Service() {
 
                         override fun onResponse(call: Call, response: Response) {
                             response.use {
-                                it.body()?.let { body ->
+                                it.body?.let { body ->
                                     if (targetFile.exists() && body.contentLength() <= downloadOffset) {
                                         return continuation.resume(Unit) {}
                                     }

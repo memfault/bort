@@ -119,7 +119,7 @@ private fun generateDevConfig(
                    },
                    "file_upload_holding_area.max_stored_events_of_interest": 50,
                    "file_upload_holding_area.trailing_margin_ms": 300000,
-                   "http_api.device_base_url" : "${getDefaultProperty("MEMFAULT_API_BASE_URL") ?: "https://api.memfault.com"}",
+                   "http_api.device_base_url" : "${getDefaultProperty("MEMFAULT_API_BASE_URL") ?: "https://device.memfault.com"}",
                    "http_api.files_base_url" : "${getDefaultProperty("MEMFAULT_FILES_BASE_URL") ?: "https://files.memfault.com"}",
                    "http_api.ingress_base_url" : "${getDefaultProperty("MEMFAULT_INGRESS_BASE_URL") ?: "https://ingress.memfault.com"}",
                    "http_api.upload_compression_enabled" : true,

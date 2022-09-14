@@ -53,7 +53,7 @@ dependencies {
     testImplementation deps.test.junitJupiterEngine
 }
 
-task androidSourcesJar(type: Jar) {
+tasks.register("androidSourcesJar", Jar) {
     archiveClassifier.set('sources')
     from android.sourceSets.main.java.srcDirs
 }

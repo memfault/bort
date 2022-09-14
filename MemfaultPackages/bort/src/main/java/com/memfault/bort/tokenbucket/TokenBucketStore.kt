@@ -13,7 +13,7 @@ import kotlin.annotation.AnnotationTarget.PROPERTY_SETTER
 import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
 import kotlin.concurrent.withLock
 import kotlin.time.Duration
-import kotlin.time.minutes
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -97,11 +97,6 @@ annotation class MetricsCollection
 @Retention(RUNTIME)
 @Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 annotation class MetricReportStore
-
-@Qualifier
-@Retention(RUNTIME)
-@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
-annotation class SettingsUpdate
 
 @Qualifier
 @Retention(RUNTIME)

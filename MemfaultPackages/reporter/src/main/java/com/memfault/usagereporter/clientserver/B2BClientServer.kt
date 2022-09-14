@@ -17,7 +17,7 @@ import java.io.File
 import java.nio.channels.AsynchronousSocketChannel
 import java.util.UUID
 import kotlin.time.Duration
-import kotlin.time.seconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -56,6 +56,7 @@ interface B2BClientServer {
     }
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RealB2BClientServer(
     private val clientServerMode: ClientServerMode,
     private val getDropBoxManager: () -> DropBoxManager?,

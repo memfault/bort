@@ -3,8 +3,8 @@ package com.memfault.bort.tokenbucket
 import com.memfault.bort.time.BoxedDuration
 import io.mockk.spyk
 import io.mockk.verify
-import kotlin.time.milliseconds
-import kotlin.time.minutes
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach

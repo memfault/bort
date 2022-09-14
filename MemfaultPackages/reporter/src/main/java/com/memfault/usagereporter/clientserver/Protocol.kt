@@ -9,7 +9,7 @@ import java.nio.ByteOrder.BIG_ENDIAN
 import java.nio.channels.AsynchronousByteChannel
 import java.nio.channels.AsynchronousSocketChannel
 import kotlin.time.Duration
-import kotlin.time.seconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel

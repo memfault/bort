@@ -41,6 +41,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.time.Duration
+import kotlin.time.DurationUnit
 
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.REQUEST_PERIODIC_BUGREPORT"
 private const val WORK_INTERVAL_PREFERENCE_KEY = "com.memfault.bort.work.BUGREPORT_INTERVAL"
@@ -153,7 +154,7 @@ class BugReportRequester @Inject constructor(
         val initialDelay = if (justBooted) bugReportSettings.firstBugReportDelayAfterBoot else null
 
         PeriodicWorkRequestBuilder<BugReportRequestWorker>(
-            requestInterval.inHours.toLong(),
+            requestInterval.toDouble(DurationUnit.HOURS).toLong(),
             TimeUnit.HOURS
         ).also { builder ->
             builder.addTag(WORK_TAG)
@@ -165,9 +166,9 @@ class BugReportRequester @Inject constructor(
                 ).toInputData()
             )
             initialDelay?.let { delay ->
-                builder.setInitialDelay(delay.inMinutes.toLong(), TimeUnit.MINUTES)
+                builder.setInitialDelay(delay.toDouble(DurationUnit.MINUTES).toLong(), TimeUnit.MINUTES)
             }
-            Logger.test("Requesting bug report every ${requestInterval.inHours} hours")
+            Logger.test("Requesting bug report every ${requestInterval.toDouble(DurationUnit.HOURS)} hours")
         }.build().also {
             val existingWorkPolicy =
                 if (settingsChanged) ExistingPeriodicWorkPolicy.REPLACE

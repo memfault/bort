@@ -4,7 +4,7 @@ import android.os.SystemClock
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.settings.RateLimitingSettings
 import kotlin.time.Duration
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 
 abstract class TokenBucketFactory(
     val defaultCapacity: Int,

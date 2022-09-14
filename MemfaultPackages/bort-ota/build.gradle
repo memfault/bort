@@ -16,8 +16,6 @@ android {
         versionCode loadVersionCode() as Integer
         versionName loadVersionName() as String
 
-        buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "\"" + bortProperty("MEMFAULT_PROJECT_API_KEY") + "\""
-
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -104,15 +102,9 @@ dependencies {
     testImplementation deps.test.robolectric
 }
 
-task copyReleaseApk(type: Copy) {
-    from file("$buildDir/outputs/apk/release/bort-ota-release.apk")
-    into rootDir
-    rename 'bort-ota-release.apk', 'MemfaultBortOta.apk'
-}
-
 import java.nio.file.Paths
 
-task exportPem(type: Exec) {
+tasks.register("exportPem", Exec) {
     commandLine 'keytool',
             '-export',
             '-rfc',
@@ -122,8 +114,18 @@ task exportPem(type: Exec) {
             '-storepass', keystoreProperties['storePassword']
 }
 
-
 afterEvaluate {
-    assembleRelease.finalizedBy copyReleaseApk, exportPem
-    assembleReleaseTest.finalizedBy exportPem
+    tasks.named("assembleRelease").configure {
+        finalizedBy tasks.named("exportPem")
+        doLast {
+            copy {
+                from file("$buildDir/outputs/apk/release/bort-ota-release.apk")
+                into rootDir
+                rename 'bort-ota-release.apk', 'MemfaultBortOta.apk'
+            }
+        }
+    }
+    tasks.named("assembleReleaseTest").configure {
+        finalizedBy tasks.named("exportPem")
+    }
 }

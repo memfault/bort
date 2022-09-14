@@ -1,0 +1,14 @@
+diff --git a/target/product/generic_system.mk b/target/product/generic_system.mk
+index 1a639ef717..45db644394 100644
+--- a/target/product/generic_system.mk
++++ b/target/product/generic_system.mk
+@@ -24,6 +24,9 @@ $(call inherit-product-if-exists, vendor/google/security/adb/vendor_key.mk)
+ # Enable updating of APEXes
+ $(call inherit-product, $(SRC_TARGET_DIR)/product/updatable_apex.mk)
+
++# Memfault Bort
++$(call inherit-product, vendor/memfault/bort/product.mk)
++
+ # Shared java libs
+ PRODUCT_PACKAGES += \
+     com.android.nfc_extras \

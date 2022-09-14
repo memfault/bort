@@ -3,7 +3,7 @@ package com.memfault.bort
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
 import com.memfault.bort.time.boxed
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 
 object FakeBootRelativeTimeProvider : BootRelativeTimeProvider {
     override fun now(): BootRelativeTime = BootRelativeTime(

@@ -3,6 +3,7 @@ package com.memfault.bort.dropbox
 import android.os.DropBoxManager
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.clientserver.MarFileHoldingArea
+import com.memfault.bort.clientserver.MarFileWriter.Companion.MAR_EXTENSION
 import com.memfault.bort.shared.CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
@@ -32,14 +33,15 @@ class ClientServerFileUploadProcessor @Inject constructor(
             return
         }
 
-        tempFileFactory.createTemporaryFile(entry.tag, ".mar").useFile { tempFile, preventDeletion ->
+        tempFileFactory.createTemporaryFile(entry.tag, ".$MAR_EXTENSION").useFile { tempFile, preventDeletion ->
             entry.inputStream?.use { input ->
                 tempFile.outputStream().use { output ->
                     input.copyTo(output)
                 }
             } ?: return
 
-            marHoldingArea.addMarFile(tempFile)
+            // Only sampled files are sent over the client/server link (that decision is made by the other device).
+            marHoldingArea.addSampledMarFileDirectlyFromOtherDevice(tempFile)
             preventDeletion()
         }
     }

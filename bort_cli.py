@@ -25,7 +25,7 @@ PLACEHOLDER_BORT_AOSP_PATCH_VERSION = "manually_patched"
 PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_BORT_OTA_APP_ID = "vnd.myandroid.bort.otaappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
-RELEASES = range(8, 12 + 1)
+RELEASES = range(8, 13 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 GRADLE_PROPERTIES = os.path.join(SCRIPT_DIR, "MemfaultPackages", "gradle.properties")
 PYTHON_MIN_VERSION = ("3", "6", "0")
@@ -552,6 +552,71 @@ class RequestBugReport(Command):
         )
 
 
+class RequestMetricCollection(Command):
+    def __init__(self, bort_app_id: str, device: Optional[str] = None):
+        self._bort_app_id = bort_app_id
+        self._device = device
+
+    @classmethod
+    def register(cls, create_parser):
+        parser = create_parser(cls, "request-metrics")
+        parser.add_argument("--bort-app-id", type=android_application_id_type, required=True)
+        parser.add_argument(
+            "--device",
+            type=str,
+            help="Optional device ID passed to ADB's `-s` flag. Required if multiple devices are connected.",
+        )
+
+    def run(self):
+        _check_bort_app_id(self._bort_app_id)
+        broadcast_cmd = (
+            "am",
+            "broadcast",
+            "--receiver-include-background",
+            "-a",
+            "com.memfault.intent.action.REQUEST_METRICS_COLLECTION",
+            "-n",
+            f"{self._bort_app_id}/com.memfault.bort.receivers.ShellControlReceiver",
+        )
+        _send_broadcast(
+            self._bort_app_id, "Requesting metric collection from bort", broadcast_cmd, self._device
+        )
+
+
+class RequestUpdateConfig(Command):
+    def __init__(self, bort_app_id: str, device: Optional[str] = None):
+        self._bort_app_id = bort_app_id
+        self._device = device
+
+    @classmethod
+    def register(cls, create_parser):
+        parser = create_parser(cls, "request-update-config")
+        parser.add_argument("--bort-app-id", type=android_application_id_type, required=True)
+        parser.add_argument(
+            "--device",
+            type=str,
+            help="Optional device ID passed to ADB's `-s` flag. Required if multiple devices are connected.",
+        )
+
+    def run(self):
+        _check_bort_app_id(self._bort_app_id)
+        broadcast_cmd = (
+            "am",
+            "broadcast",
+            "--receiver-include-background",
+            "-a",
+            "com.memfault.intent.action.REQUEST_UPDATE_CONFIGURATION",
+            "-n",
+            f"{self._bort_app_id}/com.memfault.bort.receivers.ShellControlReceiver",
+        )
+        _send_broadcast(
+            self._bort_app_id,
+            "Requesting bort to update configuration from Memfault",
+            broadcast_cmd,
+            self._device,
+        )
+
+
 class EnableBort(Command):
     def __init__(self, bort_app_id, device=None):
         self._bort_app_id = bort_app_id
@@ -582,6 +647,73 @@ class EnableBort(Command):
             "true",
         )
         _send_broadcast(self._bort_app_id, "Enabling bort", broadcast_cmd, self._device)
+
+
+class OtaCheckForUpdates(Command):
+    def __init__(self, bort_ota_app_id, device=None):
+        self._bort_ota_app_id = bort_ota_app_id
+        self._device = device
+
+    @classmethod
+    def register(cls, create_parser):
+        parser = create_parser(cls, "ota-check")
+        parser.add_argument("--bort-ota-app-id", type=android_application_id_type, required=True)
+        parser.add_argument(
+            "--device",
+            type=str,
+            help="Optional device ID passed to ADB's `-s` flag. Required if multiple devices are connected.",
+        )
+
+    def run(self):
+        _check_bort_app_id(self._bort_ota_app_id)
+        broadcast_cmd = (
+            "am",
+            "broadcast",
+            "--receiver-include-background",
+            "-a",
+            "com.memfault.intent.action.OTA_CHECK_FOR_UPDATES",
+            "-n",
+            f"{self._bort_ota_app_id}/com.memfault.bort.ota.lib.CheckForUpdatesReceiver",
+        )
+        _send_broadcast(
+            self._bort_ota_app_id, "Checking for OTA updates", broadcast_cmd, self._device
+        )
+
+
+class DevMode(Command):
+    def __init__(self, bort_app_id, enabled, device=None):
+        self._bort_app_id = bort_app_id
+        self._device = device
+        self._enabled = enabled
+
+    @classmethod
+    def register(cls, create_parser):
+        parser = create_parser(cls, "dev-mode")
+        parser.add_argument("--bort-app-id", type=android_application_id_type, required=True)
+        parser.add_argument("--enabled", type=str, required=True)
+        parser.add_argument(
+            "--device",
+            type=str,
+            help="Optional device ID passed to ADB's `-s` flag. Required if multiple devices are connected.",
+        )
+
+    def run(self):
+        _check_bort_app_id(self._bort_app_id)
+        broadcast_cmd = (
+            "am",
+            "broadcast",
+            "--receiver-include-background",
+            "-a",
+            "com.memfault.intent.action.DEV_MODE",
+            "-n",
+            f"{self._bort_app_id}/com.memfault.bort.receivers.ShellControlReceiver",
+            "--ez",
+            "com.memfault.intent.extra.DEV_MODE_ENABLED",
+            f"{self._enabled}",
+        )
+        _send_broadcast(
+            self._bort_app_id, "Changing Bort developer mode", broadcast_cmd, self._device
+        )
 
 
 class ValidateConnectedDevice(Command):
@@ -897,6 +1029,10 @@ class CommandLineInterface:
         ValidateConnectedDevice.register(create_parser)
         RequestBugReport.register(create_parser)
         EnableBort.register(create_parser)
+        OtaCheckForUpdates.register(create_parser)
+        RequestMetricCollection.register(create_parser)
+        RequestUpdateConfig.register(create_parser)
+        DevMode.register(create_parser)
 
     def run(self):
         if platform.python_version_tuple() < PYTHON_MIN_VERSION:

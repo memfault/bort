@@ -24,9 +24,10 @@ class RecoveryBasedUpdateActionHandlerTest {
     private val collectedEvents = mutableListOf<Event>()
 
     private var ota: Ota? = Ota(
-        "http://localhost/ota.zip",
-        "1.3.2",
-        "Fixed some bugs, added some new features."
+        url = "http://localhost/ota.zip",
+        version = "1.3.2",
+        releaseNotes = "Fixed some bugs, added some new features.",
+        isForced = null,
     )
 
     @BeforeEach

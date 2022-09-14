@@ -11,7 +11,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import java.io.File
 import java.nio.file.Files
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.junit.jupiter.api.BeforeEach

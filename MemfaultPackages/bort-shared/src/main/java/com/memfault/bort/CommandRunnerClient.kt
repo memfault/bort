@@ -14,7 +14,7 @@ import com.memfault.bort.shared.result.StdResult
 import java.io.Closeable
 import java.io.FileInputStream
 import kotlin.time.Duration
-import kotlin.time.seconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.cancelChildren

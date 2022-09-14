@@ -11,8 +11,6 @@ import kotlin.time.toDuration
 /**
  * During cleanup, we delete the oldest files (by modified timestamp) until under the storage limit, in addition to
  * any file older than the maximum age.
- *
- * Note that we cannot tell which reports are still queued for upload as WorkManager tasks.
  */
 fun cleanupFiles(
     dir: File,

@@ -7,8 +7,9 @@ import com.memfault.bort.time.BoxedDuration
 import com.memfault.bort.time.DurationAsMillisecondsLong
 import com.memfault.bort.time.boxed
 import kotlin.time.Duration.Companion.ZERO
-import kotlin.time.hours
-import kotlin.time.minutes
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -142,8 +143,18 @@ data class FetchedSettings(
     @Serializable(with = DurationAsMillisecondsLong::class)
     val httpApiCallTimeout: BoxedDuration,
 
+    @SerialName("http_api.zip_compression_level")
+    val httpApiZipCompressionLevel: Int = 4,
+
     @SerialName("http_api.use_mar_upload")
     val httpApiUseMarUpload: Boolean = false,
+
+    @SerialName("http_api.use_device_config")
+    val httpApiUseDeviceConfig: Boolean = false,
+
+    @SerialName("http_api.device_config_interval_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val httpApiDeviceConfigInterval: BoxedDuration = 2.hours.boxed(),
 
     @SerialName("http_api.batch_mar_uploads")
     val httpApiBatchMarUploads: Boolean = true,
@@ -151,6 +162,16 @@ data class FetchedSettings(
     @SerialName("http_api.batched_mar_upload_period_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val httpApiBatchedMarUploadPeriod: BoxedDuration = 1.hours.boxed(),
+
+    @SerialName("http_api.max_mar_file_size_bytes")
+    val httpApiMaxMarFileSizeBytes: Int = 250_000_000,
+
+    @SerialName("http_api.max_mar_file_storage_bytes")
+    val httpApiMaxMarStorageBytes: Long = 250_000_000,
+
+    @SerialName("http_api.mar_unsampled_max_stored_age_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val httpApiMarUnsampledMaxStoredAge: BoxedDuration = 30.days.boxed(),
 
     @SerialName("logcat.collection_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
@@ -175,6 +196,9 @@ data class FetchedSettings(
         defaultPeriod = 6.hours.boxed(),
         maxBuckets = 1,
     ),
+
+    @SerialName("logcat.store_unsampled")
+    val logcatStoreUnsampled: Boolean = false,
 
     @SerialName("metrics.collection_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)

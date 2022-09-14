@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
 fun ScheduledExecutorService.schedule(command: Runnable, delay: Duration) =
-    this.schedule(command, delay.toLongMilliseconds(), TimeUnit.MILLISECONDS)
+    this.schedule(command, delay.inWholeMilliseconds, TimeUnit.MILLISECONDS)
 
 interface TimeoutRunnable : Runnable {
     fun handleTimeout()

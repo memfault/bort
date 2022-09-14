@@ -26,5 +26,7 @@ endif
 ifeq ($(TARGET_BUILD_BORT_UNDER_TEST),1)
     $(warning "Building with Memfault test dependencies")
     PRODUCT_PACKAGES += structured-client-example-c \
-                        structured-client-example-cpp
+                        structured-client-example-cpp \
+                        reporting-client-example-cpp \
+                        reporting-client-example-c
 endif

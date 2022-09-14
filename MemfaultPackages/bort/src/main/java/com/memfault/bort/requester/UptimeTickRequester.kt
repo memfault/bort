@@ -16,7 +16,7 @@ import com.memfault.bort.settings.SettingsProvider
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
-import kotlin.time.minutes
+import kotlin.time.Duration.Companion.minutes
 
 class UptimeTickTask @Inject constructor(
     override val metrics: BuiltinMetricsStore,

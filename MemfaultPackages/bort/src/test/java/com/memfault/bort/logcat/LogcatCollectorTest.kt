@@ -101,6 +101,7 @@ class LogcatCollectorTest {
             override val filterSpecs = emptyList<LogcatFilterSpec>()
             override val kernelOopsDataSourceEnabled = true
             override val kernelOopsRateLimitingSettings = RateLimitingSettings(0, ZERO.boxed(), 0)
+            override val storeUnsampled: Boolean = false
         }
 
         collector = LogcatCollector(

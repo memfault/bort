@@ -1,6 +1,7 @@
 package com.memfault.bort
 
 import android.os.RemoteException
+import com.memfault.bort.shared.DUMPSTER_SERVICE_NAME
 import com.memfault.bort.shared.Logger
 import com.memfault.dumpster.IDumpster
 import com.memfault.dumpster.IDumpsterBasicCommandListener

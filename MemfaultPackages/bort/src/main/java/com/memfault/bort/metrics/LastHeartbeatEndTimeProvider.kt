@@ -10,7 +10,7 @@ import com.memfault.bort.time.boxed
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Provides the end time (expressed as uptime in milliseconds since boot) of the previously collected heartbeat.

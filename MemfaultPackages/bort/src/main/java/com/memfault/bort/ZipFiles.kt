@@ -12,14 +12,14 @@ import java.util.zip.ZipOutputStream
  * Add a file to an exist zip archive. The only way to do this is to copy everything from the existing archive into a
  * new archive.
  */
-fun addFileToZip(zipFile: File, newFile: File, newfileName: String) {
+fun addFileToZip(zipFile: File, newFile: File, newfileName: String, compressionLevel: Int) {
     // Rename bugreport file to .tmp
     val existingZipFile = File(zipFile.parent, "${zipFile.name}.tmp")
     zipFile.renameTo(existingZipFile)
 
     // Create a new file, with the original name.
     ZipOutputStream(FileOutputStream(zipFile)).use { zipOut ->
-        zipOut.setLevel(COMPRESSION_LEVEL_HIGHEST)
+        zipOut.setLevel(compressionLevel)
         ZipFile(existingZipFile).use { zipIn ->
             for (entry in zipIn.entries()) {
                 zipOut.addZipEntry(entry.name, zipIn.getInputStream(entry))
@@ -48,4 +48,3 @@ fun ZipOutputStream.addZipEntry(entryName: String, inputStream: InputStream) {
 }
 
 private const val BUFFER = 2048
-const val COMPRESSION_LEVEL_HIGHEST = 9

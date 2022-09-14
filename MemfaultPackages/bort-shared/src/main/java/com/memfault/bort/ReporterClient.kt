@@ -78,7 +78,7 @@ class RealReporterServiceConnector @Inject constructor(
             RealServiceMessageConnection(
                 Messenger(binder), inboundLooper, ReporterServiceMessage.Companion::fromMessage
             ),
-            CommandRunnerClient.RealFactory
+            CommandRunnerClient
         )
 }
 

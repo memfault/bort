@@ -3,10 +3,6 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.memfault.bort.ota">
 
-    <queries>
-        <provider android:authorities="com.memfault.bort.softwareupdate.settings" />
-    </queries>
-
     <application
         android:name=".App"
         android:allowBackup="false"

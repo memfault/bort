@@ -8,7 +8,7 @@ import androidx.work.workDataOf
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import javax.inject.Inject
 import kotlin.time.Duration
-import kotlin.time.minutes
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
 
 private const val REQUEST_ID_INPUT_DATA_KEY = "request-id"

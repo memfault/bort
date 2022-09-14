@@ -18,8 +18,8 @@ import com.memfault.bort.shared.Logger
 import java.io.IOException
 import javax.inject.Inject
 import kotlin.time.Duration
-import kotlin.time.milliseconds
-import kotlin.time.minutes
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
 import okhttp3.Call
 import okhttp3.Callback
@@ -71,7 +71,7 @@ data class HttpTaskInput(
                 taskTags = inputData.getStringArray(TASK_TAGS_KEY)?.asList() ?: listOf(),
                 backoffDuration = inputData.getLong(
                     BACKOFF_MILLISECONDS_KEY,
-                    DEFAULT_BACKOFF_DURATION.toLongMilliseconds()
+                    DEFAULT_BACKOFF_DURATION.inWholeMilliseconds
                 ).milliseconds
             )
     }
@@ -86,7 +86,7 @@ data class HttpTaskInput(
             BODY_KEY to body,
             MAX_ATTEMPTS_KEY to maxAttempts,
             TASK_TAGS_KEY to taskTags.toTypedArray(),
-            BACKOFF_MILLISECONDS_KEY to backoffDuration.toLongMilliseconds(),
+            BACKOFF_MILLISECONDS_KEY to backoffDuration.inWholeMilliseconds,
         )
 
     fun toRequest() =

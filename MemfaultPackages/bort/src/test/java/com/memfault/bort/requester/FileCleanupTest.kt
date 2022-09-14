@@ -4,8 +4,8 @@ import com.memfault.bort.fileExt.deleteSilently
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.ZERO
-import kotlin.time.days
-import kotlin.time.minutes
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before

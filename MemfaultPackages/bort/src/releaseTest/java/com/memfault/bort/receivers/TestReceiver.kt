@@ -8,7 +8,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.memfault.bort.TestOverrideSettings
-import com.memfault.bort.clientserver.MarUploadTask.Companion.enqueueOneTimeMarUpload
+import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
 import com.memfault.bort.logcat.RealNextLogcatCidProvider
 import com.memfault.bort.metrics.DevicePropertiesDb
 import com.memfault.bort.reporting.Reporting
@@ -29,9 +29,9 @@ import com.memfault.bort.uploader.FileUploadHoldingArea
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlin.time.Duration
-import kotlin.time.days
-import kotlin.time.hours
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.runBlocking
 
 private const val INTENT_EXTRA_ECHO_STRING = "echo"
@@ -161,9 +161,8 @@ class TestReceiver : FilteringReceiver(
                 resetDynamicSettings()
                 resetRateLimits()
             }
-            "com.memfault.intent.action.TEST_UPLOAD_MAR" -> enqueueOneTimeMarUpload(
+            "com.memfault.intent.action.TEST_UPLOAD_MAR" -> enqueueOneTimeBatchMarFiles(
                 context = context,
-                constraints = settingsProvider.httpApiSettings.uploadConstraints,
             )
         }
     }

@@ -10,7 +10,7 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.OutputStream
 import java.util.concurrent.CancellationException
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach

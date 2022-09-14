@@ -5,8 +5,8 @@ import android.os.ParcelFileDescriptor
 import android.os.ParcelUuid
 import java.util.UUID
 import kotlin.time.Duration
-import kotlin.time.milliseconds
-import kotlin.time.seconds
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 private const val OUT_FD = "OUT_FD"
 private const val REDIRECT_ERR = "REDIR"
@@ -25,7 +25,7 @@ data class CommandRunnerOptions(
         Bundle().apply {
             outFd?.let { putParcelable(OUT_FD, it) }
             if (redirectErr) { putBoolean(REDIRECT_ERR, true) }
-            putLong(TIMEOUT_MILLIS, timeout.toLongMilliseconds())
+            putLong(TIMEOUT_MILLIS, timeout.inWholeMilliseconds)
             putParcelable(ID, ParcelUuid(id))
         }
 

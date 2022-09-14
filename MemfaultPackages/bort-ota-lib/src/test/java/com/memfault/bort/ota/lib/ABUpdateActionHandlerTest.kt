@@ -25,17 +25,18 @@ class ABUpdateActionHandlerTest {
     private val collectedEvents = mutableListOf<Event>()
 
     private var ota: Ota? = Ota(
-        "http://localhost/ota.zip",
-        "1.3.2",
-        "Fixed some bugs, added some new features.",
-        mapOf(
+        url = "http://localhost/ota.zip",
+        version = "1.3.2",
+        releaseNotes = "Fixed some bugs, added some new features.",
+        metadata = mapOf(
             "METADATA_HASH" to "z4x6Wb+qNYpMKA7+KnMcbSFK6fxX8vbyEzhK2gBfJbQ=",
             "FILE_SIZE" to "99449",
             "METADATA_SIZE" to "51846",
             "FILE_HASH" to "X9zpqKb2z15s5eNhRuzntqYlPSB011/aGcdftaTRsrI=",
             "_MFLT_PAYLOAD_SIZE" to "99449",
             "_MFLT_PAYLOAD_OFFSET" to "1295",
-        )
+        ),
+        isForced = null,
     )
 
     @BeforeEach

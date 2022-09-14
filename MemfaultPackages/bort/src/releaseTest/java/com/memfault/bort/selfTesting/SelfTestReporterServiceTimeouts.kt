@@ -8,7 +8,7 @@ import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.RunCommandResponse
 import com.memfault.bort.shared.result.isSuccess
-import kotlin.time.seconds
+import kotlin.time.Duration.Companion.seconds
 
 class SelfTestReporterServiceTimeouts(
     val reporterServiceConnector: ReporterServiceConnector

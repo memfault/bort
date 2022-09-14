@@ -8,7 +8,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
-import kotlin.time.seconds
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout

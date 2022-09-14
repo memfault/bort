@@ -25,3 +25,10 @@ const val OTA_RECEIVER_CLASS = "com.memfault.bort.ota.lib.BootCompleteReceiver"
 
 const val CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG = "memfault_file_upload"
 const val CLIENT_SERVER_SETTINGS_UPDATE_DROPBOX_TAG = "memfault_settings_update"
+
+// Keep in sync with DUMPSTER_SERVICE_NAME in MemfaultDumpster.cpp!
+const val DUMPSTER_SERVICE_NAME = "memfault_dumpster"
+
+const val BASIC_COMMAND_TIMEOUT_MS: Long = 5_000
+
+const val DEFAULT_SETTINGS_ASSET_FILENAME = "settings.json"

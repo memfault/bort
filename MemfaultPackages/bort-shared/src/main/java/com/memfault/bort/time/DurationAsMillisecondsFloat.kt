@@ -1,7 +1,7 @@
 package com.memfault.bort.time
 
 import kotlin.time.Duration
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -28,5 +28,5 @@ class DurationAsMillisecondsLong : KSerializer<BoxedDuration> {
         decoder.decodeLong().milliseconds.boxed()
 
     override fun serialize(encoder: Encoder, value: BoxedDuration) =
-        encoder.encodeLong(value.duration.toLongMilliseconds())
+        encoder.encodeLong(value.duration.inWholeMilliseconds)
 }

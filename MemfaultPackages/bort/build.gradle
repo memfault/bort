@@ -4,14 +4,12 @@ apply plugin: 'com.android.application'
 apply plugin: 'com.squareup.anvil'
 apply plugin: 'dagger.hilt.android.plugin'
 apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
 apply plugin: 'kotlin-kapt'
 apply plugin: 'kotlinx-serialization'
 apply from: "../properties.gradle"
 
 def keystoreProperties = loadBortKeystoreProperties()
 def keystoreFilePath = getKeystoreFilePath()
-def generatedSettingsAssets = getBortSettingsAssetsPath(project.rootProject.rootDir)
 
 android {
     compileSdkVersion versions.compileSdk
@@ -27,7 +25,6 @@ android {
         versionCode loadVersionCode() as Integer
         versionName loadVersionName() as String
 
-        buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "\"" + bortProperty("MEMFAULT_PROJECT_API_KEY") + "\""
         buildConfigField "Boolean", "RUNTIME_ENABLE_REQUIRED", bortProperty("RUNTIME_ENABLE_REQUIRED")
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -77,13 +74,6 @@ android {
         freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
         freeCompilerArgs += "-Xopt-in=kotlin.time.ExperimentalTime"
         freeCompilerArgs += "-Xjvm-default=all"
-    }
-
-    sourceSets {
-        main {
-            aidl.srcDirs = ['../../MemfaultDumpster/']
-            assets.srcDirs += [generatedSettingsAssets]
-        }
     }
 
     testOptions {
@@ -142,15 +132,9 @@ dependencies {
     testImplementation deps.test.testCore
 }
 
-task copyReleaseApk(type: Copy) {
-    from file("$buildDir/outputs/apk/release/bort-release.apk")
-    into rootDir
-    rename 'bort-release.apk', 'MemfaultBort.apk'
-}
-
 import java.nio.file.Paths
 
-task exportPem(type: Exec) {
+tasks.register("exportPem", Exec) {
     commandLine 'keytool',
             '-export',
             '-rfc',
@@ -160,8 +144,18 @@ task exportPem(type: Exec) {
             '-storepass', keystoreProperties['storePassword']
 }
 
-
 afterEvaluate {
-    assembleRelease.finalizedBy copyReleaseApk, exportPem
-    assembleReleaseTest.finalizedBy exportPem
+    tasks.named("assembleRelease").configure {
+        finalizedBy tasks.named("exportPem")
+        doLast {
+            copy {
+                from file("$buildDir/outputs/apk/release/bort-release.apk")
+                into rootDir
+                rename 'bort-release.apk', 'MemfaultBort.apk'
+            }
+        }
+    }
+    tasks.named("assembleReleaseTest").configure {
+        finalizedBy tasks.named("exportPem")
+    }
 }

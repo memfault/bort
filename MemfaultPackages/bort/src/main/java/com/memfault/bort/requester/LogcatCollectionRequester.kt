@@ -20,7 +20,8 @@ import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.time.Duration
-import kotlin.time.minutes
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.DurationUnit
 
 private const val WORK_TAG = "LOGCAT_COLLECTION"
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.LOGCAT_COLLECTION"
@@ -43,7 +44,7 @@ internal fun restartPeriodicLogcatCollection(
     ) {
         addTag(WORK_TAG)
         if (!collectImmediately) {
-            setInitialDelay(collectionInterval.inMilliseconds.toLong(), TimeUnit.MILLISECONDS)
+            setInitialDelay(collectionInterval.toDouble(DurationUnit.MILLISECONDS).toLong(), TimeUnit.MILLISECONDS)
         }
     }.also { workRequest ->
         WorkManager.getInstance(context)
@@ -66,7 +67,7 @@ class LogcatCollectionRequester @Inject constructor(
         if (!bortSystemCapabilities.supportsCaliperLogcatCollection()) return
 
         val collectionInterval = maxOf(MINIMUM_COLLECTION_INTERVAL, logcatSettings.collectionInterval)
-        Logger.test("Collecting logcat every ${collectionInterval.inMinutes} minutes")
+        Logger.test("Collecting logcat every ${collectionInterval.toDouble(DurationUnit.MINUTES)} minutes")
 
         // MFLT-2753: after booting, attempt to collect logs from pstore (logcat -L)
 

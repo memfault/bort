@@ -11,11 +11,11 @@ import com.memfault.bort.shared.LogcatPriority
 import com.memfault.bort.time.boxed
 import io.mockk.every
 import io.mockk.mockk
-import kotlin.time.days
-import kotlin.time.hours
-import kotlin.time.milliseconds
-import kotlin.time.minutes
-import kotlin.time.seconds
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.SerializationException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -145,6 +145,7 @@ internal val EXPECTED_SETTINGS_DEFAULT = FetchedSettings(
     httpApiReadTimeout = 0.seconds.boxed(),
     httpApiCallTimeout = 0.seconds.boxed(),
     httpApiUseMarUpload = false,
+    httpApiUseDeviceConfig = false,
     httpApiBatchMarUploads = true,
     httpApiBatchedMarUploadPeriod = 1.hours.boxed(),
     logcatCommandTimeout = 60.seconds.boxed(),
@@ -194,6 +195,9 @@ internal val EXPECTED_SETTINGS_DEFAULT = FetchedSettings(
 
 private val EXPECTED_SETTINGS = EXPECTED_SETTINGS_DEFAULT.copy(
     storageMaxClientServerFileTransferStorageBytes = 55000000,
+    httpApiDeviceConfigInterval = 1.hours.boxed(),
+    httpApiZipCompressionLevel = 5,
+    httpApiMarUnsampledMaxStoredAge = 5.days.boxed(),
 )
 
 internal val SETTINGS_FIXTURE = """
@@ -268,9 +272,15 @@ internal val SETTINGS_FIXTURE = """
                 "http_api.write_timeout_ms": 0,
                 "http_api.read_timeout_ms": 0,
                 "http_api.call_timeout_ms": 0,
+                "http_api.zip_compression_level": 5,
                 "http_api.use_mar_upload": False,
-                "http_api.batch_mar_uploads": True,
+                "http_api.use_device_config": False,
+                "http_api.use_device_config": False,
+                "http_api.device_config_interval_ms": 3600000,
                 "http_api.batched_mar_upload_period_ms": 3600000,
+                "http_api.max_mar_file_size_bytes": 250000000,
+                "http_api.max_mar_file_storage_bytes": 250000000,
+                "http_api.mar_unsampled_max_stored_age_ms": 432000000,
                 "logcat.collection_interval_ms": 9999,
                 "logcat.command_timeout_ms" : 60000,
                 "logcat.data_source_enabled": False,
@@ -281,6 +291,7 @@ internal val SETTINGS_FIXTURE = """
                     "default_period_ms": 21600000,
                     "max_buckets": 1
                 },
+                "logcat.store_unsampled": false,
                 "metrics.collection_interval_ms": 91011,
                 "metrics.data_source_enabled": false,
                 "metrics.system_properties": ["ro.build.type"],

@@ -2,6 +2,10 @@ package com.memfault.bort.ota.lib
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.memfault.bort.DefaultDumpsterServiceProvider
+import com.memfault.bort.DumpsterClient
+import com.memfault.bort.FallbackOtaSettings
+import com.memfault.bort.shared.BASIC_COMMAND_TIMEOUT_MS
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.SoftwareUpdateSettings
@@ -86,6 +90,11 @@ sealed class State {
      */
     @Serializable
     data class RebootNeeded(val ota: Ota) : State()
+}
+
+fun State.allowsUpdateCheck() = when (this) {
+    State.Idle, is State.UpdateAvailable, is State.UpdateFailed -> true
+    else -> false
 }
 
 /**
@@ -226,6 +235,7 @@ class Updater private constructor(
     actionHandlerFactory: UpdateActionHandlerFactory,
     private val stateStore: StateStore,
     private val settingsProvider: SoftwareUpdateSettingsProvider?,
+    private val fallbackOtaSettings: FallbackOtaSettings,
     context: Context,
 ) {
     private val _updateState = MutableStateFlow<State>(State.Idle)
@@ -254,10 +264,7 @@ class Updater private constructor(
 
     private fun fetchSettings(context: Context): SoftwareUpdateSettings {
         return (settingsProvider ?: BortSoftwareUpdateSettingsProvider(context.contentResolver)).settings()
-            ?: throw IllegalStateException(
-                "Could not read config from Bort, " +
-                    "this is likely an integration issue, please contact Memfault support"
-            )
+            ?: fallbackOtaSettings.fallbackOtaSettings()
     }
 
     suspend fun perform(action: Action) {
@@ -281,7 +288,7 @@ class Updater private constructor(
             context: Context,
             actionHandlerFactory: UpdateActionHandlerFactory? = null,
             stateStore: StateStore? = null,
-            settingsProvider: SoftwareUpdateSettingsProvider? = null
+            settingsProvider: SoftwareUpdateSettingsProvider? = null,
         ): Updater {
             Logger.minStructuredLevel = LogLevel.INFO
             Logger.minLogcatLevel = LogLevel.DEBUG
@@ -295,11 +302,20 @@ class Updater private constructor(
 
             val handlerFactory = actionHandlerFactory ?: createDefaultActionHandlerFactory(context)
 
+            val dumpsterClient = DumpsterClient(
+                serviceProvider = DefaultDumpsterServiceProvider(),
+                basicCommandTimeout = BASIC_COMMAND_TIMEOUT_MS,
+            )
+            val fallbackOtaSettings = FallbackOtaSettings(
+                context = context,
+                dumpsterClient = dumpsterClient,
+            )
             return Updater(
                 actionHandlerFactory = handlerFactory,
                 stateStore = store,
                 settingsProvider = settingsProvider,
                 context = context,
+                fallbackOtaSettings = fallbackOtaSettings,
             )
         }
 

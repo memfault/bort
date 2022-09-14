@@ -19,7 +19,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import java.util.UUID
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test

@@ -34,11 +34,13 @@ class FileUploadTaskTest {
         }
     }
 
-    fun fileUploadPayload() = BugReportFileUploadPayload(
-        hardwareVersion = "",
-        deviceSerial = "",
-        softwareVersion = "",
-        softwareType = "",
+    fun fileUploadPayload() = Payload.LegacyPayload(
+        BugReportFileUploadPayload(
+            hardwareVersion = "",
+            deviceSerial = "",
+            softwareVersion = "",
+            softwareType = "",
+        )
     )
 
     @Test

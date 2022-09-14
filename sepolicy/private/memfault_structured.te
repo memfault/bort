@@ -30,7 +30,7 @@ allow memfault_structured memfault_structured_data_file:dir rw_dir_perms;
 allow memfault_structured memfault_structured_data_file:file create_file_perms;
 
 # Allow system server to read files for dropbox
-allow system_server memfault_structured_data_file:file read;
+allow system_server memfault_structured_data_file:file r_file_perms;
 
 # Allow vendor_init to set memfault properties defined in {vendor,system}.prop
 set_prop(vendor_init, memfault_prop)

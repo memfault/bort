@@ -4,6 +4,7 @@ import com.memfault.bort.BugReportFileUploadPayload.ProcessingOptions
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.LogcatCollectionId
 import com.memfault.bort.TimezoneWithId
+import com.memfault.bort.settings.Resolution
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.CombinedTime
 import kotlinx.serialization.SerialName
@@ -22,6 +23,12 @@ data class MarManifest(
     val device: MarDevice,
     @SerialName("metadata")
     val metadata: MarMetadata,
+    @SerialName("debugging_resolution")
+    val debuggingResolution: Resolution,
+    @SerialName("logging_resolution")
+    val loggingResolution: Resolution,
+    @SerialName("monitoring_resolution")
+    val monitoringResolution: Resolution,
 )
 
 @Serializable
@@ -116,5 +123,12 @@ sealed class MarMetadata {
         val subreason: String? = null,
         @SerialName("details")
         val details: List<String>? = null,
+    ) : MarMetadata()
+
+    @Serializable
+    @SerialName("android-device-config")
+    data class DeviceConfigMarMetadata(
+        @SerialName("revision")
+        val revision: Int,
     ) : MarMetadata()
 }

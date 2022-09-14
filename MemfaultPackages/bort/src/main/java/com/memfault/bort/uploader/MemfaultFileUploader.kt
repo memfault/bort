@@ -29,6 +29,7 @@ class MemfaultFileUploader @Inject constructor(
         when (val result = prepareResponse.asResult()) {
             TaskResult.RETRY -> return result
             TaskResult.FAILURE -> return result
+            else -> {}
         }
 
         // Re-try for unexpected server-side response
@@ -38,6 +39,7 @@ class MemfaultFileUploader @Inject constructor(
             when (val result = preparedUploader.upload(file, prepareData.upload_url, shouldCompress).asResult()) {
                 TaskResult.RETRY -> return result
                 TaskResult.FAILURE -> return result
+                else -> {}
             }
         } catch (e: HttpException) {
             Logger.e("upload", e)
@@ -51,6 +53,7 @@ class MemfaultFileUploader @Inject constructor(
             when (val result = preparedUploader.commit(prepareData.token, payload).asResult()) {
                 TaskResult.RETRY -> return result
                 TaskResult.FAILURE -> return result
+                else -> {}
             }
         } catch (e: HttpException) {
             Logger.e("commit", e)

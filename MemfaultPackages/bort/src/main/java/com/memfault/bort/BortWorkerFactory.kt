@@ -5,7 +5,7 @@ import androidx.work.Data
 import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
-import com.memfault.bort.clientserver.MarUploadTask
+import com.memfault.bort.clientserver.MarBatchingTask
 import com.memfault.bort.dropbox.DropBoxGetEntriesTask
 import com.memfault.bort.logcat.LogcatCollectionTask
 import com.memfault.bort.metrics.MetricsCollectionTask
@@ -42,11 +42,10 @@ class BortTaskFactory @Inject constructor(
     private val metrics: Provider<MetricsCollectionTask>,
     private val bugReportTimeout: Provider<BugReportRequestTimeoutTask>,
     private val logcat: Provider<LogcatCollectionTask>,
-    private val fileUploadTimeout: Provider<FileUploadHoldingAreaTimeoutTask>,
     private val settings: Provider<SettingsUpdateTask>,
     private val periodicReq: Provider<PeriodicRequesterRestartTask>,
     private val uptime: Provider<UptimeTickTask>,
-    private val marUpload: Provider<MarUploadTask>,
+    private val marBatching: Provider<MarBatchingTask>,
 ) : TaskFactory {
     override fun create(inputData: Data): Task<*>? {
         return when (inputData.workDelegateClass) {
@@ -56,11 +55,10 @@ class BortTaskFactory @Inject constructor(
             MetricsCollectionTask::class.qualifiedName -> metrics.get()
             BugReportRequestTimeoutTask::class.qualifiedName -> bugReportTimeout.get()
             LogcatCollectionTask::class.qualifiedName -> logcat.get()
-            FileUploadHoldingAreaTimeoutTask::class.qualifiedName -> fileUploadTimeout.get()
             SettingsUpdateTask::class.qualifiedName -> settings.get()
             PeriodicRequesterRestartTask::class.qualifiedName -> periodicReq.get()
             UptimeTickTask::class.qualifiedName -> uptime.get()
-            MarUploadTask::class.qualifiedName -> marUpload.get()
+            MarBatchingTask::class.qualifiedName -> marBatching.get()
             else -> null
         }
     }

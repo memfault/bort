@@ -13,7 +13,7 @@ import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueUpload
 import java.time.Instant
 import java.util.concurrent.TimeUnit
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 
 interface LastTrackedBootCountProvider {
     var bootCount: Int

@@ -13,8 +13,11 @@ import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.DevicePropertiesDb
 import com.memfault.bort.metrics.Metrics
 import com.memfault.bort.settings.BundledConfig
+import com.memfault.bort.settings.DeviceConfigUpdateService
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.SettingsUpdateService
+import com.memfault.bort.settings.readBundledSettings
+import com.memfault.bort.shared.BASIC_COMMAND_TIMEOUT_MS
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.JitterDelayProvider.ApplyJitter.APPLY
 import com.memfault.bort.tokenbucket.Anr
@@ -30,7 +33,6 @@ import com.memfault.bort.tokenbucket.MetricsCollection
 import com.memfault.bort.tokenbucket.RealTokenBucketFactory
 import com.memfault.bort.tokenbucket.RealTokenBucketStorage.Companion.createFor
 import com.memfault.bort.tokenbucket.Reboots
-import com.memfault.bort.tokenbucket.SettingsUpdate
 import com.memfault.bort.tokenbucket.StructuredLog
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.Tombstone
@@ -61,6 +63,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
+import vnd.myandroid.bortappid.CustomLogScrubber
 
 /**
  * Bindings which are applicable only to the "release" build. These are replaced by ReleaseTestModule in the
@@ -141,11 +144,7 @@ abstract class AppModule {
 
         @Provides
         fun bundledConfig(resources: Resources) = BundledConfig {
-            resources.assets
-                .open(DEFAULT_SETTINGS_ASSET_FILENAME)
-                .use {
-                    it.bufferedReader().readText()
-                }
+            resources.readBundledSettings()
         }
 
         @Provides
@@ -156,7 +155,7 @@ abstract class AppModule {
 
         @Provides
         @BasicCommandTimout
-        fun basicTimeout(): Long = 5_000
+        fun basicTimeout(): Long = BASIC_COMMAND_TIMEOUT_MS
 
         @Provides
         @Main
@@ -418,29 +417,6 @@ abstract class AppModule {
 
         @Provides
         @Singleton
-        @SettingsUpdate
-        fun settingsUpdate(
-            context: Context,
-            settingsProvider: SettingsProvider,
-            metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
-            storage = createFor(context, "settings_update_periodic"),
-            getMaxBuckets = { 1 },
-            getTokenBucketFactory = {
-                RealTokenBucketFactory(
-                    defaultCapacity = 2,
-                    defaultPeriod = settingsProvider.settingsUpdateInterval / 2,
-                    metrics = metrics,
-                )
-            },
-        )
-
-        @Provides
-        @IntoSet
-        fun bindSettingsUpdate(@SettingsUpdate store: TokenBucketStore): TokenBucketStore = store
-
-        @Provides
-        @Singleton
         @MarDropbox
         fun marDropbox(
             context: Context,
@@ -476,6 +452,14 @@ abstract class AppModule {
             )
 
         @Provides
+        @Singleton
+        fun deviceConfigUpdateService(okHttpClient: OkHttpClient, settingsProvider: SettingsProvider) =
+            DeviceConfigUpdateService.create(
+                okHttpClient = okHttpClient,
+                deviceBaseUrl = settingsProvider.httpApiSettings.deviceBaseUrl
+            )
+
+        @Provides
         fun enqueueHttpTask(
             context: Context,
             settingsProvider: SettingsProvider,
@@ -491,7 +475,8 @@ abstract class AppModule {
 
         @Provides
         fun dataScrubber(settingsProvider: SettingsProvider): DataScrubber = DataScrubber(
-            settingsProvider.dataScrubbingSettings.rules.filterIsInstance(LineScrubbingCleaner::class.java)
+            settingsProvider.dataScrubbingSettings.rules.filterIsInstance(LineScrubbingCleaner::class.java) +
+                CustomLogScrubber
         )
 
         @Provides
@@ -502,8 +487,12 @@ abstract class AppModule {
         else NoopLogcatLineProcessor
 
         @Provides
-        @MarFileHoldingDir
-        fun marFileHoldingDir(context: Context) = File(context.filesDir, "mar-uploads")
+        @MarFileSampledHoldingDir
+        fun marFileSampledHoldingDir(context: Context) = File(context.filesDir, "mar-uploads")
+
+        @Provides
+        @MarFileUnsampledHoldingDir
+        fun marFileUnsampledHoldingDir(context: Context) = File(context.filesDir, "mar-unsampled")
     }
 
     @Binds
@@ -516,17 +505,17 @@ abstract class AppModule {
 @Qualifier
 @Retention(RUNTIME)
 @Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
-annotation class Main
-
-@Qualifier
-@Retention(RUNTIME)
-@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 annotation class UploadHoldingArea
 
 @Qualifier
 @Retention(RUNTIME)
 @Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
-annotation class MarFileHoldingDir
+annotation class MarFileSampledHoldingDir
+
+@Qualifier
+@Retention(RUNTIME)
+@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
+annotation class MarFileUnsampledHoldingDir
 
 /**
  * Injecting Set<T> for multibinding doesn't work in Kotlin, because the kotlin set is typed Set<out T>, so we get

@@ -8,11 +8,6 @@ import retrofit2.Retrofit
 import retrofit2.http.GET
 import retrofit2.http.Query
 
-internal const val QUERY_PARAM_DEVICE_SERIAL = "device_serial"
-internal const val QUERY_PARAM_SOFTWARE_VERSION = "software_version"
-internal const val QUERY_PARAM_HARDWARE_VERSION = "hardware_version"
-internal const val QUERY_PARAM_SOFTWARE_TYPE = "software_type"
-
 interface SettingsUpdateService {
     @GET("/api/v0/sdk-settings")
     @ProjectKeyAuthenticated
@@ -24,6 +19,11 @@ interface SettingsUpdateService {
     ): FetchedSettings.FetchedSettingsContainer
 
     companion object {
+        private const val QUERY_PARAM_DEVICE_SERIAL = "device_serial"
+        private const val QUERY_PARAM_SOFTWARE_VERSION = "software_version"
+        private const val QUERY_PARAM_HARDWARE_VERSION = "hardware_version"
+        private const val QUERY_PARAM_SOFTWARE_TYPE = "software_type"
+
         fun create(
             okHttpClient: OkHttpClient,
             deviceBaseUrl: String,

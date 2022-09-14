@@ -16,8 +16,6 @@ android {
         versionCode loadVersionCode() as Integer
         versionName loadVersionName() as String
 
-        buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "\"" + bortProperty("MEMFAULT_PROJECT_API_KEY") + "\""
-
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -40,14 +38,22 @@ android {
 
     testOptions {
         unitTests.returnDefaultValues = true
+        unitTests.includeAndroidResources = true
         unitTests.all {
             useJUnitPlatform()
+        }
+    }
+
+    variantFilter { variant ->
+        if (variant.buildType.name.endsWith('debug')) {
+            variant.setIgnore(true);
         }
     }
 }
 
 dependencies {
     implementation project(':bort-shared')
+    implementation project(':reporting-lib')
     compileOnly files('libs/update_engine.jar')
     implementation deps.kotlin.stdlib
     implementation deps.kotlin.coroutines
@@ -61,6 +67,8 @@ dependencies {
 
     testImplementation deps.test.junitApi
     testImplementation deps.test.junitJupiterEngine
+    testImplementation deps.test.junitVintageEngine
     testImplementation deps.test.coroutines
     testImplementation deps.test.mockk
+    testImplementation deps.test.robolectric
 }

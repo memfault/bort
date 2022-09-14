@@ -8,16 +8,24 @@ import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.INTENT_ACTION_BORT_ENABLE
 import com.memfault.bort.INTENT_ACTION_BUG_REPORT_REQUESTED
+import com.memfault.bort.INTENT_ACTION_COLLECT_METRICS
+import com.memfault.bort.INTENT_ACTION_DEV_MODE
+import com.memfault.bort.INTENT_ACTION_UPDATE_CONFIGURATION
 import com.memfault.bort.INTENT_EXTRA_BORT_ENABLED
+import com.memfault.bort.INTENT_EXTRA_DEV_MODE_ENABLED
 import com.memfault.bort.InjectSet
 import com.memfault.bort.PendingBugReportRequestAccessor
+import com.memfault.bort.RealDevMode
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.broadcastReply
 import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.reporting.Reporting
+import com.memfault.bort.requester.MetricsCollectionRequester
 import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.requester.StartRealBugReport
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.SettingsUpdateRequester
 import com.memfault.bort.settings.applyReporterServiceSettings
 import com.memfault.bort.settings.reloadCustomEventConfigFrom
 import com.memfault.bort.shared.BugReportRequest
@@ -30,14 +38,17 @@ import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.FileUploadHoldingArea
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
-import kotlin.time.milliseconds
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /** Base receiver to handle events that control the SDK. */
-abstract class BaseControlReceiver : FilteringReceiver(
-    setOf(INTENT_ACTION_BORT_ENABLE, INTENT_ACTION_BUG_REPORT_REQUESTED)
+abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceiver(
+    setOf(
+        INTENT_ACTION_BORT_ENABLE,
+        INTENT_ACTION_BUG_REPORT_REQUESTED,
+    ) + extraActions
 ) {
     @Inject lateinit var dumpsterClient: DumpsterClient
     @Inject lateinit var bortEnabledProvider: BortEnabledProvider
@@ -50,6 +61,9 @@ abstract class BaseControlReceiver : FilteringReceiver(
     @Inject lateinit var builtInMetricsStore: BuiltinMetricsStore
     @Inject lateinit var startBugReport: StartRealBugReport
     @Inject lateinit var reporterServiceConnector: ReporterServiceConnector
+    @Inject lateinit var metricsCollectionRequester: MetricsCollectionRequester
+    @Inject lateinit var settingsUpdateRequester: SettingsUpdateRequester
+    @Inject lateinit var devMode: RealDevMode
 
     private fun allowedByRateLimit(): Boolean =
         tokenBucketStore
@@ -82,7 +96,7 @@ abstract class BaseControlReceiver : FilteringReceiver(
 
         val timeout = intent.extras?.getLongOrNull(
             INTENT_EXTRA_BUG_REPORT_REQUEST_TIMEOUT_MS
-        )?.let(Long::milliseconds) ?: BugReportRequestTimeoutTask.DEFAULT_TIMEOUT
+        )?.milliseconds ?: BugReportRequestTimeoutTask.DEFAULT_TIMEOUT
         CoroutineScope(Dispatchers.Default).launch {
             startBugReport.requestBugReport(
                 context,
@@ -143,24 +157,67 @@ abstract class BaseControlReceiver : FilteringReceiver(
         }
     }
 
+    private fun onCollectMetrics() = CoroutineScope(Dispatchers.Default).launch {
+        if (!bortEnabledProvider.isEnabled()) return@launch
+        if (!devMode.isEnabled()) {
+            Logger.d("Dev mode disabled: not collecting metrics")
+            return@launch
+        }
+        Logger.d("Metric collection requested")
+        metricsCollectionRequester.restartPeriodicCollection(resetLastHeartbeatTime = false, collectImmediately = true)
+    }
+
+    private fun onUpdateConfig() {
+        if (!bortEnabledProvider.isEnabled()) return
+        if (!devMode.isEnabled()) {
+            Logger.d("Dev mode disabled: not updating config")
+            return
+        }
+        Logger.d("Settings update requested")
+        settingsUpdateRequester.restartSetttingsUpdate(delayAfterSettingsUpdate = false)
+    }
+
+    private fun onDevMode(intent: Intent, context: Context) {
+        if (!bortEnabledProvider.isEnabled()) return
+        if (!intent.hasExtra(INTENT_EXTRA_DEV_MODE_ENABLED)) return
+        val enabled = intent.getBooleanExtra(
+            INTENT_EXTRA_DEV_MODE_ENABLED,
+            false // never used, because we just checked hasExtra()
+        )
+        if (enabled) devModeEnabledMetric.increment()
+        devMode.setEnabled(enabled, context)
+    }
+
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {
         when (action) {
             INTENT_ACTION_BUG_REPORT_REQUESTED -> onBugReportRequested(context, intent)
             INTENT_ACTION_BORT_ENABLE -> onBortEnabled(intent)
+            INTENT_ACTION_COLLECT_METRICS -> onCollectMetrics()
+            INTENT_ACTION_UPDATE_CONFIGURATION -> onUpdateConfig()
+            INTENT_ACTION_DEV_MODE -> onDevMode(intent, context)
         }
     }
+
+    private val devModeEnabledMetric = Reporting.report().counter("dev_mode", internal = true)
 }
 
 @AndroidEntryPoint
 @Deprecated("Please target ControlReceiver")
-class RequestBugReportReceiver : BaseControlReceiver()
+class RequestBugReportReceiver : BaseControlReceiver(emptySet())
 
 @AndroidEntryPoint
 @Deprecated("Please target ControlReceiver")
-class BortEnableReceiver : BaseControlReceiver()
+class BortEnableReceiver : BaseControlReceiver(emptySet())
 
 @AndroidEntryPoint
-class ShellControlReceiver : BaseControlReceiver()
+class ShellControlReceiver : BaseControlReceiver(
+    setOf(
+        // These actions are only available from adb (i.e. not via Broadcast from another app on the device).
+        INTENT_ACTION_COLLECT_METRICS,
+        INTENT_ACTION_UPDATE_CONFIGURATION,
+        INTENT_ACTION_DEV_MODE,
+    )
+)
 
 @AndroidEntryPoint
-class ControlReceiver : BaseControlReceiver()
+class ControlReceiver : BaseControlReceiver(emptySet())

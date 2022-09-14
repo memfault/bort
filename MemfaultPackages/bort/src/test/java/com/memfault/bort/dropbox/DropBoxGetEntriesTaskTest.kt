@@ -28,7 +28,7 @@ import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import io.mockk.verify
-import kotlin.time.minutes
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals

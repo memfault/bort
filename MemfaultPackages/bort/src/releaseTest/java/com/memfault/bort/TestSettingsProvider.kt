@@ -7,6 +7,7 @@ import com.memfault.bort.settings.DynamicSettingsProvider
 import com.memfault.bort.settings.HttpApiSettings
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.shared.LogcatPriority

@@ -2,15 +2,14 @@ package com.memfault.bort.clientserver
 
 import android.content.Context
 import androidx.work.BackoffPolicy
-import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.memfault.bort.DeviceInfo
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.FileUploadToken
-import com.memfault.bort.FileUploader
 import com.memfault.bort.MarFileUploadPayload
 import com.memfault.bort.Payload.MarPayload
 import com.memfault.bort.Task
@@ -25,67 +24,44 @@ import com.memfault.bort.settings.HttpApiSettings
 import com.memfault.bort.settings.MaxUploadAttempts
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.JitterDelayProvider
-import com.memfault.bort.shared.Logger
 import com.memfault.bort.uploader.BACKOFF_DURATION
+import com.memfault.bort.uploader.EnqueuePreparedUploadTask
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
+import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
-import kotlin.time.minutes
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
-import kotlin.time.toKotlinDuration
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
  * Can be either periodic or one-time.
  *
- * Always uploads whatever the mar holding area has ready (if anything).
+ * Batches up mar files in the holding area, placing batched files in the upload queue.
  */
-class MarUploadTask @Inject constructor(
+class MarBatchingTask @Inject constructor(
     override val getMaxAttempts: MaxUploadAttempts,
     private val marFileHoldingArea: MarFileHoldingArea,
-    private val fileUploader: FileUploader,
     private val deviceInfoProvider: DeviceInfoProvider,
     override val metrics: BuiltinMetricsStore,
+    private val enqueuePreparedUploadTask: EnqueuePreparedUploadTask,
 ) : Task<Unit>() {
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult = withContext(Dispatchers.IO) {
-        // Avoid re-batching a mar file that another task is currently uploading (if e.g. a one-time task happens to
-        // overlap a periodic task).
-        uploadMutex.withLock {
-            Logger.d("MarUploadTask")
-            val marFileToUpload = marFileHoldingArea.getMarForUpload()
-            if (marFileToUpload == null) {
-                Logger.d("No mar files to upload")
-                return@withContext TaskResult.SUCCESS
-            }
-
-            val deviceInfo = deviceInfoProvider.getDeviceInfo()
-            val payload = MarFileUploadPayload(
-                file = FileUploadToken(
-                    md5 = marFileToUpload.md5Hex(),
-                    name = marFileToUpload.name,
-                ),
-                hardwareVersion = deviceInfo.hardwareVersion,
-                deviceSerial = deviceInfo.deviceSerial,
-                softwareVersion = deviceInfo.softwareVersion,
+        val deviceInfo = deviceInfoProvider.getDeviceInfo()
+        marFileHoldingArea.bundleMarFilesForUpload().forEach { marFile ->
+            enqueuePreparedUploadTask.upload(
+                file = marFile,
+                metadata = MarPayload(createMarPayload(marFile, deviceInfo)),
+                debugTag = UPLOAD_TAG_MAR,
+                continuation = null,
+                shouldCompress = false,
             )
-            when (
-                val result = fileUploader.upload(marFileToUpload, MarPayload(payload), shouldCompress = false)
-            ) {
-                TaskResult.RETRY -> return@withContext result
-                TaskResult.FAILURE -> return@withContext result.also {
-                    Logger.w("mar.upload.failed", mapOf("file" to marFileToUpload.name))
-                }
-            }
-
-            marFileToUpload.delete()
-            TaskResult.SUCCESS
         }
+        TaskResult.SUCCESS
     }
 
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -93,15 +69,16 @@ class MarUploadTask @Inject constructor(
     companion object {
         private const val WORK_UNIQUE_NAME_PERIODIC = "mar_upload_periodic"
         private const val WORK_UNIQUE_NAME_ONE_TIME = "mar_upload_onetime"
-        private val uploadMutex = Mutex()
+        const val UPLOAD_TAG_MAR = "mar"
 
-        fun enqueueOneTimeMarUpload(
-            context: Context,
-            constraints: Constraints,
-        ) {
-            oneTimeWorkRequest<MarUploadTask>(workDataOf()) {
+        /**
+         * For internal use only (from TestReceiver - and in the future, in dev mode on debug devices):
+         *
+         * Run a one-time task to batch+upload mar files currently in holding area.
+         */
+        fun enqueueOneTimeBatchMarFiles(context: Context) {
+            oneTimeWorkRequest<MarBatchingTask>(workDataOf()) {
                 addTag(WORK_UNIQUE_NAME_ONE_TIME)
-                setConstraints(constraints)
                 setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())
             }.also { workRequest ->
                 WorkManager.getInstance(context)
@@ -113,15 +90,13 @@ class MarUploadTask @Inject constructor(
             }
         }
 
-        fun schedulePeriodicUpload(
+        fun schedulePeriodicMarBatching(
             context: Context,
             period: Duration,
-            constraints: Constraints,
             initialDelay: Duration,
         ) {
-            periodicWorkRequest<MarUploadTask>(period, workDataOf()) {
+            periodicWorkRequest<MarBatchingTask>(period, workDataOf()) {
                 addTag(WORK_UNIQUE_NAME_PERIODIC)
-                setConstraints(constraints)
                 setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())
                 setInitialDelay(initialDelay.inWholeMilliseconds, TimeUnit.MILLISECONDS)
             }.also { workRequest ->
@@ -133,6 +108,16 @@ class MarUploadTask @Inject constructor(
                     )
             }
         }
+
+        fun createMarPayload(marFileToUpload: File, deviceInfo: DeviceInfo) = MarFileUploadPayload(
+            file = FileUploadToken(
+                md5 = marFileToUpload.md5Hex(),
+                name = marFileToUpload.name,
+            ),
+            hardwareVersion = deviceInfo.hardwareVersion,
+            deviceSerial = deviceInfo.deviceSerial,
+            softwareVersion = deviceInfo.softwareVersion,
+        )
 
         fun cancelPeriodic(context: Context) {
             WorkManager.getInstance(context)
@@ -151,20 +136,19 @@ class PeriodicMarUploadRequester @Inject constructor(
         if (!httpApiSettings.batchMarUploads) return
 
         val bootDelay = if (justBooted) 5.minutes else ZERO
-        val jitter = jitterDelayProvider.randomJitterDelay()
-        MarUploadTask.schedulePeriodicUpload(
+        MarBatchingTask.schedulePeriodicMarBatching(
             context = context,
             period = httpApiSettings.batchedMarUploadPeriod,
-            constraints = httpApiSettings.uploadConstraints,
-            initialDelay = bootDelay + jitter.toKotlinDuration(),
+            initialDelay = bootDelay,
         )
     }
 
     override fun cancelPeriodic() {
-        MarUploadTask.cancelPeriodic(context)
+        MarBatchingTask.cancelPeriodic(context)
     }
 
     override fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
-        old.httpApiSettings.batchMarUploads != new.httpApiSettings.batchMarUploads ||
+        old.httpApiSettings.useMarUpload != new.httpApiSettings.useMarUpload ||
+            old.httpApiSettings.batchMarUploads != new.httpApiSettings.batchMarUploads ||
             old.httpApiSettings.batchedMarUploadPeriod != new.httpApiSettings.batchedMarUploadPeriod
 }

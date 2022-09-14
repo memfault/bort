@@ -66,6 +66,7 @@ class UpdateActivity : AppCompatActivity() {
                     R.string.latest_version_already_installed,
                     Snackbar.LENGTH_SHORT
                 ).show()
+            else -> {}
         }
     }
 

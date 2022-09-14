@@ -1,5 +1,6 @@
 package com.memfault.bort
 
+import com.memfault.bort.settings.Resolution
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.CombinedTime
@@ -8,6 +9,7 @@ import java.util.TimeZone
 import java.util.UUID
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonPrimitive
 import retrofit2.Retrofit
 
@@ -197,6 +199,16 @@ data class LogcatFileUploadPayload(
 
     @SerialName("next_cid")
     val nextCid: LogcatCollectionId,
+
+    /**
+     * These values are only used when passing between [FileUploadHoldingArea] and [MarFileWriter], so are not required
+     * to be persisted in [FileUploadHoldingArea] (hence @Transient). These fields are also not used in the backend
+     * (resolution is defined in the MAR manifest), so are never serialized.
+     */
+    @Transient
+    val debuggingResolution: Resolution = Resolution.NORMAL,
+    @Transient
+    val loggingResolution: Resolution = Resolution.NORMAL,
 ) : FileUploadPayload()
 
 @Serializable
@@ -384,8 +396,11 @@ interface FileUploader {
     suspend fun upload(file: File, payload: Payload, shouldCompress: Boolean): TaskResult
 }
 
+@Serializable
 sealed class Payload {
+    @Serializable
     class LegacyPayload(val payload: FileUploadPayload) : Payload()
+    @Serializable
     class MarPayload(val payload: MarFileUploadPayload) : Payload()
 }
 

@@ -8,8 +8,8 @@ import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.tokenbucket.realElapsedRealtime
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.DurationUnit.MILLISECONDS
-import kotlin.time.minutes
 import kotlin.time.toDuration
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -48,11 +48,11 @@ class UptimeTracker @Inject constructor(
         currentUptimePrefMillis.setValue(
             UptimeWithBootId(
                 bootId = linuxBootId,
-                uptimeMillis = realElapsedRealtime().toLongMilliseconds()
+                uptimeMillis = realElapsedRealtime().inWholeMilliseconds
             )
         )
         // Run again, after UPDATE_PERIOD.
-        handler.postDelayed(::trackCurrentUptime, UPDATE_PERIOD.toLongMilliseconds())
+        handler.postDelayed(::trackCurrentUptime, UPDATE_PERIOD.inWholeMilliseconds)
     }
 }
 
