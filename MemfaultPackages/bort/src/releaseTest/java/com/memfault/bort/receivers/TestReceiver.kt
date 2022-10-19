@@ -15,6 +15,7 @@ import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.restartPeriodicLogcatCollection
 import com.memfault.bort.requester.restartPeriodicMetricsCollection
 import com.memfault.bort.selfTesting.SelfTestWorker
+import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.StoredSettingsPreferenceProvider
 import com.memfault.bort.settings.restartPeriodicSettingsUpdate
@@ -43,7 +44,9 @@ class TestReceiver : FilteringReceiver(
         "com.memfault.intent.action.TEST_BORT_ECHO",
         "com.memfault.intent.action.TEST_SETTING_SET_PROJECT_KEY",
         "com.memfault.intent.action.TEST_SETTING_SET_USE_MAR",
+        "com.memfault.intent.action.TEST_SETTING_USE_OVERRIDES",
         "com.memfault.intent.action.TEST_SELF_TEST",
+        "com.memfault.intent.action.TEST_ADD_EVENT_OF_INTEREST",
         "com.memfault.intent.action.TEST_REQUEST_LOGCAT_COLLECTION",
         "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION",
         "com.memfault.intent.action.TEST_REQUEST_SETTINGS_UPDATE",
@@ -78,15 +81,28 @@ class TestReceiver : FilteringReceiver(
             }
             "com.memfault.intent.action.TEST_SETTING_SET_USE_MAR" -> {
                 val useMar = intent.getBooleanExtra(
-                    "project_key", false
+                    "use_mar", false
                 )
-                Logger.test("use_mar_upload: $useMar")
+                Logger.test("use_mar: $useMar")
                 TestOverrideSettings(
                     PreferenceManager.getDefaultSharedPreferences(context)
                 ).also {
-                    Logger.test("use_mar_upload was: ${it.useMarUpload.getValue()}")
+                    Logger.test("use_mar was: ${it.useMarUpload.getValue()}")
                     it.useMarUpload.setValue(useMar)
-                    Logger.test("Updated to use_mar_upload: ${it.useMarUpload.getValue()}")
+                    Logger.test("Updated to use_mar: ${it.useMarUpload.getValue()}")
+                }
+            }
+            "com.memfault.intent.action.TEST_SETTING_USE_OVERRIDES" -> {
+                val useTestOverrides = intent.getBooleanExtra(
+                    "use_test_overrides", false
+                )
+                Logger.test("use_test_overrides: $useTestOverrides")
+                TestOverrideSettings(
+                    PreferenceManager.getDefaultSharedPreferences(context)
+                ).also {
+                    Logger.test("use_test_overrides was: ${it.useTestSettingOverrides.getValue()}")
+                    it.useTestSettingOverrides.setValue(useTestOverrides)
+                    Logger.test("Updated to use_test_overrides: ${it.useTestSettingOverrides.getValue()}")
                 }
             }
             "com.memfault.intent.action.TEST_BORT_ECHO" -> {
@@ -99,18 +115,26 @@ class TestReceiver : FilteringReceiver(
                     )
                 }
             }
+            "com.memfault.intent.action.TEST_ADD_EVENT_OF_INTEREST" -> {
+                // Pretend an event of interest occurred, so that the logcat file gets uploaded immediately:
+                fileUploadHoldingArea.handleEventOfInterest(SystemClock.elapsedRealtime().milliseconds)
+                Logger.test("Added event of interest")
+            }
             "com.memfault.intent.action.TEST_REQUEST_LOGCAT_COLLECTION" -> {
                 // Pretend an event of interest occurred, so that the logcat file gets uploaded immediately:
                 fileUploadHoldingArea.handleEventOfInterest(SystemClock.elapsedRealtime().milliseconds)
 
-                restartPeriodicLogcatCollection(
-                    context = context,
-                    // Something long to ensure it does not re-run & interfere with tests:
-                    collectionInterval = 1.days,
-                    // Pretend the logcat started an hour ago:
-                    lastLogcatEnd = AbsoluteTime.now() - 1.hours,
-                    collectImmediately = true,
-                )
+                if (settingsProvider.logcatSettings.collectionMode == LogcatCollectionMode.PERIODIC) {
+                    restartPeriodicLogcatCollection(
+                        context = context,
+                        // Something long to ensure it does not re-run & interfere with tests:
+                        collectionInterval = 1.days,
+                        // Pretend the logcat started an hour ago:
+                        lastLogcatEnd = AbsoluteTime.now() - 1.hours,
+                        collectImmediately = true,
+                    )
+                }
+
                 PreferenceManager.getDefaultSharedPreferences(context).let {
                     RealNextLogcatCidProvider(it).cid
                 }.also {
@@ -171,6 +195,7 @@ class TestReceiver : FilteringReceiver(
         // Reset to built-in settings values:
         storedSettingsPreferenceProvider.reset()
         settingsProvider.invalidate()
+        Logger.test("dynamic settings invalidated")
     }
 
     private fun resetRateLimits() {

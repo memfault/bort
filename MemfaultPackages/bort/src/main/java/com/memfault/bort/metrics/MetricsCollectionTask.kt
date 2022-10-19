@@ -2,11 +2,13 @@ package com.memfault.bort.metrics
 
 import android.os.RemoteException
 import androidx.work.Data
+import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.DevMode
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.FileUploadToken
 import com.memfault.bort.HeartbeatFileUploadPayload
+import com.memfault.bort.IntegrationChecker
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
@@ -25,6 +27,7 @@ import javax.inject.Inject
 import kotlin.time.Duration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonPrimitive
 
 class MetricsCollectionTask @Inject constructor(
     private val batteryStatsHistoryCollector: BatteryStatsHistoryCollector,
@@ -43,12 +46,14 @@ class MetricsCollectionTask @Inject constructor(
     private val appVersionsCollector: AppVersionsCollector,
     private val dumpsterClient: DumpsterClient,
     private val devMode: DevMode,
+    private val bortSystemCapabilities: BortSystemCapabilities,
+    private val integrationChecker: IntegrationChecker,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data) = Unit
 
     private suspend fun enqueueHeartbeatUpload(
-        now: CombinedTime,
+        collectionTime: CombinedTime,
         heartbeatInterval: Duration,
         batteryStatsFile: File?,
     ) {
@@ -58,10 +63,27 @@ class MetricsCollectionTask @Inject constructor(
         val heartbeatReportMetrics = heartbeatReport?.metrics ?: emptyMap()
         val heartbeatReportInternalMetrics = heartbeatReport?.internalMetrics ?: emptyMap()
 
-        val deviceInfo = deviceInfoProvider.getDeviceInfo()
         systemPropertiesCollector.updateSystemProperties()
         appVersionsCollector.updateAppVersions()
         updateBuiltinProperties(packageManagerClient, devicePropertiesStore, dumpsterClient)
+        uploadMetrics(
+            batteryStatsFile = batteryStatsFile,
+            collectionTime = collectionTime,
+            heartbeatInterval = heartbeatInterval,
+            heartbeatReportMetrics = heartbeatReportMetrics,
+            heartbeatReportInternalMetrics = heartbeatReportInternalMetrics,
+        )
+    }
+
+    private suspend fun uploadMetrics(
+        batteryStatsFile: File?,
+        collectionTime: CombinedTime,
+        heartbeatInterval: Duration,
+        heartbeatReportMetrics: Map<String, JsonPrimitive>,
+        heartbeatReportInternalMetrics: Map<String, JsonPrimitive>,
+    ) {
+        val deviceInfo = deviceInfoProvider.getDeviceInfo()
+        integrationChecker.checkIntegrationAndReport()
         enqueueUpload.enqueue(
             // Note: this is the only upload type which may not have a file. To avoid changing the entire PreparedUpload
             // stack to support this (which is only needed until we migrate the mar), use a fake file.
@@ -70,7 +92,7 @@ class MetricsCollectionTask @Inject constructor(
                 hardwareVersion = deviceInfo.hardwareVersion,
                 deviceSerial = deviceInfo.deviceSerial,
                 softwareVersion = deviceInfo.softwareVersion,
-                collectionTime = now,
+                collectionTime = collectionTime,
                 heartbeatIntervalMs = heartbeatInterval.inWholeMilliseconds,
                 customMetrics = devicePropertiesStore.collectDeviceProperties(internal = false) +
                     heartbeatReportMetrics,
@@ -91,7 +113,7 @@ class MetricsCollectionTask @Inject constructor(
                 cidReference = nextLogcatCidProvider.cid,
             ),
             DEBUG_TAG,
-            collectionTime = now,
+            collectionTime = collectionTime,
         )
     }
 
@@ -103,6 +125,20 @@ class MetricsCollectionTask @Inject constructor(
         val now = combinedTimeProvider.now()
         val heartbeatInterval =
             (now.elapsedRealtime.duration - lastHeartbeatEndTimeProvider.lastEnd.elapsedRealtime.duration)
+
+        val supportsCaliperMetrics = bortSystemCapabilities.supportsCaliperMetrics()
+        devicePropertiesStore.upsert(name = "supports_caliper_metrics", value = supportsCaliperMetrics, internal = true)
+        if (!supportsCaliperMetrics) {
+            Logger.d("!supportsCaliperMetrics, only uploading internal metrics")
+            uploadMetrics(
+                batteryStatsFile = null,
+                collectionTime = now,
+                heartbeatInterval = heartbeatInterval,
+                heartbeatReportMetrics = emptyMap(),
+                heartbeatReportInternalMetrics = emptyMap(),
+            )
+            return TaskResult.SUCCESS
+        }
 
         // The batteryStatsHistoryCollector will use the NEXT time from the previous run and use that as starting
         // point for the data to collect. In practice, this roughly matches the start of the current heartbeat period.

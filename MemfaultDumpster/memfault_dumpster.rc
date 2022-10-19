@@ -2,5 +2,9 @@
 # MemfaultDumpster program. See MemfaultDumpster.cpp for the source code of the
 # program itself.
 
+on post-fs-data
+    mkdir /data/system/MemfaultDumpster/ 0700 root root
+    wait /data/system/MemfaultDumpster/
+
 service memfault_dumpster /system/bin/MemfaultDumpster
     class core

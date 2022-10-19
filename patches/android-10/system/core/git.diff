@@ -1,0 +1,26 @@
+diff --git a/liblog/logd_reader.cpp b/liblog/logd_reader.cpp
+index b7ba782..03571d4 100644
+--- a/liblog/logd_reader.cpp
++++ b/liblog/logd_reader.cpp
+@@ -321,7 +321,10 @@ static ssize_t logdSetPrune(struct android_log_logger_list* logger_list __unused
+   return check_log_success(buf, send_log_msg(NULL, NULL, buf, len));
+ }
+
+-static void caught_signal(int signum __unused) {}
++static volatile bool _signal_caught_here = false;
++static void caught_signal(int signum __unused) {
++  _signal_caught_here = true;
++}
+
+ static int logdOpen(struct android_log_logger_list* logger_list,
+                     struct android_log_transport_context* transp) {
+@@ -474,7 +477,8 @@ static int logdRead(struct android_log_logger_list* logger_list,
+   e = errno;
+
+   if (new_alarm) {
+-    if ((ret == 0) || (e == EINTR)) {
++    if ((ret == 0) || (e == EINTR && _signal_caught_here)) {
++      _signal_caught_here = false;
+       e = EAGAIN;
+       ret = -1;
+     }

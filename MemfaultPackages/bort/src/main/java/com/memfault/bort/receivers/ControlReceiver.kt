@@ -24,6 +24,7 @@ import com.memfault.bort.requester.MetricsCollectionRequester
 import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.requester.StartRealBugReport
 import com.memfault.bort.settings.BortEnabledProvider
+import com.memfault.bort.settings.ContinuousLoggingController
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.SettingsUpdateRequester
 import com.memfault.bort.settings.applyReporterServiceSettings
@@ -64,6 +65,7 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
     @Inject lateinit var metricsCollectionRequester: MetricsCollectionRequester
     @Inject lateinit var settingsUpdateRequester: SettingsUpdateRequester
     @Inject lateinit var devMode: RealDevMode
+    @Inject lateinit var continuousLoggingController: ContinuousLoggingController
 
     private fun allowedByRateLimit(): Boolean =
         tokenBucketStore
@@ -152,6 +154,7 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
                 isNowEnabled &&
                     settingsProvider.structuredLogSettings.dataSourceEnabled
             )
+            continuousLoggingController.configureContinuousLogging()
             // Pass the new settings to structured logging (after we enable/disable it)
             reloadCustomEventConfigFrom(settingsProvider.structuredLogSettings)
         }

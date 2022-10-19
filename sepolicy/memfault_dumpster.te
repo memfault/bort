@@ -1,3 +1,4 @@
+
 type memfault_dumpster_service, service_manager_type;
 
 add_service(dumpstate, memfault_dumpster_service)
@@ -14,3 +15,10 @@ set_prop(dumpstate, system_prop);
 if_sdk_version_gteq(28, `', `
   get_prop(dumpstate, memfault_prop)
 ')
+
+# Allow memfault_dumpster rw access to its data dir
+allow dumpstate memfault_dumpster_data_file:dir rw_dir_perms;
+allow dumpstate memfault_dumpster_data_file:file create_file_perms;
+
+# Allow dropbox service to read the log data file
+allow system_server memfault_dumpster_data_file:file read;

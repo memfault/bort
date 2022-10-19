@@ -1,15 +1,13 @@
-Back-port of https://android.googlesource.com/platform/system/core/+/6f4644d15b3df1a9be92348f23a62282a8b332f6
-
 diff --git a/debuggerd/libdebuggerd/test/tombstone_test.cpp b/debuggerd/libdebuggerd/test/tombstone_test.cpp
 index 421ce43c0..d24c88731 100644
 --- a/debuggerd/libdebuggerd/test/tombstone_test.cpp
 +++ b/debuggerd/libdebuggerd/test/tombstone_test.cpp
 @@ -15,6 +15,7 @@
   */
- 
+
  #include <stdlib.h>
 +#include <time.h>
- 
+
  #include <memory>
  #include <string>
 @@ -494,3 +495,10 @@ TEST_F(TombstoneTest, dump_header_info) {
@@ -30,7 +28,7 @@ index 933a5972d..899fe6ea5 100644
 @@ -78,6 +78,15 @@ static void dump_header_info(log_t* log) {
    _LOG(log, logtype::HEADER, "ABI: '%s'\n", ABI_STRING);
  }
- 
+
 +static void dump_timestamp(log_t* log, time_t time) {
 +  struct tm tm;
 +  localtime_r(&time, &tm);
@@ -44,10 +42,34 @@ index 933a5972d..899fe6ea5 100644
    std::string cause;
    if (si->si_signo == SIGSEGV && si->si_code == SEGV_MAPERR) {
 @@ -639,6 +648,7 @@ void engrave_tombstone(unique_fd output_fd, BacktraceMap* map, Memory* process_m
- 
+
    _LOG(&log, logtype::HEADER, "*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\n");
    dump_header_info(&log);
 +  dump_timestamp(&log, time(nullptr));
- 
+
    auto it = threads.find(target_thread);
    if (it == threads.end()) {
+diff --git a/liblog/logd_reader.c b/liblog/logd_reader.c
+index 603ba2469..fa147bed1 100644
+--- a/liblog/logd_reader.c
++++ b/liblog/logd_reader.c
+@@ -455,7 +455,9 @@ static ssize_t logdSetPrune(struct android_log_logger_list* logger_list __unused
+   return check_log_success(buf, send_log_msg(NULL, NULL, buf, len));
+ }
+
++static volatile int _signal_caught_here = 0;
+ static void caught_signal(int signum __unused) {
++  _signal_caught_here = 1;
+ }
+
+ static int logdOpen(struct android_log_logger_list* logger_list,
+@@ -614,7 +616,8 @@ static int logdRead(struct android_log_logger_list* logger_list,
+   e = errno;
+
+   if (new_alarm) {
+-    if ((ret == 0) || (e == EINTR)) {
++    if ((ret == 0) || (e == EINTR && _signal_caught_here)) {
++      _signal_caught_here = 0;
+       e = EAGAIN;
+       ret = -1;
+     }

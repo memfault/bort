@@ -9,12 +9,17 @@ import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.tokenbucket.JavaException
 import com.memfault.bort.tokenbucket.TokenBucketStore
+import com.memfault.bort.tokenbucket.Wtf
+import com.memfault.bort.tokenbucket.WtfTotal
+import com.memfault.bort.tokenbucket.takeSimple
 import com.memfault.bort.tokenbucket.tokenBucketKey
 import java.io.File
 import javax.inject.Inject
 
 class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
-    @JavaException override val tokenBucketStore: TokenBucketStore,
+    @JavaException private val javaExceptionTokenBucketStore: TokenBucketStore,
+    @Wtf private val wtfTokenBucketStore: TokenBucketStore,
+    @WtfTotal private val wtfTotalTokenBucketStore: TokenBucketStore,
 ) : UploadingEntryProcessorDelegate {
     override val tags = listOf(
         "data_app_crash",
@@ -26,6 +31,17 @@ class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
     )
     override val debugTag: String
         get() = "UPLOAD_JAVA_EXCEPTION"
+
+    override fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean {
+        return if (tag.endsWith("wtf")) {
+            // We limit WTFs using both a bucketed (by stacktrace) and total.
+            val allowedByBucketed = wtfTokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
+            val allowedByTotal = wtfTotalTokenBucketStore.takeSimple(tag = tag)
+            allowedByBucketed && allowedByTotal
+        } else {
+            javaExceptionTokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
+        }
+    }
 
     override suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo =
         try {
@@ -46,7 +62,7 @@ class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
         tag: String,
         fileTime: AbsoluteTime?,
         entryTime: AbsoluteTime,
-        collectionTime: BootRelativeTime
+        collectionTime: BootRelativeTime,
     ): DropBoxEntryFileUploadMetadata =
         JavaExceptionFileUploadMetadata(tag, fileTime, entryTime, collectionTime, TimezoneWithId.deviceDefault)
 }

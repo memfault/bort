@@ -1,0 +1,1293 @@
+isPrevious: false
+Build: Android/aosp_arm64/generic_arm64:8.1.0/OC/root04302340:eng/test-keys
+Hardware: generic-arm64
+Revision: 0
+Bootloader: unknown
+Radio: unknown
+Kernel: Linux version 3.18.74+ (android-build@wphs1.hot.corp.google.com) (gcc version 4.9.x-google 20140827 (prerelease) (GCC) ) #1 SMP PREEMPT Thu Oct 12 17:14:41 UTC 2017
+
+*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+Build fingerprint: 'Android/aosp_arm64/generic_arm64:8.1.0/OC/root04302340:eng/test-keys'
+Revision: '0'
+ABI: 'arm64'
+Timestamp: 2020-11-06 10:53:54+0000
+pid: 1300, tid: 2055, name: Thread-22  >>> com.memfault.bort_e2e_helper <<<
+signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0xfffffffffffffff0
+    x0   00000074a55b2d30  x1   0000000000000000  x2   0000000000000000  x3   00000074c72e9fb6
+    x4   0000000000000000  x5   00000074a55b2d7e  x6   0000000000000000  x7   0000000000000000
+    x8   0000000000000000  x9   0000000000000000  x10  0000000000000000  x11  0000000000000000
+    x12  0000000000000000  x13  0000000000000000  x14  000000006fb9a590  x15  0000000000004473
+    x16  00000074c7385550  x17  000000754976b2f0  x18  0000000000000020  x19  00000074a55b2d30
+    x20  00000000130e6fa8  x21  000000000000004e  x22  00000074c72ca88e  x23  00000074bd015400
+    x24  0000000000000043  x25  00000074c738ac80  x26  00000074c72c78b3  x27  00000074ab9ff588
+    x28  00000074ab9ff588  x29  00000074ab9fd240  x30  00000074c70e1344
+    sp   00000074ab9fd190  pc   000000754976b3b0  pstate 0000000080000000
+    v0   00000000000000000000000000000000  v1   00000000000000000000000000000020
+    v2   000000000000000000000000e800e9cd  v3   00000000000000000000000048c88ae7
+    v4   5395c07d8f0c22943b19d57f527d301a  v5   6c515276494d5af795fe004a343dab5b
+    v6   b5d774d6f69f056122b75793ac2248a9  v7   2ae4f3c68b86e5e0c6c73500456cd7b3
+    v8   00000000000000000000000000000000  v9   00000000000000000000000000000000
+    v10  00000000000000000000000000000000  v11  00000000000000000000000000000000
+    v12  00000000000000000000000000000000  v13  00000000000000000000000000000000
+    v14  00000000000000000000000000000000  v15  00000000000000000000000000000000
+    v16  5a8279995a8279995a8279995a827999  v17  6ed9eba16ed9eba16ed9eba16ed9eba1
+    v18  8f1bbcdc8f1bbcdc8f1bbcdc8f1bbcdc  v19  ca62c1d6ca62c1d6ca62c1d6ca62c1d6
+    v20  803a36acc101c737ed1a196976850a7f  v21  f547b59c55e9a7b69129f6d60fcf9989
+    v22  0ea07ab07771fd9375c85a25c5ded885  v23  000000000000000000000000ebad8087
+    v24  000000000000000000000000ebad8088  v25  000000000000000000000000ebad8089
+    v26  000000000000000000000000ebad808a  v27  000000000000000000000000ebad808b
+    v28  000000000000000000000000ebad808c  v29  000000000000000000000000ebad808d
+    v30  000000000000000000000000ebad808e  v31  000000000000000000000000130cfad8
+    fpsr 00000013  fpcr 00000000
+
+backtrace:
+    #00 pc 000000000001c3b0  /system/lib64/libc.so (memcpy+192)
+    #01 pc 0000000000386340  /system/lib64/libart.so (_ZN3art3JNI17GetPrimitiveArrayIP11_jbyteArrayaNS_6mirror14PrimitiveArrayIaEEEEPT0_P7_JNIEnvT_Ph+696)
+    #02 pc 0000000000116bd8  /system/lib64/libart.so (art::CheckJNI::GetPrimitiveArrayElements(char const*, art::Primitive::Type, _JNIEnv*, _jarray*, unsigned char*)+824)
+    #03 pc 000000000001c2a8  /system/lib64/libjavacrypto.so (NativeCrypto_X509_get_subject_name(_JNIEnv*, _jclass*, long)+124)
+    #04 pc 0000000000038d58  /system/framework/arm64/boot-conscrypt.oat (offset 0x1e000) (com.android.org.conscrypt.NativeCrypto.ASN1_seq_unpack_X509_bio [DEDUPED]+152)
+    #05 pc 0000000000056dec  /system/framework/arm64/boot-conscrypt.oat (offset 0x1e000) (com.android.org.conscrypt.OpenSSLX509Certificate.getSubjectDN+60)
+    #06 pc 0000000000066e78  /system/framework/arm64/boot-conscrypt.oat (offset 0x1e000) (com.android.org.conscrypt.TrustManagerImpl.checkTrustedRecursive+376)
+    #07 pc 0000000000067048  /system/framework/arm64/boot-conscrypt.oat (offset 0x1e000) (com.android.org.conscrypt.TrustManagerImpl.checkTrustedRecursive+840)
+    #08 pc 0000000000067414  /system/framework/arm64/boot-conscrypt.oat (offset 0x1e000) (com.android.org.conscrypt.TrustManagerImpl.checkTrustedRecursive+1812)
+    #09 pc 0000000000066c20  /system/framework/arm64/boot-conscrypt.oat (offset 0x1e000) (com.android.org.conscrypt.TrustManagerImpl.checkTrusted+736)
+    #10 pc 00000000000668f4  /system/framework/arm64/boot-conscrypt.oat (offset 0x1e000) (com.android.org.conscrypt.TrustManagerImpl.checkTrusted+532)
+    #11 pc 00000000000696b0  /system/framework/arm64/boot-conscrypt.oat (offset 0x1e000) (com.android.org.conscrypt.TrustManagerImpl.checkServerTrusted+304)
+    #12 pc 0000000000059624  /system/framework/arm64/boot-conscrypt.oat (offset 0x1e000) (com.android.org.conscrypt.Platform.checkServerTrusted+372)
+    #13 pc 0000000000030a8c  /system/framework/arm64/boot-conscrypt.oat (offset 0x1e000) (com.android.org.conscrypt.ConscryptFileDescriptorSocket.verifyCertificateChain+956)
+    #14 pc 0000000000546f88  /system/lib64/libart.so (art_quick_invoke_stub+584)
+    #15 pc 00000000000dc574  /system/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+200)
+    #16 pc 000000000046b96c  /system/lib64/libart.so (art::InvokeWithArgArray(art::ScopedObjectAccessAlreadyRunnable const&, art::ArtMethod*, art::ArgArray*, art::JValue*, char const*)+100)
+    #17 pc 000000000046cdf4  /system/lib64/libart.so (art::InvokeVirtualOrInterfaceWithVarArgs(art::ScopedObjectAccessAlreadyRunnable const&, _jobject*, _jmethodID*, std::__va_list)+440)
+    #18 pc 000000000035121c  /system/lib64/libart.so (art::JNI::CallVoidMethodV(_JNIEnv*, _jobject*, _jmethodID*, std::__va_list)+624)
+    #19 pc 0000000000110850  /system/lib64/libart.so (art::CheckJNI::CallMethodV(char const*, _JNIEnv*, _jobject*, _jclass*, _jmethodID*, std::__va_list, art::Primitive::Type, art::InvokeType)+2664)
+    #20 pc 00000000000feb38  /system/lib64/libart.so (art::CheckJNI::CallVoidMethodV(_JNIEnv*, _jobject*, _jmethodID*, std::__va_list)+92)
+    #21 pc 0000000000030980  /system/lib64/libjavacrypto.so (_JNIEnv::CallVoidMethod(_jobject*, _jmethodID*, ...)+120)
+    #22 pc 0000000000031248  /system/lib64/libjavacrypto.so (cert_verify_callback(x509_store_ctx_st*, void*)+192)
+    #23 pc 0000000000029f68  /system/lib64/libssl.so (ssl_crypto_x509_session_verify_cert_chain(ssl_session_st*, ssl_st*)+232)
+    #24 pc 0000000000014534  /system/lib64/libssl.so (ssl3_connect+5644)
+    #25 pc 0000000000022164  /system/lib64/libssl.so (SSL_do_handshake+64)
+    #26 pc 0000000000026618  /system/lib64/libjavacrypto.so (NativeCrypto_SSL_do_handshake(_JNIEnv*, _jclass*, long, _jobject*, _jobject*, int)+268)
+    #27 pc 000000000003c468  /system/framework/arm64/boot-conscrypt.oat (offset 0x1e000) (com.android.org.conscrypt.NativeCrypto.SSL_do_handshake+216)
+    #28 pc 000000000002fe40  /system/framework/arm64/boot-conscrypt.oat (offset 0x1e000) (com.android.org.conscrypt.ConscryptFileDescriptorSocket.startHandshake+1376)
+    #29 pc 0000000000079178  /system/framework/arm64/boot-okhttp.oat (offset 0x26000) (com.android.okhttp.internal.io.RealConnection.connectTls+648)
+    #30 pc 0000000000078a24  /system/framework/arm64/boot-okhttp.oat (offset 0x26000) (com.android.okhttp.internal.io.RealConnection.connectSocket+1524)
+    #31 pc 000000000007af38  /system/framework/arm64/boot-okhttp.oat (offset 0x26000) (com.android.okhttp.internal.io.RealConnection.connect+952)
+    #32 pc 000000000006d148  /system/framework/arm64/boot-okhttp.oat (offset 0x26000) (com.android.okhttp.internal.http.StreamAllocation.findConnection+1080)
+    #33 pc 000000000006d380  /system/framework/arm64/boot-okhttp.oat (offset 0x26000) (com.android.okhttp.internal.http.StreamAllocation.findHealthyConnection+80)
+    #34 pc 000000000006de64  /system/framework/arm64/boot-okhttp.oat (offset 0x26000) (com.android.okhttp.internal.http.StreamAllocation.newStream+100)
+    #35 pc 0000000000061e2c  /system/framework/arm64/boot-okhttp.oat (offset 0x26000) (com.android.okhttp.internal.http.HttpEngine.connect+316)
+    #36 pc 0000000000066654  /system/framework/arm64/boot-okhttp.oat (offset 0x26000) (com.android.okhttp.internal.http.HttpEngine.sendRequest+868)
+    #37 pc 0000000000070da0  /system/framework/arm64/boot-okhttp.oat (offset 0x26000) (com.android.okhttp.internal.huc.HttpURLConnectionImpl.execute+256)
+    #38 pc 0000000000071544  /system/framework/arm64/boot-okhttp.oat (offset 0x26000) (com.android.okhttp.internal.huc.HttpURLConnectionImpl.getResponse+132)
+    #39 pc 00000000000741ec  /system/framework/arm64/boot-okhttp.oat (offset 0x26000) (com.android.okhttp.internal.huc.HttpURLConnectionImpl.getResponseCode+44)
+    #40 pc 00000000000769ec  /system/framework/arm64/boot-okhttp.oat (offset 0x26000) (com.android.okhttp.internal.huc.HttpsURLConnectionImpl.getResponseCode+60)
+    #41 pc 0000000000e3f2b8  /system/framework/oat/arm64/services.odex (offset 0x5b5000)
+
+stack:
+         00000074ab9fd110  00000074ab9ff588
+         00000074ab9fd118  e44bb9894d8bd693
+         00000074ab9fd120  00000074c72c78b3  /system/lib64/libart.so
+         00000074ab9fd128  00000074c738ac80  [anon:.bss]
+         00000074ab9fd130  0000000000000043
+         00000074ab9fd138  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fd140  00000074c72ca88e  /system/lib64/libart.so
+         00000074ab9fd148  000000000000004e
+         00000074ab9fd150  00000000130e6fa8  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd158  0000000000000050
+         00000074ab9fd160  00000074ab9fd180
+         00000074ab9fd168  00000075481ac4fc  /system/lib64/libc++.so (operator new(unsigned long)+36)
+         00000074ab9fd170  0000000000000000
+         00000074ab9fd178  00000074c6f82cf0  /system/lib64/libart.so (art::gc::Heap::IsMovableObject(art::ObjPtr<art::mirror::Object>) const+16)
+         00000074ab9fd180  00000074ab9fd240
+         00000074ab9fd188  00000074c70e1334  /system/lib64/libart.so (_ZN3art3JNI17GetPrimitiveArrayIP11_jbyteArrayaNS_6mirror14PrimitiveArrayIaEEEEPT0_P7_JNIEnvT_Ph+684)
+    #00  00000074ab9fd190  00000074ab9ff588
+         ........  ........
+    #01  00000074ab9fd190  00000074ab9ff588
+         00000074ab9fd198  00000074ab9fd2c8
+         00000074ab9fd1a0  00000074ab9fd290
+         00000074ab9fd1a8  0000000000000002
+         00000074ab9fd1b0  00000074ab9fd278
+         00000074ab9fd1b8  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fd1c0  00000074c74cd840  [anon:libc_malloc]
+         00000074ab9fd1c8  00000074c74a8200  [anon:libc_malloc]
+         00000074ab9fd1d0  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fd1d8  0000004300000043
+         00000074ab9fd1e0  00000000130e6e00  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd1e8  e44bb9894d8bd693
+         00000074ab9fd1f0  00000074ab9ff588
+         00000074ab9fd1f8  00000074c72c78bb  /system/lib64/libart.so
+         00000074ab9fd200  00000074c72c78b3  /system/lib64/libart.so
+         00000074ab9fd208  00000074c738ac80  [anon:.bss]
+         ........  ........
+    #02  00000074ab9fd250  00000074ab9fd330
+         00000074ab9fd258  00000074c6e71428  /system/lib64/libart.so (art::CheckJNI::NewPrimitiveArray(char const*, _JNIEnv*, int, art::Primitive::Type)+916)
+         00000074ab9fd260  000000006fb9a0d8  /data/dalvik-cache/arm64/system@framework@boot.art
+         00000074ab9fd268  0000000070c31dc0  /system/framework/arm64/boot.oat (sun.security.util.DerInputStream.getDerValue+96)
+         00000074ab9fd270  0000000200000059
+         00000074ab9fd278  00000074c72ca88e  /system/lib64/libart.so
+         00000074ab9fd280  0000000000000000
+         00000074ab9fd288  0000000000000001
+         00000074ab9fd290  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fd298  00000074c74cd840  [anon:libc_malloc]
+         00000074ab9fd2a0  00000074c74a8200  [anon:libc_malloc]
+         00000074ab9fd2a8  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fd2b0  0000005900000043
+         00000074ab9fd2b8  0000005900000000
+         00000074ab9fd2c0  00000074c74cd840  [anon:libc_malloc]
+         00000074ab9fd2c8  0000000000000059
+         ........  ........
+    #03  00000074ab9fd340  00590000130e66f0
+         00000074ab9fd348  e44bb9894d8bd693
+         00000074ab9fd350  0000000000000000
+         00000074ab9fd358  00000000130cf038  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd360  00000000130c4618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd368  00000000130e3508  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd370  00000074bda1c22c  /system/lib64/libjavacrypto.so (NativeCrypto_X509_get_subject_name(_JNIEnv*, _jclass*, long))
+         00000074ab9fd378  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fd380  00000000130cfad8  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd388  0000000071064d5c  /system/framework/arm64/boot-conscrypt.oat (com.android.org.conscrypt.NativeCrypto.ASN1_seq_unpack_X509_bio [DEDUPED]+156)
+    #04  00000074ab9fd390  000000006fd9a7e8  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fd398  00000074ab9fe888
+         00000074ab9fd3a0  6fd6260000000001
+         00000074ab9fd3a8  130e674800000001
+         00000074ab9fd3b0  0000000000000000
+         00000074ab9fd3b8  0000000000000000
+         00000074ab9fd3c0  0000000000000000
+         00000074ab9fd3c8  0000000000000000
+         00000074ab9fd3d0  0000000000000000
+         00000074ab9fd3d8  0000000000000000
+         00000074ab9fd3e0  0000000000000000
+         00000074ab9fd3e8  0000000000000000
+         00000074ab9fd3f0  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fd3f8  0000000000000000
+         00000074ab9fd400  00000000130e3508  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd408  00000000130c4618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         ........  ........
+    #05  00000074ab9fd450  000000006fd8f3d0  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fd458  00000074aba62200  [anon:libc_malloc]
+         00000074ab9fd460  00000000130e66e0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd468  00000000130c4618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd470  00000000130cf038  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd478  0000000071092e7c  /system/framework/arm64/boot-conscrypt.oat (com.android.org.conscrypt.TrustManagerImpl.checkTrustedRecursive+380)
+    #06  00000074ab9fd480  000000006fd8c9c8  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fd488  00000000130e3508  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd490  00000000130c4618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd498  00000000130cf038  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd4a0  0000000000000000
+         00000074ab9fd4a8  130e350800000000
+         00000074ab9fd4b0  00000000130cad38  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd4b8  00000000706c0180  /system/framework/arm64/boot.oat (java.util.HashMap.put+128)
+         00000074ab9fd4c0  000000006fb79300  /data/dalvik-cache/arm64/system@framework@boot.art
+         00000074ab9fd4c8  0000000000000000
+         00000074ab9fd4d0  0000000000000000
+         00000074ab9fd4d8  00000000706bee4c  /system/framework/arm64/boot.oat (java.util.HashMap.containsKey+108)
+         00000074ab9fd4e0  00000000130cfa98  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd4e8  000000006fe60d40  /data/dalvik-cache/arm64/system@framework@boot-framework.art
+         00000074ab9fd4f0  000000006fabd580  /data/dalvik-cache/arm64/system@framework@boot.art
+         00000074ab9fd4f8  0000000000000000
+         ........  ........
+    #07  00000074ab9fd540  000000006fd8c9c8  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fd548  130cf038130c4618
+         00000074ab9fd550  0000000000000000
+         00000074ab9fd558  00000000130cad38  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd560  130cfad8130cfac0
+         00000074ab9fd568  130cf0a0130cfa88
+         00000074ab9fd570  130e62e0130dcd10
+         00000074ab9fd578  00000000130e5040  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd580  130e3508130e50a8
+         00000074ab9fd588  000000006fabd580  /data/dalvik-cache/arm64/system@framework@boot.art
+         00000074ab9fd590  000000006fd8c6e0  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fd598  00000000130cf0a0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd5a0  00000000130cfa98  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd5a8  000000006fe60d40  /data/dalvik-cache/arm64/system@framework@boot-framework.art
+         00000074ab9fd5b0  0000000000000001
+         00000074ab9fd5b8  0000000000000000
+         ........  ........
+    #08  00000074ab9fd600  000000006fd8c9c8  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fd608  130cf038130c4618
+         00000074ab9fd610  0000000000000000
+         00000074ab9fd618  00000000130cad38  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd620  130cfad8130cfac0
+         00000074ab9fd628  130cf050130cfa88
+         00000074ab9fd630  6fa8eaf800000001
+         00000074ab9fd638  130cf0a06fe6b1b0
+         00000074ab9fd640  00000000130da508  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd648  000000006fabd580  /data/dalvik-cache/arm64/system@framework@boot.art
+         00000074ab9fd650  6faf2cb800000002
+         00000074ab9fd658  6fd7fef86fae2768
+         00000074ab9fd660  00000000130cfa98  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd668  000000006fe60d40  /data/dalvik-cache/arm64/system@framework@boot-framework.art
+         00000074ab9fd670  0000000000000000
+         00000074ab9fd678  00000000130c4618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         ........  ........
+    #09  00000074ab9fd6c0  000000006fd8c998  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fd6c8  130cf038130c4618
+         00000074ab9fd6d0  0000000000000000
+         00000074ab9fd6d8  00000000130cad38  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd6e0  130cfad8130cfac0
+         00000074ab9fd6e8  130cfad8130cfa88
+         00000074ab9fd6f0  00000000130cfac0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd6f8  00000000130c47b0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd700  00000000130cf050  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd708  0000000070699524  /system/framework/arm64/boot.oat (java.lang.Object.clone+500)
+         00000074ab9fd710  0000000000000000
+         00000074ab9fd718  00000000130c4618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd720  00000000130cf038  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd728  00000000130cef38  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd730  00000000130cf0f0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd738  0000000000000000
+         ........  ........
+    #10  00000074ab9fd760  000000006fd8c968  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fd768  130cc110130c4618
+         00000074ab9fd770  00000000130cbf18  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd778  00000000130cf0f0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd780  00000000130cbfa0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd788  00000000130cbf18  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd790  00000000130c4618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd798  00000000130cf038  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd7a0  00000000130cef38  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd7a8  00000000130cbf18  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd7b0  00000000130cc110  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd7b8  00000000130cf0f0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd7c0  00000074ae25da80  [anon:libc_malloc]
+         00000074ab9fd7c8  0000000000000002
+         00000074ab9fd7d0  00000000130cf038  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd7d8  00000000710956b4  /system/framework/arm64/boot-conscrypt.oat (com.android.org.conscrypt.TrustManagerImpl.checkServerTrusted+308)
+    #11  00000074ab9fd7e0  000000006fd8ccf8  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fd7e8  00000074130cbf18
+         00000074ab9fd7f0  6fd6260000000001
+         00000074ab9fd7f8  e44bb98900000001
+         00000074ab9fd800  00000000130c4618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd808  00000000130cf038  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd810  00000000130cef38  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd818  00000000130cbf18  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd820  00000000130cef18  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd828  00000000000001bb
+         00000074ab9fd830  00000074ae25da80  [anon:libc_malloc]
+         00000074ab9fd838  0000000071085628  /system/framework/arm64/boot-conscrypt.oat (com.android.org.conscrypt.Platform.checkServerTrusted+376)
+    #12  00000074ab9fd840  000000006fd96098  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fd848  0000000000000000
+         00000074ab9fd850  00000000130cbf18  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd858  00000000130cc110  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd860  00000000130cbf18  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd868  0000000000000001
+         00000074ab9fd870  00000000130cad38  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd878  00000000130cc0f0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd880  00000000130cef18  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd888  00000000000001bb
+         00000074ab9fd890  00000074ae25da80  [anon:libc_malloc]
+         00000074ab9fd898  000000007105ca90  /system/framework/arm64/boot-conscrypt.oat (com.android.org.conscrypt.ConscryptFileDescriptorSocket.verifyCertificateChain+960)
+    #13  00000074ab9fd8a0  000000006fd936c8  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fd8a8  00000074ae25da80  [anon:libc_malloc]
+         00000074ab9fd8b0  0000000000000000
+         00000074ab9fd8b8  00000000130c4618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd8c0  0000000000000000
+         00000074ab9fd8c8  00000074a5050bdd  [anon:libc_malloc]
+         00000074ab9fd8d0  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fd8d8  00000074ab9fdb90
+         00000074ab9fd8e0  000000754bd5e5c5  /system/framework/arm64/boot-conscrypt.vdex
+         00000074ab9fd8e8  000000000000000c
+         00000074ab9fd8f0  00000074ab9ff588
+         00000074ab9fd8f8  00000074bd0154a0  [anon:libc_malloc]
+         00000074ab9fd900  0000000000000002
+         00000074ab9fd908  00000074ab9ff588
+         00000074ab9fd910  00000074ab9fd938
+         00000074ab9fd918  00000074c72a1f8c  /system/lib64/libart.so (art_quick_invoke_stub+588)
+    #14  00000074ab9fd920  0000000000000000
+         00000074ab9fd928  130cef18130cbf18
+         00000074ab9fd930  00000000130cef38  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fd938  00000074ab9fda30
+         00000074ab9fd940  00000074c6e37578  /system/lib64/libart.so (art::ArtMethod::Invoke(art::Thread*, unsigned int*, unsigned int, art::JValue*, char const*)+204)
+         00000074ab9fd948  00000074ab9fdb70
+         00000074ab9fd950  000000754bd5e5c5  /system/framework/arm64/boot-conscrypt.vdex
+         00000074ab9fd958  00000074ab9fd9b0
+         00000074ab9fd960  00000074ab9fdb70
+         00000074ab9fd968  000000006fd936c8  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fd970  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fd978  00000074ab9fdb90
+         00000074ab9fd980  000000754bd5e5c5  /system/framework/arm64/boot-conscrypt.vdex
+         00000074ab9fd988  000000000000000c
+         00000074ab9fd990  00000074ab9ff588
+         00000074ab9fd998  00000074bd0154a0  [anon:libc_malloc]
+         ........  ........
+    #15  00000074ab9fd9b0  00000000ab9fd9d0
+         00000074ab9fd9b8  00000074a5050bd3  [anon:libc_malloc]
+         00000074ab9fd9c0  000000000000000c
+         00000074ab9fd9c8  e44bb9894d8bd693
+         00000074ab9fd9d0  00000074ab9fe880
+         00000074ab9fd9d8  00000074ab9ff180
+         00000074ab9fd9e0  0000000000000000
+         00000074ab9fd9e8  e44bb9894d8bd693
+         00000074ab9fd9f0  000000006fd936c8  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fd9f8  00000000130cef38  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fda00  000000006fab8c60  /data/dalvik-cache/arm64/system@framework@boot.art
+         00000074ab9fda08  000000754bd4edc8  /system/framework/arm64/boot-conscrypt.vdex
+         00000074ab9fda10  0000000000000002
+         00000074ab9fda18  000000006fd936c8  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fda20  00000074ab9fdb90
+         00000074ab9fda28  00000074ab9fdc78
+         ........  ........
+    #16  00000074ab9fda40  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fda48  00000074ab9fdab1
+         00000074ab9fda50  00000074ab9fdad1
+         00000074ab9fda58  000000754bd5e5c5  /system/framework/arm64/boot-conscrypt.vdex
+         00000074ab9fda60  00000074ab9fdb70
+         00000074ab9fda68  00000074ab9fdb78
+         00000074ab9fda70  00000074ab9ff588
+         00000074ab9fda78  00000074c74a8200  [anon:libc_malloc]
+         00000074ab9fda80  000000754bd4edc8  /system/framework/arm64/boot-conscrypt.vdex
+         00000074ab9fda88  000000006fd936c8  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fda90  0000000000000002
+         00000074ab9fda98  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fdaa0  0000000100000041
+         00000074ab9fdaa8  0000000000000000
+         00000074ab9fdab0  00000074c72c9042  /system/lib64/libart.so
+         00000074ab9fdab8  00000074ab9fe160
+         ........  ........
+    #17  00000074ab9fdb50  00000074ab9fe390
+         00000074ab9fdb58  00000074ab9fe320
+         00000074ab9fdb60  00000074ab9fe2f0
+         00000074ab9fdb68  ffffff80ffffffe8
+         00000074ab9fdb70  0000000000000000
+         00000074ab9fdb78  000000754bd5e5c5  /system/framework/arm64/boot-conscrypt.vdex
+         00000074ab9fdb80  0000000c00000003
+         00000074ab9fdb88  00000074ab9fdb90
+         00000074ab9fdb90  130cef18130cbf18
+         00000074ab9fdb98  ffffff80130cef38
+         00000074ab9fdba0  00000074ab9fdbf0
+         00000074ab9fdba8  e44bb9894d8bd693
+         00000074ab9fdbb0  00000074ab9ff588
+         00000074ab9fdbb8  e44bb9894d8bd693
+         00000074ab9fdbc0  00000074ab9ff588
+         00000074ab9fdbc8  00000074bd015400  [anon:libc_malloc]
+         ........  ........
+    #18  00000074ab9fdc30  00000074ab9fe89c
+         00000074ab9fdc38  0000000000000002
+         00000074ab9fdc40  00000074ab9fe390
+         00000074ab9fdc48  00000074ab9fe320
+         00000074ab9fdc50  00000074ab9fe2f0
+         00000074ab9fdc58  ffffff80ffffffd8
+         00000074ab9fdc60  00000074ab9ff588
+         00000074ab9fdc68  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fdc70  00000074c72c9aea  /system/lib64/libart.so
+         00000074ab9fdc78  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fdc80  00000074c74cd840  [anon:libc_malloc]
+         00000074ab9fdc88  00000074c74a8200  [anon:libc_malloc]
+         00000074ab9fdc90  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fdc98  0000004300000043
+         00000074ab9fdca0  00000074ab9fdd00
+         00000074ab9fdca8  e44bb9894d8bd693
+         ........  ........
+    #19  00000074ab9fdd10  00000074a5050e02  [anon:libc_malloc]
+         00000074ab9fdd18  0000007549823e78  [anon:.bss]
+         00000074ab9fdd20  0000007549823e70  [anon:.bss]
+         00000074ab9fdd28  0000000000000001
+         00000074ab9fdd30  0000007549823e80  [anon:.bss]
+         00000074ab9fdd38  0000007549823ea8  [anon:.bss]
+         00000074ab9fdd40  0000000000000000
+         00000074ab9fdd48  00000074ab9ff588
+         00000074ab9fdd50  0000000000000000
+         00000074ab9fdd58  00000074ab9ff588
+         00000074ab9fdd60  00000074ae247c48  [anon:libc_malloc]
+         00000074ab9fdd68  00000074ae247c00  [anon:libc_malloc]
+         00000074ab9fdd70  00000074ab9fe390
+         00000074ab9fdd78  00000074ab9fe320
+         00000074ab9fdd80  00000074ab9fe2f0
+         00000074ab9fdd88  ffffff80ffffffd8
+         ........  ........
+    #20  00000074ab9fe210  00000074ab9fe390
+         00000074ab9fe218  00000074ab9fe320
+         00000074ab9fe220  00000074ab9fe2f0
+         00000074ab9fe228  ffffff80ffffffd8
+         00000074ab9fe230  00000074abacf500  [anon:libc_malloc]
+         00000074ab9fe238  e44bb9894d8bd693
+         00000074ab9fe240  00000074ab9ff588
+         00000074ab9fe248  e44bb9894d8bd693
+         00000074ab9fe250  00000074ab9fe380
+         00000074ab9fe258  00000074bda30984  /system/lib64/libjavacrypto.so (_JNIEnv::CallVoidMethod(_jobject*, _jmethodID*, ...)+124)
+    #21  00000074ab9fe260  00000074c738ac80  [anon:.bss]
+         00000074ab9fe268  e44bb9894d8bd693
+         00000074ab9fe270  0000000000000000
+         00000074ab9fe278  0000000000000000
+         00000074ab9fe280  0000000000000004
+         00000074ab9fe288  0000000000000005
+         00000074ab9fe290  0000000000000008
+         00000074ab9fe298  0000000000000008
+         00000074ab9fe2a0  0000000000004000
+         00000074ab9fe2a8  0000000000004000
+         00000074ab9fe2b0  0000000000000001
+         00000074ab9fe2b8  0000000000000001
+         00000074ab9fe2c0  0000000000000004
+         00000074ab9fe2c8  0000000000000004
+         00000074ab9fe2d0  00000000000002a1
+         00000074ab9fe2d8  00000000000022a1
+         ........  ........
+    #22  00000074ab9fe390  00000074ab9ff588
+         00000074ab9fe398  00000074ae423080  [anon:libc_malloc]
+         00000074ab9fe3a0  00000074ae57a440  [anon:libc_malloc]
+         00000074ab9fe3a8  00000074ae290620  [anon:libc_malloc]
+         00000074ab9fe3b0  00000074ae2bebc0  [anon:libc_malloc]
+         00000074ab9fe3b8  00000074ae25da80  [anon:libc_malloc]
+         00000074ab9fe3c0  00000074ab9fe4f0
+         00000074ab9fe3c8  00000074c050bf6c  /system/lib64/libssl.so (ssl_crypto_x509_session_verify_cert_chain(ssl_session_st*, ssl_st*)+236)
+    #23  00000074ab9fe3d0  00000074ae57a440  [anon:libc_malloc]
+         00000074ab9fe3d8  00000074a74b1f00  [anon:libc_malloc]
+         00000074ab9fe3e0  00000074ae290620  [anon:libc_malloc]
+         00000074ab9fe3e8  0000000000000000
+         00000074ab9fe3f0  00000074ae423080  [anon:libc_malloc]
+         00000074ab9fe3f8  0000000000000000
+         00000074ab9fe400  00000075495d3fd4  /system/lib64/libcrypto.so (internal_verify)
+         00000074ab9fe408  00000075495d51dc  /system/lib64/libcrypto.so (null_callback)
+         00000074ab9fe410  00000075495d14c0  /system/lib64/libcrypto.so (X509_STORE_CTX_get1_issuer)
+         00000074ab9fe418  00000075495d5168  /system/lib64/libcrypto.so (check_issued)
+         00000074ab9fe420  00000075495d51e0  /system/lib64/libcrypto.so (check_revocation)
+         00000074ab9fe428  0000000000000000
+         00000074ab9fe430  00000075495d54c0  /system/lib64/libcrypto.so (check_crl)
+         00000074ab9fe438  00000075495d5860  /system/lib64/libcrypto.so (cert_crl)
+         00000074ab9fe440  00000075495d5930  /system/lib64/libcrypto.so (check_policy)
+         00000074ab9fe448  00000075495d11b4  /system/lib64/libcrypto.so (X509_STORE_get1_certs)
+         ........  ........
+    #24  00000074ab9fe500  000000006fb6f670  /data/dalvik-cache/arm64/system@framework@boot.art
+         00000074ab9fe508  00000074ab9fe898
+         00000074ab9fe510  000000006fb6f670  /data/dalvik-cache/arm64/system@framework@boot.art
+         00000074ab9fe518  00000074ab9fe698
+         00000074ab9fe520  00000074ab9fe5f0
+         00000074ab9fe528  00000074bd0c2148  [anon:libc_malloc]
+         00000074ab9fe530  00000074bd0c2140  [anon:libc_malloc]
+         00000074ab9fe538  00000074bd0c2098  [anon:libc_malloc]
+         00000074ab9fe540  00000074bd0c2160  [anon:libc_malloc]
+         00000074ab9fe548  00000074bd0c2180  [anon:libc_malloc]
+         00000074ab9fe550  00000074bd0c2178  [anon:libc_malloc]
+         00000074ab9fe558  00000074bd0c1f10  [anon:libc_malloc]
+         00000074ab9fe560  00000074bd0c1ea4  [anon:libc_malloc]
+         00000074ab9fe568  00000074bd0c2198  [anon:libc_malloc]
+         00000074ab9fe570  00000074bd0c1ea2  [anon:libc_malloc]
+         00000074ab9fe578  00000074ab9ff588
+         ........  ........
+    #25  00000074ab9fe7f0  00000074ae25da80  [anon:libc_malloc]
+         00000074ab9fe7f8  00000074ae25da80  [anon:libc_malloc]
+         00000074ab9fe800  00000074ab9fe870
+         00000074ab9fe808  00000074bda2661c  /system/lib64/libjavacrypto.so (NativeCrypto_SSL_do_handshake(_JNIEnv*, _jclass*, long, _jobject*, _jobject*, int)+272)
+    #26  00000074ab9fe810  000000006fc1ce40  /data/dalvik-cache/arm64/system@framework@boot.art
+         00000074ab9fe818  00000002130c3f68
+         00000074ab9fe820  00000000130cbf18  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fe828  00000074ae25da80  [anon:libc_malloc]
+         00000074ab9fe830  0000000000002710
+         00000074ab9fe838  00000000130cb790  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fe840  00000000130cc0f0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fe848  0000000000000002
+         00000074ab9fe850  00000000130cbf18  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fe858  0000000000000008
+         00000074ab9fe860  00000074bda2650c  /system/lib64/libjavacrypto.so (NativeCrypto_SSL_do_handshake(_JNIEnv*, _jclass*, long, _jobject*, _jobject*, int))
+         00000074ab9fe868  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fe870  0000000013109590  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fe878  000000007106846c  /system/framework/arm64/boot-conscrypt.oat (com.android.org.conscrypt.NativeCrypto.SSL_do_handshake+220)
+    #27  00000074ab9fe880  000000006fd99858  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fe888  0000000000000000
+         00000074ab9fe890  6fd6260000000003
+         00000074ab9fe898  130cbf18130cb790
+         00000074ab9fe8a0  0000000000000000
+         00000074ab9fe8a8  130cb7a0130c3f68
+         00000074ab9fe8b0  0000000000000000
+         00000074ab9fe8b8  0000000000000000
+         00000074ab9fe8c0  0000000000000000
+         00000074ab9fe8c8  0000000000000000
+         00000074ab9fe8d0  0000000000000000
+         00000074ab9fe8d8  0000000000000000
+         00000074ab9fe8e0  0000000000000000
+         00000074ab9fe8e8  0000000000000000
+         00000074ab9fe8f0  00000074bd015400  [anon:libc_malloc]
+         00000074ab9fe8f8  0000000000000000
+         ........  ........
+    #28  00000074ab9fe950  000000006fd93698  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+         00000074ab9fe958  00000074ae25da80  [anon:libc_malloc]
+         00000074ab9fe960  130cbf18130cb790
+         00000074ab9fe968  0000000000002710
+         00000074ab9fe970  130cc0e800002710
+         00000074ab9fe978  00000000130cad38  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fe980  130cc0e800002710
+         00000074ab9fe988  00000000710f8b9c  /system/framework/arm64/boot-okhttp.oat (com.android.okhttp.internal.Platform.configureTlsExtensions+492)
+         00000074ab9fe990  00000074bd302028  /dev/ashmem/dalvik-LinearAlloc (deleted)
+         00000074ab9fe998  130cbf1813109610
+         00000074ab9fe9a0  6fe73af0130cc900
+         00000074ab9fe9a8  00000000130cbee8  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fe9b0  00000000130cb6c0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fe9b8  00000000130cb6c0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fe9c0  00000000130cb618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fe9c8  0000000000002710
+         ........  ........
+    #29  00000074ab9fea00  00000074bd303da0  /dev/ashmem/dalvik-LinearAlloc (deleted)
+         00000074ab9fea08  00000000130cbf18  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fea10  00000000ebad8074
+         00000074ab9fea18  130cad38ebad8075
+         00000074ab9fea20  00000000130caec0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fea28  00000000ebad8077
+         00000074ab9fea30  00000000130cb618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fea38  130ca80000002710
+         00000074ab9fea40  00000000130c8d28  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fea48  00000000130cb6c0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fea50  000000000000040f
+         00000074ab9fea58  00000000130cbf18  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fea60  0000000000000018
+         00000074ab9fea68  0000000000000000
+         00000074ab9fea70  00000000130c8d28  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fea78  0000000000000000
+         ........  ........
+    #30  00000074ab9feac0  00000074bd303d70  /dev/ashmem/dalvik-LinearAlloc (deleted)
+         00000074ab9feac8  00002710130cb618
+         00000074ab9fead0  130cb6c000000000
+         00000074ab9fead8  130cb6d8720336f8
+         00000074ab9feae0  000000007018ffa0  /data/dalvik-cache/arm64/system@framework@boot-framework.art
+         00000074ab9feae8  130cb79013658b78
+         00000074ab9feaf0  00000000130cb6d8  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feaf8  0000000000002710
+         00000074ab9feb00  0000000000002710
+         00000074ab9feb08  0000000000000000
+         00000074ab9feb10  0000000000000001
+         00000074ab9feb18  00000000130cb618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feb20  00000000130caef8  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feb28  00000000130ca800  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feb30  00000000130cb6c0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feb38  000000007111df3c  /system/framework/arm64/boot-okhttp.oat (com.android.okhttp.internal.io.RealConnection.connect+956)
+    #31  00000074ab9feb40  00000074bd303ec0  /dev/ashmem/dalvik-LinearAlloc (deleted)
+         00000074ab9feb48  00000000130cb618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feb50  0000000013102d08  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feb58  6fab5580130cb6c0
+         00000074ab9feb60  1310226813102098
+         00000074ab9feb68  0000000013102268  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feb70  130cb6c0130ca800
+         00000074ab9feb78  0000000013103150  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feb80  00000000130caef8  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feb88  00000000130cb5c0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feb90  00000000130cb618  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feb98  0000000000000000
+         00000074ab9feba0  00000000130ca7e0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feba8  0000000013102d08  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9febb0  0000000000000000
+         00000074ab9febb8  000000006fdac2a8  /data/dalvik-cache/arm64/system@framework@boot-okhttp.art
+         ........  ........
+    #32  00000074ab9febd0  000000006fdc24d0  /data/dalvik-cache/arm64/system@framework@boot-okhttp.art
+         00000074ab9febd8  00002710130cb618
+         00000074ab9febe0  0000000000002710
+         00000074ab9febe8  00000001130caef8
+         00000074ab9febf0  130cb5c0130cb0b0
+         00000074ab9febf8  13102d08130cb618
+         00000074ab9fec00  0000000000000000
+         00000074ab9fec08  0000007413102d08
+         00000074ab9fec10  0000000000000000
+         00000074ab9fec18  0000000000000000
+         00000074ab9fec20  0000000000000000
+         00000074ab9fec28  00000000130ca7e0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fec30  0000000000002710
+         00000074ab9fec38  0000000000002710
+         00000074ab9fec40  0000000000000000
+         00000074ab9fec48  0000000000000001
+         ........  ........
+    #33  00000074ab9fec70  000000006fdc2500  /data/dalvik-cache/arm64/system@framework@boot-okhttp.art
+         00000074ab9fec78  00002710130ca7e0
+         00000074ab9fec80  0000000000002710
+         00000074ab9fec88  0000000000000001
+         00000074ab9fec90  00000074bd3039d8  /dev/ashmem/dalvik-LinearAlloc (deleted)
+         00000074ab9fec98  00000000130ca7e0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feca0  0000000000002710
+         00000074ab9feca8  0000000000002710
+         00000074ab9fecb0  0000000000000000
+         00000074ab9fecb8  0000000000000001
+         00000074ab9fecc0  0000000000000000
+         00000074ab9fecc8  00000000130c8d40  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fecd0  0000000000000000
+         00000074ab9fecd8  0000000071110e68  /system/framework/arm64/boot-okhttp.oat (com.android.okhttp.internal.http.StreamAllocation.newStream+104)
+    #34  00000074ab9fece0  000000006fdc26b0  /data/dalvik-cache/arm64/system@framework@boot-okhttp.art
+         00000074ab9fece8  00000000130ca7e0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fecf0  ffffffffffffffff
+         00000074ab9fecf8  6fdb7cd86fdb4090
+         00000074ab9fed00  ffffffff00000004
+         00000074ab9fed08  0000000000000000
+         00000074ab9fed10  6fdb79886fdb4040
+         00000074ab9fed18  6fdb3d186fb16610
+         00000074ab9fed20  0000000000000000
+         00000074ab9fed28  00000000130ca7e0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fed30  0000000000002710
+         00000074ab9fed38  00000000130ca798  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fed40  0000000000002710
+         00000074ab9fed48  0000000000000000
+         00000074ab9fed50  00000000130c8d40  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fed58  0000000000000000
+         ........  ........
+    #35  00000074ab9fed70  00000074bd3032b0  /dev/ashmem/dalvik-LinearAlloc (deleted)
+         00000074ab9fed78  00002710130ca7e0
+         00000074ab9fed80  0000000000002710
+         00000074ab9fed88  0000000000000001
+         00000074ab9fed90  00000074bd303790  /dev/ashmem/dalvik-LinearAlloc (deleted)
+         00000074ab9fed98  00000000130ca798  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feda0  00000000130cafb0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feda8  00000000130cafb0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fedb0  00000000130c8d40  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fedb8  0000000000000001
+         00000074ab9fedc0  0000000000000000
+         00000074ab9fedc8  0000000071109658  /system/framework/arm64/boot-okhttp.oat (com.android.okhttp.internal.http.HttpEngine.sendRequest+872)
+    #36  00000074ab9fedd0  00000074bd303790  /dev/ashmem/dalvik-LinearAlloc (deleted)
+         00000074ab9fedd8  00000074130cafd8
+         00000074ab9fede0  130cafb0130c9768
+         00000074ab9fede8  130cb06000000000
+         00000074ab9fedf0  130cafd800000000
+         00000074ab9fedf8  00000074130cafb0
+         00000074ab9fee00  2f2f3a7370747468
+         00000074ab9fee08  676f6f672e777777
+         00000074ab9fee10  00000000130ca798  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fee18  000000006fdaf7d0  /data/dalvik-cache/arm64/system@framework@boot-okhttp.art
+         00000074ab9fee20  000000006fdb0da8  /data/dalvik-cache/arm64/system@framework@boot-okhttp.art
+         00000074ab9fee28  00000000130c8eb8  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fee30  0000000000000001
+         00000074ab9fee38  0000000000000001
+         00000074ab9fee40  00000000130c8e60  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fee48  00000000130c9088  /dev/ashmem/dalvik-main space (region space) (deleted)
+         ........  ........
+    #37  00000074ab9fee60  00000074bd3012f0  /dev/ashmem/dalvik-LinearAlloc (deleted)
+         00000074ab9fee68  00000000130caf08  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fee70  00000000130ca7e0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fee78  0000000000000000
+         00000074ab9fee80  00000000130c8eb8  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fee88  000000006fdaf7d0  /data/dalvik-cache/arm64/system@framework@boot-okhttp.art
+         00000074ab9fee90  000000006fdb0da8  /data/dalvik-cache/arm64/system@framework@boot-okhttp.art
+         00000074ab9fee98  00000000130c8eb8  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feea0  000000006fdaf7d0  /data/dalvik-cache/arm64/system@framework@boot-okhttp.art
+         00000074ab9feea8  000000006fdb0da8  /data/dalvik-cache/arm64/system@framework@boot-okhttp.art
+         00000074ab9feeb0  000000006fab9528  /data/dalvik-cache/arm64/system@framework@boot.art
+         00000074ab9feeb8  00000000ffffffff
+         00000074ab9feec0  0000000000000001
+         00000074ab9feec8  0000000071114548  /system/framework/arm64/boot-okhttp.oat (com.android.okhttp.internal.huc.HttpURLConnectionImpl.getResponse+136)
+    #38  00000074ab9feed0  00000074bd301350  /dev/ashmem/dalvik-LinearAlloc (deleted)
+         00000074ab9feed8  00000001130c8eb8
+         00000074ab9feee0  00000074bd015400  [anon:libc_malloc]
+         00000074ab9feee8  00000000130c8f38  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feef0  00000000130c9768  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9feef8  00000000721aaeec  /system/framework/arm64/boot-framework.oat (android.os.SystemClock.currentThreadTimeMicro [DEDUPED]+60)
+         00000074ab9fef00  00000000130c8eb8  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fef08  00000000130c8e60  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fef10  000000000003ed81
+         00000074ab9fef18  00000000130c2690  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fef20  00000000ffffffff
+         00000074ab9fef28  0000000000000001
+         00000074ab9fef30  00000000130c8e60  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fef38  00000000130c9088  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fef40  00000000130c9768  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fef48  00000000711171f0  /system/framework/arm64/boot-okhttp.oat (com.android.okhttp.internal.huc.HttpURLConnectionImpl.getResponseCode+48)
+    #39  00000074ab9fef50  00000074bd301740  /dev/ashmem/dalvik-LinearAlloc (deleted)
+         00000074ab9fef58  0000000000000000
+         00000074ab9fef60  00000000130c8eb8  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fef68  00000000130c8e60  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fef70  000000000003ed81
+         00000074ab9fef78  00000000711199f0  /system/framework/arm64/boot-okhttp.oat (com.android.okhttp.internal.huc.HttpsURLConnectionImpl.getResponseCode+64)
+    #40  00000074ab9fef80  000000006fdbb998  /data/dalvik-cache/arm64/system@framework@boot-okhttp.art
+         00000074ab9fef88  0000000000000001
+         00000074ab9fef90  00000000130c8e60  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fef98  0000000013656f20  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fefa0  0000000013658df0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fefa8  00000074b2c972bc  /system/framework/oat/arm64/services.odex
+    #41  00000074ab9fefb0  00000074c1e24898  /dev/ashmem/dalvik-LinearAlloc (deleted)
+         00000074ab9fefb8  00000000130c0ac0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fefc0  00000000130c14d0  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fefc8  0000000000000305
+         00000074ab9fefd0  130c2690130c1880
+         00000074ab9fefd8  00000000130c0a20  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fefe0  00000000130c1d08  /dev/ashmem/dalvik-main space (region space) (deleted)
+         00000074ab9fefe8  ffffffffb2c95550
+         00000074ab9feff0  00000074c1e246e8  /dev/ashmem/dalvik-LinearAlloc (deleted)
+         00000074ab9feff8  000000000003ed81
+         00000074ab9ff000  00000074bd015400  [anon:libc_malloc]
+         00000074ab9ff008  130c18c0ab9ff300
+         00000074ab9ff010  130c0ac0130c0a20
+         00000074ab9ff018  fefefefe136582e8
+         00000074ab9ff020  7f7f7f7f7f7f7f7f
+         00000074ab9ff028  0000000000000000
+
+memory near x0:
+    00000074a55b2d10 0000000000000000 0000000000000000  ................
+    00000074a55b2d20 0000000000000000 0000000000000000  ................
+    00000074a55b2d30 03061e3020314c30 6f6c4717130b0455  0L1 0...U....Glo
+    00000074a55b2d40 206e6769536c6162 20414320746f6f52  balSign Root CA 
+    00000074a55b2d50 113013313252202d 470a130a04550306  - R21.0...U....G
+    00000074a55b2d60 6769536c61626f6c 550306113013316e  lobalSign1.0...U
+    00000074a55b2d70 626f6c470a130304 00006e6769536c61  ....GlobalSign..
+    00000074a55b2d80 0000007549635130 00000074aaffdaa0  0QcIu.......t...
+    00000074a55b2d90 0000000400000004 0000000000000000  ................
+    00000074a55b2da0 00000074aaffdac0 0000000400000004  ....t...........
+    00000074a55b2db0 0000000000000000 00000074aaf01940  ........@...t...
+    00000074a55b2dc0 0000000100000001 0000000000000000  ................
+    00000074a55b2dd0 0000007549635130 00000074ae371900  0QcIu.....7.t...
+    00000074a55b2de0 0000000400000004 0000000000000000  ................
+    00000074a55b2df0 00000074ae3718e0 0000000400000004  ..7.t...........
+    00000074a55b2e00 0000000000000000 00000074aaf01968  ........h...t...
+
+memory near x3:
+    00000074c72e9f90 7250746547007961 4165766974696d69  ay.GetPrimitiveA
+    00000074c72e9fa0 7465470079617272 656c457961727241  rray.GetArrayEle
+    00000074c72e9fb0 65670073746e656d 706d657474610074  ments.get.attemp
+    00000074c72e9fc0 207325206f742074 696d697270207325  t to %s %s primi
+    00000074c72e9fd0 7272612065766974 656d656c65207961  tive array eleme
+    00000074c72e9fe0 687469772073746e 656a626f206e6120  nts with an obje
+    00000074c72e9ff0 797420666f207463 6552007325206570  ct of type %s.Re
+    00000074c72ea000 697250657361656c 724165766974696d  leasePrimitiveAr
+    00000074c72ea010 656c655200796172 7961727241657361  ray.ReleaseArray
+    00000074c72ea020 73746e656d656c45 657361656c657200  Elements.release
+    00000074c72ea030 64696c61766e6900 746e656d656c6520  .invalid element
+    00000074c72ea040 7265746e696f7020 727261202c702520   pointer %p, arr
+    00000074c72ea050 656d656c65207961 206572612073746e  ay elements are 
+    00000074c72ea060 7250746547007025 4165766974696d69  %p.GetPrimitiveA
+    00000074c72ea070 6967655279617272 7220746567006e6f  rrayRegion.get r
+    00000074c72ea080 666f206e6f696765 6675620063727300  egion of.src.buf
+
+memory near x5:
+    00000074a55b2d58 470a130a04550306 6769536c61626f6c  ..U....GlobalSig
+    00000074a55b2d68 550306113013316e 626f6c470a130304  n1.0...U....Glob
+    00000074a55b2d78 00006e6769536c61 0000007549635130  alSign..0QcIu...
+    00000074a55b2d88 00000074aaffdaa0 0000000400000004  ....t...........
+    00000074a55b2d98 0000000000000000 00000074aaffdac0  ............t...
+    00000074a55b2da8 0000000400000004 0000000000000000  ................
+    00000074a55b2db8 00000074aaf01940 0000000100000001  @...t...........
+    00000074a55b2dc8 0000000000000000 0000007549635130  ........0QcIu...
+    00000074a55b2dd8 00000074ae371900 0000000400000004  ..7.t...........
+    00000074a55b2de8 0000000000000000 00000074ae3718e0  ..........7.t...
+    00000074a55b2df8 0000000400000004 0000000000000000  ................
+    00000074a55b2e08 00000074aaf01968 0000000100000001  h...t...........
+    00000074a55b2e18 0000000000000000 0000007549635130  ........0QcIu...
+    00000074a55b2e28 00000074aaffd960 0000000400000004  `...t...........
+    00000074a55b2e38 0000000000000000 00000074aaffd940  ........@...t...
+    00000074a55b2e48 0000000400000004 0000000000000000  ................
+
+memory near x14:
+    000000006fb9a570 0000000000000010 000000006fc7da40  ........@..o....
+    000000006fb9a580 0000000000000000 0000000070699040  ........@.ip....
+    000000006fb9a590 004800016facaa28 00004473000cafcc  (..o..H.....sD..
+    000000006fb9a5a0 0000000000000011 000000006fc7da40  ........@..o....
+    000000006fb9a5b0 0000000000000000 00000000706ba3b0  ..........kp....
+    000000006fb9a5c0 000004016facaa28 0000447400000000  (..o........tD..
+    000000006fb9a5d0 0000000000000012 000000006fc7da40  ........@..o....
+    000000006fb9a5e0 0000000000000000 0000000070699040  ........@.ip....
+    000000006fb9a5f0 004800016facaa28 00004475000caff4  (..o..H.....uD..
+    000000006fb9a600 0000000000000013 000000006fc7da40  ........@..o....
+    000000006fb9a610 0000000000000000 00000000706ba470  ........p.kp....
+    000000006fb9a620 004800016facaa28 00004476000cb03c  (..o..H.<...vD..
+    000000006fb9a630 0000000000000014 000000006fc7da40  ........@..o....
+    000000006fb9a640 0000000000000000 00000000706ba5a0  ..........kp....
+    000000006fb9a650 004800016facaa28 00004477000cb070  (..o..H.p...wD..
+    000000006fb9a660 0000000000000015 000000006fc7da40  ........@..o....
+
+memory near x15:
+    0000000000004450 ---------------- ----------------  ................
+    0000000000004460 ---------------- ----------------  ................
+    0000000000004470 ---------------- ----------------  ................
+    0000000000004480 ---------------- ----------------  ................
+    0000000000004490 ---------------- ----------------  ................
+    00000000000044a0 ---------------- ----------------  ................
+    00000000000044b0 ---------------- ----------------  ................
+    00000000000044c0 ---------------- ----------------  ................
+    00000000000044d0 ---------------- ----------------  ................
+    00000000000044e0 ---------------- ----------------  ................
+    00000000000044f0 ---------------- ----------------  ................
+    0000000000004500 ---------------- ----------------  ................
+    0000000000004510 ---------------- ----------------  ................
+    0000000000004520 ---------------- ----------------  ................
+    0000000000004530 ---------------- ----------------  ................
+    0000000000004540 ---------------- ----------------  ................
+
+memory near x16:
+    00000074c7385530 00000075497c9158 00000075497b5330  X.|Iu...0S{Iu...
+    00000074c7385540 00000075481ac59c 00000075497b8b7c  ...Hu...|.{Iu...
+    00000074c7385550 000000754976b2f0 00000074c72c21f4  ..vIu....!,.t...
+    00000074c7385560 00000074c72c21ec 00000074c72c23c4  .!,.t....#,.t...
+    00000074c7385570 000000754976c9a0 00000075481ac4d8  ..vIu......Hu...
+    00000074c7385580 00000075481bd4f4 00000075481edd48  ...Hu...H..Hu...
+    00000074c7385590 00000075481ed470 00000075481bced8  p..Hu......Hu...
+    00000074c73855a0 00000075481bafb4 000000754976b7b0  ...Hu.....vIu...
+    00000074c73855b0 000000754976bd90 00000074c72c21e0  ..vIu....!,.t...
+    00000074c73855c0 000000754976bbc0 000000754976b200  ..vIu.....vIu...
+    00000074c73855d0 000000754976c92c 000000754976b480  ,.vIu.....vIu...
+    00000074c73855e0 000000754976b100 0000007549769d34  ..vIu...4.vIu...
+    00000074c73855f0 0000007549769d4c 000000754af900d8  L.vIu......Ju...
+    00000074c7385600 000000754af900ec 000000754af90258  ...Ju...X..Ju...
+    00000074c7385610 00000075481bd5d8 00000075481ed410  ...Hu......Hu...
+    00000074c7385620 00000075481bcfbc 00000075497b980c  ...Hu.....{Iu...
+
+memory near x17:
+    000000754976b2d0 54ffff807a442060 d65f03c0cb040060  ` Dz...T`....._.
+    000000754976b2e0 54000069eb03005f 940011dea9bf7bfd  _...i..T.{......
+    000000754976b2f0 8b020024f9800020 f100405f8b020005   ...$......._@..
+    000000754976b300 f101805f54000209 d100044954000648  ...T_...H..TI...
+    000000754976b310 37300469a9401c26 362800a9a97f348c  &.@.i.07.4....(6
+    000000754976b320 a97e2c8aa9412428 a93e2caaa9012408  ($A..,~..$...,>.
+    000000754976b330 a93f34aca9001c06 d503201fd65f03c0  .....4?..._.. ..
+    000000754976b340 540000e3f100205f f85f8087f9400026  _ .....T&.@..._.
+    000000754976b350 f81f80a7f9000006 d503201fd65f03c0  .........._.. ..
+    000000754976b360 b9400026361000c2 b9000006b85fc087  ...6&.@..._.....
+    000000754976b370 d65f03c0b81fc0a7 d341fc49b4000102  ......_.....I.A.
+    000000754976b380 385ff08739400026 3900000638696828  &.@9.._8(hi8...9
+    000000754976b390 381ff0a738296808 d503201fd65f03c0  .h)8...8.._.. ..
+    000000754976b3a0 a9422c2aa9412428 a97e0881a943342c  ($A.*,B.,4C...~.
+    000000754976b3b0 a9001c06a97f0c84 a9022c0aa9012408  .........$...,..
+    000000754976b3c0 a93e08a1a903340c d65f03c0a93f0ca4  .4....>...?..._.
+
+memory near x19:
+    00000074a55b2d10 0000000000000000 0000000000000000  ................
+    00000074a55b2d20 0000000000000000 0000000000000000  ................
+    00000074a55b2d30 03061e3020314c30 6f6c4717130b0455  0L1 0...U....Glo
+    00000074a55b2d40 206e6769536c6162 20414320746f6f52  balSign Root CA 
+    00000074a55b2d50 113013313252202d 470a130a04550306  - R21.0...U....G
+    00000074a55b2d60 6769536c61626f6c 550306113013316e  lobalSign1.0...U
+    00000074a55b2d70 626f6c470a130304 00006e6769536c61  ....GlobalSign..
+    00000074a55b2d80 0000007549635130 00000074aaffdaa0  0QcIu.......t...
+    00000074a55b2d90 0000000400000004 0000000000000000  ................
+    00000074a55b2da0 00000074aaffdac0 0000000400000004  ....t...........
+    00000074a55b2db0 0000000000000000 00000074aaf01940  ........@...t...
+    00000074a55b2dc0 0000000100000001 0000000000000000  ................
+    00000074a55b2dd0 0000007549635130 00000074ae371900  0QcIu.....7.t...
+    00000074a55b2de0 0000000400000004 0000000000000000  ................
+    00000074a55b2df0 00000074ae3718e0 0000000400000004  ..7.t...........
+    00000074a55b2e00 0000000000000000 00000074aaf01968  ........h...t...
+
+memory near x20:
+    00000000130e6f88 0000000a130e6f68 0000000000000000  ho..............
+    00000000130e6f98 000000006faf16e0 00000000130e6f80  ...o.....o......
+    00000000130e6fa8 000000006fabea90 000000000000004e  ...o....N.......
+    00000000130e6fb8 0000000000000000 0000000000000000  ................
+    00000000130e6fc8 0000000000000000 0000000000000000  ................
+    00000000130e6fd8 0000000000000000 0000000000000000  ................
+    00000000130e6fe8 0000000000000000 0000000000000000  ................
+    00000000130e6ff8 0000000000000000 0000000000000000  ................
+    00000000130e7008 0000000000000000 0000000000000000  ................
+    00000000130e7018 0000000000000000 0000000000000000  ................
+    00000000130e7028 0000000000000000 0000000000000000  ................
+    00000000130e7038 0000000000000000 0000000000000000  ................
+    00000000130e7048 0000000000000000 0000000000000000  ................
+    00000000130e7058 0000000000000000 0000000000000000  ................
+    00000000130e7068 0000000000000000 0000000000000000  ................
+    00000000130e7078 0000000000000000 0000000000000000  ................
+
+memory near x22:
+    00000074c72ca868 726120656c626974 6570797420796172  tible array type
+    00000074c72ca878 6570786520732520 5b73252064657463   %s expected %s[
+    00000074c72ca888 6547007025203a5d 7272416574794274  ]: %p.GetByteArr
+    00000074c72ca898 6e656d656c457961 6843746547007374  ayElements.GetCh
+    00000074c72ca8a8 4579617272417261 0073746e656d656c  arArrayElements.
+    00000074c72ca8b8 74726f6853746547 656c457961727241  GetShortArrayEle
+    00000074c72ca8c8 65470073746e656d 61727241746e4974  ments.GetIntArra
+    00000074c72ca8d8 746e656d656c4579 6e6f4c7465470073  yElements.GetLon
+    00000074c72ca8e8 6c45796172724167 470073746e656d65  gArrayElements.G
+    00000074c72ca8f8 4174616f6c467465 6d656c4579617272  etFloatArrayElem
+    00000074c72ca908 7465470073746e65 7241656c62756f44  ents.GetDoubleAr
+    00000074c72ca918 656d656c45796172 656c65520073746e  rayElements.Rele
+    00000074c72ca928 656c6f6f42657361 4579617272416e61  aseBooleanArrayE
+    00000074c72ca938 0073746e656d656c 6c65520072706145  lements.Eapr.Rel
+    00000074c72ca948 6574794265736165 656c457961727241  easeByteArrayEle
+    00000074c72ca958 65520073746e656d 616843657361656c  ments.ReleaseCha
+
+memory near x23:
+    00000074bd0153e0 0000000000000000 0000000000000000  ................
+    00000074bd0153f0 0000000000000000 0000000000000000  ................
+    00000074bd015400 0000000000430000 0000005c00000000  ..C.........\...
+    00000074bd015410 0000000000000807 0000000000000000  ................
+    00000074bd015420 0000000000000000 0000000000000000  ................
+    00000074bd015430 0000000000000000 0000000100000000  ................
+    00000074bd015440 0000000000000000 0000000000000000  ................
+    00000074bd015450 0000000000000000 0000000000000000  ................
+    00000074bd015460 0000000000000000 0000000000000000  ................
+    00000074bd015470 0000000000000000 0000000000000012  ................
+    00000074bd015480 00000000003a5f30 00000074c3fbb070  0_:.....p...t...
+    00000074bd015490 0000000000000000 00000074ab8ff000  ............t...
+    00000074bd0154a0 00000074ab9fd390 00000074ab9fd9d0  ....t.......t...
+    00000074bd0154b0 0000000000000000 00000074bd0154b8  .........T..t...
+    00000074bd0154c0 00000074c74cd840 0000000000000000  @.L.t...........
+    00000074bd0154d0 0000000000000000 0000000012d81158  ........X.......
+
+memory near x25:
+    00000074c738ac60 00000074c74df3b8 00000074c74df3a0  ..M.t.....M.t...
+    00000074c738ac70 0000000000000058 8000000400000001  X...............
+    00000074c738ac80 00000074c74dfe60 0000000000002000  `.M.t.... ......
+    00000074c738ac90 0000007549ecdf50 0000000000000000  P..Iu...........
+    00000074c738aca0 0000000000000000 0000000000000000  ................
+    00000074c738acb0 0000000000000000 0000000000000000  ................
+    00000074c738acc0 00000074c74b7360 00000074c74b74a0  `sK.t....tK.t...
+    00000074c738acd0 00000074c74b74e0 00000074c74b7500  .tK.t....uK.t...
+    00000074c738ace0 00000074c74b73c0 00000074c74b7460  .sK.t...`tK.t...
+    00000074c738acf0 00000074c74b7420 00000074c74b7520   tK.t... uK.t...
+    00000074c738ad00 00000074c74b7400 00000074c74b7440  .tK.t...@tK.t...
+    00000074c738ad10 00000074c74b7560 00000074c74b7540  `uK.t...@uK.t...
+    00000074c738ad20 0000001200000001 00000074c7548dd0  ..........T.t...
+    00000074c738ad30 00000074c7548e30 00000074c7548b00  0.T.t.....T.t...
+    00000074c738ad40 00000074c7548b30 00000074c7548c80  0.T.t.....T.t...
+    00000074c738ad50 00000074c7548cb0 0000000000000296  ..T.t...........
+
+memory near x26:
+    00000074c72c7890 616e6e7572206f74 6874697720656c62  to runnable with
+    00000074c72c78a0 6f706b6365686320 67616c6620746e69   checkpoint flag
+    00000074c72c78b0 67616c662000202c 7461747320003d73  , . flags=. stat
+    00000074c72c78c0 6c61746146003d65 646165726874202c  e=.Fatal, thread
+    00000074c72c78d0 7469736e61727420 6e692064656e6f69   transitioned in
+    00000074c72c78e0 6570737573206f74 746977206465646e  to suspended wit
+    00000074c72c78f0 6e75722074756f68 65687420676e696e  hout running the
+    00000074c72c7900 6f706b6365686320 6365684300746e69   checkpoint.Chec
+    00000074c72c7910 64656c696166206b 5f646e756f66203a  k failed: found_
+    00000074c72c7920 006c617574726976 662074276e646944  virtual.Didn't f
+    00000074c72c7930 2074616f20646e69 6920646f6874656d  ind oat method i
+    00000074c72c7940 726f66207865646e 6c61757472697620  ndex for virtual
+    00000074c72c7950 3a646f6874656d20 206b636568430020   method: .Check 
+    00000074c72c7960 203a64656c696166 6e6972616c636564  failed: declarin
+    00000074c72c7970 5f7373616c635f67 2064695f65707974  g_class_type_id 
+    00000074c72c7980 706c6c756e203d21 6b63656843007274  != nullptr.Check
+
+memory near x27:
+    00000074ab9ff568 00000074bd73e000 0000000000000001  ..s.t...........
+    00000074ab9ff578 0000000000105000 0000000000000000  .P..............
+    00000074ab9ff588 00000074ab9ff588 00000074ab9ff4f0  ....t.......t...
+    00000074ab9ff598 0000000000000016 0000000000000000  ................
+    00000074ab9ff5a8 0000000000000000 e44bb9894d8bd693  ...........M..K.
+    00000074ab9ff5b8 0000000000000000 00000074bd015400  .........T..t...
+    00000074ab9ff5c8 0000000000000000 0000000000000000  ................
+    00000074ab9ff5d8 0000000000000000 0000000000000001  ................
+    00000074ab9ff5e8 00000074c75f4480 0000000000000000  .D_.t...........
+    00000074ab9ff5f8 0000000000000000 0000000000000001  ................
+    00000074ab9ff608 0000000000000000 0000000000000000  ................
+    00000074ab9ff618 0000000000000000 0000000000000001  ................
+    00000074ab9ff628 00000074aaf498c0 0000000000000000  ....t...........
+    00000074ab9ff638 0000000000000000 0000000000000000  ................
+    00000074ab9ff648 0000000000000000 0000000000000001  ................
+    00000074ab9ff658 00000074ae25d080 0000000000000000  ..%.t...........
+
+memory near x28:
+    00000074ab9ff568 00000074bd73e000 0000000000000001  ..s.t...........
+    00000074ab9ff578 0000000000105000 0000000000000000  .P..............
+    00000074ab9ff588 00000074ab9ff588 00000074ab9ff4f0  ....t.......t...
+    00000074ab9ff598 0000000000000016 0000000000000000  ................
+    00000074ab9ff5a8 0000000000000000 e44bb9894d8bd693  ...........M..K.
+    00000074ab9ff5b8 0000000000000000 00000074bd015400  .........T..t...
+    00000074ab9ff5c8 0000000000000000 0000000000000000  ................
+    00000074ab9ff5d8 0000000000000000 0000000000000001  ................
+    00000074ab9ff5e8 00000074c75f4480 0000000000000000  .D_.t...........
+    00000074ab9ff5f8 0000000000000000 0000000000000001  ................
+    00000074ab9ff608 0000000000000000 0000000000000000  ................
+    00000074ab9ff618 0000000000000000 0000000000000001  ................
+    00000074ab9ff628 00000074aaf498c0 0000000000000000  ....t...........
+    00000074ab9ff638 0000000000000000 0000000000000000  ................
+    00000074ab9ff648 0000000000000000 0000000000000001  ................
+    00000074ab9ff658 00000074ae25d080 0000000000000000  ..%.t...........
+
+memory near x29:
+    00000074ab9fd220 00000074c72ca88e 00000074c74cd840  ..,.t...@.L.t...
+    00000074ab9fd230 0000000000000059 0000000000000000  Y...............
+    00000074ab9fd240 00000074ab9fd330 00000074c6e71bdc  0...t.......t...
+    00000074ab9fd250 00000074ab9fd330 00000074c6e71428  0...t...(...t...
+    00000074ab9fd260 000000006fb9a0d8 0000000070c31dc0  ...o.......p....
+    00000074ab9fd270 0000000200000059 00000074c72ca88e  Y.........,.t...
+    00000074ab9fd280 0000000000000000 0000000000000001  ................
+    00000074ab9fd290 00000074bd015400 00000074c74cd840  .T..t...@.L.t...
+    00000074ab9fd2a0 00000074c74a8200 00000074bd015400  ..J.t....T..t...
+    00000074ab9fd2b0 0000005900000043 0000005900000000  C...Y.......Y...
+    00000074ab9fd2c0 00000074c74cd840 0000000000000059  @.L.t...Y.......
+    00000074ab9fd2d0 0000000000000000 e44bb9894d8bd693  ...........M..K.
+    00000074ab9fd2e0 00000000130cfac0 0000000000000000  ................
+    00000074ab9fd2f0 00000000130cad38 0000000000000000  8...............
+    00000074ab9fd300 0000000000000000 00000074ab9ff588  ............t...
+    00000074ab9fd310 00000000130c4618 00000074ae2c4bc0  .F.......K,.t...
+
+memory near x30:
+    00000074c70e1320 93407d15b9400a88 927df10091001ea8  ..@..}@.......}.
+    00000074c70e1330 9100328197f53cbe aa0003f3aa1503e2  .<...2..........
+    00000074c70e1340 f94023f497f53bbe 140000e6b50000f4  .;...#@.........
+    00000074c70e1350 3900027fb4000053 f94023f491003293  S......9.2...#@.
+    00000074c70e1360 294957e8b4001c34 540014c06b0802bf  4....WI)...k...T
+    00000074c70e1370 54000d6171010ebf f000150bb9400288  ...qa..T..@.....
+    00000074c70e1380 f941456bf000151c b90027e8f9414b9c  ....kEA..KA..'..
+    00000074c70e1390 d0000f3579404fe8 d0000f37d0000f36  .O@y5...6...7...
+    00000074c70e13a0 5280087ad0000f38 9121a6b5320003f9  8...z..R...2..!.
+    00000074c70e13b0 9122cef791220ad6 140000029122ef18  .."..."...".....
+    00000074c70e13c0 b9400288d5033f5f 79404be8b90027e8  _?....@..'...K@y
+    00000074c70e13d0 b94027e835000188 790037fab9001be8  ...5.'@......7.y
+    00000074c70e13e0 b9401be8b94027e9 6b09015f885ffe8a  .'@...@..._._..k
+    00000074c70e13f0 88097e8854fffe81 1400006735fffe69  ...T.~..i..5g...
+    00000074c70e1400 3718056879404be8 121f050879404be8  .K@yh..7.K@y....
+    00000074c70e1410 97f53bbd340005c8 f941456bf000150b  ...4.;......kEA.
+
+code around pc:
+    000000754976b390 381ff0a738296808 d503201fd65f03c0  .h)8...8.._.. ..
+    000000754976b3a0 a9422c2aa9412428 a97e0881a943342c  ($A.*,B.,4C...~.
+    000000754976b3b0 a9001c06a97f0c84 a9022c0aa9012408  .........$...,..
+    000000754976b3c0 a93e08a1a903340c d65f03c0a93f0ca4  .4....>...?..._.
+    000000754976b3d0 927cec0392400c09 cb090021a940342c  ..@...|.,4@.!...
+    000000754976b3e0 a9411c268b090042 a9422428a900340c  B...&.A..4..($B.
+    000000754976b3f0 a9c4342ca9432c2a 54000169f1024042  *,C.,4..B@..i..T
+    000000754976b400 a9411c26a9011c66 a9422428a9022468  f...&.A.h$..($B.
+    000000754976b410 a9432c2aa9032c6a a9c4342ca984346c  j,..*,C.l4..,4..
+    000000754976b420 54fffee8f1010042 a9011c66a97c0881  B......T..|.f...
+    000000754976b430 a9022468a97d1c86 a9032c6aa97e2488  ..}.h$...$~.j,..
+    000000754976b440 a904346ca97f2c8a a93d1ca6a93c08a1  .,..l4....<...=.
+    000000754976b450 a93f2caaa93e24a8 00000000d65f03c0  .$>..,?..._.....
+    000000754976b460 0000000000000000 0000000000000000  ................
+    000000754976b470 0000000000000000 0000000000000000  ................
+    000000754976b480 54000c83eb01001f eb03001f8b020023  .......T#.......
+
+code around sp:
+    00000074ab9fd170 0000000000000000 00000074c6f82cf0  .........,..t...
+    00000074ab9fd180 00000074ab9fd240 00000074c70e1334  @...t...4...t...
+    00000074ab9fd190 00000074ab9ff588 00000074ab9fd2c8  ....t.......t...
+    00000074ab9fd1a0 00000074ab9fd290 0000000000000002  ....t...........
+    00000074ab9fd1b0 00000074ab9fd278 00000074bd015400  x...t....T..t...
+    00000074ab9fd1c0 00000074c74cd840 00000074c74a8200  @.L.t.....J.t...
+    00000074ab9fd1d0 00000074bd015400 0000004300000043  .T..t...C...C...
+    00000074ab9fd1e0 00000000130e6e00 e44bb9894d8bd693  .n.........M..K.
+    00000074ab9fd1f0 00000074ab9ff588 00000074c72c78bb  ....t....x,.t...
+    00000074ab9fd200 00000074c72c78b3 00000074c738ac80  .x,.t.....8.t...
+    00000074ab9fd210 0000000000000043 00000074bd015400  C........T..t...
+    00000074ab9fd220 00000074c72ca88e 00000074c74cd840  ..,.t...@.L.t...
+    00000074ab9fd230 0000000000000059 0000000000000000  Y...............
+    00000074ab9fd240 00000074ab9fd330 00000074c6e71bdc  0...t.......t...
+    00000074ab9fd250 00000074ab9fd330 00000074c6e71428  0...t...(...t...
+    00000074ab9fd260 000000006fb9a0d8 0000000070c31dc0  ...o.......p....
+
+memory map (2504 entries):
+(fault address prefixed with --->)
+    00000000'12c00000-00000000'1347ffff rw-         0    880000  /dev/ashmem/dalvik-main space (region space) (deleted)
+    00000000'13480000-00000000'135fffff ---    880000    180000  /dev/ashmem/dalvik-main space (region space) (deleted)
+    00000000'13600000-00000000'137fffff rw-    a00000    200000  /dev/ashmem/dalvik-main space (region space) (deleted)
+    00000000'13800000-00000000'1393ffff ---    c00000    140000  /dev/ashmem/dalvik-main space (region space) (deleted)
+    00000000'13940000-00000000'1397ffff rw-    d40000     40000  /dev/ashmem/dalvik-main space (region space) (deleted)
+    00000000'13980000-00000000'13e3ffff ---    d80000    4c0000  /dev/ashmem/dalvik-main space (region space) (deleted)
+    00000000'13e40000-00000000'13e7ffff rw-   1240000     40000  /dev/ashmem/dalvik-main space (region space) (deleted)
+    00000000'13e80000-00000000'13f3ffff ---   1280000     c0000  /dev/ashmem/dalvik-main space (region space) (deleted)
+    00000000'13f40000-00000000'2abfffff rw-   1340000  16cc0000  /dev/ashmem/dalvik-main space (region space) (deleted)
+    00000000'2ac00000-00000000'36bfffff rw-         0   c000000  /dev/ashmem/dalvik-free list large object space (deleted)
+    00000000'36c00000-00000000'36c00fff rw-         0      1000  /dev/ashmem/dalvik-/system/framework/oat/arm64/wifi-service.art (deleted)
+    00000000'36c01000-00000000'36c0dfff ---      1000      d000  /dev/ashmem/dalvik-/system/framework/oat/arm64/wifi-service.art (deleted)
+    00000000'36c0e000-00000000'36c10fff rw-      e000      3000  /dev/ashmem/dalvik-/system/framework/oat/arm64/wifi-service.art (deleted)
+    00000000'6fa64000-00000000'6fc9cfff rw-         0    239000  /data/dalvik-cache/arm64/system@framework@boot.art
+    00000000'6fc9d000-00000000'6fd61fff rw-         0     c5000  /data/dalvik-cache/arm64/system@framework@boot-core-libart.art
+    00000000'6fd62000-00000000'6fdabfff rw-         0     4a000  /data/dalvik-cache/arm64/system@framework@boot-conscrypt.art
+    00000000'6fdac000-00000000'6fdd7fff rw-         0     2c000  /data/dalvik-cache/arm64/system@framework@boot-okhttp.art
+    00000000'6fdd8000-00000000'6fe08fff rw-         0     31000  /data/dalvik-cache/arm64/system@framework@boot-bouncycastle.art
+    00000000'6fe09000-00000000'6fe18fff rw-         0     10000  /data/dalvik-cache/arm64/system@framework@boot-apache-xml.art
+    00000000'6fe19000-00000000'6fe1dfff rw-         0      5000  /data/dalvik-cache/arm64/system@framework@boot-legacy-test.art
+    00000000'6fe1e000-00000000'6fe48fff rw-         0     2b000  /data/dalvik-cache/arm64/system@framework@boot-ext.art
+    00000000'6fe49000-00000000'7043cfff rw-         0    5f4000  /data/dalvik-cache/arm64/system@framework@boot-framework.art
+    00000000'7043d000-00000000'7047efff rw-         0     42000  /data/dalvik-cache/arm64/system@framework@boot-telephony-common.art
+    00000000'7047f000-00000000'70489fff rw-         0      b000  /data/dalvik-cache/arm64/system@framework@boot-voip-common.art
+    00000000'7048a000-00000000'70493fff rw-         0      a000  /data/dalvik-cache/arm64/system@framework@boot-ims-common.art
+    00000000'70494000-00000000'704b9fff rw-         0     26000  /data/dalvik-cache/arm64/system@framework@boot-org.apache.http.legacy.boot.art
+    00000000'704ba000-00000000'704bbfff rw-         0      2000  /data/dalvik-cache/arm64/system@framework@boot-android.hidl.base-V1.0-java.art
+    00000000'704bc000-00000000'704befff rw-         0      3000  /data/dalvik-cache/arm64/system@framework@boot-android.hidl.manager-V1.0-java.art
+    00000000'704bf000-00000000'70698fff r--         0    1da000  /system/framework/arm64/boot.oat (BuildId: 4d588ab618b83c24b88eea6022df1c2877ba25b5)
+    00000000'70699000-00000000'70cd1fff r-x    1da000    639000  /system/framework/arm64/boot.oat (load bias 0x1da000)
+    00000000'70cd2000-00000000'70cd3fff rw-         0      2000  [anon:.bss]
+    00000000'70cd4000-00000000'70cd4fff r--    813000      1000  /system/framework/arm64/boot.oat
+    00000000'70cd5000-00000000'70cd5fff rw-    814000      1000  /system/framework/arm64/boot.oat
+    00000000'70cd6000-00000000'70daafff r--         0     d5000  /system/framework/arm64/boot-core-libart.oat (BuildId: 492edf26913703024a927439b0dbfc2f61aba409)
+    00000000'70dab000-00000000'71027fff r-x     d5000    27d000  /system/framework/arm64/boot-core-libart.oat (load bias 0xd5000)
+    00000000'71028000-00000000'71029fff rw-         0      2000  [anon:.bss]
+    00000000'7102a000-00000000'7102afff r--    352000      1000  /system/framework/arm64/boot-core-libart.oat
+    00000000'7102b000-00000000'7102bfff rw-    353000      1000  /system/framework/arm64/boot-core-libart.oat
+    00000000'7102c000-00000000'71049fff r--         0     1e000  /system/framework/arm64/boot-conscrypt.oat (BuildId: d3778ca58fd71553becc0986e537c970bfb3350c)
+    00000000'7104a000-00000000'7109ffff r-x     1e000     56000  /system/framework/arm64/boot-conscrypt.oat (load bias 0x1e000)
+    00000000'710a0000-00000000'710a0fff rw-         0      1000  [anon:.bss]
+    00000000'710a1000-00000000'710a1fff r--     74000      1000  /system/framework/arm64/boot-conscrypt.oat
+    00000000'710a2000-00000000'710a2fff rw-     75000      1000  /system/framework/arm64/boot-conscrypt.oat
+    00000000'710a3000-00000000'710c8fff r--         0     26000  /system/framework/arm64/boot-okhttp.oat (BuildId: 2989cfe4fa27700e9f462d84f2a55978fa49b60b)
+    00000000'710c9000-00000000'71137fff r-x     26000     6f000  /system/framework/arm64/boot-okhttp.oat (load bias 0x26000)
+    00000000'71138000-00000000'71138fff rw-         0      1000  [anon:.bss]
+    00000000'71139000-00000000'71139fff r--     95000      1000  /system/framework/arm64/boot-okhttp.oat
+    00000000'7113a000-00000000'7113afff rw-     96000      1000  /system/framework/arm64/boot-okhttp.oat
+    00000000'7113b000-00000000'71157fff r--         0     1d000  /system/framework/arm64/boot-bouncycastle.oat (BuildId: 0ebb1e4f8d2ef0b4e56c4f9011de64185c48d499)
+    00000000'71158000-00000000'711aefff r-x     1d000     57000  /system/framework/arm64/boot-bouncycastle.oat (load bias 0x1d000)
+    00000000'711af000-00000000'711affff rw-         0      1000  [anon:.bss]
+    00000000'711b0000-00000000'711b0fff r--     74000      1000  /system/framework/arm64/boot-bouncycastle.oat
+    00000000'711b1000-00000000'711b1fff rw-     75000      1000  /system/framework/arm64/boot-bouncycastle.oat
+    00000000'711b2000-00000000'711b7fff r--         0      6000  /system/framework/arm64/boot-apache-xml.oat (BuildId: ee7af758fff01b15b217970ce44857407521d06e)
+    00000000'711b8000-00000000'711b8fff r-x      6000      1000  /system/framework/arm64/boot-apache-xml.oat (load bias 0x6000)
+    00000000'711b9000-00000000'711b9fff r--      7000      1000  /system/framework/arm64/boot-apache-xml.oat
+    00000000'711ba000-00000000'711bafff rw-      8000      1000  /system/framework/arm64/boot-apache-xml.oat
+    00000000'711bb000-00000000'711bdfff r--         0      3000  /system/framework/arm64/boot-legacy-test.oat (BuildId: 599d8a245168c09cd7f2cfc79f88a7b65e13f315)
+    00000000'711be000-00000000'711c0fff r-x      3000      3000  /system/framework/arm64/boot-legacy-test.oat (load bias 0x3000)
+    00000000'711c1000-00000000'711c1fff rw-         0      1000  [anon:.bss]
+    00000000'711c2000-00000000'711c2fff r--      6000      1000  /system/framework/arm64/boot-legacy-test.oat
+    00000000'711c3000-00000000'711c3fff rw-      7000      1000  /system/framework/arm64/boot-legacy-test.oat
+    00000000'711c4000-00000000'711d6fff r--         0     13000  /system/framework/arm64/boot-ext.oat (BuildId: 7cfc7efb98180b0a846b7faaa989fcd2382f80ce)
+    00000000'711d7000-00000000'71204fff r-x     13000     2e000  /system/framework/arm64/boot-ext.oat (load bias 0x13000)
+    00000000'71205000-00000000'71205fff rw-         0      1000  [anon:.bss]
+    00000000'71206000-00000000'71206fff r--     41000      1000  /system/framework/arm64/boot-ext.oat
+    00000000'71207000-00000000'71207fff rw-     42000      1000  /system/framework/arm64/boot-ext.oat
+    00000000'71208000-00000000'7181bfff r--         0    614000  /system/framework/arm64/boot-framework.oat (BuildId: b3279cabf8699c336173e27c0e96c12dffb3aafb)
+    00000000'7181c000-00000000'7299dfff r-x    614000   1182000  /system/framework/arm64/boot-framework.oat (load bias 0x614000)
+    00000000'7299e000-00000000'729a7fff rw-         0      a000  [anon:.bss]
+    00000000'729a8000-00000000'729a8fff r--   1796000      1000  /system/framework/arm64/boot-framework.oat
+    00000000'729a9000-00000000'729a9fff rw-   1797000      1000  /system/framework/arm64/boot-framework.oat
+    00000000'729aa000-00000000'72a62fff r--         0     b9000  /system/framework/arm64/boot-telephony-common.oat (BuildId: cc0bf24f1d178ca0a729f4c9686afa9eeee40442)
+    00000000'72a63000-00000000'72c89fff r-x     b9000    227000  /system/framework/arm64/boot-telephony-common.oat (load bias 0xb9000)
+    00000000'72c8a000-00000000'72c8cfff rw-         0      3000  [anon:.bss]
+    00000000'72c8d000-00000000'72c8dfff r--    2e0000      1000  /system/framework/arm64/boot-telephony-common.oat
+    00000000'72c8e000-00000000'72c8efff rw-    2e1000      1000  /system/framework/arm64/boot-telephony-common.oat
+    00000000'72c8f000-00000000'72c95fff r--         0      7000  /system/framework/arm64/boot-voip-common.oat (BuildId: 86381418140a424f7b3dfe54e4a7eac715a9bdf9)
+    00000000'72c96000-00000000'72ca2fff r-x      7000      d000  /system/framework/arm64/boot-voip-common.oat (load bias 0x7000)
+    00000000'72ca3000-00000000'72ca3fff rw-         0      1000  [anon:.bss]
+    00000000'72ca4000-00000000'72ca4fff r--     14000      1000  /system/framework/arm64/boot-voip-common.oat
+    00000000'72ca5000-00000000'72ca5fff rw-     15000      1000  /system/framework/arm64/boot-voip-common.oat
+    00000000'72ca6000-00000000'72cadfff r--         0      8000  /system/framework/arm64/boot-ims-common.oat (BuildId: 5f61ede83ef79415c0e287fcf5a56f933508445b)
+    00000000'72cae000-00000000'72cbefff r-x      8000     11000  /system/framework/arm64/boot-ims-common.oat (load bias 0x8000)
+    00000000'72cbf000-00000000'72cbffff rw-         0      1000  [anon:.bss]
+    00000000'72cc0000-00000000'72cc0fff r--     19000      1000  /system/framework/arm64/boot-ims-common.oat
+    00000000'72cc1000-00000000'72cc1fff rw-     1a000      1000  /system/framework/arm64/boot-ims-common.oat
+    00000000'72cc2000-00000000'72ce8fff r--         0     27000  /system/framework/arm64/boot-org.apache.http.legacy.boot.oat (BuildId: a157bef4dfe7338ab2485c30cc6e83c56e3b2f26)
+    00000000'72ce9000-00000000'72d5afff r-x     27000     72000  /system/framework/arm64/boot-org.apache.http.legacy.boot.oat (load bias 0x27000)
+    00000000'72d5b000-00000000'72d5bfff rw-         0      1000  [anon:.bss]
+    00000000'72d5c000-00000000'72d5cfff r--     99000      1000  /system/framework/arm64/boot-org.apache.http.legacy.boot.oat
+    00000000'72d5d000-00000000'72d5dfff rw-     9a000      1000  /system/framework/arm64/boot-org.apache.http.legacy.boot.oat
+    00000000'72d5e000-00000000'72d60fff r--         0      3000  /system/framework/arm64/boot-android.hidl.base-V1.0-java.oat (BuildId: b007f436d12dfb184cfd46377e5839ef675b7634)
+    00000000'72d61000-00000000'72d61fff r-x      3000      1000  /system/framework/arm64/boot-android.hidl.base-V1.0-java.oat (load bias 0x3000)
+    00000000'72d62000-00000000'72d62fff r--      4000      1000  /system/framework/arm64/boot-android.hidl.base-V1.0-java.oat
+    00000000'72d63000-00000000'72d63fff rw-      5000      1000  /system/framework/arm64/boot-android.hidl.base-V1.0-java.oat
+    00000000'72d64000-00000000'72d67fff r--         0      4000  /system/framework/arm64/boot-android.hidl.manager-V1.0-java.oat (BuildId: 443d767c71422b1513788092480723627fa5e31c)
+    00000000'72d68000-00000000'72d6bfff r-x      4000      4000  /system/framework/arm64/boot-android.hidl.manager-V1.0-java.oat (load bias 0x4000)
+    00000000'72d6c000-00000000'72d6cfff rw-         0      1000  [anon:.bss]
+    00000000'72d6d000-00000000'72d6dfff r--      8000      1000  /system/framework/arm64/boot-android.hidl.manager-V1.0-java.oat
+    00000000'72d6e000-00000000'72d6efff rw-      9000      1000  /system/framework/arm64/boot-android.hidl.manager-V1.0-java.oat
+    00000000'72d6f000-00000000'72deafff rw-         0     7c000  /dev/ashmem/dalvik-zygote space (deleted)
+    00000000'72deb000-00000000'72debfff rw-         0      1000  /dev/ashmem/dalvik-non moving space (deleted)
+    00000000'72dec000-00000000'72e2afff rw-      1000     3f000  /dev/ashmem/dalvik-non moving space (deleted)
+    00000000'72e2b000-00000000'7686ffff ---     40000   3a45000  /dev/ashmem/dalvik-non moving space (deleted)
+    00000000'76870000-00000000'76d6efff rw-   3a85000    4ff000  /dev/ashmem/dalvik-non moving space (deleted)
+    00000000'7730b000-00000000'7737cfff rw-         0     72000  /dev/ashmem/dalvik-/system/framework/oat/arm64/services.art (deleted)
+    00000000'7737d000-00000000'77389fff ---     72000      d000  /dev/ashmem/dalvik-/system/framework/oat/arm64/services.art (deleted)
+    00000000'7738a000-00000000'7738efff rw-     7f000      5000  /dev/ashmem/dalvik-/system/framework/oat/arm64/services.art (deleted)
+    00000000'ebad6000-00000000'ebad6fff ---         0      1000  /dev/ashmem/dalvik-Sentinel fault page (deleted)
+    00000074'a3a00000-00000074'a3dfffff rw-         0    400000  [anon:libc_malloc]
+    00000074'a4000000-00000074'a41fffff rw-         0    200000  [anon:libc_malloc]
+    00000074'a4382000-00000074'a4382fff ---         0      1000  [anon:thread stack guard page]
+    00000074'a4383000-00000074'a4383fff ---         0      1000
+    00000074'a4384000-00000074'a447efff rw-         0     fb000  [stack:1963]
+    00000074'a4924000-00000074'a49fffff rw-         0     dc000  /dev/ashmem/gralloc-buffer (deleted)
+    00000074'a4a00000-00000074'a4dfffff rw-         0    400000  [anon:libc_malloc]
+    00000074'a4e1f000-00000074'a4efafff rw-         0     dc000  /dev/ashmem/gralloc-buffer (deleted)
+    00000074'a4efb000-00000074'a4efbfff ---         0      1000  [anon:thread stack guard page]
+    00000074'a4efc000-00000074'a4efcfff ---         0      1000
+    00000074'a4efd000-00000074'a4ffffff rw-         0    103000  [stack:1857]
+    00000074'a5000000-00000074'a51fffff rw-         0    200000  [anon:libc_malloc]
+    00000074'a5206000-00000074'a5206fff ---         0      1000  [anon:thread stack guard page]
+    00000074'a5207000-00000074'a5207fff ---         0      1000
+    00000074'a5208000-00000074'a5302fff rw-         0     fb000  [stack:1952]
+    00000074'a5303000-00000074'a5303fff ---         0      1000  [anon:thread stack guard page]
+    00000074'a5304000-00000074'a5304fff ---         0      1000
+    00000074'a5305000-00000074'a53fffff rw-         0     fb000  [stack:1875]
+    00000074'a5400000-00000074'a59fffff rw-         0    600000  [anon:libc_malloc]
+    00000074'a5a00000-00000074'a5adbfff rw-         0     dc000  /dev/ashmem/gralloc-buffer (deleted)
+    00000074'a5adc000-00000074'a5adcfff ---         0      1000  [anon:thread stack guard page]
+    00000074'a5add000-00000074'a5addfff ---         0      1000
+    00000074'a5ade000-00000074'a5bd8fff rw-         0     fb000  [stack:1807]
+    00000074'a5bd9000-00000074'a5bd9fff ---         0      1000  [anon:thread stack guard page]
+    00000074'a5bda000-00000074'a5bdafff ---         0      1000
+    00000074'a5bdb000-00000074'a5cddfff rw-         0    103000  [stack:1804]
+    00000074'a7400000-00000074'a75fffff rw-         0    200000  [anon:libc_malloc]
+    00000074'a7679000-00000074'a7679fff ---         0      1000  [anon:thread stack guard page]
+    00000074'a767a000-00000074'a767afff ---         0      1000
+    00000074'a767b000-00000074'a777dfff rw-         0    103000  [stack:1686]
+    00000074'a777e000-00000074'a777efff ---         0      1000  [anon:thread stack guard page]
+    00000074'a777f000-00000074'a777ffff ---         0      1000
+    00000074'a7780000-00000074'a7882fff rw-         0    103000  [stack:1684]
+    00000074'a7883000-00000074'a7c02fff r--     48000    380000  /system/priv-app/Telecom/Telecom.apk
+    00000074'a7c03000-00000074'a7cb5fff r--         0     b3000  /system/priv-app/Telecom/oat/arm64/Telecom.odex (BuildId: d15aaaf0c8dd121fbe7e0267faf0f968427d5e80)
+    00000074'a7cb6000-00000074'a7ee2fff r-x     b3000    22d000  /system/priv-app/Telecom/oat/arm64/Telecom.odex (load bias 0xb3000)
+    00000074'a7ee3000-00000074'a7ef6fff rw-         0     14000  [anon:.bss]
+    00000074'a7ef7000-00000074'a7ef7fff r--    2e0000      1000  /system/priv-app/Telecom/oat/arm64/Telecom.odex
+    00000074'a7ef8000-00000074'a7ef8fff rw-    2e1000      1000  /system/priv-app/Telecom/oat/arm64/Telecom.odex
+    00000074'a7f39000-00000074'a8099fff r--         0    161000  /system/priv-app/Telecom/oat/arm64/Telecom.vdex
+    00000074'a809a000-00000074'a809afff ---         0      1000  [anon:thread stack guard page]
+    00000074'a809b000-00000074'a809bfff ---         0      1000
+    00000074'a809c000-00000074'a8196fff rw-         0     fb000  [stack:1614]
+    00000074'a9e03000-00000074'a9f02fff rw-         0    100000  /dev/ashmem/MemoryHeapBase (deleted)
+    00000074'a9f03000-00000074'a9f03fff ---         0      1000  [anon:thread stack guard page]
+    00000074'a9f04000-00000074'a9f04fff ---         0      1000
+    00000074'a9f05000-00000074'a9ffffff rw-         0     fb000  [stack:1593]
+    00000074'aa000000-00000074'aa1fffff rw-         0    200000  [anon:libc_malloc]
+    00000074'aa275000-00000074'aa374fff rw-         0    100000  /dev/ashmem/MemoryHeapBase (deleted)
+    00000074'aa375000-00000074'aa375fff ---         0      1000  [anon:thread stack guard page]
+    00000074'aa376000-00000074'aa376fff ---         0      1000
+    00000074'aa377000-00000074'aa479fff rw-         0    103000  [stack:1588]
+    00000074'aa47a000-00000074'aa579fff rw-         0    100000  /dev/ashmem/MemoryHeapBase (deleted)
+    00000074'aa57a000-00000074'aa57afff ---         0      1000  [anon:thread stack guard page]
+    00000074'aa57b000-00000074'aa57bfff ---         0      1000
+    00000074'aa57c000-00000074'aa67efff rw-         0    103000  [stack:1581]
+    00000074'aa67f000-00000074'aa67ffff ---         0      1000  [anon:thread stack guard page]
+    00000074'aa680000-00000074'aa680fff ---         0      1000
+    00000074'aa681000-00000074'aa783fff rw-         0    103000  [stack:1567]
+    00000074'aa784000-00000074'aa784fff ---         0      1000  [anon:thread stack guard page]
+    00000074'aa785000-00000074'aa785fff ---         0      1000
+    00000074'aa786000-00000074'aa880fff rw-         0     fb000  [stack:1564]
+    00000074'aa886000-00000074'aa985fff rw-         0    100000  /dev/ashmem/MemoryHeapBase (deleted)
+    00000074'aa986000-00000074'aaafdfff rw-         0    178000  /dev/ashmem/gralloc-buffer (deleted)
+    00000074'aaafe000-00000074'aaafefff ---         0      1000  [anon:thread stack guard page]
+    00000074'aaaff000-00000074'aaafffff ---         0      1000
+    00000074'aab00000-00000074'aac02fff rw-         0    103000  [stack:1554]
+    00000074'aac9c000-00000074'aac9efff r--         0      3000  /system/priv-app/FusedLocation/oat/arm64/FusedLocation.odex (BuildId: f8cb798d854952be6f9540c32c7b6992a6cf82fe)
+    00000074'aac9f000-00000074'aaca1fff r-x      3000      3000  /system/priv-app/FusedLocation/oat/arm64/FusedLocation.odex (load bias 0x3000)
+    00000074'aaca2000-00000074'aaca3fff rw-         0      2000  [anon:.bss]
+    00000074'aaca4000-00000074'aaca4fff r--      6000      1000  /system/priv-app/FusedLocation/oat/arm64/FusedLocation.odex
+    00000074'aaca5000-00000074'aaca5fff rw-      7000      1000  /system/priv-app/FusedLocation/oat/arm64/FusedLocation.odex
+    00000074'aace8000-00000074'aacebfff r--         0      4000  /system/framework/oat/arm64/com.android.location.provider.odex (BuildId: fa2129a1ac5cc8620ca1e8a438432db1c7ea0ce0)
+    00000074'aacec000-00000074'aacf2fff r-x      4000      7000  /system/framework/oat/arm64/com.android.location.provider.odex (load bias 0x4000)
+    00000074'aacf3000-00000074'aacf5fff rw-         0      3000  [anon:.bss]
+    00000074'aacf6000-00000074'aacf6fff r--      b000      1000  /system/framework/oat/arm64/com.android.location.provider.odex
+    00000074'aacf7000-00000074'aacf7fff rw-      c000      1000  /system/framework/oat/arm64/com.android.location.provider.odex
+    00000074'aad00000-00000074'aadfffff rw-         0    100000  /dev/ashmem/MemoryHeapBase (deleted)
+    00000074'aae00000-00000074'aaffffff rw-         0    200000  [anon:libc_malloc]
+    00000074'ab053000-00000074'ab057fff r-x         0      5000  /system/lib64/hw/android.hidl.memory@1.0-impl.so (BuildId: b182109b4721889b7ce120209d3ae5f3)
+    00000074'ab058000-00000074'ab058fff r--      4000      1000  /system/lib64/hw/android.hidl.memory@1.0-impl.so
+    00000074'ab059000-00000074'ab059fff rw-      5000      1000  /system/lib64/hw/android.hidl.memory@1.0-impl.so
+    00000074'ab094000-00000074'ab094fff ---         0      1000  [anon:thread stack guard page]
+    00000074'ab095000-00000074'ab095fff ---         0      1000
+    00000074'ab096000-00000074'ab198fff rw-         0    103000  [stack:1681]
+    00000074'ab199000-00000074'ab199fff ---         0      1000  [anon:thread stack guard page]
+    00000074'ab19a000-00000074'ab19afff ---         0      1000
+    00000074'ab19b000-00000074'ab295fff rw-         0     fb000  [stack:1448]
+    00000074'ab296000-00000074'ab296fff ---         0      1000  [anon:thread stack guard page]
+    00000074'ab297000-00000074'ab297fff ---         0      1000
+    00000074'ab298000-00000074'ab392fff rw-         0     fb000  [stack:1447]
+    00000074'ab393000-00000074'ab393fff ---         0      1000  [anon:thread stack guard page]
+    00000074'ab394000-00000074'ab394fff ---         0      1000
+    00000074'ab395000-00000074'ab48ffff rw-         0     fb000  [stack:1446]
+    00000074'ab490000-00000074'ab490fff ---         0      1000  [anon:thread stack guard page]
+    00000074'ab491000-00000074'ab491fff ---         0      1000
+    00000074'ab492000-00000074'ab594fff rw-         0    103000  [stack:1445]
+    00000074'ab6f1000-00000074'ab6f1fff ---         0      1000  [anon:thread stack guard page]
+    00000074'ab6f2000-00000074'ab6f2fff ---         0      1000
+    00000074'ab6f3000-00000074'ab7f5fff rw-         0    103000  [stack:2068]
+    00000074'ab7f6000-00000074'ab7f6fff ---         0      1000  [anon:thread stack guard page]
+    00000074'ab7f7000-00000074'ab7f7fff ---         0      1000
+    00000074'ab7f8000-00000074'ab8fafff rw-         0    103000  [stack:2095]
+    00000074'ab8fb000-00000074'ab8fbfff ---         0      1000  [anon:thread stack guard page]
+    00000074'ab8fc000-00000074'ab8fcfff ---         0      1000
+    00000074'ab8fd000-00000074'ab9fffff rw-         0    103000
+    00000074'aba00000-00000074'abffffff rw-         0    600000  [anon:libc_malloc]
+    00000074'ac0d4000-00000074'ac0d4fff ---         0      1000  [anon:thread stack guard page]
+    00000074'ac0d5000-00000074'ac0d5fff ---         0      1000
+    00000074'ac0d6000-00000074'ac1d8fff rw-         0    103000  [stack:2039]
+    00000074'ac1d9000-00000074'ac1d9fff ---         0      1000  [anon:thread stack guard page]
+    00000074'ac1da000-00000074'ac1dafff ---         0      1000
+    00000074'ac1db000-00000074'ac2ddfff rw-         0    103000  [stack:1781]
+    00000074'ac2de000-00000074'ac2defff ---         0      1000  [anon:thread stack guard page]
+    00000074'ac2df000-00000074'ac2dffff ---         0      1000
+    00000074'ac2e0000-00000074'ac3e2fff rw-         0    103000  [stack:2066]
+    00000074'ac3e3000-00000074'ac3e3fff ---         0      1000  [anon:thread stack guard page]
+    00000074'ac3e4000-00000074'ac3e4fff ---         0      1000
+    00000074'ac3e5000-00000074'ac4e7fff rw-         0    103000  [stack:1430]
+    00000074'ac4e8000-00000074'ac4e8fff ---         0      1000  [anon:thread stack guard page]
+    00000074'ac4e9000-00000074'ac4e9fff ---         0      1000
+    00000074'ac4ea000-00000074'ac5ecfff rw-         0    103000  [stack:1429]
+    00000074'ac5ed000-00000074'ac5edfff ---         0      1000  [anon:thread stack guard page]
+    00000074'ac5ee000-00000074'ac5eefff ---         0      1000
+    00000074'ac5ef000-00000074'ac6f1fff rw-         0    103000  [stack:1428]
+    00000074'ac6fa000-00000074'ac6fafff ---         0      1000  [anon:thread stack guard page]
+    00000074'ac6fb000-00000074'ac6fbfff ---         0      1000
+    00000074'ac6fc000-00000074'ac7f6fff rw-         0     fb000  [stack:1869]
+    00000074'ac7f7000-00000074'ac7f7fff ---         0      1000  [anon:thread stack guard page]
+    00000074'ac7f8000-00000074'ac7f8fff ---         0      1000
+    00000074'ac7f9000-00000074'ac8fbfff rw-         0    103000  [stack:1426]
+    00000074'ac8fc000-00000074'ac8fcfff ---         0      1000  [anon:thread stack guard page]
+    00000074'ac8fd000-00000074'ac8fdfff ---         0      1000
+    00000074'ac8fe[[TRUNCATED]]

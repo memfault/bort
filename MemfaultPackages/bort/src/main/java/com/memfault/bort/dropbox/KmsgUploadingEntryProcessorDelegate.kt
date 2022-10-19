@@ -11,7 +11,7 @@ import com.memfault.bort.tokenbucket.TokenBucketStore
 import javax.inject.Inject
 
 class KmsgUploadingEntryProcessorDelegate @Inject constructor(
-    @Kmsg override val tokenBucketStore: TokenBucketStore,
+    @Kmsg private val tokenBucketStore: TokenBucketStore,
 ) : UploadingEntryProcessorDelegate {
     override val tags = listOf(
         "SYSTEM_LAST_KMSG",
@@ -19,6 +19,9 @@ class KmsgUploadingEntryProcessorDelegate @Inject constructor(
     )
     override val debugTag: String
         get() = "UPLOAD_KMSG"
+
+    override fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean =
+        tokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
 
     override suspend fun createMetadata(
         entryInfo: EntryInfo,

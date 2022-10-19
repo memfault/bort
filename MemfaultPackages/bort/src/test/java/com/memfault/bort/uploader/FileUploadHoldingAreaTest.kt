@@ -9,6 +9,7 @@ import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.makeFakeSharedPreferences
 import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.FileUploadHoldingAreaSettings
+import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.settings.RateLimitingSettings
 import com.memfault.bort.settings.Resolution.NOT_APPLICABLE
@@ -36,6 +37,7 @@ class FileUploadHoldingAreaTest {
     val eventOfInterestTTL = 7.seconds
     val maxStoredEventsOfInterestVal = 4
     val collectionTime = FakeCombinedTimeProvider.now()
+    var logcatCollectionMode = LogcatCollectionMode.PERIODIC
 
     lateinit var tempFiles: MutableList<File>
 
@@ -58,6 +60,10 @@ class FileUploadHoldingAreaTest {
             override val kernelOopsDataSourceEnabled: Boolean get() = TODO("Not used")
             override val kernelOopsRateLimitingSettings: RateLimitingSettings get() = TODO("Not used")
             override val storeUnsampled: Boolean get() = storeUnsampledFiles
+            override val collectionMode: LogcatCollectionMode get() = logcatCollectionMode
+            override val continuousLogDumpThresholdBytes: Int get() = TODO("Not used")
+            override val continuousLogDumpThresholdTime: Duration get() = TODO("Not used")
+            override val continuousLogDumpWrappingTimeout: Duration get() = TODO("Not used")
         }
         fileUploadHoldingArea = FileUploadHoldingArea(
             sharedPreferences = mockSharedPreferences,
@@ -67,6 +73,7 @@ class FileUploadHoldingAreaTest {
             logcatSettings = logcatSettings,
             currentSamplingConfig = currentSamplingConfig,
             combinedTimeProvider = FakeCombinedTimeProvider,
+            logcatCollectionMode = { logcatSettings.collectionMode },
         )
     }
 

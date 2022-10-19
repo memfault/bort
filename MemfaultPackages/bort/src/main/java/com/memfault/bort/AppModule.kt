@@ -23,6 +23,7 @@ import com.memfault.bort.shared.JitterDelayProvider.ApplyJitter.APPLY
 import com.memfault.bort.tokenbucket.Anr
 import com.memfault.bort.tokenbucket.BugReportPeriodic
 import com.memfault.bort.tokenbucket.BugReportRequestStore
+import com.memfault.bort.tokenbucket.ContinuousLogFile
 import com.memfault.bort.tokenbucket.JavaException
 import com.memfault.bort.tokenbucket.KernelOops
 import com.memfault.bort.tokenbucket.Kmsg
@@ -36,6 +37,8 @@ import com.memfault.bort.tokenbucket.Reboots
 import com.memfault.bort.tokenbucket.StructuredLog
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.Tombstone
+import com.memfault.bort.tokenbucket.Wtf
+import com.memfault.bort.tokenbucket.WtfTotal
 import com.memfault.bort.uploader.EnqueueHttpTask
 import com.memfault.bort.uploader.HttpTask
 import com.memfault.bort.uploader.HttpTaskCallFactory
@@ -271,6 +274,51 @@ abstract class AppModule {
 
         @Provides
         @Singleton
+        @Wtf
+        fun wtf(
+            context: Context,
+            settingsProvider: SettingsProvider,
+            metrics: BuiltinMetricsStore,
+        ) = TokenBucketStore(
+            storage = createFor(context, "wtfs"),
+            // Note: the backtrace signature is used as key, so one bucket per issue basically.
+            getMaxBuckets = { settingsProvider.dropBoxSettings.wtfsRateLimitingSettings.maxBuckets },
+            getTokenBucketFactory = {
+                RealTokenBucketFactory.from(
+                    rateLimitingSettings = settingsProvider.dropBoxSettings.wtfsRateLimitingSettings,
+                    metrics = metrics,
+                )
+            },
+        )
+
+        @Provides
+        @IntoSet
+        fun bindWtf(@Wtf store: TokenBucketStore): TokenBucketStore = store
+
+        @Provides
+        @Singleton
+        @WtfTotal
+        fun wtfTotal(
+            context: Context,
+            settingsProvider: SettingsProvider,
+            metrics: BuiltinMetricsStore,
+        ) = TokenBucketStore(
+            storage = createFor(context, "wtfs_total"),
+            getMaxBuckets = { settingsProvider.dropBoxSettings.wtfsTotalRateLimitingSettings.maxBuckets },
+            getTokenBucketFactory = {
+                RealTokenBucketFactory.from(
+                    rateLimitingSettings = settingsProvider.dropBoxSettings.wtfsTotalRateLimitingSettings,
+                    metrics = metrics,
+                )
+            },
+        )
+
+        @Provides
+        @IntoSet
+        fun bindWtfTotal(@WtfTotal store: TokenBucketStore): TokenBucketStore = store
+
+        @Provides
+        @Singleton
         @Anr
         fun anrs(
             context: Context,
@@ -414,6 +462,28 @@ abstract class AppModule {
         @Provides
         @IntoSet
         fun bindMetricReport(@MetricReportStore store: TokenBucketStore): TokenBucketStore = store
+
+        @Provides
+        @Singleton
+        @ContinuousLogFile
+        fun continuousLogFiles(
+            context: Context,
+            settingsProvider: SettingsProvider,
+            metrics: BuiltinMetricsStore,
+        ) = TokenBucketStore(
+            storage = createFor(context, "continuous_log"),
+            getMaxBuckets = { settingsProvider.dropBoxSettings.continuousLogFileRateLimitingSettings.maxBuckets },
+            getTokenBucketFactory = {
+                RealTokenBucketFactory.from(
+                    settingsProvider.dropBoxSettings.continuousLogFileRateLimitingSettings,
+                    metrics
+                )
+            },
+        )
+
+        @Provides
+        @IntoSet
+        fun bindContinuousLogFile(@ContinuousLogFile store: TokenBucketStore): TokenBucketStore = store
 
         @Provides
         @Singleton

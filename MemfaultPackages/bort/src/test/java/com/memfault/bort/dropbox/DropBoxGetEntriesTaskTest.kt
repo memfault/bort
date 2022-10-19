@@ -60,12 +60,16 @@ class DropBoxGetEntriesTaskTest {
         override val dataSourceEnabled = true
         override val anrRateLimitingSettings = mockRateLimitingSettings
         override val javaExceptionsRateLimitingSettings = mockRateLimitingSettings
+        override val wtfsRateLimitingSettings = mockRateLimitingSettings
+        override val wtfsTotalRateLimitingSettings = mockRateLimitingSettings
         override val kmsgsRateLimitingSettings = mockRateLimitingSettings
         override val structuredLogRateLimitingSettings = mockRateLimitingSettings
         override val tombstonesRateLimitingSettings = mockRateLimitingSettings
         override val metricReportRateLimitingSettings = mockRateLimitingSettings
         override val marFileRateLimitingSettings = mockRateLimitingSettings
+        override val continuousLogFileRateLimitingSettings = mockRateLimitingSettings
         override val excludedTags get() = mockGetExcludedTags
+        override val scrubTombstones: Boolean = false
     }
 
     @BeforeEach

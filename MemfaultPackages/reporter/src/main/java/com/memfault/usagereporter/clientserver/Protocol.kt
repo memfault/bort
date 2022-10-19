@@ -2,6 +2,7 @@ package com.memfault.usagereporter.clientserver
 
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.fileExt.deleteSilently
+import com.memfault.bort.shared.Logger
 import com.memfault.usagereporter.clientserver.BortMessage.SendFileMessage.Companion.readSendFileMessage
 import java.io.File
 import java.nio.ByteBuffer
@@ -90,6 +91,7 @@ sealed class BortMessage {
                 } catch (e: Exception) {
                     // Closing the channel will cause the select clause reading this to throw, triggering a disconnect/
                     // reconnect cycle in the Connector.
+                    Logger.i("protocol error", e)
                     channel.close()
                 }
             }

@@ -1,9 +1,3 @@
-On Android 8.1 and older (< API level 28), BOARD_PLAT_PRIVATE_SEPOLICY_DIR
-is not allowed to hold multiple directories. A build error will occur when
-BOARD_PLAT_PRIVATE_SEPOLICY_DIR is also used by customer/vendor code.
-We work around this by patching system/sepolicy directly.
-
-
 diff --git a/private/compat/26.0/26.0.ignore.cil b/private/compat/26.0/26.0.ignore.cil
 index 9e1eb9775..f10d54c86 100644
 --- a/private/compat/26.0/26.0.ignore.cil
@@ -46,11 +40,11 @@ index 536975894..5d3d6b376 100644
 +/system/bin/MemfaultStructuredLogd        u:object_r:memfault_structured_exec:s0
 diff --git a/private/memfault_structured.te b/private/memfault_structured.te
 new file mode 100644
-index 000000000..425cb94d6
+index 000000000..f1648da0e
 --- /dev/null
 +++ b/private/memfault_structured.te
 @@ -0,0 +1,41 @@
-+type memfault_structured, domain;
++type memfault_structured, service_manager_type, domain;
 +type memfault_structured_exec, exec_type, file_type;
 +
 +typeattribute memfault_structured coredomain;
@@ -88,9 +82,9 @@ index 000000000..425cb94d6
 +# Allow access to /proc/sys/kernel/random/boot_id
 +allow memfault_structured proc:file { getattr open read };
 +
-+# Dumpstate will not be able to call into memfault_structured, prevent logging
-+# to avoid a CTS failure: https://cs.android.com/android/platform/superproject/+/master:cts/hostsidetests/security/src/android/security/cts/SELinuxHostTest.java;l=1026-1044;drc=09af02f580279437fd9ee3c3a6de5789397fa291
-+dontaudit dumpstate memfault_structured:binder call;
++# Allow dumpstate (via MemfaultDumpster) to add metrics
++allow dumpstate memfault_structured:service_manager find;
++binder_call(dumpstate, memfault_structured)
 diff --git a/private/property_contexts b/private/property_contexts
 index 8eb2f28b2..9c3076fca 100644
 --- a/private/property_contexts

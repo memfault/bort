@@ -1,5 +1,34 @@
 # Memfault Bort Changelog
 
+## v4.3.0 - October 18th, 2022
+
+#### :rocket: New Features
+
+- Continuous Logging Mode is in preview. When enabled, logs will be continuously
+  collected by the `MemfaultDumpster` service. This is designed to avoid missing
+  logs because of buffer expiry.
+  [See documentation](https://mflt.io/android-logging). For devices running
+  Android 8/9/10 a new AOSP patch is required for Continuous mode to work.
+- On-device scrubbing of tombstone files.
+  [See documentation](https://mflt.io/android-data-scrubbing).
+
+#### :chart_with_upwards_trend: Improvements
+
+- Built-in metrics for Storage have been changed. Bort does not collect
+  `storage.primary.` metrics any more - instead collecting `storage.data.`
+  metrics - [see documentation](https://mflt.io/android-builtin-metrics).
+- All Bort sepolicy files now have leading/trailing newlines, to avoid bad
+  merges during build.
+- Added logging for client/server disconnection events.
+- WTFs are rate-limited separately from Java exceptions.
+- New runtime integration validation check.
+- Fixed a race condition in the OTA app, which could cause a crash when opening
+  the UI.
+
+#### :house: Internal
+
+- Improved how settings are overridden during CI tests.
+
 ## v4.2.0 - September 14th, 2022
 
 #### :rocket: New Features
@@ -44,8 +73,8 @@
   `bort_cli.py ota-check --bort-ota-app-id your.bort.ota.app.id`
 - Fixed an issue where metrics service could not create files on some devices
   due to encryption state.
-- Added a compile-time check to ensure that Bort SELinux policy has been correctly
-  applied.
+- Added a compile-time check to ensure that Bort SELinux policy has been
+  correctly applied.
 - The OTA app will now continue to check for updates while waiting to
   download/install.
 

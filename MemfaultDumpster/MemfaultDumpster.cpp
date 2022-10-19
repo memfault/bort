@@ -3,13 +3,14 @@
 #include <android-base/file.h>
 #include <binder/IPCThreadState.h>
 #include <binder/IServiceManager.h>
+#include <binder/PersistableBundle.h>
 #include <binder/ProcessState.h>
 #include <DumpstateUtil.h>
 #include <log/log_main.h>
 #include <com/memfault/dumpster/BnDumpster.h>
 #include <com/memfault/dumpster/IDumpsterBasicCommandListener.h>
 
-#include <stdbool.h>
+#include <stdlib.h>
 #include <stdlib.h>
 
 #include <memory>
@@ -17,11 +18,13 @@
 #include <vector>
 
 #include "android-9/file.h"
+#include "ContinuousLogcat.h"
 
 #define DUMPSTER_SERVICE_NAME "memfault_dumpster"
 #define BORT_ENABLED_PROPERTY "persist.system.memfault.bort.enabled"
 #define STRUCTURED_ENABLED_PROPERTY "persist.system.memfault.structured.enabled"
 
+using android::os::PersistableBundle;
 using android::os::dumpstate::CommandOptions;
 using android::os::dumpstate::RunCommandToFd;
 
@@ -41,6 +44,10 @@ namespace {
   }
 
   class DumpsterService : public BnDumpster {
+        public:
+        DumpsterService() : clog(new memfault::ContinuousLogcat()) {
+        }
+
         android::binder::Status getVersion(int *_aidl_return) {
           *_aidl_return = IDumpster::VERSION;
           return android::binder::Status::ok();
@@ -84,15 +91,75 @@ namespace {
                 default: return {};
             }
         }
+
+        android::binder::Status startContinuousLogging(
+            const PersistableBundle &options) override {
+          int32_t version;
+          if (options.getInt(android::String16("version"), &version) && version == 1) {
+            std::vector<android::String16> filter_specs_s16;
+            options.getStringVector(android::String16("filterSpecs"), &filter_specs_s16);
+
+            // unpack String16-format strings
+            std::vector<std::string> filter_specs;
+            for (auto &it : filter_specs_s16) {
+              filter_specs.emplace_back(android::String8(it).string());
+            }
+
+            int32_t dump_threshold_bytes;
+            if (!options.getInt(android::String16("dumpThresholdBytes"), &dump_threshold_bytes)) {
+              dump_threshold_bytes = kDefaultDumpThresholdBytes;
+            }
+
+            int64_t dump_threshold_time_ms;
+            if (!options.getLong(android::String16("dumpThresholdTimeMs"), &dump_threshold_time_ms)) {
+              dump_threshold_time_ms = kDefaultDumpThresholdTimeMs;
+            }
+
+            int64_t dump_wrapping_timeout_ms;
+            if (!options.getLong(android::String16("dumpWrappingTimeoutMs"), &dump_wrapping_timeout_ms)) {
+              dump_wrapping_timeout_ms = kDefaultDumpWrappingTimeoutMs;
+            }
+
+            ALOGT("clog: reconfiguring");
+            clog->reconfigure(filter_specs, dump_threshold_bytes, (uint64_t)dump_threshold_time_ms,
+                (uint64_t)dump_wrapping_timeout_ms);
+          } else {
+            ALOGW("Cannot parse reconfiguration options, starting with current config");
+          }
+
+          ALOGT("clog: starting");
+          clog->start();
+          ALOGT("clog: started");
+          return android::binder::Status::ok();
+        }
+
+        android::binder::Status stopContinuousLogging() override {
+          ALOGT("clog: stopping");
+          clog->stop();
+          ALOGT("clog: joining");
+          clog->join();
+          ALOGT("clog: stopped");
+          return android::binder::Status::ok();
+        }
+
+    private:
+        std::unique_ptr<memfault::ContinuousLogcat> clog;
     };
 } // namespace
+
+static void uncaught_handler(int signum __unused) {}
 
 int main(void) {
     ALOGI("Starting...");
 
-    signal(SIGPIPE, SIG_IGN);
+    struct sigaction sa;
+    sa.sa_handler = uncaught_handler;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGPIPE, &sa, NULL);
+    sigaction(SIGALRM, &sa, NULL);
+
     android::sp<android::ProcessState> ps(android::ProcessState::self());
-    ps->setThreadPoolMaxThreadCount(2);
+    ps->setThreadPoolMaxThreadCount(1);
     ps->startThreadPool();
     ps->giveThreadPoolName();
 

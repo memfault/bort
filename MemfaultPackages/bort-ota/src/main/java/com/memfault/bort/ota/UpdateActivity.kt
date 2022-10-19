@@ -20,6 +20,7 @@ import androidx.preference.PreferenceFragmentCompat
 import com.google.android.material.snackbar.Snackbar
 import com.memfault.bort.ota.lib.Event
 import com.memfault.bort.ota.lib.State
+import com.memfault.bort.shared.Logger
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -176,7 +177,12 @@ class UpdateAvailableFragment : Fragment() {
     private val updateViewModel by activityViewModels<UpdateViewModel>()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        val state = updateViewModel.state.value as State.UpdateAvailable
+        val state = updateViewModel.state.value as? State.UpdateAvailable
+        if (state == null) {
+            Logger.d("UpdateAvailableFragment: unexpected state = ${updateViewModel.state.value}")
+            // This is a race condition - another Fragment will displayed for the correct state soon.
+            return null
+        }
 
         val layout = inflater.inflate(R.layout.update_available_layout, container, false)
         val hasReleaseNotes = state.ota.releaseNotes.isNotBlank()
@@ -197,7 +203,12 @@ class UpdateReadyFragment : Fragment() {
     private val updateViewModel by activityViewModels<UpdateViewModel>()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        val state = updateViewModel.state.value as State.ReadyToInstall
+        val state = updateViewModel.state.value as? State.ReadyToInstall
+        if (state == null) {
+            Logger.d("UpdateReadyFragment: unexpected state = ${updateViewModel.state.value}")
+            // This is a race condition - another Fragment will displayed for the correct state soon.
+            return null
+        }
 
         val layout = inflater.inflate(R.layout.update_available_layout, container, false)
         layout.findViewById<TextView>(R.id.release_notes).text = state.ota.releaseNotes
@@ -236,7 +247,12 @@ class RebootNeededFragment : Fragment() {
     private val updateViewModel by activityViewModels<UpdateViewModel>()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        val state = updateViewModel.state.value as State.RebootNeeded
+        val state = updateViewModel.state.value as? State.RebootNeeded
+        if (state == null) {
+            Logger.d("RebootNeededFragment: unexpected state = ${updateViewModel.state.value}")
+            // This is a race condition - another Fragment will displayed for the correct state soon.
+            return null
+        }
 
         val layout = inflater.inflate(R.layout.update_available_layout, container, false)
         layout.findViewById<TextView>(R.id.release_notes).text = state.ota.releaseNotes

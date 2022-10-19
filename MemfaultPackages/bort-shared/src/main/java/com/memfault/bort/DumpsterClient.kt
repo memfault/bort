@@ -1,7 +1,14 @@
 package com.memfault.bort
 
+import android.os.PersistableBundle
 import android.os.RemoteException
+import com.memfault.bort.shared.CONTINUOUS_LOG_DUMP_THRESHOLD_BYTES
+import com.memfault.bort.shared.CONTINUOUS_LOG_DUMP_THRESHOLD_TIME_MS
+import com.memfault.bort.shared.CONTINUOUS_LOG_DUMP_WRAPPING_TIMEOUT_MS
+import com.memfault.bort.shared.CONTINUOUS_LOG_FILTER_SPECS
+import com.memfault.bort.shared.CONTINUOUS_LOG_VERSION
 import com.memfault.bort.shared.DUMPSTER_SERVICE_NAME
+import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.shared.Logger
 import com.memfault.dumpster.IDumpster
 import com.memfault.dumpster.IDumpsterBasicCommandListener
@@ -9,6 +16,7 @@ import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
 import javax.inject.Qualifier
+import javax.inject.Singleton
 import kotlin.annotation.AnnotationRetention.RUNTIME
 import kotlin.annotation.AnnotationTarget.FIELD
 import kotlin.annotation.AnnotationTarget.FUNCTION
@@ -16,6 +24,8 @@ import kotlin.annotation.AnnotationTarget.PROPERTY_GETTER
 import kotlin.annotation.AnnotationTarget.PROPERTY_SETTER
 import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
 import kotlin.coroutines.resume
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -69,6 +79,30 @@ private class WrappedService(val service: IDumpster, val basicCommandTimeout: Lo
             }
         }
     }
+
+    suspend fun startContinuousLogging(options: PersistableBundle) = withTimeoutOrNull(basicCommandTimeout) {
+        suspendCancellableCoroutine<Unit> { cont ->
+            try {
+                service.startContinuousLogging(options)
+                cont.resume(Unit)
+            } catch (e: RemoteException) {
+                Logger.e("exception while starting continuous logging", e)
+                cont.resume(Unit)
+            }
+        }
+    }
+
+    suspend fun stopContinuousLogging() = withTimeoutOrNull(basicCommandTimeout) {
+        suspendCancellableCoroutine<Unit> { cont ->
+            try {
+                service.stopContinuousLogging()
+                cont.resume(Unit)
+            } catch (e: RemoteException) {
+                Logger.e("exception while stopping continuous logging", e)
+                cont.resume(Unit)
+            }
+        }
+    }
 }
 
 @Qualifier
@@ -89,7 +123,7 @@ class DumpsterClient @Inject constructor(
      */
     private inline fun <R> withService(
         minimumVersion: Int = IDumpster.VERSION_INITIAL,
-        block: WrappedService.() -> R
+        block: WrappedService.() -> R,
     ): R? =
         serviceProvider.get()?.let {
             if (it.getVersion() >= minimumVersion) with(
@@ -147,10 +181,60 @@ class DumpsterClient @Inject constructor(
         }
     }
 
+    suspend fun startContinuousLogging(
+        filterSpecs: List<LogcatFilterSpec>,
+        continuousLogDumpThresholdBytes: Int,
+        continuousLogDumpThresholdTime: Duration,
+        continuousLogDumpWrappingTimeout: Duration,
+    ) {
+        withService(minimumVersion = IDumpster.VERSION_BORT_CONTINUOUS_LOGGING) {
+            val bundle = PersistableBundle()
+            val filterSpecFlags = filterSpecs.map { it.asFlag() }
+            bundle.putInt(CONTINUOUS_LOG_VERSION, 1)
+            bundle.putStringArray(CONTINUOUS_LOG_FILTER_SPECS, filterSpecFlags.toTypedArray())
+            bundle.putInt(CONTINUOUS_LOG_DUMP_THRESHOLD_BYTES, continuousLogDumpThresholdBytes)
+            bundle.putLong(
+                CONTINUOUS_LOG_DUMP_THRESHOLD_TIME_MS,
+                continuousLogDumpThresholdTime.inWholeMilliseconds - CONTINUOUS_LOG_THRESHOLD_MARGIN.inWholeMilliseconds
+            )
+            bundle.putLong(
+                CONTINUOUS_LOG_DUMP_WRAPPING_TIMEOUT_MS,
+                continuousLogDumpWrappingTimeout.inWholeMilliseconds,
+            )
+            startContinuousLogging(bundle)
+        }
+    }
+
+    suspend fun stopContinuousLogging() {
+        withService(minimumVersion = IDumpster.VERSION_BORT_CONTINUOUS_LOGGING) {
+            stopContinuousLogging()
+        }
+    }
+
     /**
      * Gets the available version of the MemfaultDumpster service, or null if the service is not available.
      */
     fun availableVersion(): Int? {
         return getServiceSilently()?.version
     }
+
+    companion object {
+        /**
+         * We apply a small margin to the dump threshold. Without this, if the dump threshold and wrapping timeout are
+         * equal then we can miss capturing every other log file, because we are a tiny amount under the threshold.
+         */
+        private val CONTINUOUS_LOG_THRESHOLD_MARGIN = 3.seconds
+    }
+}
+
+/**
+ * Simply cache
+ */
+@Singleton
+class DumpsterCapabilities @Inject constructor(
+    private val dumpsterClient: DumpsterClient,
+) {
+    private val dumpsterVersion by lazy { dumpsterClient.availableVersion() ?: 0 }
+
+    fun supportsContinuousLogging() = dumpsterVersion >= IDumpster.VERSION_BORT_CONTINUOUS_LOGGING
 }

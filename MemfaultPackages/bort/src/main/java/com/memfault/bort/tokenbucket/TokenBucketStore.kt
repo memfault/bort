@@ -66,6 +66,16 @@ annotation class JavaException
 @Qualifier
 @Retention(RUNTIME)
 @Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
+annotation class Wtf
+
+@Qualifier
+@Retention(RUNTIME)
+@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
+annotation class WtfTotal
+
+@Qualifier
+@Retention(RUNTIME)
+@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 annotation class Anr
 
 @Qualifier
@@ -102,6 +112,11 @@ annotation class MetricReportStore
 @Retention(RUNTIME)
 @Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 annotation class MarDropbox
+
+@Qualifier
+@Retention(RUNTIME)
+@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
+annotation class ContinuousLogFile
 
 class TokenBucketStore(
     private val storage: TokenBucketStorage,

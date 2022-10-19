@@ -27,8 +27,8 @@ class DebugInfoInjectingInterceptorTest {
             "https://memfault.otherdomain.org/",
             "https://foo.com/",
             "http://foo.com/",
-            "http://127.0.0.1:5000/",
-            "http://localhost:5000/"
+            "http://127.0.0.1:8000/",
+            "http://localhost:8000/"
         ).forEach { url ->
             Request.Builder()
                 .url(url)
@@ -51,7 +51,7 @@ class DebugInfoInjectingInterceptorTest {
             "https://memfault.com/",
             "https://sub.memfault.com/",
             "http://localhost:9000/api",
-            "http://127.0.0.1:5000/api"
+            "http://127.0.0.1:8000/api"
         ).forEach { url ->
             Request.Builder()
                 .url(url)

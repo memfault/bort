@@ -93,8 +93,25 @@ data class FetchedSettings(
     @SerialName("drop_box.data_source_enabled")
     val dropBoxDataSourceEnabled: Boolean,
 
+    @SerialName("drop_box.scrub_tombstones")
+    val dropBoxScrubTombstones: Boolean = false,
+
     @SerialName("drop_box.java_exceptions.rate_limiting_settings")
     val dropBoxJavaExceptionsRateLimitingSettings: RateLimitingSettings,
+
+    @SerialName("drop_box.wtfs.rate_limiting_settings")
+    val dropBoxWtfsRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+        defaultCapacity = 5,
+        defaultPeriod = 24.hours.boxed(),
+        maxBuckets = 10,
+    ),
+
+    @SerialName("drop_box.wtfs_total.rate_limiting_settings")
+    val dropBoxWtfsTotalRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+        defaultCapacity = 10,
+        defaultPeriod = 24.hours.boxed(),
+        maxBuckets = 1,
+    ),
 
     @SerialName("drop_box.kmsgs.rate_limiting_settings")
     val dropBoxKmsgsRateLimitingSettings: RateLimitingSettings,
@@ -104,6 +121,13 @@ data class FetchedSettings(
 
     @SerialName("drop_box.tombstones.rate_limiting_settings")
     val dropBoxTombstonesRateLimitingSettings: RateLimitingSettings,
+
+    @SerialName("drop_box.continuous_logfile.rate_limiting_settings")
+    val dropBoxContinuousLogFileLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+        defaultCapacity = 4,
+        defaultPeriod = 60.minutes.boxed(),
+        maxBuckets = 1,
+    ),
 
     @SerialName("file_upload_holding_area.max_stored_events_of_interest")
     val fileUploadHoldingAreaMaxStoredEventsOfInterest: Int,
@@ -199,6 +223,20 @@ data class FetchedSettings(
 
     @SerialName("logcat.store_unsampled")
     val logcatStoreUnsampled: Boolean = false,
+
+    @SerialName("logcat.collection_mode")
+    val logcatCollectionMode: LogcatCollectionMode = LogcatCollectionMode.PERIODIC,
+
+    @SerialName("logcat.continuous_dump_threshold_bytes")
+    val logcatContinuousDumpThresholdBytes: Int = 25 * 1024 * 1024,
+
+    @SerialName("logcat.continuous_dump_threshold_time_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val logcatContinuousDumpThresholdTime: BoxedDuration = 15.minutes.boxed(),
+
+    @SerialName("logcat.continuous_dump_wrapping_timeout_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val logcatContinuousDumpWrappingTimeout: BoxedDuration = 15.minutes.boxed(),
 
     @SerialName("metrics.collection_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)

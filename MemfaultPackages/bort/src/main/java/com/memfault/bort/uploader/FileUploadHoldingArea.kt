@@ -10,6 +10,7 @@ import com.memfault.bort.getJson
 import com.memfault.bort.putJson
 import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.FileUploadHoldingAreaSettings
+import com.memfault.bort.settings.GetLogcatCollectionMode
 import com.memfault.bort.settings.LogcatCollectionInterval
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.settings.Resolution.NORMAL
@@ -96,6 +97,7 @@ class FileUploadHoldingArea @Inject constructor(
     private val logcatSettings: LogcatSettings,
     private val currentSamplingConfig: CurrentSamplingConfig,
     private val combinedTimeProvider: CombinedTimeProvider,
+    private val logcatCollectionMode: GetLogcatCollectionMode,
 ) : HandleEventOfInterest {
     private val lock = ReentrantLock()
     private var eventTimes: List<ElapsedRealtime> = readEventTimes()

@@ -1,4 +1,5 @@
-type memfault_structured, domain;
+
+type memfault_structured, service_manager_type, domain;
 
 typeattribute memfault_structured coredomain;
 
@@ -35,6 +36,6 @@ allow system_server memfault_structured_data_file:file r_file_perms;
 # Allow vendor_init to set memfault properties defined in {vendor,system}.prop
 set_prop(vendor_init, memfault_prop)
 
-# Dumpstate will not be able to call into memfault_structured, prevent logging
-# to avoid a CTS failure: https://cs.android.com/android/platform/superproject/+/master:cts/hostsidetests/security/src/android/security/cts/SELinuxHostTest.java;l=1026-1044;drc=09af02f580279437fd9ee3c3a6de5789397fa291
-dontaudit dumpstate memfault_structured:binder call;
+# Allow dumpstate (via MemfaultDumpster) to add metrics
+allow dumpstate memfault_structured:service_manager find;
+binder_call(dumpstate, memfault_structured)

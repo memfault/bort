@@ -1,2 +1,3 @@
+
 # Read/write files opened by bort.
 allow appdomain bort_app_data_file:file { getattr read write };

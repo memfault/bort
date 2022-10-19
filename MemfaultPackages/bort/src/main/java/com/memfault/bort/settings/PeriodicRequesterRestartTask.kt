@@ -6,6 +6,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.memfault.bort.BortJson
+import com.memfault.bort.DumpsterCapabilities
 import com.memfault.bort.InjectSet
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
@@ -22,16 +23,23 @@ private const val FETCHED_SETTINGS_UPDATE_KEY = "update"
 class PeriodicRequesterRestartTask @Inject constructor(
     private val periodicWorkRequesters: InjectSet<PeriodicWorkRequester>,
     override val metrics: BuiltinMetricsStore,
+    private val dumpsterCapabilities: DumpsterCapabilities,
 ) : Task<FetchedSettingsUpdate>() {
     override val getMaxAttempts = { 1 }
 
     override suspend fun doWork(worker: TaskRunnerWorker, input: FetchedSettingsUpdate): TaskResult {
-        val old = DynamicSettingsProvider(object : ReadonlyFetchedSettingsProvider {
-            override fun get() = input.old
-        })
-        val new = DynamicSettingsProvider(object : ReadonlyFetchedSettingsProvider {
-            override fun get() = input.new
-        })
+        val old = DynamicSettingsProvider(
+            object : ReadonlyFetchedSettingsProvider {
+                override fun get() = input.old
+            },
+            dumpsterCapabilities
+        )
+        val new = DynamicSettingsProvider(
+            object : ReadonlyFetchedSettingsProvider {
+                override fun get() = input.new
+            },
+            dumpsterCapabilities
+        )
         periodicWorkRequesters.forEach {
             it.evaluateSettingsChange(old, new)
         }

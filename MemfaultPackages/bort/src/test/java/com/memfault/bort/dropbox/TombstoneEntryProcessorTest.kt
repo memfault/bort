@@ -81,6 +81,8 @@ class TombstoneEntryProcessorTest {
                         )
                     }
                 ),
+                tempFileFactory = TestTemporaryFileFactory,
+                scrubTombstones = { false },
             ),
             tempFileFactory = TestTemporaryFileFactory,
             enqueueUpload = mockEnqueueUpload,

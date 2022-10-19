@@ -63,6 +63,7 @@ class DropBoxGetEntriesTask @Inject constructor(
                 if (process(getConnection)) TaskResult.SUCCESS else TaskResult.FAILURE
             }
         } catch (e: RemoteException) {
+            Logger.w("Error getting dropbox entry", e)
             TaskResult.FAILURE
         }
 

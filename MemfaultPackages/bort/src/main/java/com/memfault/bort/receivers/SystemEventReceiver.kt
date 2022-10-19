@@ -20,6 +20,7 @@ import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
 import com.memfault.bort.logcat.handleTimeChanged
 import com.memfault.bort.requester.PeriodicWorkRequester
+import com.memfault.bort.settings.ContinuousLoggingController
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.applyReporterServiceSettings
 import com.memfault.bort.settings.reloadCustomEventConfigFrom
@@ -53,6 +54,7 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
     @Inject lateinit var bortSystemCapabilities: BortSystemCapabilities
     @Inject lateinit var readLinuxBootId: LinuxBootId
     @Inject lateinit var dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider
+    @Inject lateinit var continuousLoggingController: ContinuousLoggingController
 
     private fun onPackageReplaced() {
         goAsync {
@@ -88,6 +90,8 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
                 settingsProvider,
                 bortEnabledProvider,
             )
+
+            continuousLoggingController.configureContinuousLogging()
 
             if (settingsProvider.rebootEventsSettings.dataSourceEnabled &&
                 bortSystemCapabilities.supportsRebootEvents()

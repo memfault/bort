@@ -2,6 +2,8 @@ package com.memfault.bort.settings
 
 import com.memfault.bort.BuildConfig
 import com.memfault.bort.DataScrubbingRule
+import com.memfault.bort.DumpsterCapabilities
+import com.memfault.bort.settings.LogcatCollectionMode.PERIODIC
 import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.BuildConfig as SharedBuildConfig
 import com.memfault.bort.shared.BuildConfigSdkVersionInfo
@@ -25,6 +27,7 @@ import kotlin.time.Duration
 @ContributesBinding(scope = SingletonComponent::class)
 open class DynamicSettingsProvider @Inject constructor(
     private val storedSettingsPreferenceProvider: ReadonlyFetchedSettingsProvider,
+    private val dumpsterCapabilities: DumpsterCapabilities,
 ) : SettingsProvider {
     @Transient
     private val settingsCache = CachedProperty {
@@ -123,6 +126,10 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.dropBoxAnrsRateLimitingSettings
         override val javaExceptionsRateLimitingSettings: RateLimitingSettings
             get() = settings.dropBoxJavaExceptionsRateLimitingSettings
+        override val wtfsRateLimitingSettings: RateLimitingSettings
+            get() = settings.dropBoxWtfsRateLimitingSettings
+        override val wtfsTotalRateLimitingSettings: RateLimitingSettings
+            get() = settings.dropBoxWtfsTotalRateLimitingSettings
         override val kmsgsRateLimitingSettings: RateLimitingSettings
             get() = settings.dropBoxKmsgsRateLimitingSettings
         override val structuredLogRateLimitingSettings: RateLimitingSettings
@@ -133,8 +140,12 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.metricReportRateLimitingSettings
         override val marFileRateLimitingSettings: RateLimitingSettings
             get() = settings.marFileRateLimitingSettings
+        override val continuousLogFileRateLimitingSettings: RateLimitingSettings
+            get() = settings.dropBoxContinuousLogFileLimitingSettings
         override val excludedTags: Set<String>
             get() = settings.dropBoxExcludedTags
+        override val scrubTombstones: Boolean
+            get() = settings.dropBoxScrubTombstones
     }
 
     override val metricsSettings = object : MetricsSettings {
@@ -174,6 +185,16 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.logcatKernelOopsRateLimitingSettings
         override val storeUnsampled: Boolean
             get() = settings.logcatStoreUnsampled
+        override val collectionMode
+            // Don't enable continuous logging mode unless the service supports it (because this disables periodic
+            // logging).
+            get() = if (dumpsterCapabilities.supportsContinuousLogging()) settings.logcatCollectionMode else PERIODIC
+        override val continuousLogDumpThresholdBytes: Int
+            get() = settings.logcatContinuousDumpThresholdBytes
+        override val continuousLogDumpThresholdTime: Duration
+            get() = settings.logcatContinuousDumpThresholdTime.duration
+        override val continuousLogDumpWrappingTimeout: Duration
+            get() = settings.logcatContinuousDumpWrappingTimeout.duration
     }
 
     override val fileUploadHoldingAreaSettings = object : FileUploadHoldingAreaSettings {

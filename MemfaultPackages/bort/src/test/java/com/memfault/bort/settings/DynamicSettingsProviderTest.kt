@@ -3,8 +3,11 @@ package com.memfault.bort.settings
 import com.memfault.bort.AndroidAppIdScrubbingRule
 import com.memfault.bort.BortJson
 import com.memfault.bort.CredentialScrubbingRule
+import com.memfault.bort.DumpsterCapabilities
 import com.memfault.bort.EmailScrubbingRule
 import com.memfault.bort.UnknownScrubbingRule
+import com.memfault.bort.settings.LogcatCollectionMode.CONTINUOUS
+import com.memfault.bort.settings.LogcatCollectionMode.PERIODIC
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.shared.LogcatPriority
@@ -58,8 +61,11 @@ class DynamicSettingsProviderTest {
                 SETTINGS_FIXTURE.toSettings().copy(bortMinLogcatLevel = LogLevel.VERBOSE.level) andThen
                 SETTINGS_FIXTURE.toSettings().copy(bortMinLogcatLevel = LogLevel.INFO.level)
         }
+        val dumpsterCapabilities = mockk<DumpsterCapabilities> {
+            every { supportsContinuousLogging() } answers { true }
+        }
 
-        val settings = DynamicSettingsProvider(storedSettingsPreferenceProvider)
+        val settings = DynamicSettingsProvider(storedSettingsPreferenceProvider, dumpsterCapabilities)
 
         // The first call will use the value in resources
         assertEquals(LogLevel.VERBOSE, settings.minLogcatLevel)
@@ -71,6 +77,30 @@ class DynamicSettingsProviderTest {
         // read the new min_log_level from shared preferences
         settings.invalidate()
         assertEquals(LogLevel.INFO, settings.minLogcatLevel)
+    }
+
+    @Test
+    fun dumpsterSupportsContinuousLogging() {
+        val dumpsterCapabilities = mockk<DumpsterCapabilities> {
+            every { supportsContinuousLogging() } answers { true }
+        }
+        val prefProvider = object : ReadonlyFetchedSettingsProvider {
+            override fun get(): FetchedSettings = SETTINGS_FIXTURE.toSettings()
+        }
+        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities)
+        assertEquals(CONTINUOUS, provider.logcatSettings.collectionMode)
+    }
+
+    @Test
+    fun dumpsterDoesNotSupportContinuousLogging() {
+        val dumpsterCapabilities = mockk<DumpsterCapabilities> {
+            every { supportsContinuousLogging() } answers { false }
+        }
+        val prefProvider = object : ReadonlyFetchedSettingsProvider {
+            override fun get(): FetchedSettings = SETTINGS_FIXTURE.toSettings()
+        }
+        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities)
+        assertEquals(PERIODIC, provider.logcatSettings.collectionMode)
     }
 }
 
@@ -161,6 +191,9 @@ internal val EXPECTED_SETTINGS_DEFAULT = FetchedSettings(
         defaultPeriod = 6.hours.boxed(),
         maxBuckets = 1,
     ),
+    logcatCollectionMode = PERIODIC,
+    logcatContinuousDumpThresholdBytes = 25 * 1024 * 1024,
+    logcatContinuousDumpThresholdTime = 15.minutes.boxed(),
     metricsCollectionInterval = 91011.milliseconds.boxed(),
     metricsDataSourceEnabled = false,
     metricsSystemProperties = listOf("ro.build.type"),
@@ -198,6 +231,7 @@ private val EXPECTED_SETTINGS = EXPECTED_SETTINGS_DEFAULT.copy(
     httpApiDeviceConfigInterval = 1.hours.boxed(),
     httpApiZipCompressionLevel = 5,
     httpApiMarUnsampledMaxStoredAge = 5.days.boxed(),
+    logcatCollectionMode = CONTINUOUS,
 )
 
 internal val SETTINGS_FIXTURE = """
@@ -241,10 +275,21 @@ internal val SETTINGS_FIXTURE = """
                 },
                 "drop_box.data_source_enabled": true,
                 "drop_box.excluded_tags": ["TAG1", "TAG2"],
+                "drop_box.scrub_tombstones": false,
                 "drop_box.java_exceptions.rate_limiting_settings": {
                     "default_capacity": 4,
                     "default_period_ms": 900000,
                     "max_buckets": 100
+                },
+                "drop_box.wtfs.rate_limiting_settings": {
+                    "default_capacity": 5,
+                    "default_period_ms": 86400000,
+                    "max_buckets": 10
+                },
+                "drop_box.wtfs_total.rate_limiting_settings": {
+                    "default_capacity": 10,
+                    "default_period_ms": 86400000,
+                    "max_buckets": 1
                 },
                 "drop_box.kmsgs.rate_limiting_settings": {
                     "default_capacity": 10,
@@ -292,6 +337,10 @@ internal val SETTINGS_FIXTURE = """
                     "max_buckets": 1
                 },
                 "logcat.store_unsampled": false,
+                "logcat.collection_mode": "continuous",
+                "logcat.continuous_dump_threshold_bytes": 26214400,
+                "logcat.continuous_dump_threshold_time_ms": 900000,
+                "logcat.continuous_dump_wrapping_timeout_ms": 900000,
                 "metrics.collection_interval_ms": 91011,
                 "metrics.data_source_enabled": false,
                 "metrics.system_properties": ["ro.build.type"],

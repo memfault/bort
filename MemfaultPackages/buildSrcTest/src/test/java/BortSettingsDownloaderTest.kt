@@ -57,9 +57,9 @@ class BortSettingsDownloaderTest {
             "ANDROID_DEVICE_SERIAL_KEY" to "ro.serialno",
             "ANDROID_HARDWARE_VERSION_KEY" to "ro.product.board",
             "DATA_SOURCE_CALIPER_DROP_BOX_TRACES_ENABLED" to "true",
-            "MEMFAULT_API_BASE_URL" to "http://localhost:5000",
-            "MEMFAULT_FILES_BASE_URL" to "http://localhost:5000",
-            "MEMFAULT_INGRESS_BASE_URL" to "http://localhost:5000",
+            "MEMFAULT_API_BASE_URL" to "http://localhost:8000",
+            "MEMFAULT_FILES_BASE_URL" to "http://localhost:8000",
+            "MEMFAULT_INGRESS_BASE_URL" to "http://localhost:8000",
         )
 
         val mockDefaultProperty: (String) -> String? = mockk {

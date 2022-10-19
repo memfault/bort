@@ -1,13 +1,13 @@
 diff --git a/debuggerd/libdebuggerd/test/tombstone_test.cpp b/debuggerd/libdebuggerd/test/tombstone_test.cpp
-index 6be59e7..0620f4b 100644
+index 6be59e7ac..0620f4b34 100644
 --- a/debuggerd/libdebuggerd/test/tombstone_test.cpp
 +++ b/debuggerd/libdebuggerd/test/tombstone_test.cpp
 @@ -15,6 +15,7 @@
   */
- 
+
  #include <stdlib.h>
 +#include <time.h>
- 
+
  #include <memory>
  #include <string>
 @@ -643,3 +644,10 @@ TEST_F(TombstoneTest, dump_header_info) {
@@ -22,13 +22,13 @@ index 6be59e7..0620f4b 100644
 +  ASSERT_STREQ("Timestamp: 1970-01-01 00:00:00+0000\n", amfd_data_.c_str());
 +}
 diff --git a/debuggerd/libdebuggerd/tombstone.cpp b/debuggerd/libdebuggerd/tombstone.cpp
-index b9a0bc7..a3537d5 100644
+index b9a0bc786..a3537d560 100644
 --- a/debuggerd/libdebuggerd/tombstone.cpp
 +++ b/debuggerd/libdebuggerd/tombstone.cpp
 @@ -219,6 +219,15 @@ static void dump_header_info(log_t* log) {
    _LOG(log, logtype::HEADER, "ABI: '%s'\n", ABI_STRING);
  }
- 
+
 +static void dump_timestamp(log_t* log, time_t time) {
 +  struct tm tm;
 +  localtime_r(&time, &tm);
@@ -50,3 +50,27 @@ index b9a0bc7..a3537d5 100644
    dump_thread(log, pid, tid, process_name, threads.find(tid)->second, map, abort_msg_address, true);
    if (want_logs) {
      dump_logs(log, pid, 5);
+diff --git a/liblog/logd_reader.c b/liblog/logd_reader.c
+index 603ba2469..fa147bed1 100644
+--- a/liblog/logd_reader.c
++++ b/liblog/logd_reader.c
+@@ -455,7 +455,9 @@ static ssize_t logdSetPrune(struct android_log_logger_list* logger_list __unused
+   return check_log_success(buf, send_log_msg(NULL, NULL, buf, len));
+ }
+
++static volatile int _signal_caught_here = 0;
+ static void caught_signal(int signum __unused) {
++  _signal_caught_here = 1;
+ }
+
+ static int logdOpen(struct android_log_logger_list* logger_list,
+@@ -614,7 +616,8 @@ static int logdRead(struct android_log_logger_list* logger_list,
+   e = errno;
+
+   if (new_alarm) {
+-    if ((ret == 0) || (e == EINTR)) {
++    if ((ret == 0) || (e == EINTR && _signal_caught_here)) {
++      _signal_caught_here = 0;
+       e = EAGAIN;
+       ret = -1;
+     }

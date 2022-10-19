@@ -14,7 +14,7 @@ import java.io.File
 import javax.inject.Inject
 
 class AnrUploadingEntryProcessorDelegate @Inject constructor(
-    @Anr override val tokenBucketStore: TokenBucketStore,
+    @Anr private val tokenBucketStore: TokenBucketStore,
 ) : UploadingEntryProcessorDelegate {
     override val tags = listOf(
         "data_app_anr",
@@ -23,6 +23,9 @@ class AnrUploadingEntryProcessorDelegate @Inject constructor(
     )
     override val debugTag: String
         get() = "UPLOAD_ANR"
+
+    override fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean =
+        tokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
 
     override suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo = try {
         entryFile.inputStream().use {

@@ -1,11 +1,9 @@
 package com.memfault.bort.metrics
 
-import android.app.usage.StorageStatsManager
 import android.content.Context
-import android.os.storage.StorageManager
+import android.os.Environment
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.Logger
-import java.util.UUID
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -16,19 +14,15 @@ import kotlinx.coroutines.withContext
 class StorageStatsCollector @Inject constructor(
     private val context: Context,
 ) {
-    private val freeBytesMetric = Reporting.report().numberProperty("storage.primary.bytes_free")
-    private val totalBytesMetric = Reporting.report().numberProperty("storage.primary.bytes_total")
-    private val usedBytesMetric = Reporting.report().numberProperty("storage.primary.bytes_used")
-    private val percentageUsedMetric = Reporting.report().numberProperty("storage.primary.percentage_used")
+    private val freeBytesMetric = Reporting.report().numberProperty("storage.data.bytes_free")
+    private val totalBytesMetric = Reporting.report().numberProperty("storage.data.bytes_total")
+    private val usedBytesMetric = Reporting.report().numberProperty("storage.data.bytes_used")
+    private val percentageUsedMetric = Reporting.report().numberProperty("storage.data.percentage_used")
 
     suspend fun collectStorageStats() = withContext(Dispatchers.IO) {
         Logger.v("collectStorageStats")
-        val manager = storageManagerService() ?: return@withContext
-        val stats = storageStatsService() ?: return@withContext
-        val primaryVolume = manager.primaryStorageVolume.uuid?.let { UUID.fromString(it) }
-            ?: StorageManager.UUID_DEFAULT
-        val freeBytes = stats.getFreeBytes(primaryVolume)
-        val totalBytes = stats.getTotalBytes(primaryVolume)
+        val freeBytes = Environment.getDataDirectory().freeSpace
+        val totalBytes = Environment.getDataDirectory().totalSpace
         val usedBytes = totalBytes - freeBytes
         val percentageUsed = usedBytes.toDouble() / totalBytes.toDouble()
         Logger.v(
@@ -40,7 +34,4 @@ class StorageStatsCollector @Inject constructor(
         usedBytesMetric.update(usedBytes)
         percentageUsedMetric.update(percentageUsed)
     }
-
-    private fun storageManagerService() = context.getSystemService(StorageManager::class.java)
-    private fun storageStatsService() = context.getSystemService(StorageStatsManager::class.java)
 }

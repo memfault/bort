@@ -36,6 +36,7 @@ USAGE_REPORTER_APK_PATH = (
 MEMFAULT_DUMPSTATE_RUNNER_PATH = "/system/bin/MemfaultDumpstateRunner"
 MEMFAULT_INIT_RC_PATH = "/etc/init/memfault_init.rc"
 MEMFAULT_DUMPSTER_PATH = "/system/bin/MemfaultDumpster"
+MEMFAULT_DUMPSTER_DATA_PATH = "/data/system/MemfaultDumpster/"
 MEMFAULT_DUMPSTER_RC_PATH = "/etc/init/memfault_dumpster.rc"
 MEMFAULT_STRUCTURED_RC_PATH = "/etc/init/memfault_structured_logd.rc"
 MEMFAULT_STRUCTURED_DATA_PATH = "/data/system/MemfaultStructuredLogd/"
@@ -821,6 +822,18 @@ class ValidateConnectedDevice(Command):
                 owner="root",
                 group="root",
                 secontext="u:object_r:system_file:s0",
+                device=self._device,
+            )
+        )
+
+        self._errors.extend(
+            _check_file_ownership_and_secontext(
+                path=MEMFAULT_DUMPSTER_DATA_PATH,
+                mode="drwx------",
+                owner="root",
+                group="root",
+                secontext="u:object_r:memfault_dumpster_data_file:s0",
+                directory=True,
                 device=self._device,
             )
         )

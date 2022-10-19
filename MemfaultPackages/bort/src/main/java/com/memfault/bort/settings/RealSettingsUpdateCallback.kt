@@ -23,6 +23,7 @@ class SettingsUpdateCallback @Inject constructor(
     private val reporterServiceConnector: ReporterServiceConnector,
     private val dumpsterClient: DumpsterClient,
     private val bortEnabledProvider: BortEnabledProvider,
+    private val continuousLoggingController: ContinuousLoggingController,
 ) {
     suspend fun onSettingsUpdated(
         settingsProvider: SettingsProvider,
@@ -31,6 +32,9 @@ class SettingsUpdateCallback @Inject constructor(
         applyReporterServiceSettings(reporterServiceConnector, settingsProvider, bortEnabledProvider)
 
         dumpsterClient.setStructuredLogEnabled(settingsProvider.structuredLogSettings.dataSourceEnabled)
+
+        Logger.test("logcat.collection_mode=${settingsProvider.logcatSettings.collectionMode}")
+        continuousLoggingController.configureContinuousLogging()
 
         // Pass the new settings to structured logging (after we enable/disable it)
         reloadCustomEventConfigFrom(settingsProvider.structuredLogSettings)

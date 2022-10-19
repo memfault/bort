@@ -1,16 +1,18 @@
 package com.memfault.dumpster;
 
+import android.os.PersistableBundle;
 import com.memfault.dumpster.IDumpsterBasicCommandListener;
 
 interface IDumpster {
     const int VERSION_INITIAL = 1;
     const int VERSION_BORT_ENABLED_PROPERTY = 2;
     const int VERSION_GETPROP_TYPES = 3;
+    const int VERSION_BORT_CONTINUOUS_LOGGING = 4;
 
     /**
      * Current version of the service.
      */
-    const int VERSION = 3;
+    const int VERSION = 4;
 
     /**
     * Gets the version of the MemfaultDumpster service.
@@ -31,6 +33,25 @@ interface IDumpster {
      * @param listener callback that will receive the result of the call.
      */
     oneway void runBasicCommand(int cmdId, IDumpsterBasicCommandListener listener) = 1;
+
+    /**
+     * Starts continuous logging with a set of options. Options are intentionally opaque
+     * so that they can be versioned and augmented. If continuous logging is already
+     * running, the logger is reconfigured with the contents of the bundle.
+     * Version 0:
+     *  - int version (always 0 for this version)
+     *  - List<String> filterSpecs (a list of specs that should be applied to logcat)
+     *  - int dumpThresholdBytes (the size threshold at which logs are dumped via dropbox)
+     *  - long dumpThresholdTimeMs (the time threshold at which logs are dumped via dropbox)
+     *  - long dumpWrappingTimeoutMs (the timeout at which wrapping will be interrupted, causing an immediate collection)
+     */
+    oneway void startContinuousLogging(in PersistableBundle options) = 2;
+
+    /**
+     * Stops continuous logging. If continuous logging is not running at the time of call,
+     * this is a no-op.
+     */
+    oneway void stopContinuousLogging() = 3;
 
     /*
      * Q: if we add methods in the future,

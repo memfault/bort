@@ -19,10 +19,12 @@ fun interface TimeoutConfig : () -> Duration
 fun interface RulesConfig : () -> List<AndroidAppIdScrubbingRule>
 fun interface UploadConstraints : () -> Constraints
 fun interface LogcatCollectionInterval : () -> Duration
+fun interface GetLogcatCollectionMode : () -> LogcatCollectionMode
 fun interface MaxUploadAttempts : () -> Int
 fun interface MaxMarStorageBytes : () -> Long
 fun interface ZipCompressionLevel : () -> Int
 fun interface MarUnsampledMaxStorageAge : () -> Duration
+fun interface DropboxScrubTombstones : () -> Boolean
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -59,6 +61,10 @@ abstract class SettingsModule {
         @Provides
         fun logcatCollectionInterval(settings: SettingsProvider) =
             LogcatCollectionInterval { settings.logcatSettings.collectionInterval }
+
+        @Provides
+        fun logcatCollectionMode(settings: SettingsProvider) =
+            GetLogcatCollectionMode { settings.logcatSettings.collectionMode }
 
         @Provides
         fun constraints(settings: SettingsProvider) = UploadConstraints { settings.httpApiSettings.uploadConstraints }
@@ -108,5 +114,9 @@ abstract class SettingsModule {
         @Provides
         fun maxMarUnsampledAge(settings: SettingsProvider) =
             MarUnsampledMaxStorageAge { settings.httpApiSettings.maxMarUnsampledStoredAge }
+
+        @Provides
+        fun scrubTombstones(settings: SettingsProvider) =
+            DropboxScrubTombstones { settings.dropBoxSettings.scrubTombstones }
     }
 }

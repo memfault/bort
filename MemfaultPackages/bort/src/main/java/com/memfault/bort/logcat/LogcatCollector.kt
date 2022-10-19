@@ -28,6 +28,7 @@ import com.memfault.bort.time.BaseAbsoluteTime
 import java.io.BufferedWriter
 import java.io.File
 import java.io.OutputStream
+import java.security.MessageDigest
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import javax.inject.Inject
@@ -184,7 +185,7 @@ internal fun PackageManagerReport.toAllowedUids(allowList: PackageNameAllowList)
         .mapNotNull { it.userId }
         .toSet()
 
-private fun LogcatLine.scrub(scrubber: DataScrubber, allowedUids: Set<Int>) = copy(
+internal fun LogcatLine.scrub(scrubber: DataScrubber, allowedUids: Set<Int>) = copy(
     message = message?.let { msg ->
         when {
             uid != null && uid >= Process.FIRST_APPLICATION_UID && allowedUids.isNotEmpty() && uid !in allowedUids ->
@@ -194,8 +195,14 @@ private fun LogcatLine.scrub(scrubber: DataScrubber, allowedUids: Set<Int>) = co
     }
 )
 
-private fun LogcatLine.writeTo(writer: BufferedWriter) {
+internal fun LogcatLine.writeTo(writer: BufferedWriter) {
     lineUpToTag?.let { writer.write(it) }
     message?.let { writer.write(it) }
     writer.newLine()
+}
+
+internal fun LogcatLine.update(digest: MessageDigest) {
+    lineUpToTag?.let { digest.update(it.toByteArray()) }
+    message?.let { digest.update(it.toByteArray()) }
+    digest.update('\n'.code.toByte())
 }

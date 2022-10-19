@@ -176,12 +176,7 @@ data class LogcatCommand(
         .filter { (_, value) -> value }
         .map { (flag, _) -> flag }
 
-    private fun filterSpecFlags() = filterSpecs.map {
-        when (it.priority) {
-            null -> it.tag
-            else -> "${it.tag}:${it.priority.cliValue}"
-        }
-    }
+    private fun filterSpecFlags() = filterSpecs.map { it.asFlag() }
 
     private fun formatFlags() = when (format) {
         null -> emptyList()
@@ -404,6 +399,11 @@ data class LogcatFilterSpec(val tag: String = "*", val priority: LogcatPriority?
                 putByte(PRIORITY, priority.id)
             }
         }
+
+    fun asFlag(): String = when (priority) {
+        null -> tag
+        else -> "$tag:${priority.cliValue}"
+    }
 
     companion object {
         fun fromBundle(bundle: Bundle) = with(bundle) {

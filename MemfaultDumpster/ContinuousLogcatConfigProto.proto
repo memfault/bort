@@ -1,0 +1,22 @@
+syntax = "proto2";
+
+package memfault;
+
+message ContinuousLogcatConfigProto {
+  // Whether continuous log is running
+  optional bool started = 1;
+
+  // Logcat filter specs
+  repeated string filter_specs = 2;
+
+  // The size (in bytes) at which logs should be dumped to dropbox
+  optional uint32 dump_threshold_bytes = 3;
+
+  // The elapsed time (in ms) at which logs will be dumped to dropbox
+  optional uint64 dump_threshold_time_ms = 4;
+
+  // The elapsed time after wrapping at which it will be interrupted
+  // and a collection is forced.
+  optional uint64 dump_wrapping_timeout_ms = 5;
+
+}

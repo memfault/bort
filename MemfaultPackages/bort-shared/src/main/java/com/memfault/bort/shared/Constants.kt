@@ -32,3 +32,10 @@ const val DUMPSTER_SERVICE_NAME = "memfault_dumpster"
 const val BASIC_COMMAND_TIMEOUT_MS: Long = 5_000
 
 const val DEFAULT_SETTINGS_ASSET_FILENAME = "settings.json"
+
+const val CONTINUOUS_LOG_CONFIG_VERSION = 1
+const val CONTINUOUS_LOG_VERSION = "version"
+const val CONTINUOUS_LOG_FILTER_SPECS = "filterSpecs"
+const val CONTINUOUS_LOG_DUMP_THRESHOLD_BYTES = "dumpThresholdBytes"
+const val CONTINUOUS_LOG_DUMP_THRESHOLD_TIME_MS = "dumpThresholdTimeMs"
+const val CONTINUOUS_LOG_DUMP_WRAPPING_TIMEOUT_MS = "dumpWrappingTimeoutMs"

@@ -8,6 +8,7 @@ import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.PackageNameAllowList
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.parsers.PackageManagerReport
+import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.settings.RateLimitingSettings
 import com.memfault.bort.shared.LogcatCommand
@@ -27,7 +28,9 @@ import java.io.File
 import java.io.OutputStream
 import java.time.Instant
 import java.time.ZoneOffset
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -102,6 +105,10 @@ class LogcatCollectorTest {
             override val kernelOopsDataSourceEnabled = true
             override val kernelOopsRateLimitingSettings = RateLimitingSettings(0, ZERO.boxed(), 0)
             override val storeUnsampled: Boolean = false
+            override val collectionMode = LogcatCollectionMode.PERIODIC
+            override val continuousLogDumpThresholdBytes: Int = 128 * 1024
+            override val continuousLogDumpThresholdTime: Duration = 30.minutes
+            override val continuousLogDumpWrappingTimeout: Duration = 30.minutes
         }
 
         collector = LogcatCollector(

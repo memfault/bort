@@ -1,3 +1,4 @@
+
 # Allow to set system properties "ctl.start" / "ctl.stop":
 if_sdk_version_gteq(28, `
   set_prop(dumpstate, ctl_start_prop)

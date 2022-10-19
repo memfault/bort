@@ -32,12 +32,16 @@ interface DropBoxSettings {
     val dataSourceEnabled: Boolean
     val anrRateLimitingSettings: RateLimitingSettings
     val javaExceptionsRateLimitingSettings: RateLimitingSettings
+    val wtfsRateLimitingSettings: RateLimitingSettings
+    val wtfsTotalRateLimitingSettings: RateLimitingSettings
     val kmsgsRateLimitingSettings: RateLimitingSettings
     val structuredLogRateLimitingSettings: RateLimitingSettings
     val tombstonesRateLimitingSettings: RateLimitingSettings
     val metricReportRateLimitingSettings: RateLimitingSettings
     val marFileRateLimitingSettings: RateLimitingSettings
+    val continuousLogFileRateLimitingSettings: RateLimitingSettings
     val excludedTags: Set<String>
+    val scrubTombstones: Boolean
 }
 
 interface BatteryStatsSettings {
@@ -62,6 +66,10 @@ interface LogcatSettings {
     val kernelOopsDataSourceEnabled: Boolean
     val kernelOopsRateLimitingSettings: RateLimitingSettings
     val storeUnsampled: Boolean
+    val collectionMode: LogcatCollectionMode
+    val continuousLogDumpThresholdBytes: Int
+    val continuousLogDumpThresholdTime: Duration
+    val continuousLogDumpWrappingTimeout: Duration
 }
 
 interface FileUploadHoldingAreaSettings {

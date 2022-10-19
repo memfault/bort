@@ -26,7 +26,7 @@ interface UploadingEntryProcessorDelegate {
 
     val debugTag: String
 
-    val tokenBucketStore: TokenBucketStore
+    fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean
 
     suspend fun createMetadata(
         entryInfo: EntryInfo,
@@ -39,6 +39,8 @@ interface UploadingEntryProcessorDelegate {
     suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo = EntryInfo(entry.tag)
 
     fun isTraceEntry(entry: DropBoxManager.Entry): Boolean = true
+
+    fun scrub(inputFile: File, tag: String): File = inputFile
 }
 
 data class EntryInfo(
@@ -62,12 +64,6 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
     override val tags: List<String>
         get() = delegate.tags
 
-    private fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean =
-        delegate.tokenBucketStore.edit { map ->
-            val bucket = map.upsertBucket(tokenBucketKey) ?: return@edit false
-            bucket.take(tag = "dropbox_$tag")
-        }
-
     override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
         tempFileFactory.createTemporaryFile(entry.tag, ".txt").useFile { tempFile, preventDeletion ->
             tempFile.outputStream().use { outStream ->
@@ -86,14 +82,16 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
 
             builtinMetricsStore.increment(metricForTraceTag(entry.tag))
 
-            if (!allowedByRateLimit(info.tokenBucketKey, entry.tag)) {
+            if (!delegate.allowedByRateLimit(info.tokenBucketKey, entry.tag)) {
                 return
             }
+
+            val fileToUpload = delegate.scrub(tempFile, entry.tag)
 
             val deviceInfo = deviceInfoProvider.getDeviceInfo()
             val now = bootRelativeTimeProvider.now()
             enqueueUpload.enqueue(
-                tempFile,
+                fileToUpload,
                 DropBoxEntryFileUploadPayload(
                     hardwareVersion = deviceInfo.hardwareVersion,
                     deviceSerial = deviceInfo.deviceSerial,
@@ -120,3 +118,9 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
         }
     }
 }
+
+internal fun TokenBucketStore.allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean =
+    edit { map ->
+        val bucket = map.upsertBucket(tokenBucketKey) ?: return@edit false
+        bucket.take(tag = "dropbox_$tag")
+    }
