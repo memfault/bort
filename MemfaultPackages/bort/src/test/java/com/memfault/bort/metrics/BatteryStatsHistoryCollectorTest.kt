@@ -136,6 +136,36 @@ class BatteryStatsHistoryCollectorTest {
     }
 
     @Test
+    fun historyStartInFutureThenExceedsLimit() {
+        /**
+         * Tests that the collector detects when the historyStart is so "early" that the output limit is exceeded,
+         * adjusts historyStart to (NEXT - limit) and re-runs batterystats:
+         */
+        nextBatteryStatsHistoryStartProvider.historyStart = 1000
+        batteryStatsOutputByHistoryStart = mapOf(
+            1000L to "NEXT: 0",
+            0L to """
+                9,h,0:TIME:123456
+                NEXT: 200000
+            """.trimIndent(),
+            100000L to """
+                9,h,0:TIME:123456
+                NEXT: 100005
+            """.trimIndent()
+        )
+        runBlocking {
+            tempFile = collector.collect(limit = 100.seconds)
+        }
+        coVerifyOrder {
+            mockRunBatteryStats.runBatteryStats(any(), 1000, 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), 0, 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), 100000, 1.minutes)
+        }
+        assertEquals(100005, nextBatteryStatsHistoryStartProvider.historyStart)
+        assertEquals(batteryStatsOutputByHistoryStart[100000], tempFile?.readText())
+    }
+
+    @Test
     fun throwsWhenTooManyAttempts() {
         /**
          * Tests that the collector throws in case it felt like it needed to run batterystats more than twice.

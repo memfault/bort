@@ -74,7 +74,7 @@ class BatteryStatsHistoryCollector @Inject constructor(
         check(limit > LIMIT_GRACE_MARGIN) { "limit too small: $limit" }
 
         var historyStart = initialHistoryStart
-        for (attempts in 1..2) {
+        for (attempts in 1..3) {
             val (hasTime: Boolean, nextHistoryStart: Long?) = runAndParseBatteryStats(
                 batteryStatsFile,
                 historyStart
@@ -86,6 +86,7 @@ class BatteryStatsHistoryCollector @Inject constructor(
                 // the history. This can happen if the history got reset / wiped.
                 check(historyStart != 0L) { "Cursor already reset!" }
                 historyStart = 0
+                nextBatteryStatsHistoryStartProvider.historyStart = 0
                 Logger.logEvent("batterystats", "reset")
                 continue
             }
@@ -99,6 +100,10 @@ class BatteryStatsHistoryCollector @Inject constructor(
                 // The NEXT time indicated we've got more data than the limit allows, run it again with the
                 // --history-start set to (NEXT - limit + margin):
                 historyStart = historyStartLimit
+                Logger.i(
+                    "batterystats historyStart < historyStartComparisonLimit: " +
+                        "nextHistoryStart=$nextHistoryStart historyStartComparisonLimit=$historyStartComparisonLimit"
+                )
                 Logger.logEvent("batterystats", "limit")
                 continue
             }

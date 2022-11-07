@@ -36,8 +36,9 @@ class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
         return if (tag.endsWith("wtf")) {
             // We limit WTFs using both a bucketed (by stacktrace) and total.
             val allowedByBucketed = wtfTokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
-            val allowedByTotal = wtfTotalTokenBucketStore.takeSimple(tag = tag)
-            allowedByBucketed && allowedByTotal
+            // Don't also take from the total bucket if we aren't uploading.
+            if (!allowedByBucketed) return false
+            wtfTotalTokenBucketStore.takeSimple(tag = tag)
         } else {
             javaExceptionTokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
         }

@@ -1,5 +1,13 @@
 # Memfault Bort Changelog
 
+## v4.3.1 - November 7th, 2022
+
+#### :chart_with_upwards_trend: Improvements
+
+- Fixed an issue which could cause batterystats collection to fail after some
+  time-change events.
+- Fixed an issue in WTF on-device rate-limiting.
+
 ## v4.3.0 - October 18th, 2022
 
 #### :rocket: New Features
