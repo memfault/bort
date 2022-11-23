@@ -1,5 +1,12 @@
 # Memfault Bort Changelog
 
+## v4.3.2 - November 22nd, 2022
+
+#### :chart_with_upwards_trend: Improvements
+
+- Fixed an issue where bugreports may fail to be processed by Bort if the Bort
+  OTA app is installed on the device.
+
 ## v4.3.1 - November 7th, 2022
 
 #### :chart_with_upwards_trend: Improvements

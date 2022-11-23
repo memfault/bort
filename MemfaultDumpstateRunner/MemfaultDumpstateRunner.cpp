@@ -244,12 +244,16 @@ uint32_t GetTargetUid(void) {
                    .Build());
     std::string pmOutput;
     android::base::ReadFileToString(tempFile.path, &pmOutput);
-    std::size_t found = pmOutput.rfind(":");
+
+    // The filter in PackageManager is not exact and is implemented using
+    // String.contains(), this patches <bort_package> uid:<uid>
+    const std::string pattern = TARGET_APP_ID " uid:";
+    std::size_t found = pmOutput.rfind(pattern);
     if (found == std::string::npos) {
         ALOGE("Failed to find UID in %s\n", pmOutput.c_str());
         return 0;
     }
-    return std::stoi(pmOutput.substr(found + 1));
+    return std::stoi(pmOutput.substr(found + pattern.size()));
 }
 
 int DumpstateLogScandirFilter(const dirent* de) {
