@@ -1,5 +1,43 @@
 # Memfault Bort Changelog
 
+## v4.4.0 - January 11th, 2022
+
+#### :rocket: New Features
+
+- High-Res Telemetry. Custom Metrics are now shown on timeline in high
+  resolution, in addition to aggregated values.
+  [See documentation](https://docs.memfault.com/docs/android/android-custom-metrics).
+  - Adds new `event` metric type. This will replace Custom Events.
+  - Makes aggregations optional for various metric types.
+  - Changes signature of `aggregations` parameter from `vararg` to `<List>`.
+- New built-in connectivity metrics: `connectivity.type`, `airplane_mode`,
+  `connectivity.validated`, `connectivity.captive_portal`.
+  [See documentation](https://mflt.io/android-builtin-metrics).
+- Support Fleet Sampling when using
+  [client/server mode](https://docs.memfault.com/docs/android/android-multi-device-support).
+
+#### :chart_with_upwards_trend: Improvements
+
+- Fixed the `bort_cli.py` python version check (was using a bad string-basd
+  check).
+- Continuous Logging mode now works on Android 13.
+- Filter `DropBoxManager` intents in UsageReporter - don't wake Bort for unused
+  tags.
+- Fix Custom Metric `MIN`/`MAX` aggregations. These were using a lexicographical
+  sort, which could result in incorrect results.
+- Bypass WTF rate-limiting when Dev Mode is enabled.
+- Flag log uploads containing a kernel oops.
+- Enable `-fstack-protector-all` for MemfaultDumpster to enable easier debugging
+  of crashes.
+- Fixed an issue in Continuous Logging which could cause a parsing failure in
+  frontend (spelling of "beginning").
+- Add collection mode metadata to log uploads.
+- Adjust `mar` file upload jitter to match batching period.
+
+#### :house: Internal
+
+- Migrates Bort internal metrics to use High-Res Telemetry.
+
 ## v4.3.2 - November 22nd, 2022
 
 #### :chart_with_upwards_trend: Improvements

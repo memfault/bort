@@ -74,10 +74,10 @@ internal class MarFileWriterTest {
             override val readTimeout: Duration get() = TODO("Not used")
             override val callTimeout: Duration get() = TODO("Not used")
             override val zipCompressionLevel: Int = 4
-            override val useMarUpload: Boolean get() = TODO("Not used")
+            override suspend fun useMarUpload(): Boolean = TODO("Not used")
             override val batchMarUploads: Boolean get() = TODO("Not used")
             override val batchedMarUploadPeriod: Duration get() = TODO("Not used")
-            override val useDeviceConfig: Boolean get() = TODO("Not used")
+            override suspend fun useDeviceConfig(): Boolean = TODO("Not used")
             override val deviceConfigInterval: Duration get() = TODO("Not used")
             override val maxMarFileSizeBytes: Int get() = 3000 + MAR_SIZE_TOLERANCE_BYTES
             override val maxMarStorageBytes: Long get() = TODO("Not used")

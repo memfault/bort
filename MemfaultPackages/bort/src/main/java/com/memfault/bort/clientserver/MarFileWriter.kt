@@ -14,6 +14,7 @@ import com.memfault.bort.StructuredLogFileUploadPayload
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.addZipEntry
 import com.memfault.bort.clientserver.MarMetadata.BugReportMarMetadata
+import com.memfault.bort.clientserver.MarMetadata.CustomDataRecordingMarMetadata
 import com.memfault.bort.clientserver.MarMetadata.DeviceConfigMarMetadata
 import com.memfault.bort.clientserver.MarMetadata.DropBoxMarMetadata
 import com.memfault.bort.clientserver.MarMetadata.HeartbeatMarMetadata
@@ -26,6 +27,7 @@ import com.memfault.bort.settings.HttpApiSettings
 import com.memfault.bort.settings.Resolution
 import com.memfault.bort.settings.ZipCompressionLevel
 import com.memfault.bort.settings.shouldUpload
+import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.CombinedTime
 import java.io.File
 import java.io.FileOutputStream
@@ -34,6 +36,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 import javax.inject.Inject
+import kotlin.time.Duration
 import kotlinx.serialization.encodeToString
 
 class MarFileWriter @Inject constructor(
@@ -93,6 +96,42 @@ class MarFileWriter @Inject constructor(
                 marFile = marFile,
                 manifest = marManifest,
                 inputFile = null,
+                compressionLevel = zipCompressionLevel(),
+            )
+            preventDeletion()
+            marFile
+        }
+        return MarFileWithManifest(marFile, marManifest)
+    }
+
+    suspend fun createForCustomDataRecording(
+        file: File,
+        startTime: AbsoluteTime,
+        duration: Duration,
+        mimeTypes: List<String>,
+        reason: String,
+        collectionTime: CombinedTime,
+    ): MarFileWithManifest {
+        val marManifest = MarManifest(
+            collectionTime = collectionTime,
+            type = "custom-data-recording",
+            device = device(),
+            metadata = CustomDataRecordingMarMetadata(
+                recordingFileName = file.name,
+                startTime = startTime,
+                durationMs = duration.inWholeMilliseconds,
+                mimeTypes = mimeTypes,
+                reason = reason,
+            ),
+            debuggingResolution = Resolution.NORMAL,
+            loggingResolution = Resolution.NOT_APPLICABLE,
+            monitoringResolution = Resolution.NOT_APPLICABLE,
+        )
+        val marFile = createMarFile().useFile { marFile, preventDeletion ->
+            writeMarFile(
+                marFile = marFile,
+                manifest = marManifest,
+                inputFile = file,
                 compressionLevel = zipCompressionLevel(),
             )
             preventDeletion()
@@ -215,6 +254,8 @@ class MarFileWriter @Inject constructor(
                     command = command,
                     cid = cid,
                     nextCid = nextCid,
+                    containsOops = containsOops,
+                    collectionMode = collectionMode,
                 ),
                 debuggingResolution = debuggingResolution,
                 loggingResolution = loggingResolution,

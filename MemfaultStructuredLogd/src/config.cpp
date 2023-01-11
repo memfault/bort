@@ -15,6 +15,7 @@ static constexpr char kNumEventsBeforeDump[] = "structured_log.num_events_before
 static constexpr char kMaxMessageSizeBytes[] = "structured_log.max_message_size_bytes";
 static constexpr char kMinStorageThresholdBytes[] = "structured_log.min_storage_threshold_bytes";
 static constexpr char kMetricReportEnabled[] = "structured_log.metric_report_enabled";
+static constexpr char kHighResMetricsEnabled[] = "structured_log.high_res_metrics_enabled";
 
 template<typename T>
 static T _get_config_num(rapidjson::Document &document, const std::string &key, T defaultValue) {
@@ -72,6 +73,7 @@ void StoredConfig::_reloadLocked() {
         this->minStorageTreshold = MIN_STORAGE_THRESHOLD_BYTES;
         this->maxMessageSize = MAX_MESSAGE_SIZE_BYTES;
         this->metricReportEnabled = METRIC_REPORTS_ENABLED;
+        this->highResMetricsEnabled = HIGH_RES_METRICS_ENABLED;
     } else {
         ALOGV("Loading config from storage");
         this->rateLimiterConfig = _get_config_rate_limit(configDocument, kRateLimitingSettings,
@@ -85,6 +87,8 @@ void StoredConfig::_reloadLocked() {
                                                MAX_MESSAGE_SIZE_BYTES);
         this->metricReportEnabled = _get_config_bool(configDocument, kMetricReportEnabled,
                                                METRIC_REPORTS_ENABLED);
+        this->highResMetricsEnabled = _get_config_bool(configDocument, kHighResMetricsEnabled,
+                                               HIGH_RES_METRICS_ENABLED);
     }
 }
 
@@ -137,6 +141,11 @@ bool StoredConfig::isMetricReportEnabled() {
 #else
     return metricReportEnabled;
 #endif
+}
+
+bool StoredConfig::isHighResMetricsEnabled() {
+    std::unique_lock<std::mutex> lock(mutex);
+    return highResMetricsEnabled;
 }
 
 }

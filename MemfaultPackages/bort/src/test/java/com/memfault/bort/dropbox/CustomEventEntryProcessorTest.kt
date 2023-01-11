@@ -6,7 +6,6 @@ import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.LogcatCollectionId
 import com.memfault.bort.StructuredLogFileUploadPayload
 import com.memfault.bort.metrics.BuiltinMetricsStore
-import com.memfault.bort.metrics.makeFakeMetricRegistry
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.tokenbucket.MockTokenBucketFactory
 import com.memfault.bort.tokenbucket.MockTokenBucketStorage
@@ -32,11 +31,11 @@ private val STRUCTURED_LOG_TEST_BUCKET_CAPACITY = 3
 
 /**
  * Using robolectric because of a parser dependency in android.util.JsonReader/Writer
- * @see StructuredLogEntryProcessorTest
+ * @see CustomEventEntryProcessorTest
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
-class StructuredLogEntryProcessorTest {
+class CustomEventEntryProcessorTest {
     lateinit var processor: StructuredLogEntryProcessor
     lateinit var mockEnqueueUpload: EnqueueUpload
     lateinit var fileUploadPayloadSlot: CapturingSlot<FileUploadPayload>
@@ -52,7 +51,7 @@ class StructuredLogEntryProcessorTest {
         every {
             mockEnqueueUpload.enqueue(any(), capture(fileUploadPayloadSlot), any(), any())
         } returns Unit
-        builtInMetricsStore = BuiltinMetricsStore(makeFakeMetricRegistry())
+        builtInMetricsStore = BuiltinMetricsStore()
 
         processor = StructuredLogEntryProcessor(
             temporaryFileFactory = TestTemporaryFileFactory,
@@ -100,10 +99,6 @@ class StructuredLogEntryProcessorTest {
             verify(exactly = STRUCTURED_LOG_TEST_BUCKET_CAPACITY) {
                 mockEnqueueUpload.enqueue(any(), any(), any(), any())
             }
-            assert(
-                (runs - STRUCTURED_LOG_TEST_BUCKET_CAPACITY + 1).toFloat()
-                    == builtInMetricsStore.collect("rate_limit_applied_structured")
-            )
         }
     }
 

@@ -6,6 +6,8 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.toErrorIf
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.TemporaryFileFactory
+import com.memfault.bort.parsers.BatteryStatsHistoryMetricLogger
+import com.memfault.bort.parsers.BatteryStatsHistoryParser
 import com.memfault.bort.parsers.BatteryStatsParser
 import com.memfault.bort.parsers.BatteryStatsReport
 import com.memfault.bort.settings.BatteryStatsSettings
@@ -18,6 +20,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonPrimitive
 
 class RunBatteryStats @Inject constructor(
     private val reporterServiceConnector: ReporterServiceConnector,
@@ -46,13 +49,19 @@ class RunBatteryStats @Inject constructor(
     }
 }
 
+data class BatteryStatsResult(
+    val batteryStatsFileToUpload: File?,
+    val aggregatedMetrics: Map<String, JsonPrimitive>,
+)
+
 class BatteryStatsHistoryCollector @Inject constructor(
     private val temporaryFileFactory: TemporaryFileFactory,
     private val nextBatteryStatsHistoryStartProvider: NextBatteryStatsHistoryStartProvider,
     private val runBatteryStats: RunBatteryStats,
     private val settings: BatteryStatsSettings,
+    private val batteryStatsHistoryMetricLogger: BatteryStatsHistoryMetricLogger,
 ) {
-    suspend fun collect(limit: Duration): File {
+    suspend fun collect(limit: Duration): BatteryStatsResult {
         temporaryFileFactory.createTemporaryFile(
             "batterystats", suffix = ".txt"
         ).useFile { batteryStatsFile, preventDeletion ->
@@ -61,15 +70,28 @@ class BatteryStatsHistoryCollector @Inject constructor(
                 limit = limit,
                 batteryStatsFile = batteryStatsFile,
             )
-            preventDeletion()
-            return batteryStatsFile
+
+            if (settings.useHighResTelemetry) {
+                val parser = BatteryStatsHistoryParser(batteryStatsFile, batteryStatsHistoryMetricLogger)
+                parser.parseToCustomMetrics()
+                return BatteryStatsResult(
+                    batteryStatsFileToUpload = null,
+                    aggregatedMetrics = emptyMap(),
+                )
+            } else {
+                preventDeletion()
+                return BatteryStatsResult(
+                    batteryStatsFileToUpload = batteryStatsFile,
+                    aggregatedMetrics = emptyMap(),
+                )
+            }
         }
     }
 
     private suspend fun runBatteryStatsWithLimit(
         initialHistoryStart: Long,
         limit: Duration,
-        batteryStatsFile: File
+        batteryStatsFile: File,
     ): Long {
         check(limit > LIMIT_GRACE_MARGIN) { "limit too small: $limit" }
 
@@ -116,7 +138,7 @@ class BatteryStatsHistoryCollector @Inject constructor(
 
     private suspend fun runAndParseBatteryStats(
         batteryStatsFile: File,
-        historyStart: Long
+        historyStart: Long,
     ): BatteryStatsReport =
         withContext(Dispatchers.IO) {
             batteryStatsFile.outputStream().use {

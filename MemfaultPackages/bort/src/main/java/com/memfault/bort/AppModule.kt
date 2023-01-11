@@ -10,8 +10,6 @@ import com.memfault.bort.ingress.IngressService
 import com.memfault.bort.logcat.KernelOopsDetector
 import com.memfault.bort.logcat.NoopLogcatLineProcessor
 import com.memfault.bort.metrics.BuiltinMetricsStore
-import com.memfault.bort.metrics.DevicePropertiesDb
-import com.memfault.bort.metrics.Metrics
 import com.memfault.bort.settings.BundledConfig
 import com.memfault.bort.settings.DeviceConfigUpdateService
 import com.memfault.bort.settings.SettingsProvider
@@ -24,6 +22,7 @@ import com.memfault.bort.tokenbucket.Anr
 import com.memfault.bort.tokenbucket.BugReportPeriodic
 import com.memfault.bort.tokenbucket.BugReportRequestStore
 import com.memfault.bort.tokenbucket.ContinuousLogFile
+import com.memfault.bort.tokenbucket.HighResMetricsFile
 import com.memfault.bort.tokenbucket.JavaException
 import com.memfault.bort.tokenbucket.KernelOops
 import com.memfault.bort.tokenbucket.Kmsg
@@ -131,13 +130,6 @@ abstract class AppModule {
             context
         )
 
-        @Metrics
-        @Provides
-        fun metricsPharedPrefs(context: Application) = context.getSharedPreferences(
-            METRICS_PREFERENCE_FILE_NAME,
-            Context.MODE_PRIVATE
-        )
-
         @UploadHoldingArea
         @Provides
         fun holdingAreaPharedPrefs(context: Application) = context.getSharedPreferences(
@@ -163,10 +155,6 @@ abstract class AppModule {
         @Provides
         @Main
         fun mainLooper() = Looper.getMainLooper()
-
-        @Provides
-        @Singleton
-        fun devicePropertiesDb(context: Context) = DevicePropertiesDb.create(context)
 
         @Provides
         @Singleton
@@ -443,6 +431,29 @@ abstract class AppModule {
         @Provides
         @IntoSet
         fun bindMetricCollection(@MetricsCollection store: TokenBucketStore): TokenBucketStore = store
+
+        @Provides
+        @Singleton
+        @HighResMetricsFile
+        fun highResMetricsFile(
+            context: Context,
+            settingsProvider: SettingsProvider,
+            metrics: BuiltinMetricsStore,
+        ) = TokenBucketStore(
+            storage = createFor(context, "high_res_metrics"),
+            getMaxBuckets = { 1 },
+            getTokenBucketFactory = {
+                RealTokenBucketFactory(
+                    defaultCapacity = 2,
+                    defaultPeriod = settingsProvider.metricsSettings.collectionInterval / 2,
+                    metrics = metrics,
+                )
+            },
+        )
+
+        @Provides
+        @IntoSet
+        fun bindHighResMetricsFile(@HighResMetricsFile store: TokenBucketStore): TokenBucketStore = store
 
         @Provides
         @Singleton

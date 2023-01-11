@@ -24,7 +24,7 @@ class TemperatureMetricCollector(
         val service = storageManagerService() ?: return
         val temps = service.getDeviceTemperatures(type, TEMPERATURE_CURRENT)
         temps.forEachIndexed { index, value ->
-            report.distribution("temp.${tag}_$index", MIN, MAX, MEAN).record(value.toDouble())
+            report.distribution("temp.${tag}_$index", aggregations = listOf(MIN, MAX, MEAN)).record(value.toDouble())
         }
     }
 

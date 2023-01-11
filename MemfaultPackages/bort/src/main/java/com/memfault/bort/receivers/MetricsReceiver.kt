@@ -18,7 +18,7 @@ class MetricsReceiver : BortEnabledFilteringReceiver(
     override fun onReceivedAndEnabled(context: Context, intent: Intent, action: String) {
         val metric = InternalMetric.fromIntent(intent) ?: return
         Logger.test("internal metric: ${metric.key}")
-        metric.value?.let { metrics.addValue(metric.key, it, metric.synchronous) }
-            ?: metrics.increment(metric.key, metric.synchronous)
+        metric.value?.let { metrics.addValue(metric.key, it.toDouble()) }
+            ?: metrics.increment(metric.key)
     }
 }

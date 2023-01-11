@@ -103,6 +103,7 @@ class ContinuousLogcat {
     size_t total_bytes_written;
     uint64_t last_collection_uptime_ms;
     int output_fd;
+    FILE *output_fp;
     ContinuousLogcatConfig config;
 
     std::unique_ptr<Report> report_;

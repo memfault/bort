@@ -12,6 +12,7 @@ import com.memfault.bort.tokenbucket.MetricReportStore
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
+import java.io.File
 import javax.inject.Inject
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -84,6 +85,11 @@ class MetricReportEntryProcessor @Inject constructor(
         }
     }
 }
+
+data class MetricReportWithHighResFile(
+    val metricReport: MetricReport,
+    val highResFile: File?,
+)
 
 @Serializable
 data class MetricReport(

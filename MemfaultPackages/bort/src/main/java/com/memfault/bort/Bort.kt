@@ -7,6 +7,7 @@ import com.memfault.bort.metrics.BORT_STARTED
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.asLoggerSettings
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.disableAppComponents
 import com.memfault.bort.shared.isPrimaryUser
@@ -23,12 +24,12 @@ open class Bort : Application(), Configuration.Provider {
     @Inject lateinit var settingsProvider: SettingsProvider
     @Inject lateinit var workerFactory: Provider<BortWorkerFactory>
     @Inject lateinit var deviceIdProvider: DeviceIdProvider
+    @Inject lateinit var appUpgrade: AppUpgrade
 
     override fun onCreate() {
         super.onCreate()
 
-        Logger.TAG = "bort"
-        Logger.TAG_TEST = "bort-test"
+        Logger.initTags(tag = "bort", testTag = "bort-test")
 
         if (!isPrimaryUser()) {
             Logger.w("bort disabled for secondary user")
@@ -39,7 +40,7 @@ open class Bort : Application(), Configuration.Provider {
         val defaultExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             // Ensure that the metric is written to disk before the process dies; synchronous = true
-            metrics.increment(BORT_CRASH, synchronous = true)
+            metrics.increment(BORT_CRASH)
             defaultExceptionHandler?.uncaughtException(thread, throwable)
         }
 
@@ -51,16 +52,15 @@ open class Bort : Application(), Configuration.Provider {
             Logger.test("Bort not enabled, not running app")
             return
         }
+
+        appUpgrade.handleUpgrade(this)
     }
 
     private fun logDebugInfo(bortEnabledProvider: BortEnabledProvider, settingsProvider: SettingsProvider) {
         Logger.logEventBortSdkEnabled(bortEnabledProvider.isEnabled())
 
         with(settingsProvider) {
-            Logger.minLogcatLevel = minLogcatLevel
-            Logger.minStructuredLevel = minStructuredLogLevel
-            Logger.eventLogEnabled = this::eventLogEnabled
-            Logger.logToDisk = this::internalLogToDiskEnabled
+            Logger.initSettings(asLoggerSettings())
             Logger.initLogFile(this@Bort)
             Logger.logEvent(
                 "bort-oncreate",

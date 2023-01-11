@@ -17,6 +17,8 @@
 #define STRUCTURED_DUMP_FILE          "/data/system/MemfaultStructuredLogd/dump.json"
 #define STRUCTURED_REPORT_FILE        "/data/system/MemfaultStructuredLogd/report.json"
 
+#define STRUCTURED_HD_REPORT_DROPBOX_TAG "memfault_high_res"
+
 #define SPAMMY_METRIC_LOG_RATE_LIMITER_INITIAL_CAPACITY 1
 #define SPAMMY_METRIC_LOG_RATE_BUCKET_SIZE 5
 #define SPAMMY_METRIC_LOG_RATE_MS_PER_TOKEN 720000

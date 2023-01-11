@@ -12,7 +12,7 @@ class LogcatCommandTest {
             listOf("logcat", "-d", "TAG:D", "*:E"),
             LogcatCommand(
                 filterSpecs = listOf(
-                    LogcatFilterSpec(tag = Logger.TAG, priority = LogcatPriority.DEBUG),
+                    LogcatFilterSpec(tag = Logger.getTag(), priority = LogcatPriority.DEBUG),
                     LogcatFilterSpec(priority = LogcatPriority.ERROR)
                 )
             ).toList()

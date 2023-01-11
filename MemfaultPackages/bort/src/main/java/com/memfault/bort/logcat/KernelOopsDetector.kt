@@ -13,12 +13,12 @@ private const val OOPS_TOKEN_START = "------------[ cut here ]------------"
 
 interface LogcatLineProcessor {
     fun process(line: LogcatLine)
-    fun finish(lastLogTime: BaseAbsoluteTime)
+    fun finish(lastLogTime: BaseAbsoluteTime): Boolean
 }
 
 object NoopLogcatLineProcessor : LogcatLineProcessor {
     override fun process(line: LogcatLine) {}
-    override fun finish(lastLogTime: BaseAbsoluteTime) {}
+    override fun finish(lastLogTime: BaseAbsoluteTime) = false
 }
 
 class KernelOopsDetector @Inject constructor(
@@ -40,9 +40,10 @@ class KernelOopsDetector @Inject constructor(
     /**
      * Called at the end of processing a logcat file
      */
-    override fun finish(lastLogTime: BaseAbsoluteTime) {
-        if (!foundOops) return
-        if (!tokenBucketStore.takeSimple(tag = "oops")) return
+    override fun finish(lastLogTime: BaseAbsoluteTime): Boolean {
+        if (!foundOops) return false
+        if (!tokenBucketStore.takeSimple(tag = "oops")) return false
         handleEventOfInterest.handleEventOfInterest(lastLogTime)
+        return true
     }
 }

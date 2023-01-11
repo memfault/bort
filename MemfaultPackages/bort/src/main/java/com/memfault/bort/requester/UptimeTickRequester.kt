@@ -61,7 +61,7 @@ class UptimeTickRequester @Inject constructor(
         WorkManager.getInstance(context).cancelUniqueWork(UPTIME_UNIQUE_NAME_PERIODIC)
     }
 
-    override fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean = false
+    override suspend fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean = false
 
     companion object {
         private const val UPTIME_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.UPTIME_TICK"

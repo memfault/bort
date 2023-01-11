@@ -8,6 +8,7 @@ import com.github.michaelbull.result.onFailure
 import com.memfault.bort.BortJson
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.ReporterServiceConnector
+import com.memfault.bort.dropbox.DropBoxConfigureFilterSettings
 import com.memfault.bort.reporting.CustomEvent
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.INTENT_ACTION_OTA_SETTINGS_CHANGED
@@ -24,6 +25,7 @@ class SettingsUpdateCallback @Inject constructor(
     private val dumpsterClient: DumpsterClient,
     private val bortEnabledProvider: BortEnabledProvider,
     private val continuousLoggingController: ContinuousLoggingController,
+    private val dropBoxConfigureFilterSettings: DropBoxConfigureFilterSettings,
 ) {
     suspend fun onSettingsUpdated(
         settingsProvider: SettingsProvider,
@@ -42,11 +44,10 @@ class SettingsUpdateCallback @Inject constructor(
         // Update periodic tasks that might have changed after a settings update
         PeriodicRequesterRestartTask.schedule(context, fetchedSettingsUpdate)
 
+        dropBoxConfigureFilterSettings.configureFilterSettings()
+
         with(settingsProvider) {
-            Logger.minLogcatLevel = minLogcatLevel
-            Logger.minStructuredLevel = minStructuredLogLevel
-            Logger.eventLogEnabled = this::eventLogEnabled
-            Logger.logToDisk = this::internalLogToDiskEnabled
+            Logger.initSettings(asLoggerSettings())
             Logger.i("settings.updated", selectSettingsToMap())
         }
 
@@ -108,4 +109,5 @@ private fun StructuredLogSettings.toStructuredLogDaemonSettings(): StructuredLog
         structuredLogNumEventsBeforeDump = numEventsBeforeDump,
         structuredLogRateLimitingSettings = rateLimitingSettings,
         structuredLogMetricReportEnabled = metricsReportEnabled,
+        structuredLogHighResMetricsEnabled = highResMetricsEnabled,
     )

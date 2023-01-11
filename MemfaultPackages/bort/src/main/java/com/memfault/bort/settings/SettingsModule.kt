@@ -10,10 +10,11 @@ import kotlin.time.Duration
 
 fun interface MetricReportEnabled : () -> Boolean
 fun interface StructuredLogEnabled : () -> Boolean
+fun interface HighResMetricsEnabled : () -> Boolean
 fun interface UploadCompressionEnabled : () -> Boolean
 fun interface BatchMarUploads : () -> Boolean
-fun interface UseMarUpload : () -> Boolean
-fun interface UseDeviceConfig : () -> Boolean
+fun interface UseMarUpload : suspend () -> Boolean
+fun interface UseDeviceConfig : suspend () -> Boolean
 fun interface ProjectKey : () -> String
 fun interface TimeoutConfig : () -> Duration
 fun interface RulesConfig : () -> List<AndroidAppIdScrubbingRule>
@@ -48,15 +49,19 @@ abstract class SettingsModule {
 
         @Provides
         fun useMarUpload(settings: SettingsProvider) =
-            UseMarUpload { settings.httpApiSettings.useMarUpload }
+            UseMarUpload { settings.httpApiSettings.useMarUpload() }
 
         @Provides
         fun useDeviceConfig(settings: SettingsProvider) =
-            UseDeviceConfig { settings.httpApiSettings.useDeviceConfig }
+            UseDeviceConfig { settings.httpApiSettings.useDeviceConfig() }
 
         @Provides
         fun structuredLog(settings: SettingsProvider) =
             StructuredLogEnabled { settings.structuredLogSettings.dataSourceEnabled }
+
+        @Provides
+        fun highResMetrics(settings: SettingsProvider) =
+            HighResMetricsEnabled { settings.structuredLogSettings.highResMetricsEnabled }
 
         @Provides
         fun logcatCollectionInterval(settings: SettingsProvider) =
@@ -102,6 +107,9 @@ abstract class SettingsModule {
 
         @Provides
         fun httpApiSettings(settingsProvider: SettingsProvider) = settingsProvider.httpApiSettings
+
+        @Provides
+        fun structuredLogSettings(settingsProvider: SettingsProvider) = settingsProvider.structuredLogSettings
 
         @Provides
         fun maxMarStorage(settings: SettingsProvider) =

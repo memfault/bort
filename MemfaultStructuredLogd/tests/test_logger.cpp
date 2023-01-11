@@ -55,6 +55,10 @@ public:
     bool isMetricReportEnabled() override {
         return METRICS_ENABLED;
     }
+
+    bool isHighResMetricsEnabled() override {
+        return HIGH_RES_METRICS_ENABLED;
+    }
 };
 
 class MockDumper : public Dumper {

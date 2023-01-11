@@ -12,6 +12,10 @@ fun interface CachedClientServerMode {
     suspend fun get(): ClientServerMode
 }
 
+suspend fun CachedClientServerMode.isServer() = get() == ClientServerMode.SERVER
+suspend fun CachedClientServerMode.isClient() = get() == ClientServerMode.CLIENT
+suspend fun CachedClientServerMode.isEnabled() = get() != ClientServerMode.DISABLED
+
 @Singleton
 @ContributesBinding(scope = SingletonComponent::class)
 class RealCachedClientServerMode @Inject constructor(

@@ -24,7 +24,8 @@ const val INTENT_ACTION_OTA_SETTINGS_CHANGED = "com.memfault.intent.action.OTA_S
 const val OTA_RECEIVER_CLASS = "com.memfault.bort.ota.lib.BootCompleteReceiver"
 
 const val CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG = "memfault_file_upload"
-const val CLIENT_SERVER_SETTINGS_UPDATE_DROPBOX_TAG = "memfault_settings_update"
+const val CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG = "memfault_device_config"
+const val CLIENT_SERVER_DEVICE_INFO_DROPBOX_TAG = "memfault_device_info"
 
 // Keep in sync with DUMPSTER_SERVICE_NAME in MemfaultDumpster.cpp!
 const val DUMPSTER_SERVICE_NAME = "memfault_dumpster"

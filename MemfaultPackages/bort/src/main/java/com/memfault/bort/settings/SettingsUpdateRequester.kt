@@ -6,6 +6,8 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.memfault.bort.BortSystemCapabilities
+import com.memfault.bort.clientserver.CachedClientServerMode
+import com.memfault.bort.clientserver.isClient
 import com.memfault.bort.periodicWorkRequest
 import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.shared.JitterDelayProvider
@@ -65,13 +67,16 @@ class SettingsUpdateRequester @Inject constructor(
     private val settings: SettingsProvider,
     private val jitterDelayProvider: JitterDelayProvider,
     private val bortSystemCapabilities: BortSystemCapabilities,
+    private val cachedClientServerMode: CachedClientServerMode,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         restartSetttingsUpdate(delayAfterSettingsUpdate = settingsChanged)
     }
 
-    fun restartSetttingsUpdate(delayAfterSettingsUpdate: Boolean) {
+    suspend fun restartSetttingsUpdate(delayAfterSettingsUpdate: Boolean) {
         if (!bortSystemCapabilities.supportsDynamicSettings()) return
+        // Client does not fetch settings - server will forward them.
+        if (cachedClientServerMode.isClient()) return
 
         restartPeriodicSettingsUpdate(
             context = context,
@@ -87,14 +92,14 @@ class SettingsUpdateRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
+    override suspend fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
         old.sdkSettingsUpdateInterval() != new.sdkSettingsUpdateInterval()
 }
 
 /**
  * Get the correct update interval, based on which endpoint is enabled.
  */
-private fun SettingsProvider.sdkSettingsUpdateInterval(): Duration = when (httpApiSettings.useDeviceConfig) {
+private suspend fun SettingsProvider.sdkSettingsUpdateInterval(): Duration = when (httpApiSettings.useDeviceConfig()) {
     true -> httpApiSettings.deviceConfigInterval
     false -> settingsUpdateInterval
 }

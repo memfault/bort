@@ -10,8 +10,6 @@ import com.memfault.bort.PackageNameAllowList
 import com.memfault.bort.TombstoneFileUploadMetadata
 import com.memfault.bort.logcat.FakeNextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
-import com.memfault.bort.metrics.makeFakeMetricRegistry
-import com.memfault.bort.metrics.metricForTraceTag
 import com.memfault.bort.parsers.EXAMPLE_NATIVE_BACKTRACE
 import com.memfault.bort.parsers.EXAMPLE_TOMBSTONE
 import com.memfault.bort.parsers.Package
@@ -32,7 +30,6 @@ import io.mockk.slot
 import io.mockk.verify
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -63,7 +60,7 @@ class TombstoneEntryProcessorTest {
         } returns Unit
 
         mockPackageManagerClient = mockk()
-        builtInMetricsStore = BuiltinMetricsStore(makeFakeMetricRegistry())
+        builtInMetricsStore = BuiltinMetricsStore()
         mockPackageNameAllowList = mockk {
             every { contains(any()) } returns true
         }
@@ -141,51 +138,9 @@ class TombstoneEntryProcessorTest {
                 processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "SYSTEM_TOMBSTONE"))
             }
             verify(exactly = TEST_BUCKET_CAPACITY) { mockEnqueueUpload.enqueue(any(), any(), any(), any()) }
-
-            // Check that dropped items are counted correctly
-            assert(
-                (runs - TEST_BUCKET_CAPACITY + 1).toFloat()
-                    == builtInMetricsStore.collect("rate_limit_applied_dropbox_SYSTEM_TOMBSTONE")
-            )
             verify(exactly = TEST_BUCKET_CAPACITY) {
                 mockHandleEventOfInterest.handleEventOfInterest(any<BaseBootRelativeTime>())
             }
-        }
-    }
-
-    @Test
-    fun testMetricEntryCounting() {
-        coEvery {
-            mockPackageManagerClient.findPackagesByProcessName(any())
-        } returns PACKAGE_FIXTURE
-
-        runBlocking {
-            val processTags = mapOf(
-                "TEST_TAG_1" to 10,
-                "TEST_TAG_2" to 5,
-                "TEST_TAG_3" to 3,
-            )
-
-            processTags.forEach { (tag, count) ->
-                repeat(count) {
-                    processor.process(mockEntry(text = EXAMPLE_NATIVE_BACKTRACE, tag_ = tag))
-                }
-            }
-
-            val expectedMap = processTags
-                .map { (tag, count) ->
-                    metricForTraceTag(tag) to JsonPrimitive(count.toFloat())
-                }
-                .toMap()
-
-            // Check that it contains all expected keys, it might (and does) contain at least another
-            // key regarding rate limiting.
-            assert(
-                builtInMetricsStore
-                    .collectMetrics()
-                    .entries
-                    .containsAll(expectedMap.entries)
-            )
         }
     }
 

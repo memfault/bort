@@ -1,6 +1,5 @@
 package com.memfault.bort.clientserver
 
-import com.memfault.bort.DEV_MODE_DISABLED
 import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.clientserver.MarFileWriterTest.Companion.FILE_CONTENT
 import com.memfault.bort.settings.CurrentSamplingConfig
@@ -336,7 +335,6 @@ class MarFileHoldingAreaTest {
         combinedTimeProvider = combinedTimeProvider,
         maxMarStorageBytes = { maxMarStorageBytes },
         marMaxUnsampledAge = { maxMarUnsampledAge },
-        devMode = DEV_MODE_DISABLED,
     )
 
     private fun assertMarFileInHoldingArea(

@@ -111,10 +111,6 @@ dependencies {
     implementation deps.okhttp
     implementation deps.okio
 
-    implementation deps.room.runtime
-    kapt deps.room.compiler
-    implementation deps.room.ktx
-
     implementation deps.jblake2
 
     implementation deps.dagger.hilt

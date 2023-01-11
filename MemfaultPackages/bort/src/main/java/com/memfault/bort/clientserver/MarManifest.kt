@@ -4,6 +4,7 @@ import com.memfault.bort.BugReportFileUploadPayload.ProcessingOptions
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.LogcatCollectionId
 import com.memfault.bort.TimezoneWithId
+import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.Resolution
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.CombinedTime
@@ -61,6 +62,21 @@ sealed class MarMetadata {
     ) : MarMetadata()
 
     @Serializable
+    @SerialName("custom-data-recording")
+    data class CustomDataRecordingMarMetadata(
+        @SerialName("recording_file_name")
+        val recordingFileName: String,
+        @SerialName("start_time")
+        val startTime: AbsoluteTime,
+        @SerialName("duration_ms")
+        val durationMs: Long,
+        @SerialName("mimetypes")
+        val mimeTypes: List<String>,
+        @SerialName("reason")
+        val reason: String,
+    ) : MarMetadata()
+
+    @Serializable
     @SerialName("android-bugreport")
     data class BugReportMarMetadata(
         @SerialName("bug_report_file_name")
@@ -101,6 +117,10 @@ sealed class MarMetadata {
         val cid: LogcatCollectionId,
         @SerialName("next_cid")
         val nextCid: LogcatCollectionId,
+        @SerialName("contains_oops")
+        val containsOops: Boolean? = null,
+        @SerialName("collection_mode")
+        val collectionMode: LogcatCollectionMode? = null,
     ) : MarMetadata()
 
     @Serializable

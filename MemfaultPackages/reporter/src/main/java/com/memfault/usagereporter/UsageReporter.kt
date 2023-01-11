@@ -7,20 +7,35 @@ import android.os.DropBoxManager
 import androidx.preference.PreferenceManager
 import com.memfault.bort.shared.BuildConfigSdkVersionInfo
 import com.memfault.bort.shared.ClientServerMode
+import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.LoggerSettings
 import com.memfault.bort.shared.disableAppComponents
 import com.memfault.bort.shared.isPrimaryUser
 import com.memfault.usagereporter.clientserver.B2BClientServer
 import com.memfault.usagereporter.clientserver.B2BClientServer.Companion.create
 import com.memfault.usagereporter.metrics.ReporterMetrics
+import com.memfault.usagereporter.receivers.ConnectivityReceiver
 import com.memfault.usagereporter.receivers.DropBoxEntryAddedForwardingReceiver
 
 class UsageReporter : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        Logger.TAG = "mflt-report"
-        Logger.TAG_TEST = "mflt-report-test"
+        // Reads a previously-set log level
+        val preferenceManager = PreferenceManager.getDefaultSharedPreferences(this)
+        val minLogcatLevel = RealLogLevelPreferenceProvider(preferenceManager).getLogLevel()
+
+        Logger.initTags(tag = "mflt-report", testTag = "mflt-report-test")
+        Logger.initSettings(
+            LoggerSettings(
+                eventLogEnabled = true,
+                logToDisk = false,
+                minLogcatLevel = minLogcatLevel,
+                minStructuredLevel = LogLevel.INFO,
+                hrtEnabled = false,
+            )
+        )
 
         if (!isPrimaryUser()) {
             Logger.w("reporter disabled for secondary user")
@@ -28,15 +43,11 @@ class UsageReporter : Application() {
             System.exit(0)
         }
 
-        // Reads a previously-set log level
-        val preferenceManager = PreferenceManager.getDefaultSharedPreferences(this)
-        Logger.minLogcatLevel = RealLogLevelPreferenceProvider(preferenceManager).getLogLevel()
-
         with(BuildConfigSdkVersionInfo) {
             Logger.v(
                 """
                 |Settings:
-                |  minLogLevel=${Logger.minLogcatLevel}
+                |  minLogLevel=$minLogcatLevel
                 |  build=${Build.TYPE}
                 |SDK Version Info:
                 |  appVersionName=$appVersionName
@@ -50,9 +61,10 @@ class UsageReporter : Application() {
         }
 
         registerReceiver(
-            DropBoxEntryAddedForwardingReceiver(),
+            DropBoxEntryAddedForwardingReceiver(RealDropBoxFilterSettingsProvider(preferenceManager)),
             IntentFilter(DropBoxManager.ACTION_DROPBOX_ENTRY_ADDED)
         )
+        ConnectivityReceiver().register(this)
 
         val sysProp = SystemPropertiesProxy.get(ClientServerMode.SYSTEM_PROP)
         val clientServerMode = ClientServerMode.decode(sysProp)

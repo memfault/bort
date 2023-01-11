@@ -28,5 +28,6 @@ ifeq ($(TARGET_BUILD_BORT_UNDER_TEST),1)
     PRODUCT_PACKAGES += structured-client-example-c \
                         structured-client-example-cpp \
                         reporting-client-example-cpp \
-                        reporting-client-example-c
+                        reporting-client-example-c \
+                        MemfaultStructuredLogdTests
 endif

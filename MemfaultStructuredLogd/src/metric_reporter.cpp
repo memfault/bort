@@ -4,6 +4,7 @@
 #include "rapidjson/stringbuffer.h"
 #include "rapidjson/writer.h"
 #include "log.h"
+#include "hd_metric_producer.h"
 
 using namespace rapidjson;
 
@@ -97,51 +98,48 @@ static const std::string formatReport(const Report &report) {
 }
 
 void StoredReporter::finishReport(uint8_t version, const std::string &type, int64_t timestamp, bool startNextReport) {
-    auto report = storage->finishReport(version, type, timestamp, startNextReport);
+    HdReportWriter hdWriter(hdMetricDumpPath.c_str());
+    bool startedWriting = false;
+    auto report = storage->finishReport(version, type, timestamp, startNextReport,
+                                        config->isHighResMetricsEnabled(),
+                                        [&](const ReportMetadata &reportMetadata) {
+                                            hdWriter.writePreamble(reportMetadata);
+                                            startedWriting = true;
+    },
+                                        [&](const MetricDetailedView &view) {
+        hdWriter.startRollup(view.getMetadata());
+        const std::string &dataType = view.getMetadata().dataType;
+        view.forEachDatum([&](const MetricDatum &datum) {
+            hdWriter.writeDatum(dataType, datum);
+        });
+        hdWriter.endRollup();
+    });
+    if (startedWriting) {
+        hdWriter.writeFooter();
+    }
+
     if (report != nullptr) {
-        handleReport(*report, formatReport(*report));
+        handleReport(*report, formatReport(*report), config->isHighResMetricsEnabled() ? &hdMetricDumpPath : nullptr);
     }
 }
 
 void StoredReporter::addValue(uint8_t version, const std::string &type, int64_t timestamp, const std::string &eventName,
-                              bool internal, const std::vector<std::string> &aggregationTypes, const std::string &value,
-                              MetricValueType valueType) {
+                              bool internal, uint64_t aggregationTypes, const std::string &value,
+                              MetricValueType valueType, const std::string &dataType, const std::string &metricType,
+                              bool carryOver) {
     storage->storeMetricValue(
             version,
             type,
             timestamp,
             eventName,
             internal,
-            parseAggregationTypes(aggregationTypes),
+            aggregationTypes,
             value,
-            valueType
+            valueType,
+            dataType,
+            metricType,
+            carryOver
     );
-}
-
-uint64_t StoredReporter::parseAggregationTypes(const std::vector<std::string> &aggregationTypes) {
-    static const std::unordered_map<std::string, MetricAggregationType> aggregationTypeMappings {
-            { "MIN", NUMERIC_MIN },
-            { "MAX", NUMERIC_MAX },
-            { "SUM", NUMERIC_SUM },
-            { "MEAN", NUMERIC_MEAN },
-            { "COUNT", NUMERIC_COUNT },
-            { "TIME_TOTALS", STATE_TIME_TOTALS },
-            { "TIME_PER_HOUR", STATE_TIME_PER_HOUR },
-            { "LATEST_VALUE", STATE_LATEST_VALUE },
-    };
-
-    uint64_t result = 0;
-    for (auto &it : aggregationTypes) {
-        auto mappedType = aggregationTypeMappings.find(it);
-        if (mappedType != aggregationTypeMappings.end()) {
-            result |= mappedType->second;
-        } else {
-            if (spammyLogRateLimiter->take(1)) {
-                ALOGW("Invalid metric aggregation type: %s", it.c_str());
-            }
-        }
-    }
-    return result;
 }
 
 }

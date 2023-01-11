@@ -53,6 +53,7 @@ class TokenBucket(
         feed(tag = tag)
         return if (count < n) {
             metrics.increment("${RATE_LIMIT_APPLIED}_$tag")
+            Logger.test("Rate-limit applied: $tag")
             false
         } else true.also {
             _count -= n

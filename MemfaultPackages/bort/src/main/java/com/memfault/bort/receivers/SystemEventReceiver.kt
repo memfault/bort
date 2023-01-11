@@ -16,6 +16,8 @@ import com.memfault.bort.RealLastTrackedBootCountProvider
 import com.memfault.bort.RealLastTrackedLinuxBootIdProvider
 import com.memfault.bort.RebootEventUploader
 import com.memfault.bort.ReporterServiceConnector
+import com.memfault.bort.clientserver.ClientDeviceInfoSender
+import com.memfault.bort.dropbox.DropBoxConfigureFilterSettings
 import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
 import com.memfault.bort.logcat.handleTimeChanged
@@ -55,6 +57,8 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
     @Inject lateinit var readLinuxBootId: LinuxBootId
     @Inject lateinit var dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider
     @Inject lateinit var continuousLoggingController: ContinuousLoggingController
+    @Inject lateinit var dropBoxConfigureFilterSettings: DropBoxConfigureFilterSettings
+    @Inject lateinit var clientDeviceInfoSender: ClientDeviceInfoSender
 
     private fun onPackageReplaced() {
         goAsync {
@@ -84,6 +88,7 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
             dumpsterClient.setStructuredLogEnabled(settingsProvider.structuredLogSettings.dataSourceEnabled)
             // Pass the new settings to structured logging (after we enable/disable it)
             reloadCustomEventConfigFrom(settingsProvider.structuredLogSettings)
+            clientDeviceInfoSender.maybeSendDeviceInfoToServer()
 
             applyReporterServiceSettings(
                 reporterServiceConnector,
@@ -92,6 +97,7 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
             )
 
             continuousLoggingController.configureContinuousLogging()
+            dropBoxConfigureFilterSettings.configureFilterSettings()
 
             if (settingsProvider.rebootEventsSettings.dataSourceEnabled &&
                 bortSystemCapabilities.supportsRebootEvents()

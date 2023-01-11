@@ -9,7 +9,9 @@
 
 namespace structured {
 
-typedef std::function<void(const Report &, const std::string &reportJson)> ReportHandler;
+#define STRUCTURED_HD_METRIC_DUMP_PATH_DEFAULT "/data/system/MemfaultStructuredLogd/hd_report.json"
+
+typedef std::function<void(const Report &, const std::string &reportJson, const std::string *hdReportPath)> ReportHandler;
 
 class Reporter {
 public:
@@ -21,9 +23,12 @@ public:
             int64_t timestamp,
             const std::string &eventName,
             bool internal,
-            const std::vector<std::string> &aggregationTypes,
+            uint64_t aggregationTypes,
             const std::string &value,
-            MetricValueType valueType
+            MetricValueType valueType,
+            const std::string &dataType,
+            const std::string &metricType,
+            bool carryOver
     ) = 0;
 };
 
@@ -31,9 +36,12 @@ class StoredReporter : public Reporter {
 public:
     explicit StoredReporter(
             std::shared_ptr<StorageBackend> &storage,
+            std::shared_ptr<Config> &config,
             ReportHandler handleReport,
-            std::unique_ptr<TokenBucketRateLimiter> spammyLogRateLimiter
-    ) : storage(storage), handleReport(std::move(handleReport)), spammyLogRateLimiter(std::move(spammyLogRateLimiter)) {}
+            std::unique_ptr<TokenBucketRateLimiter> spammyLogRateLimiter,
+            std::string hdMetricDumpPath = STRUCTURED_HD_METRIC_DUMP_PATH_DEFAULT
+    ) : storage(storage), config(config), handleReport(std::move(handleReport)),
+        spammyLogRateLimiter(std::move(spammyLogRateLimiter)), hdMetricDumpPath(std::move(hdMetricDumpPath)) {}
     ~StoredReporter() override {}
 
     void finishReport(uint8_t version, const std::string &type, int64_t timestamp, bool startNextReport) override;
@@ -43,16 +51,19 @@ public:
             int64_t timestamp,
             const std::string &eventName,
             bool internal,
-            const std::vector<std::string> &aggregationTypes,
+            uint64_t aggregationTypes,
             const std::string &value,
-            MetricValueType valueType
+            MetricValueType valueType,
+            const std::string &dataType,
+            const std::string &metricType,
+            bool carryOver
     ) override;
 private:
     std::shared_ptr<StorageBackend> storage;
+    std::shared_ptr<Config> config;
     const ReportHandler handleReport;
     std::unique_ptr<TokenBucketRateLimiter> spammyLogRateLimiter;
-
-    uint64_t parseAggregationTypes(const std::vector<std::string> &vector);
+    const std::string hdMetricDumpPath;
 };
 
 }

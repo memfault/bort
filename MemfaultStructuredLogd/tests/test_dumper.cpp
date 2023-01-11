@@ -14,12 +14,18 @@
 
 using namespace structured;
 
+#ifdef __ANDROID__
+#define TMP_PATH_PREFIX "/data/local/tmp/"
+#else
+#define TMP_PATH_PREFIX
+#endif
+
 namespace {
 
 TEST(DumperTest, DumpingGetsCalledForEachBootId) {
-    char tmpDb[] = {"dumper-db-XXXXXX"};
+    char tmpDb[] = {TMP_PATH_PREFIX "dumper-db-XXXXXX"};
     mkstemp(tmpDb);
-    char tmpFile[] = {"dumper-test-XXXXXX"};
+    char tmpFile[] = {TMP_PATH_PREFIX "dumper-test-XXXXXX"};
     mkstemp(tmpFile);
     {
         Sqlite3StorageBackend backend(tmpDb, "boot-1");
@@ -75,9 +81,9 @@ TEST(DumperTest, DumpingGetsCalledForEachBootId) {
 }
 
 TEST(DumperTest, DumpingGetsNumberOfEvents) {
-    char tmpDb[] = {"dumper-db-XXXXXX"};
+    char tmpDb[] = {TMP_PATH_PREFIX "dumper-db-XXXXXX"};
     mkstemp(tmpDb);
-    char tmpFile[] = {"dumper-test-XXXXXX"};
+    char tmpFile[] = {TMP_PATH_PREFIX "dumper-test-XXXXXX"};
     mkstemp(tmpFile);
 
     {
@@ -102,6 +108,9 @@ TEST(DumperTest, DumpingGetsNumberOfEvents) {
         dumper->terminate();
         dumperThread.join();
     }
+
+    unlink(tmpDb);
+    unlink(tmpFile);
 }
 
 }

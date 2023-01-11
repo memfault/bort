@@ -41,10 +41,13 @@ LOCAL_SRC_FILES := testrunner.cpp $(call all-cpp-files-under, tests)
 LOCAL_C_INCLUDES := $(LOCAL_PATH)/src $(LOCAL_PATH)/deps/rapidjson-1.1.0/include $(LOCAL_PATH)/deps/sqlite_modern_cpp-3.2/hdr/
 LOCAL_MODULE_TAGS := tests
 LOCAL_CFLAGS := -Wall -Werror -Wextra -Wno-unused-parameter -fexceptions
+ifeq ($(TARGET_BUILD_BORT_UNDER_TEST),1)
+LOCAL_CFLAGS += -DBORT_UNDER_TEST
+endif
 LOCAL_CLANG := true
 LOCAL_SHARED_LIBRARIES := libbase libbinder liblog libservices libsqlite libutils
-LOCAL_STATIC_LIBRARIES := libstructured libgmock
-include $(BUILD_NATIVE_TEST)
+LOCAL_STATIC_LIBRARIES := libgmock_main libgmock libgtest libstructured
+include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libstructuredaidl

@@ -86,7 +86,7 @@ class LogcatCollectionRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
+    override suspend fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
         old.logcatSettings.dataSourceEnabled != new.logcatSettings.dataSourceEnabled ||
             old.logcatSettings.collectionInterval != new.logcatSettings.collectionInterval ||
             old.logcatSettings.collectionMode != new.logcatSettings.collectionMode

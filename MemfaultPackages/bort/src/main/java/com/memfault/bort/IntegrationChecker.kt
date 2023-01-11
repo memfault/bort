@@ -4,14 +4,16 @@ import android.content.Context
 import com.memfault.bort.metrics.DevicePropertiesStore
 import com.memfault.bort.shared.Logger
 import javax.inject.Inject
+import kotlinx.serialization.json.JsonPrimitive
 
 class IntegrationChecker @Inject constructor(
     private val context: Context,
     private val devicePropertiesStore: DevicePropertiesStore,
 ) {
-    suspend fun checkIntegrationAndReport() {
+    fun checkIntegrationAndReport(): Map<String, JsonPrimitive> {
         val valid = isSeContextValid()
-        devicePropertiesStore.upsert(name = "se_context_valid", value = valid, internal = true)
+        devicePropertiesStore.upsert(name = METRIC_NAME, value = valid, internal = true)
+        return mapOf(METRIC_NAME to JsonPrimitive(valid))
     }
 
     private fun isSeContextValid(): Boolean {
@@ -28,5 +30,9 @@ class IntegrationChecker @Inject constructor(
             Logger.w("Error checking Bort secontext", e)
             return false
         }
+    }
+
+    companion object {
+        private const val METRIC_NAME = "se_context_valid"
     }
 }

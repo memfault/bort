@@ -2,12 +2,17 @@ package com.memfault.bort.settings
 
 import androidx.work.Data
 import com.memfault.bort.DeviceInfoProvider
-import com.memfault.bort.SOFTWARE_TYPE
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
+import com.memfault.bort.TemporaryFileFactory
+import com.memfault.bort.clientserver.CachedClientServerMode
+import com.memfault.bort.clientserver.ClientDeviceInfoPreferenceProvider
+import com.memfault.bort.clientserver.LinkedDeviceFileSender
+import com.memfault.bort.clientserver.isServer
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.settings.FetchedDeviceConfigContainer.Companion.asSamplingConfig
+import com.memfault.bort.shared.CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG
 import com.memfault.bort.shared.Logger
 import javax.inject.Inject
 import kotlinx.serialization.SerializationException
@@ -21,6 +26,10 @@ class SettingsUpdateTask @Inject constructor(
     private val useDeviceConfig: UseDeviceConfig,
     private val deviceConfigUpdateService: DeviceConfigUpdateService,
     private val samplingConfig: CurrentSamplingConfig,
+    private val cachedClientServerMode: CachedClientServerMode,
+    private val linkedDeviceFileSender: LinkedDeviceFileSender,
+    private val temporaryFileFactory: TemporaryFileFactory,
+    private val clientDeviceInfoPreferenceProvider: ClientDeviceInfoPreferenceProvider,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
 
@@ -29,22 +38,11 @@ class SettingsUpdateTask @Inject constructor(
             val deviceInfo = deviceInfoProvider.getDeviceInfo()
             if (useDeviceConfig()) {
                 val deviceConfig = deviceConfigUpdateService.deviceConfig(
-                    DeviceConfigUpdateService.DeviceConfigArgs(
-                        DeviceConfigUpdateService.DeviceInfo(
-                            deviceSerial = deviceInfo.deviceSerial,
-                            hardwareVersion = deviceInfo.hardwareVersion,
-                            softwareType = SOFTWARE_TYPE,
-                            softwareVersion = deviceInfo.softwareVersion,
-                        )
-                    )
+                    DeviceConfigUpdateService.DeviceConfigArgs(deviceInfo.asDeviceConfigInfo())
                 )
-                // All parts of the response are technically optional
-                deviceConfig.memfault?.bort?.sdkSettings?.let {
-                    settingsUpdateHandler.handleSettingsUpdate(it)
-                }
-                deviceConfig.memfault?.sampling?.let {
-                    samplingConfig.update(it.asSamplingConfig(deviceConfig.revision))
-                }
+                deviceConfig.handleUpdate(settingsUpdateHandler, samplingConfig)
+
+                maybeFetchDeviceConfigForClientDevice()
             } else {
                 val new = settingsUpdateService.settings(
                     deviceInfo.deviceSerial,
@@ -64,6 +62,40 @@ class SettingsUpdateTask @Inject constructor(
         }
     }
 
+    private suspend fun maybeFetchDeviceConfigForClientDevice() {
+        if (!cachedClientServerMode.isServer()) return
+
+        val clientDeviceInfo = clientDeviceInfoPreferenceProvider.get()
+        if (clientDeviceInfo == null) {
+            Logger.d("clientDeviceConfig not set")
+            return
+        }
+
+        Logger.d("Additionally fetching for client: $clientDeviceInfo")
+        val clientDeviceConfig = deviceConfigUpdateService.deviceConfig(
+            DeviceConfigUpdateService.DeviceConfigArgs(clientDeviceInfo)
+        )
+
+        // Forward settings to client device.
+        temporaryFileFactory.createTemporaryFile("deviceconfig", "json").useFile { file, preventDeletion ->
+            preventDeletion()
+            file.writeText(clientDeviceConfig.toJson())
+            linkedDeviceFileSender.sendFileToLinkedDevice(file, CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG)
+        }
+    }
+
     override fun convertAndValidateInputData(inputData: Data) {
+    }
+}
+
+suspend fun DecodedDeviceConfig.handleUpdate(
+    settingsUpdateHandler: SettingsUpdateHandler,
+    samplingConfig: CurrentSamplingConfig,
+) {
+    memfault?.bort?.sdkSettings?.let {
+        settingsUpdateHandler.handleSettingsUpdate(it)
+    }
+    memfault?.sampling?.let {
+        samplingConfig.update(it.asSamplingConfig(revision))
     }
 }

@@ -9,7 +9,7 @@ import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.fileExt.md5Hex
 import com.memfault.bort.metrics.BuiltinMetricsStore
-import com.memfault.bort.settings.LogcatCollectionMode
+import com.memfault.bort.settings.LogcatCollectionMode.PERIODIC
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.Logcat
@@ -34,7 +34,7 @@ class LogcatCollectionTask @Inject constructor(
     override fun convertAndValidateInputData(inputData: Data) = Unit
 
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult {
-        if (logcatSettings.collectionMode != LogcatCollectionMode.PERIODIC) {
+        if (logcatSettings.collectionMode != PERIODIC) {
             return TaskResult.SUCCESS
         }
 
@@ -67,6 +67,8 @@ class LogcatCollectionTask @Inject constructor(
                     command = result.command.toList(),
                     cid = result.cid,
                     nextCid = result.nextCid,
+                    containsOops = result.containsOops,
+                    collectionMode = PERIODIC,
                 ),
                 file = result.file,
                 debugTag = DEBUG_TAG,

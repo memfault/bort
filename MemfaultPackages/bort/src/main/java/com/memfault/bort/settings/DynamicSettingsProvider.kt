@@ -2,7 +2,10 @@ package com.memfault.bort.settings
 
 import com.memfault.bort.BuildConfig
 import com.memfault.bort.DataScrubbingRule
+import com.memfault.bort.DevMode
 import com.memfault.bort.DumpsterCapabilities
+import com.memfault.bort.clientserver.CachedClientServerMode
+import com.memfault.bort.clientserver.isEnabled
 import com.memfault.bort.settings.LogcatCollectionMode.PERIODIC
 import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.BuildConfig as SharedBuildConfig
@@ -22,12 +25,16 @@ import kotlin.time.Duration
  * A SettingsProvider that reads from the prefetched settings file in
  * the assets folder or from a shared preferences entry that contains
  * remotely fetched settings.
+ *
+ * Any settings overrides based on other settings, or e.g. dev mode should ideally be done here.
  */
 @Singleton
 @ContributesBinding(scope = SingletonComponent::class)
 open class DynamicSettingsProvider @Inject constructor(
     private val storedSettingsPreferenceProvider: ReadonlyFetchedSettingsProvider,
     private val dumpsterCapabilities: DumpsterCapabilities,
+    private val cachedClientServerMode: CachedClientServerMode,
+    private val devMode: DevMode,
 ) : SettingsProvider {
     @Transient
     private val settingsCache = CachedProperty {
@@ -76,14 +83,17 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.httpApiCallTimeout.duration
         override val zipCompressionLevel: Int
             get() = settings.httpApiZipCompressionLevel
-        override val useMarUpload: Boolean
-            get() = settings.httpApiUseMarUpload
+        // Mar is mandatory for client/server mode (on both server and client).
+        override suspend fun useMarUpload(): Boolean =
+            cachedClientServerMode.isEnabled() || settings.httpApiUseMarUpload
         override val batchMarUploads: Boolean
-            get() = settings.httpApiBatchMarUploads
+            get() = settings.httpApiBatchMarUploads && !devMode.isEnabled()
         override val batchedMarUploadPeriod: Duration
             get() = settings.httpApiBatchedMarUploadPeriod.duration
-        override val useDeviceConfig: Boolean
-            get() = settings.httpApiUseDeviceConfig
+        // TODO also true if fleet sampling enabled, but we don't know that
+        // Only device config is supported in client/server mode.
+        override suspend fun useDeviceConfig(): Boolean =
+            cachedClientServerMode.isEnabled() || settings.httpApiUseDeviceConfig
         override val deviceConfigInterval: Duration
             get() = settings.httpApiDeviceConfigInterval.duration
         override val maxMarFileSizeBytes: Int
@@ -168,6 +178,9 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.batteryStatsDataSourceEnabled
         override val commandTimeout: Duration
             get() = settings.batteryStatsCommandTimeout.duration
+        override val useHighResTelemetry: Boolean
+            get() = false // Disabled for 4.4.0 release, as this feature is not complete.
+        // settings.highResTelemetryEnabled && settings.batteryStatsUseHrt
     }
 
     override val logcatSettings = object : LogcatSettings {
@@ -236,6 +249,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.structuredLogMinStorageThresholdBytes
         override val metricsReportEnabled: Boolean
             get() = settings.metricReportEnabled
+        override val highResMetricsEnabled: Boolean
+            get() = settings.highResTelemetryEnabled
     }
 
     override val otaSettings = object : OtaSettings {

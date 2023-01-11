@@ -65,7 +65,7 @@ class DynamicSettingsProviderTest {
             every { supportsContinuousLogging() } answers { true }
         }
 
-        val settings = DynamicSettingsProvider(storedSettingsPreferenceProvider, dumpsterCapabilities)
+        val settings = DynamicSettingsProvider(storedSettingsPreferenceProvider, dumpsterCapabilities, mockk(), mockk())
 
         // The first call will use the value in resources
         assertEquals(LogLevel.VERBOSE, settings.minLogcatLevel)
@@ -87,7 +87,7 @@ class DynamicSettingsProviderTest {
         val prefProvider = object : ReadonlyFetchedSettingsProvider {
             override fun get(): FetchedSettings = SETTINGS_FIXTURE.toSettings()
         }
-        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities)
+        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities, mockk(), mockk())
         assertEquals(CONTINUOUS, provider.logcatSettings.collectionMode)
     }
 
@@ -99,7 +99,7 @@ class DynamicSettingsProviderTest {
         val prefProvider = object : ReadonlyFetchedSettingsProvider {
             override fun get(): FetchedSettings = SETTINGS_FIXTURE.toSettings()
         }
-        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities)
+        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities, mockk(), mockk())
         assertEquals(PERIODIC, provider.logcatSettings.collectionMode)
     }
 }

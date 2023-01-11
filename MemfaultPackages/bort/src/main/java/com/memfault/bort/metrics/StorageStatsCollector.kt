@@ -2,6 +2,7 @@ package com.memfault.bort.metrics
 
 import android.content.Context
 import android.os.Environment
+import com.memfault.bort.reporting.NumericAgg
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.Logger
 import javax.inject.Inject
@@ -14,10 +15,14 @@ import kotlinx.coroutines.withContext
 class StorageStatsCollector @Inject constructor(
     private val context: Context,
 ) {
-    private val freeBytesMetric = Reporting.report().numberProperty("storage.data.bytes_free")
-    private val totalBytesMetric = Reporting.report().numberProperty("storage.data.bytes_total")
-    private val usedBytesMetric = Reporting.report().numberProperty("storage.data.bytes_used")
-    private val percentageUsedMetric = Reporting.report().numberProperty("storage.data.percentage_used")
+    private val freeBytesMetric =
+        Reporting.report().distribution("storage.data.bytes_free", listOf(NumericAgg.LATEST_VALUE))
+    private val totalBytesMetric =
+        Reporting.report().distribution("storage.data.bytes_total", listOf(NumericAgg.LATEST_VALUE))
+    private val usedBytesMetric =
+        Reporting.report().distribution("storage.data.bytes_used", listOf(NumericAgg.LATEST_VALUE))
+    private val percentageUsedMetric =
+        Reporting.report().distribution("storage.data.percentage_used", listOf(NumericAgg.LATEST_VALUE))
 
     suspend fun collectStorageStats() = withContext(Dispatchers.IO) {
         Logger.v("collectStorageStats")
@@ -29,9 +34,9 @@ class StorageStatsCollector @Inject constructor(
             "collectStorageStats: freeBytes=$freeBytes / totalBytes=$totalBytes / " +
                 "usedBytes=$usedBytes / percentageUsed=$percentageUsed"
         )
-        freeBytesMetric.update(freeBytes)
-        totalBytesMetric.update(totalBytes)
-        usedBytesMetric.update(usedBytes)
-        percentageUsedMetric.update(percentageUsed)
+        freeBytesMetric.record(freeBytes)
+        totalBytesMetric.record(totalBytes)
+        usedBytesMetric.record(usedBytes)
+        percentageUsedMetric.record(percentageUsed)
     }
 }

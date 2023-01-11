@@ -16,6 +16,7 @@ import com.memfault.bort.logcat.toAllowedUids
 import com.memfault.bort.logcat.update
 import com.memfault.bort.logcat.writeTo
 import com.memfault.bort.parsers.toLogcatLines
+import com.memfault.bort.settings.LogcatCollectionMode.CONTINUOUS
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.shared.LogcatCommand
 import com.memfault.bort.shared.LogcatFormat
@@ -117,7 +118,7 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
             return
         }
 
-        kernelOopsDetector.finish(AbsoluteTime(metadata.timeEnd.plusNanos(1)))
+        val containsOops = kernelOopsDetector.finish(AbsoluteTime(metadata.timeEnd.plusNanos(1)))
 
         val (cid, nextCid) = nextLogcatCidProvider.rotate()
 
@@ -146,6 +147,8 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
                 command = continuousLogcatCommand.toList(),
                 cid = cid,
                 nextCid = nextCid,
+                containsOops = containsOops,
+                collectionMode = CONTINUOUS,
             ),
             file = metadata.file,
             debugTag = DEBUG_TAG

@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.work.BackoffPolicy
 import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.Payload
-import com.memfault.bort.clientserver.CachedClientServerMode
 import com.memfault.bort.clientserver.MarFileHoldingArea
+import com.memfault.bort.clientserver.MarFileWithManifest
 import com.memfault.bort.clientserver.MarFileWriter
 import com.memfault.bort.enqueueWorkOnce
 import com.memfault.bort.fileExt.deleteSilently
@@ -14,8 +14,8 @@ import com.memfault.bort.ingress.RebootEvent
 import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.UploadConstraints
 import com.memfault.bort.settings.UseMarUpload
-import com.memfault.bort.shared.ClientServerMode
 import com.memfault.bort.shared.JitterDelayProvider
+import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.CombinedTime
 import java.io.File
 import javax.inject.Inject
@@ -38,18 +38,30 @@ class EnqueueUpload @Inject constructor(
     private val enqueuePreparedUploadTask: EnqueuePreparedUploadTask,
     private val useMarUpload: UseMarUpload,
     private val marHoldingArea: MarFileHoldingArea,
-    private val cachedClientServerMode: CachedClientServerMode,
     private val currentSamplingConfig: CurrentSamplingConfig,
 ) {
     fun enqueue(rebootEvent: RebootEvent, rebootTime: CombinedTime) {
         CoroutineScope(Dispatchers.IO).launch {
-            if (useMarFile()) {
+            if (useMarUpload()) {
                 val mar = marFileWriter.createForReboot(rebootEvent, rebootTime)
                 marHoldingArea.addMarFile(mar)
             } else {
                 ingressService.uploadRebootEvents(listOf(rebootEvent)).execute()
             }
         }
+    }
+
+    /**
+     * Enqueue a file which can only be uploaded as a mar.
+     */
+    suspend fun enqueueMar(
+        mar: MarFileWithManifest,
+    ) {
+        if (!useMarUpload()) {
+            Logger.w("mar disabled; not uploading $mar")
+            return
+        }
+        marHoldingArea.addMarFile(mar)
     }
 
     /**
@@ -64,7 +76,7 @@ class EnqueueUpload @Inject constructor(
         shouldCompress: Boolean = true,
     ) {
         CoroutineScope(Dispatchers.IO).launch {
-            if (useMarFile()) {
+            if (useMarUpload()) {
                 val mar = marFileWriter.createForFile(file, metadata, collectionTime)
                 file.deleteSilently()
                 marHoldingArea.addMarFile(mar)
@@ -78,6 +90,7 @@ class EnqueueUpload @Inject constructor(
                         continuation = continuation,
                         shouldCompress = shouldCompress,
                         debugTag = debugTag,
+                        applyJitter = true,
                     )
                 } else {
                     file.deleteSilently()
@@ -85,10 +98,6 @@ class EnqueueUpload @Inject constructor(
             }
         }
     }
-
-    private suspend fun useMarFile() = isClientServerClient() || useMarUpload()
-
-    private suspend fun isClientServerClient() = cachedClientServerMode.get() == ClientServerMode.CLIENT
 }
 
 /**
@@ -105,12 +114,15 @@ class EnqueuePreparedUploadTask @Inject constructor(
         debugTag: String,
         continuation: FileUploadContinuation?,
         shouldCompress: Boolean,
+        applyJitter: Boolean,
     ) {
         enqueueWorkOnce<FileUploadTask>(
             context,
             FileUploadTaskInput(file, metadata, continuation, shouldCompress).toWorkerInputData()
         ) {
-            setInitialDelay(jitterDelayProvider.randomJitterDelay())
+            if (applyJitter) {
+                setInitialDelay(jitterDelayProvider.randomJitterDelay())
+            }
             setConstraints(constraints())
             setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())
             addTag(debugTag)

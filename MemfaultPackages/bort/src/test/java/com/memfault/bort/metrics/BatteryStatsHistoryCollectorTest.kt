@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.parsers.BatteryStatsHistoryMetricLogger
 import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import io.mockk.coEvery
@@ -29,6 +30,7 @@ class BatteryStatsHistoryCollectorTest {
     lateinit var mockRunBatteryStats: RunBatteryStats
     lateinit var batteryStatsOutputByHistoryStart: Map<Long, String>
     var tempFile: File? = null
+    private val batteryStatsHistoryMetricLogger: BatteryStatsHistoryMetricLogger = mockk(relaxed = true)
 
     @BeforeEach
     fun setUp() {
@@ -49,12 +51,14 @@ class BatteryStatsHistoryCollectorTest {
         val settings = object : BatteryStatsSettings {
             override val dataSourceEnabled = true
             override val commandTimeout = 1.minutes
+            override val useHighResTelemetry: Boolean = false
         }
         collector = BatteryStatsHistoryCollector(
             TestTemporaryFileFactory,
             nextBatteryStatsHistoryStartProvider,
             mockRunBatteryStats,
             settings,
+            batteryStatsHistoryMetricLogger,
         )
     }
 
@@ -73,7 +77,7 @@ class BatteryStatsHistoryCollectorTest {
             """.trimIndent(),
         )
         runBlocking {
-            tempFile = collector.collect(limit = 100.seconds)
+            tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
         }
         coVerifyOrder {
             mockRunBatteryStats.runBatteryStats(any(), 1000, 1.minutes)
@@ -97,7 +101,7 @@ class BatteryStatsHistoryCollectorTest {
             """.trimIndent()
         )
         runBlocking {
-            tempFile = collector.collect(limit = 1.hours)
+            tempFile = collector.collect(limit = 1.hours).batteryStatsFileToUpload
         }
         coVerifyOrder {
             mockRunBatteryStats.runBatteryStats(any(), 1000, 1.minutes)
@@ -125,7 +129,7 @@ class BatteryStatsHistoryCollectorTest {
             """.trimIndent()
         )
         runBlocking {
-            tempFile = collector.collect(limit = 100.seconds)
+            tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
         }
         coVerifyOrder {
             mockRunBatteryStats.runBatteryStats(any(), 1000, 1.minutes)
@@ -154,7 +158,7 @@ class BatteryStatsHistoryCollectorTest {
             """.trimIndent()
         )
         runBlocking {
-            tempFile = collector.collect(limit = 100.seconds)
+            tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
         }
         coVerifyOrder {
             mockRunBatteryStats.runBatteryStats(any(), 1000, 1.minutes)
@@ -180,7 +184,7 @@ class BatteryStatsHistoryCollectorTest {
         )
         assertThrows<Exception> {
             runBlocking {
-                tempFile = collector.collect(limit = 100.seconds)
+                tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
             }
         }
     }

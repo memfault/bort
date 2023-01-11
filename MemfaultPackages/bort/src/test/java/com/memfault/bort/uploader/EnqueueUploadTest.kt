@@ -3,7 +3,6 @@ package com.memfault.bort.uploader
 import android.content.Context
 import com.memfault.bort.BugReportFileUploadPayload
 import com.memfault.bort.FakeCombinedTimeProvider
-import com.memfault.bort.clientserver.CachedClientServerMode
 import com.memfault.bort.clientserver.MarDevice
 import com.memfault.bort.clientserver.MarFileHoldingArea
 import com.memfault.bort.clientserver.MarFileWithManifest
@@ -27,7 +26,6 @@ import retrofit2.Call
 
 internal class EnqueueUploadTest {
     private var clientServerMode: ClientServerMode = ClientServerMode.DISABLED
-    private val cachedClientServerMode = CachedClientServerMode { clientServerMode }
     private val marFile = File("fakepath")
     private val testFile = File("fakemarpath")
     private val marDevice = MarDevice(
@@ -68,7 +66,6 @@ internal class EnqueueUploadTest {
         context = context,
         marFileWriter = marFileWriter,
         ingressService = ingressService,
-        cachedClientServerMode = cachedClientServerMode,
         enqueuePreparedUploadTask = enqueuePreparedUploadTask,
         useMarUpload = { useMarUpload },
         marHoldingArea = marHoldingArea,
@@ -125,7 +122,7 @@ internal class EnqueueUploadTest {
 
     private fun verifySent(mar: Boolean, preparedUpload: Boolean) {
         coVerify(exactly = preparedUpload.times(), timeout = TIMEOUT_MS) {
-            enqueuePreparedUploadTask.upload(testFile, any(), any(), any(), any())
+            enqueuePreparedUploadTask.upload(testFile, any(), any(), any(), any(), any())
         }
         coVerify(exactly = mar.times(), timeout = TIMEOUT_MS) {
             marHoldingArea.addMarFile(marAndManifest)

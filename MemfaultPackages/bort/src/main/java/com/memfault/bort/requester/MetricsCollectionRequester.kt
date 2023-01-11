@@ -85,7 +85,7 @@ class MetricsCollectionRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
+    override suspend fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
         old.metricsSettings.dataSourceEnabled != new.metricsSettings.dataSourceEnabled ||
             old.metricsSettings.collectionInterval != new.metricsSettings.collectionInterval
 }

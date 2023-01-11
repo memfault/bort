@@ -20,7 +20,6 @@ import com.memfault.bort.shared.isPrimaryUser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 open class App : Application(), UpdaterProvider {
@@ -31,8 +30,7 @@ open class App : Application(), UpdaterProvider {
     override fun onCreate() {
         super.onCreate()
 
-        Logger.TAG = "bort-ota"
-        Logger.TAG_TEST = "bort-ota-test"
+        Logger.initTags(tag = "bort-ota", testTag = "bort-ota-test")
 
         if (!isPrimaryUser()) {
             Logger.w("bort-ota disabled for secondary user")

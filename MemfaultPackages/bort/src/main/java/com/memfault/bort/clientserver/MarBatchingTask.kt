@@ -35,6 +35,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
+import kotlin.time.toKotlinDuration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -59,6 +60,8 @@ class MarBatchingTask @Inject constructor(
                 debugTag = UPLOAD_TAG_MAR,
                 continuation = null,
                 shouldCompress = false,
+                // Jitter was applied when batching - don't apply again for the upload.
+                applyJitter = false,
             )
         }
         TaskResult.SUCCESS
@@ -135,11 +138,15 @@ class PeriodicMarUploadRequester @Inject constructor(
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         if (!httpApiSettings.batchMarUploads) return
 
+        // Jitter is based on the mar batching period.
+        val maxJitterDelay = httpApiSettings.batchedMarUploadPeriod.toJavaDuration()
+        val jitter: Duration
         val bootDelay = if (justBooted) 5.minutes else ZERO
+        jitter = bootDelay + jitterDelayProvider.randomJitterDelay(maxDelay = maxJitterDelay).toKotlinDuration()
         MarBatchingTask.schedulePeriodicMarBatching(
             context = context,
             period = httpApiSettings.batchedMarUploadPeriod,
-            initialDelay = bootDelay,
+            initialDelay = jitter,
         )
     }
 
@@ -147,8 +154,8 @@ class PeriodicMarUploadRequester @Inject constructor(
         MarBatchingTask.cancelPeriodic(context)
     }
 
-    override fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
-        old.httpApiSettings.useMarUpload != new.httpApiSettings.useMarUpload ||
+    override suspend fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
+        old.httpApiSettings.useMarUpload() != new.httpApiSettings.useMarUpload() ||
             old.httpApiSettings.batchMarUploads != new.httpApiSettings.batchMarUploads ||
             old.httpApiSettings.batchedMarUploadPeriod != new.httpApiSettings.batchedMarUploadPeriod
 }

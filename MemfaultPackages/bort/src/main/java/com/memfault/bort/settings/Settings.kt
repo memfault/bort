@@ -6,6 +6,7 @@ import com.memfault.bort.DataScrubbingRule
 import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatFilterSpec
+import com.memfault.bort.shared.LoggerSettings
 import com.memfault.bort.shared.SdkVersionInfo
 import kotlin.time.Duration
 
@@ -47,6 +48,7 @@ interface DropBoxSettings {
 interface BatteryStatsSettings {
     val dataSourceEnabled: Boolean
     val commandTimeout: Duration
+    val useHighResTelemetry: Boolean
 }
 
 interface MetricsSettings {
@@ -95,10 +97,10 @@ interface HttpApiSettings {
     val readTimeout: Duration
     val callTimeout: Duration
     val zipCompressionLevel: Int
-    val useMarUpload: Boolean
+    suspend fun useMarUpload(): Boolean
     val batchMarUploads: Boolean
     val batchedMarUploadPeriod: Duration
-    val useDeviceConfig: Boolean
+    suspend fun useDeviceConfig(): Boolean
     val deviceConfigInterval: Duration
     val maxMarFileSizeBytes: Int
     val maxMarStorageBytes: Long
@@ -126,6 +128,7 @@ interface StructuredLogSettings {
     val maxMessageSizeBytes: Long
     val minStorageThresholdBytes: Long
     val metricsReportEnabled: Boolean
+    val highResMetricsEnabled: Boolean
 }
 
 interface OtaSettings {
@@ -204,6 +207,14 @@ fun SettingsProvider.selectSettingsToMap(): Map<String, Any> = mapOf(
     "BatteryStats Settings" to mapOf(
         "dataSourceEnabled" to batteryStatsSettings.dataSourceEnabled,
     ),
+)
+
+fun SettingsProvider.asLoggerSettings(): LoggerSettings = LoggerSettings(
+    eventLogEnabled = eventLogEnabled,
+    logToDisk = internalLogToDiskEnabled,
+    minLogcatLevel = minLogcatLevel,
+    minStructuredLevel = minStructuredLogLevel,
+    hrtEnabled = structuredLogSettings.highResMetricsEnabled,
 )
 
 interface BortEnabledProvider {

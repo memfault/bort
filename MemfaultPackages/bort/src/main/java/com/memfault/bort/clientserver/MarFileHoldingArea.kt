@@ -1,7 +1,6 @@
 package com.memfault.bort.clientserver
 
 import android.content.Context
-import com.memfault.bort.DevMode
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.MarFileSampledHoldingDir
 import com.memfault.bort.Payload
@@ -53,7 +52,6 @@ class MarFileHoldingArea @Inject constructor(
     private val combinedTimeProvider: CombinedTimeProvider,
     private val maxMarStorageBytes: MaxMarStorageBytes,
     private val marMaxUnsampledAge: MarUnsampledMaxStorageAge,
-    private val devMode: DevMode,
 ) {
     // Note: coroutine mutex is not re-entrant!
     private val mutex = Mutex()
@@ -91,7 +89,7 @@ class MarFileHoldingArea @Inject constructor(
 
     private suspend fun addSampledMarFileDirectlyInternal(file: File) {
         // If dev mode is enabled, don't batch mar files (let them upload individually, immediately).
-        if (batchMarUploads() && !devMode.isEnabled()) {
+        if (batchMarUploads()) {
             // Periodic task will batch+upload mar files, if we are batching.
             file.renameTo(File(sampledHoldingDirectory, file.name))
             // Whenever a mar file is added (to either sampled or sampled) we check whether we are over the storage
@@ -106,7 +104,7 @@ class MarFileHoldingArea @Inject constructor(
 
     private suspend fun addSampledMarFile(mar: MarFileWithManifest) {
         // Sampled: upload now.
-        if (isClientServerClient()) {
+        if (cachedClientServerMode.isClient()) {
             linkedDeviceFileSender.sendFileToLinkedDevice(mar.marFile, CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG)
         } else {
             addSampledMarFileDirectlyInternal(mar.marFile)
@@ -208,8 +206,6 @@ class MarFileHoldingArea @Inject constructor(
         val unsampledLimit = limitBytes - sampledHoldingDirectory.directorySize()
         unsampledHoldingArea.cleanup(unsampledLimit, maxUnsampledAge)
     }
-
-    private suspend fun isClientServerClient() = cachedClientServerMode.get() == ClientServerMode.CLIENT
 }
 
 class OneTimeMarUpload @Inject constructor(
@@ -225,6 +221,7 @@ class OneTimeMarUpload @Inject constructor(
             debugTag = MarBatchingTask.UPLOAD_TAG_MAR,
             continuation = null,
             shouldCompress = false,
+            applyJitter = true,
         )
     }
 

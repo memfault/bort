@@ -1,5 +1,6 @@
 package com.memfault.bort
 
+import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.Resolution
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
@@ -199,6 +200,12 @@ data class LogcatFileUploadPayload(
 
     @SerialName("next_cid")
     val nextCid: LogcatCollectionId,
+
+    @SerialName("contains_oops")
+    val containsOops: Boolean? = null,
+
+    @SerialName("collection_mode")
+    val collectionMode: LogcatCollectionMode? = null,
 
     /**
      * These values are only used when passing between [FileUploadHoldingArea] and [MarFileWriter], so are not required

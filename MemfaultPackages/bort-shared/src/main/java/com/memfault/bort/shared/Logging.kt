@@ -6,7 +6,7 @@ import android.util.EventLog
 import android.util.Log
 import com.memfault.bort.internal.ILogger
 import com.memfault.bort.reporting.CustomEvent
-import com.memfault.bort.reporting.CustomEvent.timestamp
+import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.LogLevel.Companion.tag
 import java.io.File
 import java.text.SimpleDateFormat
@@ -45,31 +45,47 @@ enum class LogLevel(val level: Int) {
     }
 }
 
+/**
+ * SDK settings used by Logger (note that we cannot reference SettingsProvider from here).
+ */
+data class LoggerSettings(
+    val eventLogEnabled: Boolean,
+    val logToDisk: Boolean,
+    val minLogcatLevel: LogLevel,
+    val minStructuredLevel: LogLevel,
+    val hrtEnabled: Boolean,
+)
+
 object Logger {
-    @JvmStatic
-    var TAG = "TAG"
-
-    @JvmStatic
-    var TAG_TEST = "TAG_TEST"
-
-    @JvmStatic
-    var eventLogEnabled: () -> Boolean = { true }
-
-    @JvmStatic
-    var logToDisk: () -> Boolean = { false }
-
+    private var TAG = "TAG"
+    private var TAG_TEST = "TAG_TEST"
+    private var settings: LoggerSettings = LoggerSettings(
+        eventLogEnabled = true,
+        logToDisk = false,
+        minLogcatLevel = LogLevel.NONE,
+        minStructuredLevel = LogLevel.NONE,
+        hrtEnabled = false,
+    )
     /**
      * All uses of logFile should be holding [logFileLock].
      */
     private var logFile: File? = null
-
     private var logFileLock = Mutex()
 
-    @JvmStatic
-    var minLogcatLevel: LogLevel = LogLevel.NONE
+    fun initSettings(settings: LoggerSettings) {
+        this.settings = settings
+    }
 
-    @JvmStatic
-    var minStructuredLevel: LogLevel = LogLevel.NONE
+    fun initTags(tag: String, testTag: String = "TAG_TEST") {
+        TAG = tag
+        TAG_TEST = testTag
+    }
+
+    fun getTag(): String = TAG
+
+    fun updateMinLogcatLevel(level: LogLevel) {
+        settings = settings.copy(minLogcatLevel = level)
+    }
 
     fun initLogFile(context: Context) = CoroutineScope(Dispatchers.IO).launch {
         logFileLock.withLock {
@@ -90,7 +106,7 @@ object Logger {
     }
 
     @JvmStatic
-    fun e(tag: String, payload: Map<String, Any>, t: Throwable? = null) = structuredLog(
+    fun e(tag: String, payload: Map<String, Any>, t: Throwable? = null) = writeEvent(
         LogLevel.ERROR,
         tag,
         payload,
@@ -105,7 +121,7 @@ object Logger {
     )
 
     @JvmStatic
-    fun w(tag: String, payload: Map<String, Any>, t: Throwable? = null) = structuredLog(
+    fun w(tag: String, payload: Map<String, Any>, t: Throwable? = null) = writeEvent(
         LogLevel.WARN,
         tag,
         payload,
@@ -120,7 +136,7 @@ object Logger {
     )
 
     @JvmStatic
-    fun i(tag: String, payload: Map<String, Any>, t: Throwable? = null) = structuredLog(
+    fun i(tag: String, payload: Map<String, Any>, t: Throwable? = null) = writeEvent(
         LogLevel.INFO,
         tag,
         payload,
@@ -135,7 +151,7 @@ object Logger {
     )
 
     @JvmStatic
-    fun d(tag: String, payload: Map<String, Any>, t: Throwable? = null) = structuredLog(
+    fun d(tag: String, payload: Map<String, Any>, t: Throwable? = null) = writeEvent(
         LogLevel.DEBUG,
         tag,
         payload,
@@ -150,7 +166,7 @@ object Logger {
     )
 
     @JvmStatic
-    fun v(tag: String, payload: Map<String, Any>, t: Throwable? = null) = structuredLog(
+    fun v(tag: String, payload: Map<String, Any>, t: Throwable? = null) = writeEvent(
         LogLevel.VERBOSE,
         tag,
         payload,
@@ -165,7 +181,7 @@ object Logger {
     )
 
     @JvmStatic
-    fun test(tag: String, payload: Map<String, Any>, t: Throwable? = null) = structuredLog(
+    fun test(tag: String, payload: Map<String, Any>, t: Throwable? = null) = writeEvent(
         LogLevel.TEST,
         tag,
         payload,
@@ -181,7 +197,7 @@ object Logger {
         )
 
     private fun logcat(level: LogLevel, message: String, t: Throwable? = null) {
-        if (logToDisk()) {
+        if (settings.logToDisk) {
             CoroutineScope(Dispatchers.IO).launch {
                 logFileLock.withLock {
                     logFile?.let { file ->
@@ -191,7 +207,7 @@ object Logger {
                 }
             }
         }
-        if (level > minLogcatLevel) return
+        if (level > settings.minLogcatLevel) return
         when (level) {
             LogLevel.ERROR -> Log.e(TAG, message, t)
             LogLevel.WARN -> Log.w(TAG, message, t)
@@ -211,30 +227,45 @@ object Logger {
         appendText("$timestamp $process-$thread ${level.tag()}/$TAG: $message$throwable\n")
     }
 
-    private fun structuredLog(level: LogLevel, tag: String, payload: Map<String, Any>, t: Throwable? = null) {
+    private fun writeEvent(level: LogLevel, tag: String, payload: Map<String, Any>, t: Throwable? = null) {
         logcat(level, "$tag: $payload", t)
-        if (level > minStructuredLevel) return
+        if (level > settings.minStructuredLevel) return
         val jsonObject = JSONObject(payload)
         // Add any throwable stacktrace as an array, so that we can see the first few lines in the log popup.
         t?.let { jsonObject.put("throwable", JSONArray(it.stackTraceToString().lines().take(5))) }
         // Don't crash if we were passed invalid json
         try {
-            writeInternalStructureLog(tag, jsonObject.toString())
+            writeMetricEventOrStructuredLog(tag, jsonObject.toString())
         } catch (e: JSONException) {
-            writeInternalStructureLog("error.logging.$tag", payload.toString())
+            writeMetricEventOrStructuredLog("error.logging.$tag", payload.toString())
         }
+    }
+
+    private fun writeMetricEventOrStructuredLog(tag: String, message: String) {
+        if (settings.hrtEnabled) {
+            writeInternalMetricEvent(tag, message)
+        } else {
+            writeInternalStructuredLog(tag, message)
+        }
+    }
+
+    /**
+     * Write an internal (only visible on timeline with debug mode enabled) metric event.
+     */
+    private fun writeInternalMetricEvent(tag: String, message: String) {
+        Reporting.report().event(name = tag, countInReport = false, internal = true).add(value = message)
     }
 
     /**
      * Write an internal (only visible on timeline with debug mode enabled) structured log, using reflection
      * (we don't expose the logInternal API publicly).
      */
-    private fun writeInternalStructureLog(tag: String, message: String) {
+    private fun writeInternalStructuredLog(tag: String, message: String) {
         try {
             val obtainLogger = CustomEvent::class.java.getDeclaredMethod("obtainRemoteLogger")
             obtainLogger.isAccessible = true
             val logger = obtainLogger.invoke(null) as ILogger?
-            logger?.logInternal(timestamp(), tag, message)
+            logger?.logInternal(CustomEvent.timestamp(), tag, message)
         } catch (ex: Exception) {
             logcat(LogLevel.ERROR, "Failed to write structured log", ex)
         }
@@ -242,14 +273,14 @@ object Logger {
 
     @JvmStatic
     fun logEvent(vararg strings: String) {
-        if (eventLogEnabled()) {
+        if (settings.eventLogEnabled) {
             EventLog.writeEvent(40000000, *strings)
         }
     }
 
     @JvmStatic
     fun logEventBortSdkEnabled(isEnabled: Boolean) {
-        if (eventLogEnabled()) {
+        if (settings.eventLogEnabled) {
             EventLog.writeEvent(40000001, if (isEnabled) 1 else 0)
         }
     }

@@ -6,11 +6,13 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.memfault.bort.BortJson
+import com.memfault.bort.DevMode
 import com.memfault.bort.DumpsterCapabilities
 import com.memfault.bort.InjectSet
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
+import com.memfault.bort.clientserver.CachedClientServerMode
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.oneTimeWorkRequest
 import com.memfault.bort.requester.PeriodicWorkRequester
@@ -24,6 +26,8 @@ class PeriodicRequesterRestartTask @Inject constructor(
     private val periodicWorkRequesters: InjectSet<PeriodicWorkRequester>,
     override val metrics: BuiltinMetricsStore,
     private val dumpsterCapabilities: DumpsterCapabilities,
+    private val cachedClientServerMode: CachedClientServerMode,
+    private val devMode: DevMode,
 ) : Task<FetchedSettingsUpdate>() {
     override val getMaxAttempts = { 1 }
 
@@ -32,13 +36,17 @@ class PeriodicRequesterRestartTask @Inject constructor(
             object : ReadonlyFetchedSettingsProvider {
                 override fun get() = input.old
             },
-            dumpsterCapabilities
+            dumpsterCapabilities,
+            cachedClientServerMode,
+            devMode,
         )
         val new = DynamicSettingsProvider(
             object : ReadonlyFetchedSettingsProvider {
                 override fun get() = input.new
             },
-            dumpsterCapabilities
+            dumpsterCapabilities,
+            cachedClientServerMode,
+            devMode,
         )
         periodicWorkRequesters.forEach {
             it.evaluateSettingsChange(old, new)

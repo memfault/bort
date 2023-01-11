@@ -53,8 +53,8 @@ class TestSettingsProvider @Inject constructor(
     override val httpApiSettings = object : HttpApiSettings by settings.httpApiSettings {
         override val projectKey: String
             get() = if (override()) testOverrides.projectKeyProvider.getValue() else settings.httpApiSettings.projectKey
-        override val useMarUpload: Boolean
-            get() = if (override()) testOverrides.useMarUpload.getValue() else settings.httpApiSettings.useMarUpload
+        override suspend fun useMarUpload(): Boolean =
+            if (override()) testOverrides.useMarUpload.getValue() else settings.httpApiSettings.useMarUpload()
         override val batchMarUploads: Boolean
             get() = if (override()) false else settings.httpApiSettings.batchMarUploads
     }

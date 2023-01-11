@@ -1,9 +1,5 @@
 package com.memfault.bort.metrics
 
-import com.memfault.bort.metrics.PropertyType.BOOL
-import com.memfault.bort.metrics.PropertyType.DOUBLE
-import com.memfault.bort.metrics.PropertyType.INT
-import com.memfault.bort.metrics.PropertyType.STRING
 import com.memfault.bort.settings.MetricsSettings
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -60,25 +56,23 @@ class SystemPropertiesCollectorTest {
             )
         }
         coVerify(exactly = 1) {
-            store.upsert(name = "sysprop.a", value = "a", type = STRING, internal = false)
-            store.upsert(name = "sysprop.c", value = "c", type = STRING, internal = false)
-            store.upsert(name = "sysprop.1", value = "1", type = INT, internal = false)
-            store.upsert(name = "sysprop.1.2", value = "1.2", type = DOUBLE, internal = false)
-            store.upsert(name = "sysprop.1.3", value = "1.3", type = STRING, internal = false)
-            store.upsert(name = "sysprop.true", value = "true", type = BOOL, internal = false)
+            store.upsert(name = "sysprop.a", value = "a", internal = false)
+            store.upsert(name = "sysprop.c", value = "c", internal = false)
+            store.upsert(name = "sysprop.1", value = 1L, internal = false)
+            store.upsert(name = "sysprop.1.2", value = 1.2, internal = false)
+            store.upsert(name = "sysprop.1.3", value = "1.3", internal = false)
+            store.upsert(name = "sysprop.true", value = true, internal = false)
             store.upsert(
                 name = "sysprop.vendor.memfault.bort.version.sdk",
                 value = "4.0",
-                type = STRING,
                 internal = true
             )
             store.upsert(
                 name = "sysprop.vendor.memfault.bort.version.patch",
                 value = "4.1",
-                type = STRING,
                 internal = true
             )
-            store.upsert(name = "sysprop.notypelisted", value = "notype", type = STRING, internal = false)
+            store.upsert(name = "sysprop.notypelisted", value = "notype", internal = false)
         }
     }
 }

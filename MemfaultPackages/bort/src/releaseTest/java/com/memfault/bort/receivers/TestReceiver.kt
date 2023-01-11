@@ -7,10 +7,11 @@ import androidx.preference.PreferenceManager
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.TestOverrideSettings
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
+import com.memfault.bort.clientserver.MarFileWriter
 import com.memfault.bort.logcat.RealNextLogcatCidProvider
-import com.memfault.bort.metrics.DevicePropertiesDb
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.restartPeriodicLogcatCollection
 import com.memfault.bort.requester.restartPeriodicMetricsCollection
@@ -25,15 +26,23 @@ import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
 import com.memfault.bort.time.BoxedDuration
+import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.TokenBucketStoreRegistry
+import com.memfault.bort.uploader.EnqueueUpload
 import com.memfault.bort.uploader.FileUploadHoldingArea
 import dagger.hilt.android.AndroidEntryPoint
+import java.time.Instant
 import javax.inject.Inject
+import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
-import kotlinx.coroutines.runBlocking
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.toJavaDuration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 private const val INTENT_EXTRA_ECHO_STRING = "echo"
 private const val WORK_UNIQUE_NAME_SELF_TEST = "com.memfault.bort.work.SELF_TEST"
@@ -54,15 +63,19 @@ class TestReceiver : FilteringReceiver(
         "com.memfault.intent.action.TEST_RESET_RATE_LIMITS",
         "com.memfault.intent.action.TEST_SETUP",
         "com.memfault.intent.action.TEST_UPLOAD_MAR",
+        "com.memfault.intent.action.TEST_CDR",
     )
 ) {
     @Inject lateinit var settingsProvider: SettingsProvider
     @Inject lateinit var fileUploadHoldingArea: FileUploadHoldingArea
     @Inject lateinit var jitterDelayProvider: JitterDelayProvider
-    @Inject lateinit var devicePropertiesDb: DevicePropertiesDb
     @Inject lateinit var storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider
     @Inject lateinit var tokenBucketStoreRegistry: TokenBucketStoreRegistry
     @Inject lateinit var bootRelativeTimeProvider: BootRelativeTimeProvider
+    @Inject lateinit var marFileWriter: MarFileWriter
+    @Inject lateinit var enqueueUpload: EnqueueUpload
+    @Inject lateinit var combinedTimeProvider: CombinedTimeProvider
+    @Inject lateinit var temporaryFileFactory: TemporaryFileFactory
 
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {
         when (action) {
@@ -153,12 +166,6 @@ class TestReceiver : FilteringReceiver(
                 )
             }
             "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION" -> {
-                // Drop stored properties so that consecutive e2e tests get the full set of properties
-                runBlocking {
-                    devicePropertiesDb.deviceProperty()
-                        .deleteAll()
-                }
-
                 restartPeriodicMetricsCollection(
                     context = context,
                     // Something long to ensure it does not re-run & interfere with tests:
@@ -188,6 +195,7 @@ class TestReceiver : FilteringReceiver(
             "com.memfault.intent.action.TEST_UPLOAD_MAR" -> enqueueOneTimeBatchMarFiles(
                 context = context,
             )
+            "com.memfault.intent.action.TEST_CDR" -> testUploadCdr()
         }
     }
 
@@ -200,6 +208,26 @@ class TestReceiver : FilteringReceiver(
 
     private fun resetRateLimits() {
         tokenBucketStoreRegistry.reset()
+    }
+
+    private fun testUploadCdr() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val duration = 15.minutes
+            val start = Instant.now() - duration.toJavaDuration()
+            temporaryFileFactory.createTemporaryFile("cdr", suffix = null).useFile { tempFile, preventDeletion ->
+                tempFile.writeBytes(Random.nextBytes(10000))
+                val mar = marFileWriter.createForCustomDataRecording(
+                    file = tempFile,
+                    startTime = AbsoluteTime(start),
+                    duration = duration,
+                    mimeTypes = listOf("test"),
+                    reason = "just testing",
+                    collectionTime = combinedTimeProvider.now(),
+                )
+                preventDeletion()
+                enqueueUpload.enqueueMar(mar)
+            }
+        }
     }
 }
 

@@ -75,7 +75,7 @@ Request failed
 
 fun logAttempt(metrics: BuiltinMetricsStore) = metrics.increment(REQUEST_ATTEMPT)
 
-fun logTimings(timeMs: Long, metrics: BuiltinMetricsStore) = metrics.addValue(REQUEST_TIMING, timeMs.toFloat())
+fun logTimings(timeMs: Long, metrics: BuiltinMetricsStore) = metrics.addValue(REQUEST_TIMING, timeMs)
 
 private fun metricforFailure(tag: String) = "${REQUEST_FAILED}_$tag"
 

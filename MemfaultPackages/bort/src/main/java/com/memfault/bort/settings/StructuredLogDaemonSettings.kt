@@ -28,4 +28,7 @@ data class StructuredLogDaemonSettings(
 
     @SerialName("structured_log.metric_report_enabled")
     val structuredLogMetricReportEnabled: Boolean,
+
+    @SerialName("structured_log.high_res_metrics_enabled")
+    val structuredLogHighResMetricsEnabled: Boolean,
 )

@@ -23,7 +23,12 @@ TEST (ConfigTest, InitialDefaults) {
         ASSERT_EQ(config->getRateLimiterConfig().capacity, uint32_t(RATE_LIMIT_CAPACITY));
         ASSERT_EQ(config->getMaxMessageSize(), uint32_t(MAX_MESSAGE_SIZE_BYTES));
         ASSERT_EQ(config->getMinStorageThreshold(), uint64_t(MIN_STORAGE_THRESHOLD_BYTES));
+        #ifdef BORT_UNDER_TEST
+        // we hardcode this for testing
+        ASSERT_EQ(config->getNumEventsBeforeDump(), 50u);
+        #else
         ASSERT_EQ(config->getNumEventsBeforeDump(), uint32_t(NUM_EVENTS_BEFORE_DUMP));
+        #endif
     }
 }
 
@@ -50,10 +55,16 @@ TEST (ConfigTest, ConfigDocumentUpdate) {
     ASSERT_EQ(config->getDumpPeriodMs(), 1234u);
     ASSERT_EQ(config->getMaxMessageSize(), 5678u);
     ASSERT_EQ(config->getMinStorageThreshold(), 536870912u);
+#ifdef BORT_UNDER_TEST
+    // we hardcode this for testing
+    ASSERT_EQ(config->getNumEventsBeforeDump(), 50u);
+#else
     ASSERT_EQ(config->getNumEventsBeforeDump(), 9876u);
+#endif
     ASSERT_EQ(config->getRateLimiterConfig().capacity, 123u);
     ASSERT_EQ(config->getRateLimiterConfig().msPerToken, 321u);
-    ASSERT_EQ(config->isMetricReportEnabled(), false); // Testing the default
+    ASSERT_EQ(config->isMetricReportEnabled(), true); // Testing the default
+    ASSERT_EQ(config->isHighResMetricsEnabled(), false); // Testing the default
 }
 
 TEST (ConfigTest, MetricReportEnabledNonDefault) {
@@ -63,11 +74,13 @@ TEST (ConfigTest, MetricReportEnabledNonDefault) {
     config->updateConfig(
             R"j(
          {
-            "structured_log.metric_report_enabled": true
+            "structured_log.metric_report_enabled": true,
+            "structured_log.high_res_metrics_enabled": true
          }
 )j"
     );
     ASSERT_EQ(config->isMetricReportEnabled(), true);
+    ASSERT_EQ(config->isHighResMetricsEnabled(), true);
 }
 
 }

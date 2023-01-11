@@ -66,7 +66,7 @@ bool sendToDropBox(int nEvents, std::string file) {
     return true;
 }
 
-bool sendMetricReportToDropbox(const Report &report, const std::string &reportJson) {
+bool sendMetricReportToDropbox(const Report &report, const std::string &reportJson, const std::string *hdReportPath) {
     using namespace android::binder;
     using namespace android::os;
 
@@ -81,6 +81,15 @@ bool sendMetricReportToDropbox(const Report &report, const std::string &reportJs
         ALOGE("Could not add %s to dropbox", STRUCTURED_REPORT_FILE);
         return false;
     }
+
+    if (hdReportPath != nullptr) {
+        status = dropbox->addFile(String16(STRUCTURED_HD_REPORT_DROPBOX_TAG), hdReportPath->c_str(), 0);
+        if (!status.isOk()) {
+            ALOGE("Could not add %s to dropbox", hdReportPath->c_str());
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -120,7 +129,7 @@ void createService(const char* storagePath) {
             },
             getElapsedRealtime
     );
-    std::shared_ptr<StoredReporter> reporter = std::make_shared<StoredReporter>(storage, sendMetricReportToDropbox,
+    std::shared_ptr<StoredReporter> reporter = std::make_shared<StoredReporter>(storage, config, sendMetricReportToDropbox,
                                                                                 std::move(spammyMetricLogRateLimiter));
     std::unique_ptr<MetricService> metricService = std::make_unique<MetricService>(reporter, config);
     sp<LoggerService> loggerService(new LoggerService(logger, metricService));

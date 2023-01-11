@@ -42,7 +42,7 @@ class SelfTestLogcatFilterSpecs(
             LogcatCommand(
                 filterSpecs = listOf(
                     // Allow logs of DEBUG or higher from Logger.TAG:
-                    LogcatFilterSpec(tag = Logger.TAG, priority = LogcatPriority.DEBUG),
+                    LogcatFilterSpec(tag = Logger.getTag(), priority = LogcatPriority.DEBUG),
                     // Allow logs of ERROR or higher from any other tag:
                     LogcatFilterSpec(priority = LogcatPriority.ERROR)
                 )

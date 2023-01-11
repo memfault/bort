@@ -9,6 +9,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonObject
@@ -23,7 +24,13 @@ data class DecodedDeviceConfig(
     val revision: Int,
     val memfault: FetchedDeviceConfigContainer.Memfault?,
     val others: JsonObject,
-)
+) {
+    companion object {
+        fun from(input: String): DecodedDeviceConfig = BortJson.decodeFromString(serializer(), input)
+    }
+}
+
+fun DecodedDeviceConfig.toJson() = BortJson.encodeToString(DecodedDeviceConfig.serializer(), this)
 
 class DecodedDeviceConfigSerializer : KSerializer<DecodedDeviceConfig> {
     companion object {

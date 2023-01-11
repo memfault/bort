@@ -1,5 +1,8 @@
 package com.memfault.bort.settings
 
+import com.memfault.bort.BortJson
+import com.memfault.bort.DeviceInfo
+import com.memfault.bort.SOFTWARE_TYPE
 import com.memfault.bort.http.ProjectKeyAuthenticated
 import com.memfault.bort.kotlinxJsonConverterFactory
 import kotlinx.serialization.SerialName
@@ -45,5 +48,19 @@ interface DeviceConfigUpdateService {
         val softwareVersion: String,
         @SerialName("software_type")
         val softwareType: String,
-    )
+    ) {
+        companion object {
+            fun from(input: String): DeviceInfo = BortJson.decodeFromString(serializer(), input)
+        }
+    }
 }
+
+fun DeviceConfigUpdateService.DeviceInfo.toJson() =
+    BortJson.encodeToString(DeviceConfigUpdateService.DeviceInfo.serializer(), this)
+
+fun DeviceInfo.asDeviceConfigInfo(): DeviceConfigUpdateService.DeviceInfo = DeviceConfigUpdateService.DeviceInfo(
+    deviceSerial = deviceSerial,
+    hardwareVersion = hardwareVersion,
+    softwareVersion = softwareVersion,
+    softwareType = SOFTWARE_TYPE,
+)

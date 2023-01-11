@@ -9,11 +9,11 @@ LOCAL_SRC_FILES := \
   MemfaultDumpster.cpp \
   android-9/file.cpp
 LOCAL_C_INCLUDES += $(call local-generated-sources-dir)/proto/$(LOCAL_PATH)
-LOCAL_CFLAGS := -Werror -Wall -DPLATFORM_SDK_VERSION=$(PLATFORM_SDK_VERSION)
+LOCAL_CFLAGS := -Werror -Wall -DPLATFORM_SDK_VERSION=$(PLATFORM_SDK_VERSION) -fstack-protector-all
 ifeq ($(TARGET_BUILD_BORT_UNDER_TEST),1)
 LOCAL_CFLAGS += -DBORT_UNDER_TEST
 endif
-LOCAL_CPP_FLAGS := -Wno-unused-parameter
+LOCAL_CPP_FLAGS := -Wno-unused-parameter -fstack-protector-all
 LOCAL_SHARED_LIBRARIES := \
   libbase \
   libbinder \

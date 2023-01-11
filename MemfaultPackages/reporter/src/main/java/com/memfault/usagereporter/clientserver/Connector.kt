@@ -3,6 +3,7 @@
 package com.memfault.usagereporter.clientserver
 
 import androidx.annotation.VisibleForTesting
+import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.Logger
 import java.net.InetSocketAddress
 import java.nio.channels.AsynchronousServerSocketChannel
@@ -16,9 +17,15 @@ import org.jetbrains.annotations.TestOnly
 
 interface Connector {
     suspend fun run(scope: CoroutineScope)
+
     @VisibleForTesting
     fun close()
 }
+
+private val CONNECTED_METRIC =
+    Reporting.report().counter(name = "clientserver_connected", sumInReport = true, internal = true)
+private val DISCONNECTED_METRIC =
+    Reporting.report().counter(name = "clientserver_disconnected", sumInReport = true, internal = true)
 
 /**
  * Connect to a UsageRepoter soicket server, and send/receive files.
@@ -43,11 +50,13 @@ class ClientConnector(
                 socket.use {
                     socket.cConnect(host = host, port = port)
                     Logger.d("ClientConnector: connected")
+                    CONNECTED_METRIC.increment()
                     connectionHandler.run(socket, scope)
                 }
             } catch (e: Exception) {
                 // Any exception either was caused by, or triggers, disconnection, and a reconnection attempt.
                 Logger.d("ClientConnector: Disconnected", e)
+                DISCONNECTED_METRIC.increment()
             }
 
             // Delay before retrying
@@ -82,6 +91,7 @@ class ServerConnector(
                     socket.bind(InetSocketAddress(port))
                     val serverSocket = socket.cAccept()
                     Logger.d("ServerConnector: connected")
+                    CONNECTED_METRIC.increment()
                     serverSocket.use {
                         connectionHandler.run(serverSocket, scope)
                     }
@@ -89,6 +99,7 @@ class ServerConnector(
             } catch (e: Exception) {
                 // Any exception either was caused by, or triggers, disconnection, and a reconnection attempt.
                 Logger.d("ServerConnector: Disconnected", e)
+                DISCONNECTED_METRIC.increment()
             }
             // Delay before retrying
             delay(retryDelay)

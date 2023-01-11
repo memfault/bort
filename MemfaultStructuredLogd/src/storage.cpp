@@ -18,10 +18,12 @@ enum versions {
   CONFIG,
   REPORTS,
   REPORTS_META_TABLE,
+  METRIC_METADATA,
   MAX,
 };
 
 void SqliteDatabase::migrate() {
+    *this << "PRAGMA foreign_keys = ON";
     const int version = getDbVersion();
     switch (version) {
         case INITIAL:
@@ -78,6 +80,43 @@ void SqliteDatabase::migrate() {
             setDbVersion(REPORTS_META_TABLE);
             [[clang::fallthrough]];
         case REPORTS_META_TABLE:
+            *this <<
+                "CREATE TABLE metric_metadata("
+                "  reportType text,"
+                "  eventName text,"
+                "  metricType text,"
+                "  dataType text,"
+                "  carryOver int default 0,"
+                "  aggregations int,"
+                "  internal int,"
+                "  valueType int,"
+                "  PRIMARY KEY (reportType, eventName)"
+                ")";
+            *this << "CREATE INDEX metric_metadata_carryOver on metric_metadata(carryOver) where carryOver = 1";
+
+            // sqlite does not support alter table drop column and
+            // losing data is acceptable, drop the table and recreate
+            *this << "DROP INDEX report_metric_type";
+            *this << "DROP INDEX report_metric_timestamp";
+            *this << "DROP INDEX report_metric_type_event";
+            *this << "DROP TABLE report_metric";
+
+            *this <<
+                "CREATE TABLE report_metric("
+                "  eventName text,"
+                "  type text,"
+                "  version int,"
+                "  timestamp int,"
+                "  value,"
+                "  FOREIGN KEY(type, eventName) REFERENCES metric_metadata(reportType, eventName)"
+                ")";
+            *this << "CREATE INDEX report_metric_type on report_metric(type)";
+            *this << "CREATE INDEX report_metric_timestamp on report_metric(timestamp)";
+            *this << "CREATE INDEX report_metric_type_event on report_metric(type, eventName)";
+
+            setDbVersion(METRIC_METADATA);
+            [[clang::fallthrough]];
+        case METRIC_METADATA:
             break;
         default:
             throw Sqlite3Exception("invalid db version", version);
@@ -99,9 +138,12 @@ Sqlite3StorageBackend::Sqlite3StorageBackend(
                                       "WHERE eventName = ? AND type = ?"
                                       "ORDER BY timestamp DESC "
                                       "LIMIT 1"),
+          _metricUpsertMetadataStmt(_db << "INSERT OR REPLACE INTO metric_metadata"
+                                           "(reportType, eventName, metricType, dataType, carryOver, aggregations, internal, valueType) "
+                                           "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
           _metricInsertStmt(_db << "INSERT INTO report_metric"
-                                   "(eventName, type, internal, version, timestamp, aggregations, value, valueType) "
-                                   "VALUES(?, ?, ?, ?, ?, ?, ?, ?)"),
+                                   "(eventName, type, version, timestamp, value) "
+                                   "VALUES(?, ?, ?, ?, ?)"),
           _metricSelectAllStmt(_db << "SELECT timestamp, value "
                                       "FROM report_metric "
                                       "WHERE eventName = ? AND type = ? "
@@ -260,8 +302,10 @@ std::unique_ptr<Report> Sqlite3StorageBackend::finishReport(
         uint8_t version,
         const std::string &type,
         int64_t endTimestamp,
-        bool startNextReport
-) {
+        bool startNextReport,
+        bool includeHdMetrics,
+        std::function<void(const ReportMetadata&)> reportMetadataCallback,
+        std::function<void(const MetricDetailedView&)> metricDetailedViewCallback) {
     std::unique_lock<std::recursive_mutex> lock(dbMutex);
 
     int count = 0;
@@ -279,7 +323,17 @@ std::unique_ptr<Report> Sqlite3StorageBackend::finishReport(
         return nullptr;
     }
 
-    auto report = collectMetricsLocked(version, type, startTimestamp, endTimestamp);
+    if (includeHdMetrics) {
+        reportMetadataCallback(ReportMetadata{type, startTimestamp, endTimestamp});
+    }
+
+    auto report = collectMetricsLocked(
+        version,
+        type,
+        startTimestamp,
+        endTimestamp,
+        includeHdMetrics,
+        metricDetailedViewCallback);
 
     if (startNextReport) {
         ensureReportMetadataLocked(type, endTimestamp);
@@ -291,6 +345,7 @@ std::unique_ptr<Report> Sqlite3StorageBackend::finishReport(
 void Sqlite3StorageBackend::removeReportData(const std::string &name) {
     std::unique_lock<std::recursive_mutex> lock(dbMutex);
     _db << "DELETE FROM report_metric WHERE type = ?" << name;
+    _db << "DELETE FROM metric_metadata WHERE reportType = ?" << name;
     _db << "DELETE FROM report WHERE type = ?" << name;
 }
 
@@ -301,14 +356,22 @@ void Sqlite3StorageBackend::storeMetricValue(uint8_t version,
                                              bool internal,
                                              uint64_t aggregationTypes,
                                              const std::string &value,
-                                             MetricValueType valueType) {
+                                             MetricValueType valueType,
+                                             const std::string &dataType,
+                                             const std::string &metricType,
+                                             bool carryOver) {
     std::unique_lock<std::recursive_mutex> lock(dbMutex);
 
     ensureReportMetadataLocked(type, timestamp);
 
+    _metricUpsertMetadataStmt.reset();
+    _metricUpsertMetadataStmt << type << eventName << metricType
+        << dataType << carryOver << aggregationTypes << (internal ? 1 : 0)
+        << valueType;
+    _metricUpsertMetadataStmt.execute();
+
     _metricInsertStmt.reset();
-    _metricInsertStmt << eventName << type << (internal ? 1 : 0) << version << timestamp << aggregationTypes
-            << value << valueType;
+    _metricInsertStmt << eventName << type << version << timestamp << value;
     _metricInsertStmt.execute();
 }
 
@@ -320,23 +383,26 @@ void Sqlite3StorageBackend::ensureReportMetadataLocked(const std::string &type, 
 
 std::unique_ptr<Report>
 Sqlite3StorageBackend::collectMetricsLocked(uint8_t version, const std::string &type, uint64_t startTimestamp,
-                                            uint64_t endTimestamp) {
+                                            uint64_t endTimestamp, bool includeHdMetrics,
+                                            std::function<void(const MetricDetailedView&)> metricDetailedViewCallback) {
     auto report = std::make_unique<Report>(version, type, startTimestamp, endTimestamp);
 
     // It's just quicker to calculate the basic set for all metrics
     _db << "SELECT "
-           "MIN(value) as min,"
-           "MAX(value) as max,"
+           "MIN(CAST(value as DOUBLE)) as min,"
+           "MAX(CAST(value as DOUBLE)) as max,"
            "SUM(value) as sum,"
            "AVG(value) as mean,"
            "COUNT(value) as count,"
-           "MAX(aggregations) as aggregationType,"
-           "eventName as eventName, "
-           "MAX(valueType) as valueType, "
-           "MAX(internal) as internal "
-           "FROM report_metric "
+           "aggregations as aggregationType,"
+           "r.eventName as eventName, "
+           "valueType, "
+           "internal "
+           "FROM report_metric r, metric_metadata m "
            "WHERE type = ? "
-           "GROUP BY type, eventName "
+           "  AND r.eventName = m.eventName "
+           "  AND r.type = m.reportType "
+           "GROUP BY type, r.eventName "
            "ORDER BY timestamp ASC" << type >> [&](double min, double max, double sum, double mean, double count,
                    uint64_t aggregationTypes, const std::string &eventName, int valueTypeAsInt, int internal) {
         auto valueType = static_cast<MetricValueType>(valueTypeAsInt);
@@ -401,9 +467,74 @@ Sqlite3StorageBackend::collectMetricsLocked(uint8_t version, const std::string &
         }
     };
 
+    if (includeHdMetrics) {
+        _db << "SELECT "
+               " eventName,"
+               " metricType,"
+               " dataType,"
+               " internal "
+               " FROM metric_metadata "
+               " WHERE reportType = ?" << type >> [&](const std::string &eventName, const std::string &metricType,
+                   const std::string &dataType, int internal) {
+            const MetricMetadata metadata = { eventName, type, metricType, dataType, internal == 1 };
+            Sqlite3MetricDetailedView view(*this, metadata);
+            metricDetailedViewCallback(view);
+        };
+    }
+
+    // Before deleting report data, backup metrics that have carryOver = 1
+    _db << "DROP TABLE IF EXISTS temp.metric_metadata_carryovers";
+    _db << "DROP TABLE IF EXISTS temp.report_metric_carryovers";
+    _db << "CREATE TABLE temp.metric_metadata_carryovers AS"
+           " SELECT * FROM metric_metadata WHERE reportType = ? AND carryOver = 1"
+           << type;
+    _db << "CREATE TABLE temp.report_metric_carryovers AS "
+           "SELECT "
+           " metric.* "
+           "FROM metric_metadata meta, report_metric metric "
+           "LEFT JOIN report_metric metric2 ON (metric.eventName = metric2.eventName AND metric.type = metric2.type AND metric.rowid < metric2.rowid) "
+           "WHERE meta.eventName = metric.eventName "
+           "  AND metric2.rowid IS NULL "
+           "  AND reportType = ? AND carryOver = 1" << type;
+
     removeReportData(type);
 
+    // restore carryover metrics
+    _db << "SELECT COUNT(rowId) FROM temp.metric_metadata_carryovers" >> [&](int count) {
+        if (count > 0) {
+            _reportInsertMetadata.reset();
+            _reportInsertMetadata << type << endTimestamp;
+            _reportInsertMetadata.execute();
+        }
+    };
+    _db << "UPDATE temp.report_metric_carryovers set timestamp = ?" << endTimestamp;
+    _db << "INSERT INTO metric_metadata SELECT * FROM temp.metric_metadata_carryovers";
+    _db << "INSERT INTO report_metric SELECT * FROM temp.report_metric_carryovers";
+    _db << "DROP TABLE IF EXISTS temp.metric_metadata_carryovers";
+    _db << "DROP TABLE IF EXISTS temp.report_metric_carryovers";
+
     return report;
+}
+
+void Sqlite3MetricDetailedView::forEachDatum(std::function<void(const MetricDatum &)> callback) const {
+    storage._db << "SELECT "
+                   "   timestamp, "
+                   "   CAST(value as decimal) as doubleValue, "
+                   "   CAST(value as INT) as booleanValue, "
+                   "   value as stringValue "
+                   "FROM report_metric "
+                   "WHERE eventName = ? "
+                   "  AND type = ? "
+                   "ORDER BY rowid" << _metadata.eventName << _metadata.reportType >> [&](int64_t timestamp, double doubleValue, int booleanValue,
+                       const std::string &stringValue) {
+        MetricDatum datum = {
+            .timestamp = timestamp,
+            .strValue = stringValue,
+            .numberValue = doubleValue,
+            .booleanValue = booleanValue == 1
+        };
+        callback(datum);
+    };
 }
 
 void Sqlite3BootIdDumpView::forEachEvent(std::function<void(LogEntry &)> callback) {

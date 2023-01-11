@@ -58,7 +58,7 @@ object RemoteMetricsService {
 /**
  * Bump this when the schema changes.
  */
-private const val REPORTING_CLIENT_VERSION = 1
+private const val REPORTING_CLIENT_VERSION = 2
 
 private const val VERSION = "version"
 private const val TIMESTAMP_MS = "timestampMs"
@@ -68,6 +68,9 @@ private const val EVENT_NAME = "eventName"
 private const val INTERNAL = "internal"
 private const val AGGREGATIONS = "aggregations"
 private const val VALUE = "value"
+private const val METRIC_TYPE = "metricType"
+private const val DATA_TYPE = "dataType"
+private const val CARRY_OVER = "carryOver"
 
 /**
  * Every event sent to the remote service contains all information on the event type + how to aggregate.
@@ -80,8 +83,12 @@ internal data class MetricValue(
     // One of these, depending on type.
     val stringVal: String? = null,
     val numberVal: Double? = null,
+    val boolVal: Boolean? = null,
     val internal: Boolean = false,
     val version: Int = REPORTING_CLIENT_VERSION,
+    val metricType: MetricType,
+    val dataType: DataType,
+    val carryOverValue: Boolean,
 ) {
     fun toJson(): String = buildJsonObject {
         put(VERSION, version)
@@ -100,9 +107,15 @@ internal data class MetricValue(
             put(VALUE, stringVal)
         } else if (numberVal != null) {
             put(VALUE, numberVal)
+        } else if (boolVal != null) {
+            // V2 service supports native booleans, but use strings to support V1.
+            put(VALUE, if (boolVal) "1" else "0")
         } else {
-            throw IllegalArgumentException("Expected either stringVal or numberVal to not be null")
+            throw IllegalArgumentException("Expected a value to not be null")
         }
+        put(METRIC_TYPE, metricType.value)
+        put(DATA_TYPE, dataType.value)
+        put(CARRY_OVER, carryOverValue)
     }.toString()
 }
 

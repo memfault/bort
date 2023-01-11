@@ -91,6 +91,11 @@ annotation class StructuredLog
 @Qualifier
 @Retention(RUNTIME)
 @Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
+annotation class HighResMetricsFile
+
+@Qualifier
+@Retention(RUNTIME)
+@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 annotation class KernelOops
 
 @Qualifier

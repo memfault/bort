@@ -42,6 +42,7 @@ data class LogcatCollectorResult(
     val file: File,
     val cid: LogcatCollectionId,
     val nextCid: LogcatCollectionId,
+    val containsOops: Boolean,
 )
 
 class LogcatRunner @Inject constructor(
@@ -88,12 +89,13 @@ class LogcatCollector @Inject constructor(
                 since = nextLogcatStartTimeProvider.nextStart,
                 filterSpecs = logcatSettings.filterSpecs,
             )
-            nextLogcatStartTimeProvider.nextStart = runLogcat(
+            val logcatOutput = runLogcat(
                 outputFile = file,
                 command = command,
                 allowedUids = packageManagerClient.getPackageManagerReport()
                     .toAllowedUids(packageNameAllowList)
             )
+            nextLogcatStartTimeProvider.nextStart = logcatOutput.lastLogTimeOrFallback
             val (cid, nextCid) = nextLogcatCidProvider.rotate()
             preventDeletion()
             return LogcatCollectorResult(
@@ -101,6 +103,7 @@ class LogcatCollector @Inject constructor(
                 file = file,
                 cid = cid,
                 nextCid = nextCid,
+                containsOops = logcatOutput.containsOops,
             )
         }
     }
@@ -129,11 +132,16 @@ class LogcatCollector @Inject constructor(
             filterSpecs = filterSpecs,
         )
 
+    class LogcatOutput(
+        val lastLogTimeOrFallback: AbsoluteTime,
+        val containsOops: Boolean,
+    )
+
     private suspend fun runLogcat(
         outputFile: File,
         command: LogcatCommand,
         allowedUids: Set<Int>,
-    ) = withContext(Dispatchers.IO) {
+    ): LogcatOutput = withContext(Dispatchers.IO) {
         val kernelOopsDetector = kernelOopsDetector.get()
 
         val lastLogTime = try {
@@ -174,9 +182,11 @@ class LogcatCollector @Inject constructor(
             Logger.w("Failed to parse last timestamp from logs, falling back to current time")
         }
 
-        lastLogTimeOrFallback.also {
-            kernelOopsDetector.finish(it)
-        }
+        val containsOops = kernelOopsDetector.finish(lastLogTimeOrFallback)
+        LogcatOutput(
+            lastLogTimeOrFallback = lastLogTimeOrFallback,
+            containsOops = containsOops,
+        )
     }
 }
 

@@ -16,6 +16,7 @@ import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.TombstoneFileUploadMetadata
 import com.memfault.bort.http.PROJECT_KEY_HEADER
 import com.memfault.bort.logcat.generateLogcatCollectionIds
+import com.memfault.bort.settings.LogcatCollectionMode.PERIODIC
 import com.memfault.bort.time.toAbsoluteTime
 import java.nio.charset.Charset
 import java.util.UUID
@@ -237,6 +238,8 @@ internal class PreparedUploaderTest {
                         command = listOf("logcat", "-d"),
                         cid = LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000001")),
                         nextCid = LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000002")),
+                        containsOops = true,
+                        collectionMode = PERIODIC,
                     )
                 )
             )
@@ -254,7 +257,8 @@ internal class PreparedUploaderTest {
                     """"elapsed_realtime_ms":456,"linux_boot_id":"230295cb-04d4-40b8-8624-ec37089b9b75",""" +
                     """"boot_count":67,"timestamp":"1970-01-02T10:17:36Z"},"command":["logcat","-d"],""" +
                     """"cid":{"uuid":"00000000-0000-0000-0000-000000000001"},""" +
-                    """"next_cid":{"uuid":"00000000-0000-0000-0000-000000000002"}}"""
+                    """"next_cid":{"uuid":"00000000-0000-0000-0000-000000000002"},"contains_oops":true,""" +
+                    """"collection_mode":"periodic"}""".trimMargin()
                 ),
             recordedRequest.body.readUtf8()
         )

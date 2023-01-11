@@ -7,6 +7,7 @@
 #include <android/os/DropBoxManager.h>
 
 #include <chrono>
+#include <cstdio>
 #include <fstream>
 #include <unordered_set>
 
@@ -63,6 +64,7 @@ void ContinuousLogcat::start() {
   ALOGT("clog: start (running=%d)", config.started());
   if (!config.started()) {
     output_fd = creat(CONTINUOUS_LOGCAT_FILE, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+    output_fp = fdopen(output_fd, "w");
     config.set_started(true);
     config.persist_config();
     std::thread run_thread(&ContinuousLogcat::run, this);
@@ -263,7 +265,7 @@ void ContinuousLogcat::run() {
 
         if (name != log_names.end()) {
           snprintf(buf, sizeof(buf), "--------- %s %s\n",
-              hasPrinted ? "switch to" : "beggining of", name->second);
+              hasPrinted ? "switch to" : "beginning of", name->second);
           auto len = strlen(buf);
           if (write(output_fd, buf, len) >= 0) {
             total_bytes_written += len;
@@ -275,7 +277,11 @@ void ContinuousLogcat::run() {
       }
 
       // Print the line to the output file.
+#if PLATFORM_SDK_VERSION <= 32
       total_bytes_written += android_log_printLogLine(log_format.get(), output_fd, &entry);
+#else
+      total_bytes_written += android_log_printLogLine(log_format.get(), output_fp, &entry);
+#endif
 
       // Dump to dropbox if thresholds are reached, but if we are in a immediate collection,
       // do this later after all lines are processed.
@@ -297,7 +303,7 @@ void ContinuousLogcat::run() {
   }
 
   ALOGT("clog: removing leftover files");
-  close(output_fd);
+  fclose(output_fp);
   unlink(CONTINUOUS_LOGCAT_FILE);
 
   ALOGT("clog: stop");
@@ -315,11 +321,12 @@ void ContinuousLogcat::dump_output(bool ignore_thresholds) {
           elapsed_ms_since_last_collection,
           config.dump_threshold_time_ms());
       fsync(output_fd);
-      close(output_fd);
+      fclose(output_fp);
       dump_output_to_dropbox();
       total_bytes_written = 0;
       last_collection_uptime_ms = android::uptimeMillis();
       output_fd = creat(CONTINUOUS_LOGCAT_FILE, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+      output_fp = fdopen(output_fd, "w");
   }
 }
 

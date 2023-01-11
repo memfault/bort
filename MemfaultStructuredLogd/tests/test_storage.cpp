@@ -7,6 +7,12 @@ using namespace structured;
 // #define SQLITE3_FILE "/tmp/test.db"
 // #define SQLITE3_FILE "/data/local/tmp/test.db"
 
+#ifdef __ANDROID__
+#define TMP_PATH_PREFIX "/data/local/tmp/"
+#else
+#define TMP_PATH_PREFIX
+#endif
+
 namespace {
 
 TEST (Sqlite3StorageBackendTest, CreationAndMigrationWorks) {
@@ -16,7 +22,7 @@ TEST (Sqlite3StorageBackendTest, CreationAndMigrationWorks) {
 
 TEST (Sqlite3StorageBackendTest, TestBootIdGeneration) {
     // we need persistence for this
-    char name[] = "test-db-XXXXXX";
+    char name[] = TMP_PATH_PREFIX "test-db-XXXXXX";
     mkstemp(name);
 
     // A first boot
@@ -64,7 +70,7 @@ static std::map<std::string, CollectedDump> dump(Sqlite3StorageBackend &backend,
 
 TEST (Sqlite3StorageBackendTest, AddingAndDumpingEventsWorks) {
   // we need persistence for this
-  char name[] = "test-db-XXXXXX";
+  char name[] = TMP_PATH_PREFIX "test-db-XXXXXX";
   mkstemp(name);
 
   {
@@ -116,7 +122,7 @@ TEST (Sqlite3StorageBackendTest, AddingAndDumpingEventsWorks) {
 
 TEST (Sqlite3StorageBackendTest, SkipLatestWorks) {
     // we need persistence for this
-    char name[] = "test-db-XXXXXX";
+    char name[] = TMP_PATH_PREFIX "test-db-XXXXXX";
     mkstemp(name);
     {
         Sqlite3StorageBackend backend(name, "boot_id1");

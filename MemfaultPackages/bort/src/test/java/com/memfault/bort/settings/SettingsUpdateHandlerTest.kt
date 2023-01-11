@@ -1,11 +1,6 @@
 package com.memfault.bort.settings
 
-import com.memfault.bort.clientserver.CachedClientServerMode
-import com.memfault.bort.clientserver.LinkedDeviceFileSender
-import com.memfault.bort.shared.CLIENT_SERVER_SETTINGS_UPDATE_DROPBOX_TAG
-import com.memfault.bort.shared.ClientServerMode
 import com.memfault.bort.shared.LogLevel
-import com.memfault.bort.test.util.TestTemporaryFileFactory
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.confirmVerified
@@ -29,18 +24,11 @@ class SettingsUpdateHandlerTest {
     private val callback: SettingsUpdateCallback = mockk {
         coEvery { onSettingsUpdated(any(), capture(fetchedSettingsUpdateSlot)) } returns Unit
     }
-    private var clientServerMode: ClientServerMode = ClientServerMode.DISABLED
-    private val cachedClientServerMode = CachedClientServerMode { clientServerMode }
-    private val linkedDeviceFileSender: LinkedDeviceFileSender = mockk(relaxed = true)
-    private val temporaryFileFactory = TestTemporaryFileFactory
     private val handler = SettingsUpdateHandler(
         settingsProvider = settingsProvider,
         storedSettingsPreferenceProvider = storedSettingsPreferenceProvider,
         settingsUpdateCallback = callback,
         metrics = mockk(relaxed = true),
-        cachedClientServerMode = cachedClientServerMode,
-        linkedDeviceFileSender = linkedDeviceFileSender,
-        temporaryFileFactory = temporaryFileFactory,
     )
 
     @Test
@@ -68,30 +56,5 @@ class SettingsUpdateHandlerTest {
         confirmVerified(settingsProvider)
         assertEquals(fetchedSettingsUpdateSlot.captured.old, SETTINGS_FIXTURE.toSettings())
         assertEquals(fetchedSettingsUpdateSlot.captured.new, response2)
-    }
-
-    @Test
-    fun clientServer_Disabled_doesNotForward() = runBlocking {
-        clientServerMode = ClientServerMode.DISABLED
-        val response1 = SETTINGS_FIXTURE.toSettings()
-        handler.handleSettingsUpdate(response1)
-        confirmVerified(linkedDeviceFileSender)
-    }
-
-    @Test
-    fun clientServer_Client_doesNotForward() = runBlocking {
-        clientServerMode = ClientServerMode.CLIENT
-        val response1 = SETTINGS_FIXTURE.toSettings()
-        handler.handleSettingsUpdate(response1)
-        confirmVerified(linkedDeviceFileSender)
-    }
-
-    @Test
-    fun clientServer_Server_forwards() = runBlocking {
-        clientServerMode = ClientServerMode.SERVER
-        val response1 = SETTINGS_FIXTURE.toSettings()
-        handler.handleSettingsUpdate(response1)
-        coVerify { linkedDeviceFileSender.sendFileToLinkedDevice(any(), CLIENT_SERVER_SETTINGS_UPDATE_DROPBOX_TAG) }
-        confirmVerified(linkedDeviceFileSender)
     }
 }

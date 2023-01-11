@@ -33,6 +33,42 @@ class LogEntry {
     bool internal;
 };
 
+struct ReportMetadata {
+    std::string reportType;
+    int64_t startTimestamp;
+    int64_t endTimestamp;
+};
+
+struct MetricDatum {
+    int64_t timestamp;
+    std::string strValue;
+    double numberValue;
+    bool booleanValue;
+};
+
+struct MetricMetadata {
+    std::string eventName;
+    std::string reportType;
+    std::string metricType;
+    std::string dataType;
+    bool internal;
+};
+
+class MetricDetailedView {
+public:
+    explicit MetricDetailedView(const MetricMetadata &metadata) :
+        _metadata(metadata) {}
+    virtual ~MetricDetailedView() = default;
+    virtual void forEachDatum(std::function<void(const MetricDatum&)> callback) const = 0;
+
+    const MetricMetadata& getMetadata() const {
+        return _metadata;
+    }
+
+protected:
+    MetricMetadata _metadata;
+};
+
 class BootIdDumpView {
 public:
     explicit BootIdDumpView(
@@ -59,7 +95,9 @@ class StorageBackend {
     virtual uint64_t getAvailableSpace() = 0;
 
     virtual std::unique_ptr<Report> finishReport(uint8_t version, const std::string &name, int64_t endTimestamp,
-                                                 bool startNextReport) = 0;
+                                                 bool startNextReport, bool includeHdMetrics,
+                                                 std::function<void(const ReportMetadata&)> reportMetadataCallback = {},
+                                                 std::function<void(const MetricDetailedView&)> metricDetailedViewCallback = {}) = 0;
     virtual void storeMetricValue(
             uint8_t version,
             const std::string &type,
@@ -68,7 +106,10 @@ class StorageBackend {
             bool internal,
             uint64_t aggregationTypes,
             const std::string &value,
-            MetricValueType valueType
+            MetricValueType valueType,
+            const std::string &dataType,
+            const std::string &metricType,
+            bool carryOver
     ) = 0;
 
     typedef std::shared_ptr<StorageBackend> SharedPtr;
@@ -101,6 +142,20 @@ private:
 };
 
 class Sqlite3StorageBackend;
+
+class Sqlite3MetricDetailedView: public MetricDetailedView {
+public:
+    explicit Sqlite3MetricDetailedView(Sqlite3StorageBackend &storage,
+                                       const MetricMetadata& metadata)
+            : MetricDetailedView(metadata),
+              storage(storage) {}
+
+    void forEachDatum(std::function<void (const MetricDatum &)> callback) const override;
+
+private:
+    Sqlite3StorageBackend &storage;
+};
+
 class Sqlite3BootIdDumpView: public BootIdDumpView {
 public:
     explicit Sqlite3BootIdDumpView(Sqlite3StorageBackend &storage,
@@ -135,7 +190,9 @@ class Sqlite3StorageBackend: public StorageBackend {
     uint64_t getAvailableSpace() override;
 
     std::unique_ptr<Report> finishReport(uint8_t version, const std::string &name, int64_t endTimestamp,
-                                         bool startNextReport) override;
+                                         bool startNextReport, bool includeHdMetrics,
+                                         std::function<void(const ReportMetadata&)> reportMetadataCallback = {},
+                                         std::function<void(const MetricDetailedView&)> metricDetailedViewCallback = {}) override;
     void storeMetricValue(
             uint8_t version,
             const std::string &type,
@@ -144,7 +201,10 @@ class Sqlite3StorageBackend: public StorageBackend {
             bool internal,
             uint64_t aggregationTypes,
             const std::string &value,
-            MetricValueType valueType
+            MetricValueType valueType,
+            const std::string &dataType,
+            const std::string &metricType,
+            bool carryOver
     ) override;
 
     inline int getBootIdRow() const { return bootIdRow; }
@@ -154,6 +214,7 @@ class Sqlite3StorageBackend: public StorageBackend {
     SqliteDatabase _db;
     sqlite::database_binder _insertStmt;
     sqlite::database_binder _metricLastValueStmt;
+    sqlite::database_binder _metricUpsertMetadataStmt;
     sqlite::database_binder _metricInsertStmt;
     sqlite::database_binder _metricSelectAllStmt;
     sqlite::database_binder _reportInsertMetadata;
@@ -161,6 +222,7 @@ class Sqlite3StorageBackend: public StorageBackend {
     bool _inMemory;
     int64_t bootIdRow;
     friend class Sqlite3BootIdDumpView;
+    friend class Sqlite3MetricDetailedView;
     std::recursive_mutex dbMutex;
     std::string storageDir;
 
@@ -171,7 +233,9 @@ class Sqlite3StorageBackend: public StorageBackend {
     std::pair<std::string, std::string> getCidPair();
     std::vector<OnStorageEmptyListener> storageEmptyListeners;
 
-    std::unique_ptr<Report> collectMetricsLocked(uint8_t version, const std::string &type, uint64_t startTimestamp, uint64_t endTimestamp);
+    std::unique_ptr<Report> collectMetricsLocked(uint8_t version, const std::string &type, uint64_t startTimestamp,
+                                                 uint64_t endTimestamp, bool includeHdMetrics,
+                                                 std::function<void(const MetricDetailedView&)> metricDetailedViewCallback);
 
     void ensureReportMetadataLocked(const std::string &type, uint64_t timestamp);
     void removeReportData(const std::string &name);

@@ -216,7 +216,7 @@ class ReporterService : Service() {
             serviceMessageFromMessage = ReporterServiceMessage.Companion::fromMessage,
             setLogLevel = { logLevel ->
                 logLevelPreferenceProvider.setLogLevel(logLevel)
-                Logger.minLogcatLevel = logLevel
+                Logger.updateMinLogcatLevel(logLevel)
                 Logger.test("Reporter received a log level update $logLevel")
             },
             getSendReply = ::getSendReply,

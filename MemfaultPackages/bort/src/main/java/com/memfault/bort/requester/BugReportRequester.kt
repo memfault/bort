@@ -99,14 +99,6 @@ class StartRealBugReport @Inject constructor() : StartBugReport {
             }
         }
 
-        // Dump internal metrics to logs, if SDK is not capable of uploading them as metrics.
-
-        // Important: don't do this on devices which do support uploading metrics: calling collectMetrics is a destructive
-        // operation (resets all metrics after collecting them).
-        if (!bortSystemCapabilities.supportsCaliperMetrics()) {
-            Logger.i("Internal metrics: ${builtInMetricsStore.collectMetrics()}")
-        }
-
         val (success, _) = pendingBugReportRequestAccessor.compareAndSwap(request) { it == null }
         if (!success) {
             Logger.w("Ignoring bug report request: already one pending")
@@ -189,7 +181,7 @@ class BugReportRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
+    override suspend fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
         // Note: not including firstBugReportDelayAfterBoot because that is only used immediately after booting.
         old.bugReportSettings.dataSourceEnabled != new.bugReportSettings.dataSourceEnabled ||
             old.bugReportSettings.requestInterval != new.bugReportSettings.requestInterval ||

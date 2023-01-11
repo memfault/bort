@@ -23,6 +23,9 @@ data class FetchedSettings(
     @SerialName("battery_stats.data_source_enabled")
     val batteryStatsDataSourceEnabled: Boolean,
 
+    @SerialName("battery_stats.use_hrt")
+    val batteryStatsUseHrt: Boolean = false,
+
     @SerialName("bort.min_log_level")
     val bortMinLogcatLevel: Int,
 
@@ -309,6 +312,9 @@ data class FetchedSettings(
 
     @SerialName("metric_report.enabled")
     val metricReportEnabled: Boolean = true,
+
+    @SerialName("metric_report.high_res_telemetry")
+    val highResTelemetryEnabled: Boolean = false,
 
     @SerialName("storage.max_client_server_file_transfer_storage_bytes")
     val storageMaxClientServerFileTransferStorageBytes: Long = 50_000_000,

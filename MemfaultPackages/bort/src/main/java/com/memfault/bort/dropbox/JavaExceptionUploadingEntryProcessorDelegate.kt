@@ -1,6 +1,7 @@
 package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
+import com.memfault.bort.DevMode
 import com.memfault.bort.DropBoxEntryFileUploadMetadata
 import com.memfault.bort.JavaExceptionFileUploadMetadata
 import com.memfault.bort.TimezoneWithId
@@ -20,6 +21,7 @@ class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
     @JavaException private val javaExceptionTokenBucketStore: TokenBucketStore,
     @Wtf private val wtfTokenBucketStore: TokenBucketStore,
     @WtfTotal private val wtfTotalTokenBucketStore: TokenBucketStore,
+    private val devMode: DevMode,
 ) : UploadingEntryProcessorDelegate {
     override val tags = listOf(
         "data_app_crash",
@@ -33,6 +35,8 @@ class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
         get() = "UPLOAD_JAVA_EXCEPTION"
 
     override fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean {
+        if (devMode.isEnabled()) return true
+
         return if (tag.endsWith("wtf")) {
             // We limit WTFs using both a bucketed (by stacktrace) and total.
             val allowedByBucketed = wtfTokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)

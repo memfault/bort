@@ -8,6 +8,7 @@ import com.memfault.bort.FallbackOtaSettings
 import com.memfault.bort.shared.BASIC_COMMAND_TIMEOUT_MS
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.LoggerSettings
 import com.memfault.bort.shared.SoftwareUpdateSettings
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -290,9 +291,16 @@ class Updater private constructor(
             stateStore: StateStore? = null,
             settingsProvider: SoftwareUpdateSettingsProvider? = null,
         ): Updater {
-            Logger.minStructuredLevel = LogLevel.INFO
-            Logger.minLogcatLevel = LogLevel.DEBUG
-            Logger.TAG = "bort-ota"
+            Logger.initTags(tag = "bort-ota")
+            Logger.initSettings(
+                LoggerSettings(
+                    eventLogEnabled = true,
+                    logToDisk = false,
+                    minLogcatLevel = LogLevel.DEBUG,
+                    minStructuredLevel = LogLevel.INFO,
+                    hrtEnabled = false,
+                )
+            )
 
             val store = stateStore ?: SharedPreferencesStateStore(
                 context.getSharedPreferences(

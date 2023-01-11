@@ -16,6 +16,7 @@ import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.oneTimeWorkRequest
+import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
@@ -36,6 +37,28 @@ class DefaultDropBoxDelay @Inject constructor() : DropBoxRetryDelay {
     override suspend fun delay() = delay(DEFAULT_RETRY_DELAY_MILLIS)
 }
 
+class DropBoxConfigureFilterSettings @Inject constructor(
+    private val reporterServiceConnector: ReporterServiceConnector,
+    private val entryProcessors: DropBoxEntryProcessors,
+    private val settings: DropBoxSettings,
+    private val bortEnabledProvider: BortEnabledProvider,
+) {
+    suspend fun configureFilterSettings() {
+        val tags = if (bortEnabledProvider.isEnabled()) {
+            entryProcessors.map.keys.subtract(settings.excludedTags).toList()
+        } else {
+            emptyList()
+        }
+        reporterServiceConnector.connect { getConnection ->
+            getConnection()
+                .dropBoxSetTagFilter(tags)
+                .onFailure {
+                    Logger.d("Failed to configure dropbox tags")
+                }
+        }
+    }
+}
+
 class DropBoxGetEntriesTask @Inject constructor(
     private val reporterServiceConnector: ReporterServiceConnector,
     private val cursorProvider: ProcessedEntryCursorProvider,
@@ -52,14 +75,6 @@ class DropBoxGetEntriesTask @Inject constructor(
         if (!settings.dataSourceEnabled or entryProcessors.map.isEmpty()) TaskResult.SUCCESS
         else try {
             reporterServiceConnector.connect { getConnection ->
-                getConnection()
-                    .dropBoxSetTagFilter(
-                        entryProcessors.map.keys.subtract(settings.excludedTags).toList()
-                    )
-                    .onFailure {
-                        return@connect TaskResult.FAILURE
-                    }
-
                 if (process(getConnection)) TaskResult.SUCCESS else TaskResult.FAILURE
             }
         } catch (e: RemoteException) {
