@@ -83,7 +83,7 @@ class BootCompleteReceiver : BroadcastReceiver() {
     private fun schedulePeriodicUpdateCheck(context: Context, updateCheckIntervalMs: Long) {
         Logger.d("schedulePeriodicUpdateCheck: $updateCheckIntervalMs")
         val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.UNMETERED)
+            .setRequiredNetworkType(if (BuildConfig.OTA_ALLOW_METERED) NetworkType.CONNECTED else NetworkType.UNMETERED)
             .setRequiresBatteryNotLow(true)
             .setRequiresStorageNotLow(true)
             .build()

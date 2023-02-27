@@ -30,6 +30,7 @@ android {
         buildConfigField "String", "CLIENT_SERVER_HOST", "\"" + bortProperty("CLIENT_SERVER_HOST") + "\""
         buildConfigField "Boolean", "OTA_AUTO_INSTALL", bortProperty("OTA_AUTO_INSTALL")
         buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "\"" + bortProperty("MEMFAULT_PROJECT_API_KEY") + "\""
+        buildConfigField "Boolean", "OTA_ALLOW_METERED", bortProperty("OTA_ALLOW_METERED")
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
