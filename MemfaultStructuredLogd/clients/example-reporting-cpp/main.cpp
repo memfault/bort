@@ -15,22 +15,22 @@ int main(int argc, char *argv[]) {
 
   auto report = std::make_unique<Report>(injectIntoHeartbeat ? "Heartbeat" : "testing");
 
-  auto counter = report->counter("native_counter");
+  auto counter = report->counter("native_counter_cpp");
   counter->increment();
 
-  auto distribution = report->distribution("native_distribution", {SUM, MIN, MAX});
+  auto distribution = report->distribution("native_distribution_cpp", {SUM, MIN, MAX});
   distribution->record(1.0);
   distribution->record(10.0);
 
-  auto stringProp = report->stringProperty("native_string");
+  auto stringProp = report->stringProperty("native_string_cpp");
   stringProp->update("on");
   stringProp->update("off");
 
-  auto numericProp = report->numberProperty("native_number");
+  auto numericProp = report->numberProperty("native_number_cpp");
   numericProp->update(0.0);
   numericProp->update(1.0);
 
-  auto stateTracker = report->stateTracker("native_states", {TIME_TOTALS});
+  auto stateTracker = report->stateTracker("native_states_cpp", {TIME_TOTALS});
   stateTracker->state("on");
   stateTracker->state("off");
   stateTracker->state("initializing");

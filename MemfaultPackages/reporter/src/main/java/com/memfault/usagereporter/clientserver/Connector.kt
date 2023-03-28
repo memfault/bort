@@ -56,8 +56,8 @@ class ClientConnector(
             } catch (e: Exception) {
                 // Any exception either was caused by, or triggers, disconnection, and a reconnection attempt.
                 Logger.d("ClientConnector: Disconnected", e)
-                DISCONNECTED_METRIC.increment()
             }
+            DISCONNECTED_METRIC.increment()
 
             // Delay before retrying
             delay(retryDelay)

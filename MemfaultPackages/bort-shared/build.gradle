@@ -14,10 +14,8 @@ android {
     defaultConfig {
         minSdkVersion versions.minSdk
         targetSdkVersion versions.targetSdk
-        versionCode loadVersionCode() as Integer
-        versionName loadVersionName() as String
 
-        // Used by BuildConfigSdkVersionInfo:
+      // Used by BuildConfigSdkVersionInfo:
         buildConfigField "String", "APP_VERSION_NAME", "\"${loadVersionName()}\""
         buildConfigField "int", "APP_VERSION_CODE", "${loadVersionCode()}"
         buildConfigField "String", "UPSTREAM_VERSION_NAME", "\"${upstreamVersionName()}\""
@@ -29,6 +27,7 @@ android {
         buildConfigField "int", "CLIENT_SERVER_PORT", bortProperty("CLIENT_SERVER_PORT")
         buildConfigField "String", "CLIENT_SERVER_HOST", "\"" + bortProperty("CLIENT_SERVER_HOST") + "\""
         buildConfigField "Boolean", "OTA_AUTO_INSTALL", bortProperty("OTA_AUTO_INSTALL")
+        buildConfigField "Boolean", "ALLOW_PROJECT_KEY_CHANGE", bortProperty("ALLOW_PROJECT_KEY_CHANGE")
         buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "\"" + bortProperty("MEMFAULT_PROJECT_API_KEY") + "\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -63,6 +62,7 @@ android {
             useJUnitPlatform()
         }
     }
+    namespace 'com.memfault.bort.shared'
 }
 
 dependencies {
@@ -73,14 +73,14 @@ dependencies {
     implementation deps.jblake2
     implementation deps.kotlin.stdlib
     implementation deps.kotlin.coroutines
-    implementation deps.kotlin.coroutinesAndroid
+    implementation deps.kotlin.coroutines.android
     implementation deps.okhttp
     implementation deps.result
     implementation deps.serialization.json
     implementation deps.serialization.converter
 
-    testImplementation deps.test.junitApi
-    testImplementation deps.test.junitJupiterEngine
+    testImplementation deps.test.junit.api
+    testImplementation deps.test.junit.jupiter.engine
     testImplementation deps.test.coroutines
     testImplementation deps.test.mockk
 }

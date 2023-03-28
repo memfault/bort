@@ -5,6 +5,7 @@
 #include <rapidjson/filewritestream.h>
 #include <rapidjson/writer.h>
 #include "storage.h"
+#include "version.h"
 
 // String constants for HighResTelemetryBody
 static constexpr char kSchemaVersion[] = "schema_version";
@@ -30,9 +31,6 @@ static constexpr char kInternal[] = "internal";
 // String constants for Datum
 static constexpr char kTimestamp[] = "t";
 static constexpr char kValue[] = "value";
-
-// Version string (TODO: should this be the SDK version?)
-static constexpr char kStructuredLogdVersion[] = "1";
 
 namespace structured {
 

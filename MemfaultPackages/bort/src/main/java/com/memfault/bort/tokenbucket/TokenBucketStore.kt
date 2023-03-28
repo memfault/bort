@@ -1,5 +1,7 @@
 package com.memfault.bort.tokenbucket
 
+import androidx.annotation.VisibleForTesting
+import com.memfault.bort.DevMode
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.BoxedDuration
 import com.memfault.bort.time.DurationAsMillisecondsLong
@@ -123,15 +125,31 @@ annotation class MarDropbox
 @Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 annotation class ContinuousLogFile
 
-class TokenBucketStore(
+interface TokenBucketStore {
+    fun handleLinuxReboot(previousUptime: Duration)
+
+    /**
+     * Convenience method that can be used in the case there's only need for
+     * a single key / bucket in the store.
+     */
+    fun takeSimple(key: String = "_", n: Int = 1, tag: String): Boolean
+
+    /**
+     * For testing purposes: resets all token buckets.
+     */
+    fun reset()
+}
+
+class RealTokenBucketStore(
     private val storage: TokenBucketStorage,
     private val getMaxBuckets: () -> Int,
     private val getTokenBucketFactory: () -> TokenBucketFactory,
-) {
+    private val devMode: DevMode,
+) : TokenBucketStore {
     private val lock = ReentrantLock()
     private var cachedMap: Map<String, TokenBucket>? = null
 
-    fun handleLinuxReboot(previousUptime: Duration) = lock.withLock {
+    override fun handleLinuxReboot(previousUptime: Duration) = lock.withLock {
         // After rebooting Linux, the
         // periodStartElapsedRealtime needs to be reset. We don't know the elapsedRealtime() value when the reboot
         // happened, so just "restart" to the current elapsedRealtime(). Effectively, the token feeding periods are
@@ -156,10 +174,7 @@ class TokenBucketStore(
         )
     }
 
-    /**
-     * For testing purposes: resets all token buckets.
-     */
-    fun reset() = lock.withLock {
+    override fun reset() = lock.withLock {
         storage.writeMap(StoredTokenBucketMap())
         cachedMap = null
     }
@@ -182,7 +197,8 @@ class TokenBucketStore(
         cachedMap = map
     }
 
-    fun <R> edit(block: (map: TokenBucketMap) -> R): R = lock.withLock {
+    @VisibleForTesting
+    internal fun <R> edit(block: (map: TokenBucketMap) -> R): R = lock.withLock {
         val initialMap = readMap()
         val map = TokenBucketMap(
             initialMap = initialMap,
@@ -197,18 +213,18 @@ class TokenBucketStore(
         }
     }
 
+    override fun takeSimple(key: String, n: Int, tag: String): Boolean {
+        val allowed = devMode.isEnabled() ||
+            edit { map ->
+                val bucket = map.upsertBucket(key) ?: return@edit false
+                bucket.take(n, tag)
+            }
+        if (!allowed) Logger.d("Rate-limit applied: $key/$tag")
+        return allowed
+    }
+
     companion object {
         // Rough time taken to boot (to ensure that we keep feed tokens in case of a boot loop).
         private val BOOT_TIME = 3.minutes
     }
 }
-
-/**
- * Convenience method that can be used in the case there's only need for
- * a single key / bucket in the store.
- */
-fun TokenBucketStore.takeSimple(key: String = "_", n: Int = 1, tag: String): Boolean =
-    edit { map ->
-        val bucket = map.upsertBucket(key) ?: return@edit false
-        bucket.take(n, tag)
-    }

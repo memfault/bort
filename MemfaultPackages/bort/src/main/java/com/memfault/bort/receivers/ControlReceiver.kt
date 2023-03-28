@@ -2,6 +2,7 @@ package com.memfault.bort.receivers
 
 import android.content.Context
 import android.content.Intent
+import com.memfault.bort.AppUpgrade
 import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.BugReportRequestStatus
 import com.memfault.bort.BugReportRequestTimeoutTask
@@ -11,8 +12,10 @@ import com.memfault.bort.INTENT_ACTION_BUG_REPORT_REQUESTED
 import com.memfault.bort.INTENT_ACTION_COLLECT_METRICS
 import com.memfault.bort.INTENT_ACTION_DEV_MODE
 import com.memfault.bort.INTENT_ACTION_UPDATE_CONFIGURATION
+import com.memfault.bort.INTENT_ACTION_UPDATE_PROJECT_KEY
 import com.memfault.bort.INTENT_EXTRA_BORT_ENABLED
 import com.memfault.bort.INTENT_EXTRA_DEV_MODE_ENABLED
+import com.memfault.bort.INTENT_EXTRA_PROJECT_KEY
 import com.memfault.bort.InjectSet
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.RealDevMode
@@ -21,12 +24,12 @@ import com.memfault.bort.broadcastReply
 import com.memfault.bort.clientserver.ClientDeviceInfoSender
 import com.memfault.bort.dropbox.DropBoxConfigureFilterSettings
 import com.memfault.bort.metrics.BuiltinMetricsStore
-import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.MetricsCollectionRequester
 import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.requester.StartRealBugReport
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.ContinuousLoggingController
+import com.memfault.bort.settings.ProjectKeyProvider
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.SettingsUpdateRequester
 import com.memfault.bort.settings.applyReporterServiceSettings
@@ -70,13 +73,11 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
     @Inject lateinit var continuousLoggingController: ContinuousLoggingController
     @Inject lateinit var dropBoxConfigureFilterSettings: DropBoxConfigureFilterSettings
     @Inject lateinit var clientDeviceInfoSender: ClientDeviceInfoSender
+    @Inject lateinit var appUpgrade: AppUpgrade
+    @Inject lateinit var projectKeyProvider: ProjectKeyProvider
 
     private fun allowedByRateLimit(): Boolean =
-        tokenBucketStore
-            .edit { map ->
-                val bucket = map.upsertBucket("control-requested") ?: return@edit false
-                bucket.take(tag = "bugreport_request")
-            }
+        tokenBucketStore.takeSimple(key = "control-requested", tag = "bugreport_request")
 
     private fun onBugReportRequested(context: Context, intent: Intent) {
         val request = try {
@@ -116,7 +117,7 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
         }
     }
 
-    private fun onBortEnabled(intent: Intent) {
+    private fun onBortEnabled(intent: Intent, context: Context) {
         // It doesn't make sense to take any action here if bort isn't configured to require runtime enabling
         // (we would get into a bad state where jobs are cancelled, but we can not re-enable).
         if (!bortEnabledProvider.requiresRuntimeEnable()) return
@@ -135,7 +136,6 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
         Logger.i(if (isNowEnabled) "bort.enabled" else "bort.disabled", mapOf())
 
         bortEnabledProvider.setEnabled(isNowEnabled)
-
         fileUploadHoldingArea.handleChangeBortEnabled()
 
         goAsync {
@@ -163,6 +163,8 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
             // Pass the new settings to structured logging (after we enable/disable it)
             reloadCustomEventConfigFrom(settingsProvider.structuredLogSettings)
             clientDeviceInfoSender.maybeSendDeviceInfoToServer()
+
+            appUpgrade.handleUpgrade(context)
         }
     }
 
@@ -195,21 +197,25 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
             INTENT_EXTRA_DEV_MODE_ENABLED,
             false // never used, because we just checked hasExtra()
         )
-        if (enabled) devModeEnabledMetric.increment()
         devMode.setEnabled(enabled, context)
+    }
+
+    private fun onChangeProjectKey(intent: Intent) {
+        // This is allowed to run before enabling Bort (in fact this is encouraged if possible).
+        val newProjectKey = intent.getStringExtra(INTENT_EXTRA_PROJECT_KEY) ?: return
+        projectKeyProvider.projectKey = newProjectKey
     }
 
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {
         when (action) {
             INTENT_ACTION_BUG_REPORT_REQUESTED -> onBugReportRequested(context, intent)
-            INTENT_ACTION_BORT_ENABLE -> onBortEnabled(intent)
+            INTENT_ACTION_BORT_ENABLE -> onBortEnabled(intent, context)
             INTENT_ACTION_COLLECT_METRICS -> onCollectMetrics()
             INTENT_ACTION_UPDATE_CONFIGURATION -> onUpdateConfig()
             INTENT_ACTION_DEV_MODE -> onDevMode(intent, context)
+            INTENT_ACTION_UPDATE_PROJECT_KEY -> onChangeProjectKey(intent)
         }
     }
-
-    private val devModeEnabledMetric = Reporting.report().counter("dev_mode", internal = true)
 }
 
 @AndroidEntryPoint
@@ -227,6 +233,7 @@ class ShellControlReceiver : BaseControlReceiver(
         INTENT_ACTION_COLLECT_METRICS,
         INTENT_ACTION_UPDATE_CONFIGURATION,
         INTENT_ACTION_DEV_MODE,
+        INTENT_ACTION_UPDATE_PROJECT_KEY,
     )
 )
 

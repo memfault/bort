@@ -30,7 +30,6 @@ import com.memfault.bort.shared.INTENT_ACTION_BUG_REPORT_START
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.tokenbucket.BugReportPeriodic
 import com.memfault.bort.tokenbucket.TokenBucketStore
-import com.memfault.bort.tokenbucket.takeSimple
 import com.squareup.anvil.annotations.ContributesBinding
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.assisted.Assisted

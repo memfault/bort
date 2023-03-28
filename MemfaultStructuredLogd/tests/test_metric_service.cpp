@@ -573,4 +573,67 @@ TEST_F (MetricTest, MinMaxTypeCasting) {
     assertMetricPresent("heartbeat", "CPU Usage.mean", "95", Double);
 }
 
+// Regression test for carryovers not inserting the startTimestamp in the report table
+TEST_F(MetricTest, CarryOverReportStartTimestampNotSet) {
+    Config::SharedPtr ENABLED_CONFIG = std::make_shared<TestingConfig>(true);
+    auto service = std::make_unique<MetricService>(reporter, ENABLED_CONFIG);
+
+    service->addValue(
+      R"j(
+     {
+         "version": 2,
+         "timestampMs": 0,
+         "reportType": "heartbeat",
+         "eventName": "screen_on",
+         "aggregations": ["TIME_PER_HOUR"],
+         "dataType": "string",
+         "metricType": "property",
+         "carryOver": true,
+         "value": "NONE"
+     }
+)j");
+
+    service->addValue(
+      R"j(
+     {
+         "version": 2,
+         "timestampMs": 0,
+         "reportType": "heartbeat",
+         "eventName": "screen_on",
+         "aggregations": ["TIME_PER_HOUR"],
+         "dataType": "string",
+         "metricType": "property",
+         "carryOver": true,
+         "value": "WIFI"
+     }
+)j");
+
+    service->addValue(
+      R"j(
+     {
+         "version": 2,
+         "timestampMs": 930000000,
+         "reportType": "heartbeat",
+         "eventName": "screen_on",
+         "aggregations": ["TIME_PER_HOUR"],
+         "dataType": "string",
+         "metricType": "property",
+         "carryOver": true,
+         "value": "NONE"
+     }
+)j");
+
+    service->finishReport(
+      R"j(
+     {
+        "version": 2,
+        "timestampMs": 230000000,
+        "reportType": "heartbeat"
+     }
+)j");
+    assertCollectedReports(1);
+    ASSERT_EQ(
+      reportsJson[0],
+      R"j({"version":1,"startTimestampMs":0,"endTimestampMs":230000000,"reportType":"heartbeat","metrics":{"screen_on_WIFI.secs/hour":3600.0,"screen_on_NONE.secs/hour":0.0}})j");
+}
 }

@@ -7,8 +7,9 @@ import com.memfault.bort.DumpsterCapabilities
 import com.memfault.bort.clientserver.CachedClientServerMode
 import com.memfault.bort.clientserver.isEnabled
 import com.memfault.bort.settings.LogcatCollectionMode.PERIODIC
+import com.memfault.bort.settings.NetworkConstraint.CONNECTED
+import com.memfault.bort.settings.NetworkConstraint.UNMETERED
 import com.memfault.bort.shared.BugReportOptions
-import com.memfault.bort.shared.BuildConfig as SharedBuildConfig
 import com.memfault.bort.shared.BuildConfigSdkVersionInfo
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatFilterSpec
@@ -35,6 +36,7 @@ open class DynamicSettingsProvider @Inject constructor(
     private val dumpsterCapabilities: DumpsterCapabilities,
     private val cachedClientServerMode: CachedClientServerMode,
     private val devMode: DevMode,
+    private val projectKeyProvider: ProjectKeyProvider,
 ) : SettingsProvider {
     @Transient
     private val settingsCache = CachedProperty {
@@ -62,11 +64,11 @@ open class DynamicSettingsProvider @Inject constructor(
 
     override val httpApiSettings = object : HttpApiSettings {
         override val uploadNetworkConstraint: NetworkConstraint
-            get() = if (settings.httpApiUploadNetworkConstraintAllowMeteredConnection) NetworkConstraint.CONNECTED
-            else NetworkConstraint.UNMETERED
+            get() = if (settings.httpApiUploadNetworkConstraintAllowMeteredConnection) CONNECTED
+            else UNMETERED
         override val uploadCompressionEnabled
             get() = settings.httpApiUploadCompressionEnabled
-        override val projectKey = SharedBuildConfig.MEMFAULT_PROJECT_API_KEY
+        override val projectKey get() = projectKeyProvider.projectKey
         override val filesBaseUrl
             get() = settings.httpApiFilesBaseUrl
         override val deviceBaseUrl
@@ -179,8 +181,7 @@ open class DynamicSettingsProvider @Inject constructor(
         override val commandTimeout: Duration
             get() = settings.batteryStatsCommandTimeout.duration
         override val useHighResTelemetry: Boolean
-            get() = false // Disabled for 4.4.0 release, as this feature is not complete.
-        // settings.highResTelemetryEnabled && settings.batteryStatsUseHrt
+            get() = settings.highResTelemetryEnabled && settings.batteryStatsUseHrt
     }
 
     override val logcatSettings = object : LogcatSettings {
@@ -256,11 +257,23 @@ open class DynamicSettingsProvider @Inject constructor(
     override val otaSettings = object : OtaSettings {
         override val updateCheckInterval: Duration
             get() = settings.otaUpdateCheckInterval.duration
+        override val downloadNetworkConstraint: NetworkConstraint
+            get() = if (settings.otaDownloadNetworkConstraintAllowMeteredConnection) CONNECTED
+            else UNMETERED
     }
 
     override val storageSettings = object : StorageSettings {
         override val maxClientServerFileTransferStorageBytes: Long
             get() = settings.storageMaxClientServerFileTransferStorageBytes
+    }
+
+    override val fleetSamplingSettings = object : FleetSamplingSettings {
+        override val loggingActive: Boolean
+            get() = settings.fleetSamplingLoggingActive
+        override val debuggingActive: Boolean
+            get() = settings.fleetSamplingDebuggingActive
+        override val monitoringActive: Boolean
+            get() = settings.fleetSamplingMonitroringActive
     }
 
     override fun invalidate() {

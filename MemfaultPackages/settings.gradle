@@ -1,3 +1,11 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
 rootProject.name='Bort'
 include ':bort-shared'
 include ':bort'
@@ -17,4 +25,8 @@ if ((includeOta ?: "0").toBoolean()) {
 // Conditionally include the end-to-end test helper application (not published as part of the SDK):
 if ((properties["BORT_INCLUDE_E2E_HELPER"] ?: "0").toBoolean()) {
     include ':e2e-helper'
+}
+
+dependencyResolutionManagement {
+    defaultLibrariesExtensionName.set('deps')
 }

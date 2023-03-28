@@ -3,8 +3,10 @@ package com.memfault.bort
 import android.content.Context
 import android.content.SharedPreferences
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
+import com.memfault.bort.reporting.Reporting
+import com.memfault.bort.reporting.StateAgg
+import com.memfault.bort.shared.CachedPreferenceKeyProvider
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.shared.PreferenceKeyProvider
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
@@ -18,17 +20,14 @@ import javax.inject.Singleton
  *
  * Note that the interface for this class ([DevMode]) is in bort-shared.
  */
-@Singleton
 @ContributesBinding(SingletonComponent::class)
 class RealDevMode @Inject constructor(
     private val devModePreferenceProvider: DevModePreferenceProvider,
 ) : DevMode {
-    private var enabled: Boolean? = null
-
     fun setEnabled(newEnabled: Boolean, context: Context) {
         Logger.d("Dev mode = $newEnabled")
-        enabled = newEnabled
         devModePreferenceProvider.setValue(newEnabled)
+        updateMetric()
         if (newEnabled) {
             // Enqueue a one-time mar upload, to clear the holding area (which will be skipped for uploads while dev
             // mode is enabled).
@@ -36,12 +35,22 @@ class RealDevMode @Inject constructor(
         }
     }
 
-    override fun isEnabled(): Boolean = enabled ?: devModePreferenceProvider.getValue().also { enabled = it }
+    override fun updateMetric() {
+        DEV_MODE_ENABLED_METRIC.state(isEnabled())
+    }
+
+    companion object {
+        private val DEV_MODE_ENABLED_METRIC = Reporting.report()
+            .boolStateTracker("dev_mode_enabled", aggregations = listOf(StateAgg.LATEST_VALUE), internal = true)
+    }
+
+    override fun isEnabled(): Boolean = devModePreferenceProvider.getValue()
 }
 
+@Singleton
 class DevModePreferenceProvider @Inject constructor(
     sharedPreferences: SharedPreferences,
-) : PreferenceKeyProvider<Boolean>(sharedPreferences, defaultValue = false, preferenceKey = PREF_KEY) {
+) : CachedPreferenceKeyProvider<Boolean>(sharedPreferences, defaultValue = false, preferenceKey = PREF_KEY) {
     companion object {
         private const val PREF_KEY = "dev_mode_enabled"
     }

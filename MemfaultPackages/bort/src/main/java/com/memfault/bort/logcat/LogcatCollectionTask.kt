@@ -14,7 +14,6 @@ import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.Logcat
 import com.memfault.bort.tokenbucket.TokenBucketStore
-import com.memfault.bort.tokenbucket.takeSimple
 import com.memfault.bort.uploader.FileUploadHoldingArea
 import com.memfault.bort.uploader.PendingFileUploadEntry
 import javax.inject.Inject

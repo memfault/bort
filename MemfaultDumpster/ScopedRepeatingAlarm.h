@@ -37,6 +37,7 @@ public:
 
     configure_interval();
     thread_ = std::thread(&ScopedRepeatingAlarm::run, this);
+    pthread_setname_np(thread_.native_handle(), "alarm");
   }
 
   void configure_interval() {

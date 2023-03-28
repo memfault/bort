@@ -112,6 +112,9 @@ abstract class SettingsModule {
         fun structuredLogSettings(settingsProvider: SettingsProvider) = settingsProvider.structuredLogSettings
 
         @Provides
+        fun fleetSamplingSettings(settingsProvider: SettingsProvider) = settingsProvider.fleetSamplingSettings
+
+        @Provides
         fun maxMarStorage(settings: SettingsProvider) =
             MaxMarStorageBytes { settings.httpApiSettings.maxMarStorageBytes }
 

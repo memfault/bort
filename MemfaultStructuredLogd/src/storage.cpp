@@ -438,15 +438,26 @@ Sqlite3StorageBackend::collectMetricsLocked(uint8_t version, const std::string &
             bool isInitialStateSwitch = true;
 
             _metricSelectAllStmt.reset();
-            _metricSelectAllStmt << eventName << type >> [&](uint64_t timestamp, const std::string &value) {
+            _metricSelectAllStmt << eventName << type >>
+              [&](uint64_t timestamp, const std::string &value) {
+                // If our report starts after the event, the device time likely changed, adapt
+                // startTimestamp
+                startTimestamp = std::min(startTimestamp, timestamp);
+
                 uint64_t timeDifference = timestamp - currentTime;
 
-                if (isInitialStateSwitch) isInitialStateSwitch = false;
-                else timeSpentInState.emplace(lastState, 0).first->second += timeDifference;
+                if (isInitialStateSwitch)
+                  isInitialStateSwitch = false;
+                else
+                  timeSpentInState.emplace(lastState, 0).first->second += timeDifference;
 
                 lastState = value;
                 currentTime = timestamp;
-            };
+              };
+
+            // If our report ends before the last event, the device time likely changed, adapt
+            // endTimestamp
+            endTimestamp = std::max(currentTime, endTimestamp);
 
             uint64_t timeDifference = endTimestamp - currentTime;
             timeSpentInState.emplace(lastState, 0).first->second += timeDifference;

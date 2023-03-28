@@ -2,8 +2,8 @@ package com.memfault.bort
 
 import com.memfault.bort.tokenbucket.MockTokenBucketFactory
 import com.memfault.bort.tokenbucket.MockTokenBucketStorage
+import com.memfault.bort.tokenbucket.RealTokenBucketStore
 import com.memfault.bort.tokenbucket.StoredTokenBucketMap
-import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueUpload
 import io.mockk.every
 import io.mockk.mockk
@@ -71,7 +71,7 @@ class RebootEventUploaderTest {
         val uploader = RebootEventUploader(
             deviceInfo = runBlocking { FakeDeviceInfoProvider().getDeviceInfo() },
             androidSysBootReason = "alarm",
-            tokenBucketStore = TokenBucketStore(
+            tokenBucketStore = RealTokenBucketStore(
                 storage = MockTokenBucketStorage(StoredTokenBucketMap()),
                 getMaxBuckets = { 1 },
                 getTokenBucketFactory = {
@@ -80,6 +80,7 @@ class RebootEventUploaderTest {
                         defaultPeriod = 1.milliseconds,
                     )
                 },
+                devMode = DEV_MODE_DISABLED,
             ),
             getLinuxBootId = { "bootid" },
             enqueueUpload = enqueueUpload,

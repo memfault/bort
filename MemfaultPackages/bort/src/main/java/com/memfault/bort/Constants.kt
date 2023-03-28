@@ -12,6 +12,9 @@ const val INTENT_ACTION_UPDATE_CONFIGURATION = "com.memfault.intent.action.REQUE
 const val INTENT_ACTION_DEV_MODE = "com.memfault.intent.action.DEV_MODE"
 const val INTENT_EXTRA_DEV_MODE_ENABLED = "com.memfault.intent.extra.DEV_MODE_ENABLED"
 
+const val INTENT_ACTION_UPDATE_PROJECT_KEY = "com.memfault.intent.action.UPDATE_PROJECT_KEY"
+const val INTENT_EXTRA_PROJECT_KEY = "com.memfault.intent.extra.PROJECT_KEY"
+
 const val PREFERENCE_BORT_ENABLED = "com.memfault.preference.BORT_ENABLED"
 const val PREFERENCE_DEVICE_ID = "com.memfault.preference.DEVICE_ID"
 const val PREFERENCE_LAST_TRACKED_BOOT_COUNT = "com.memfault.preference.LAST_TRACKED_BOOT_COUNT"

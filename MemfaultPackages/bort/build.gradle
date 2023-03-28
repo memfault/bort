@@ -60,10 +60,6 @@ android {
         }
     }
 
-    lintOptions {
-        abortOnError true
-    }
-
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -82,6 +78,10 @@ android {
         unitTests.all {
             useJUnitPlatform()
         }
+    }
+  namespace 'com.memfault.bort'
+    lint {
+        abortOnError true
     }
 }
 
@@ -114,18 +114,18 @@ dependencies {
     implementation deps.jblake2
 
     implementation deps.dagger.hilt
-    kapt deps.dagger.hiltCompiler
+    kapt deps.dagger.hilt.compiler
 
-    testImplementation deps.test.junitApi
-    testRuntimeOnly deps.test.junitJupiterEngine
-    testRuntimeOnly deps.test.junitVintageEngine
+    testImplementation deps.test.junit.api
+    testRuntimeOnly deps.test.junit.jupiter.engine
+    testRuntimeOnly deps.test.junit.vintage.engine
     testImplementation deps.test.coroutines
     // Required for unit tests to access JSONObject
     testImplementation deps.test.json
     testImplementation deps.test.mockk
     testImplementation deps.test.mockWebServer
     testImplementation deps.test.robolectric
-    testImplementation deps.test.testCore
+    testImplementation deps.test.androidx.test
 }
 
 import java.nio.file.Paths

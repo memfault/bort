@@ -1,5 +1,6 @@
 package com.memfault.bort.ota.lib.download
 
+import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
@@ -242,6 +243,7 @@ class DownloadOtaService : Service() {
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun setProgress(progress: Int, max: Int = 100) {
         notificationManager.notify(
             NOTIFICATION_ID,
@@ -264,6 +266,7 @@ class DownloadOtaService : Service() {
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun downloadSuccessful(path: File = File(OTA_PATH)) {
         notificationManager.notify(
             NOTIFICATION_ID,
@@ -276,6 +279,7 @@ class DownloadOtaService : Service() {
         runOnUpdater { perform(Action.DownloadCompleted(path.absolutePath)) }
     }
 
+    @SuppressLint("MissingPermission")
     private fun downloadFailed(@Suppress("UNUSED_PARAMETER") cause: Throwable) {
         notificationManager.notify(
             NOTIFICATION_ID,
@@ -329,5 +333,7 @@ class DownloadProgressStore(
                 DownloadProgress.serializer(),
                 sharedPreferences.getString(downloadProgressKey, "") ?: ""
             )
-        } catch (ex: SerializationException) { null }
+        } catch (ex: SerializationException) {
+            null
+        }
 }

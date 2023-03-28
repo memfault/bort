@@ -7,10 +7,6 @@ import com.memfault.bort.LogcatCollectionId
 import com.memfault.bort.StructuredLogFileUploadPayload
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.test.util.TestTemporaryFileFactory
-import com.memfault.bort.tokenbucket.MockTokenBucketFactory
-import com.memfault.bort.tokenbucket.MockTokenBucketStorage
-import com.memfault.bort.tokenbucket.StoredTokenBucketMap
-import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueUpload
 import io.mockk.CapturingSlot
 import io.mockk.every
@@ -18,7 +14,6 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import java.util.UUID
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
@@ -26,8 +21,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-
-private val STRUCTURED_LOG_TEST_BUCKET_CAPACITY = 3
 
 /**
  * Using robolectric because of a parser dependency in android.util.JsonReader/Writer
@@ -41,6 +34,7 @@ class CustomEventEntryProcessorTest {
     lateinit var fileUploadPayloadSlot: CapturingSlot<FileUploadPayload>
     lateinit var builtInMetricsStore: BuiltinMetricsStore
     var dataSourceEnabled: Boolean = true
+    private var allowedByRateLimit = true
 
     @Before
     fun setUp() {
@@ -57,17 +51,9 @@ class CustomEventEntryProcessorTest {
             temporaryFileFactory = TestTemporaryFileFactory,
             enqueueUpload = mockEnqueueUpload,
             deviceInfoProvider = FakeDeviceInfoProvider(),
-            tokenBucketStore = TokenBucketStore(
-                storage = MockTokenBucketStorage(StoredTokenBucketMap()),
-                getMaxBuckets = { 1 },
-                getTokenBucketFactory = {
-                    MockTokenBucketFactory(
-                        defaultCapacity = STRUCTURED_LOG_TEST_BUCKET_CAPACITY,
-                        defaultPeriod = 1.milliseconds,
-                        metrics = builtInMetricsStore,
-                    )
-                }
-            ),
+            tokenBucketStore = mockk {
+                every { takeSimple(any(), any(), any()) } answers { allowedByRateLimit }
+            },
             combinedTimeProvider = FakeCombinedTimeProvider,
             structuredLogDataSourceEnabledConfig = { dataSourceEnabled }
         )
@@ -92,11 +78,11 @@ class CustomEventEntryProcessorTest {
     @Test
     fun rateLimiting() {
         runBlocking {
-            val runs = 15
-            (0..runs).forEach {
-                processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
-            }
-            verify(exactly = STRUCTURED_LOG_TEST_BUCKET_CAPACITY) {
+            allowedByRateLimit = true
+            processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
+            allowedByRateLimit = false
+            processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
+            verify(exactly = 1) {
                 mockEnqueueUpload.enqueue(any(), any(), any(), any())
             }
         }

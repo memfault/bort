@@ -3,7 +3,6 @@ package com.memfault.bort.metrics
 import android.os.RemoteException
 import androidx.work.Data
 import com.memfault.bort.BortSystemCapabilities
-import com.memfault.bort.DevMode
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.FileUploadToken
@@ -17,6 +16,7 @@ import com.memfault.bort.clientserver.MarFileWriter
 import com.memfault.bort.dropbox.MetricReport
 import com.memfault.bort.fileExt.md5Hex
 import com.memfault.bort.logcat.NextLogcatCidProvider
+import com.memfault.bort.metrics.HighResTelemetry.Companion.mergeHrtIntoFile
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
@@ -24,7 +24,6 @@ import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.MetricsCollection
 import com.memfault.bort.tokenbucket.TokenBucketStore
-import com.memfault.bort.tokenbucket.takeSimple
 import com.memfault.bort.uploader.EnqueueUpload
 import java.io.File
 import java.time.Instant
@@ -51,7 +50,6 @@ class MetricsCollectionTask @Inject constructor(
     private val storageStatsCollector: StorageStatsCollector,
     private val appVersionsCollector: AppVersionsCollector,
     private val dumpsterClient: DumpsterClient,
-    private val devMode: DevMode,
     private val bortSystemCapabilities: BortSystemCapabilities,
     private val integrationChecker: IntegrationChecker,
     private val marFileWriter: MarFileWriter,
@@ -90,6 +88,12 @@ class MetricsCollectionTask @Inject constructor(
             heartbeatReportMetrics = heartbeatReportMetrics + batteryStatsResult.aggregatedMetrics,
             heartbeatReportInternalMetrics = internalMetrics,
         )
+        // Add batterystats to HRT file.
+        heartbeatReport?.highResFile?.let { hrtFile ->
+            batteryStatsResult.batteryStatsHrt?.let { batteryStats ->
+                mergeHrtIntoFile(hrtFile, batteryStats)
+            }
+        }
         uploadHighResMetrics(
             highResFile = heartbeatReport?.highResFile,
             metricReport = heartbeatReport?.metricReport,
@@ -157,7 +161,7 @@ class MetricsCollectionTask @Inject constructor(
     }
 
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult {
-        if (!devMode.isEnabled() && !tokenBucketStore.takeSimple(tag = "metrics")) {
+        if (!tokenBucketStore.takeSimple(tag = "metrics")) {
             return TaskResult.FAILURE
         }
 
@@ -198,15 +202,15 @@ class MetricsCollectionTask @Inject constructor(
 
         val batteryStatsResult = try {
             batteryStatsHistoryCollector.collect(
-                limit = batteryStatsLimit
+                limit = batteryStatsLimit,
             )
         } catch (e: RemoteException) {
             Logger.w("Unable to connect to ReporterService to run batterystats")
-            BatteryStatsResult(null, emptyMap())
+            BatteryStatsResult(batteryStatsFileToUpload = null, batteryStatsHrt = null, aggregatedMetrics = emptyMap())
         } catch (e: Exception) {
             Logger.e("Failed to collect batterystats", mapOf(), e)
             metrics.increment(BATTERYSTATS_FAILED)
-            BatteryStatsResult(null, emptyMap())
+            BatteryStatsResult(batteryStatsFileToUpload = null, batteryStatsHrt = null, aggregatedMetrics = emptyMap())
         }
 
         enqueueHeartbeatUpload(now, heartbeatInterval, batteryStatsResult)

@@ -1,6 +1,5 @@
 package com.memfault.bort.metrics
 
-import com.memfault.bort.parsers.BatteryStatsHistoryMetricLogger
 import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import io.mockk.coEvery
@@ -30,7 +29,6 @@ class BatteryStatsHistoryCollectorTest {
     lateinit var mockRunBatteryStats: RunBatteryStats
     lateinit var batteryStatsOutputByHistoryStart: Map<Long, String>
     var tempFile: File? = null
-    private val batteryStatsHistoryMetricLogger: BatteryStatsHistoryMetricLogger = mockk(relaxed = true)
 
     @BeforeEach
     fun setUp() {
@@ -58,7 +56,6 @@ class BatteryStatsHistoryCollectorTest {
             nextBatteryStatsHistoryStartProvider,
             mockRunBatteryStats,
             settings,
-            batteryStatsHistoryMetricLogger,
         )
     }
 

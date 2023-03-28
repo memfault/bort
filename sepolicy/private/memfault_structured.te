@@ -39,3 +39,7 @@ set_prop(vendor_init, memfault_prop)
 # Allow dumpstate (via MemfaultDumpster) to add metrics
 allow dumpstate memfault_structured:service_manager find;
 binder_call(dumpstate, memfault_structured)
+
+# Allow memfault_structured to send dump info to dumpstate
+allow memfault_structured dumpstate:fd use;
+allow memfault_structured dumpstate:fifo_file { getattr write };

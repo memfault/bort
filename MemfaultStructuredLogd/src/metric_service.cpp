@@ -32,8 +32,8 @@ static bool isFinishCompliantV1(const std::unique_ptr<Document> &doc) {
         ALOGE("Expected schema to have a 'timestampMs' numeric field but it doesn't");
         return false;
     }
-    if (!root.HasMember(kReportType) || !root[kReportType].IsString()) {
-        ALOGE("Expected schema to have a 'reportType' string field but it doesn't");
+    if (!root.HasMember(kVersion) || !root[kVersion].IsUint()) {
+        ALOGE("Expected schema to have a 'version' numeric field but it doesn't");
         return false;
     }
     if (!root.HasMember(kReportType) || !root[kReportType].IsString()) {

@@ -1,6 +1,8 @@
 package com.memfault.bort.shared
 
 import android.database.MatrixCursor
+import androidx.work.NetworkType
+import androidx.work.NetworkType.UNMETERED
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 
@@ -22,12 +24,7 @@ data class SoftwareUpdateSettings(
     val baseUrl: String,
     val projectApiKey: String,
     // Any new fields below this point must have a default value.
-    /**
-     * This field was added, prompting the backwards compatibility changes below. We then removed it - but want to keep
-     * a placeholder here so that the backwards compatibility changes are ready+tested for whenever we add new fields
-     * against in the future.
-     **/
-    val unused: Boolean = false,
+    val downloadNetworkTypeConstraint: NetworkType = UNMETERED,
 ) {
     companion object {
         fun deserialize(string: String): SoftwareUpdateSettings? = try {

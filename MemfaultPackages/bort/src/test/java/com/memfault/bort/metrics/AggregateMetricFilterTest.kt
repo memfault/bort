@@ -9,14 +9,11 @@ internal class AggregateMetricFilterTest {
     @Test
     fun processMetrics() {
         val input = mapOf(
-            "audio_on.secs/hour" to JsonPrimitive(720),
-            "audio_.secs/hour" to JsonPrimitive(2.38),
             "random_metric" to JsonPrimitive(4.32),
             "sysprop.ro.build.type.latest" to JsonPrimitive("user"),
             "version.com.x.y.z.latest" to JsonPrimitive("v1"),
         )
         val output = mapOf(
-            "audio_on_ratio" to JsonPrimitive(0.2),
             "random_metric" to JsonPrimitive(4.32),
             "sysprop.ro.build.type" to JsonPrimitive("user"),
             "version.com.x.y.z" to JsonPrimitive("v1"),

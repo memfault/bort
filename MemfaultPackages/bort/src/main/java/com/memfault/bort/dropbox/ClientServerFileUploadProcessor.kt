@@ -22,9 +22,7 @@ class ClientServerFileUploadProcessor @Inject constructor(
     override val tags: List<String> = listOf(CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG)
 
     private fun allowedByRateLimit(): Boolean =
-        tokenBucketStore.edit { map ->
-            map.upsertBucket(MAR_FILE_TAG)?.take(tag = "mar_file") ?: false
-        }
+        tokenBucketStore.takeSimple(key = MAR_FILE_TAG, tag = "mar_file")
 
     override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
         Logger.d("ClientServerFileUploadProcessor")

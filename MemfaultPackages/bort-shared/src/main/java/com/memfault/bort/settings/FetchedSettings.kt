@@ -174,10 +174,10 @@ data class FetchedSettings(
     val httpApiZipCompressionLevel: Int = 4,
 
     @SerialName("http_api.use_mar_upload")
-    val httpApiUseMarUpload: Boolean = false,
+    val httpApiUseMarUpload: Boolean = true,
 
     @SerialName("http_api.use_device_config")
-    val httpApiUseDeviceConfig: Boolean = false,
+    val httpApiUseDeviceConfig: Boolean = true,
 
     @SerialName("http_api.device_config_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
@@ -188,7 +188,7 @@ data class FetchedSettings(
 
     @SerialName("http_api.batched_mar_upload_period_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
-    val httpApiBatchedMarUploadPeriod: BoxedDuration = 1.hours.boxed(),
+    val httpApiBatchedMarUploadPeriod: BoxedDuration = 2.hours.boxed(),
 
     @SerialName("http_api.max_mar_file_size_bytes")
     val httpApiMaxMarFileSizeBytes: Int = 250_000_000,
@@ -198,7 +198,7 @@ data class FetchedSettings(
 
     @SerialName("http_api.mar_unsampled_max_stored_age_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
-    val httpApiMarUnsampledMaxStoredAge: BoxedDuration = 30.days.boxed(),
+    val httpApiMarUnsampledMaxStoredAge: BoxedDuration = 7.days.boxed(),
 
     @SerialName("logcat.collection_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
@@ -265,6 +265,9 @@ data class FetchedSettings(
     @Serializable(with = DurationAsMillisecondsLong::class)
     val otaUpdateCheckInterval: BoxedDuration = 12.hours.boxed(),
 
+    @SerialName("ota.download_network_constraint_allow_metered_connection")
+    val otaDownloadNetworkConstraintAllowMeteredConnection: Boolean = false,
+
     @SerialName("package_manager.command_timeout_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val packageManagerCommandTimeout: BoxedDuration,
@@ -274,6 +277,15 @@ data class FetchedSettings(
 
     @SerialName("reboot_events.rate_limiting_settings")
     val rebootEventsRateLimitingSettings: RateLimitingSettings,
+
+    @SerialName("sampling.logging_active")
+    val fleetSamplingLoggingActive: Boolean = false,
+
+    @SerialName("sampling.debugging_active")
+    val fleetSamplingDebuggingActive: Boolean = false,
+
+    @SerialName("sampling.monitoring_active")
+    val fleetSamplingMonitroringActive: Boolean = false,
 
     @SerialName("structured_log.data_source_enabled")
     val structuredLogDataSourceEnabled: Boolean,
@@ -314,7 +326,7 @@ data class FetchedSettings(
     val metricReportEnabled: Boolean = true,
 
     @SerialName("metric_report.high_res_telemetry")
-    val highResTelemetryEnabled: Boolean = false,
+    val highResTelemetryEnabled: Boolean = true,
 
     @SerialName("storage.max_client_server_file_transfer_storage_bytes")
     val storageMaxClientServerFileTransferStorageBytes: Long = 50_000_000,

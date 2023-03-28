@@ -68,6 +68,8 @@ void ContinuousLogcat::start() {
     config.set_started(true);
     config.persist_config();
     std::thread run_thread(&ContinuousLogcat::run, this);
+    pthread_setname_np(run_thread.native_handle(), "clog");
+
     reader_thread = std::move(run_thread);
     ALOGT("clog: new log file created, thread running");
   }
@@ -80,9 +82,15 @@ void ContinuousLogcat::stop() {
     config.set_started(false);
     config.persist_config();
 
-    // Close logger list, when liblog receives the interrupt below
-    // it will retry unless the logger list is invalid.
-    logger_list.reset(nullptr);
+#if PLATFORM_SDK_VERSION >= 30
+    // On Android 11+, close the LogD filedescriptor associated with the
+    // logger list before interrupting, otherwise logd_reader will be stuck
+    // in a read loop.
+    auto ptr = logger_list.get();
+    if (ptr) {
+      LogdClose(ptr);
+    }
+#endif
 
     // Send a SIGALRM so that the blocked reader in liblog returns
     // with -EINTR, we then handle that result in the reader loop.

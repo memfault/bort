@@ -10,10 +10,8 @@ android {
     defaultConfig {
         minSdkVersion versions.minSdk
         targetSdkVersion versions.targetSdk
-        versionCode loadVersionCode() as Integer
-        versionName loadVersionName() as String
 
-        // Used by BuildConfigSdkVersionInfo:
+      // Used by BuildConfigSdkVersionInfo:
         buildConfigField "String", "APP_VERSION_NAME", "\"${loadVersionName()}\""
         buildConfigField "int", "APP_VERSION_CODE", "${loadVersionCode()}"
         buildConfigField "String", "UPSTREAM_VERSION_NAME", "\"${upstreamVersionName()}\""
@@ -45,12 +43,13 @@ android {
             useJUnitPlatform()
         }
     }
+  namespace 'com.memfault.bort.structured'
 }
 
 dependencies {
     implementation deps.serialization.json
-    testImplementation deps.test.junitApi
-    testImplementation deps.test.junitJupiterEngine
+    testImplementation deps.test.junit.api
+    testImplementation deps.test.junit.jupiter.engine
 }
 
 tasks.register("androidSourcesJar", Jar) {
@@ -76,7 +75,7 @@ afterEvaluate {
 
                 groupId = 'com.memfault.bort'
                 artifactId = 'reporting-lib'
-                version = 1.0
+                version = 1.1
 
                 pom {
                     name = 'Bort Reporting'

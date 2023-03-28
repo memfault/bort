@@ -2,7 +2,6 @@ package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
 import com.memfault.bort.DataScrubber
-import com.memfault.bort.DevMode
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.FileUploadToken
 import com.memfault.bort.LogcatFileUploadPayload
@@ -54,7 +53,6 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
     private val fileUploadingArea: FileUploadHoldingArea,
     private val kernelOopsDetector: Provider<LogcatLineProcessor>,
     @ContinuousLogFile private val tokenBucketStore: TokenBucketStore,
-    private val devMode: DevMode,
 ) : EntryProcessor() {
     override val tags: List<String> = listOf(DROPBOX_ENTRY_TAG)
 
@@ -70,9 +68,7 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
     )
 
     private fun allowedByRateLimit(): Boolean =
-        devMode.isEnabled() || tokenBucketStore.edit { map ->
-            map.upsertBucket(DROPBOX_ENTRY_TAG)?.take(tag = "continuous_log") ?: false
-        }
+        tokenBucketStore.takeSimple(key = DROPBOX_ENTRY_TAG, tag = "continuous_log")
 
     override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
         val stream = entry.inputStream ?: return

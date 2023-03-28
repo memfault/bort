@@ -1,7 +1,6 @@
 package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
-import com.memfault.bort.DEV_MODE_DISABLED
 import com.memfault.bort.DataScrubber
 import com.memfault.bort.EmailScrubbingRule
 import com.memfault.bort.FakeCombinedTimeProvider
@@ -20,10 +19,6 @@ import com.memfault.bort.settings.RateLimitingSettings
 import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.time.boxed
-import com.memfault.bort.tokenbucket.MockTokenBucketFactory
-import com.memfault.bort.tokenbucket.MockTokenBucketStorage
-import com.memfault.bort.tokenbucket.StoredTokenBucketMap
-import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.FileUploadHoldingArea
 import com.memfault.bort.uploader.PendingFileUploadEntry
 import io.mockk.CapturingSlot
@@ -33,7 +28,6 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.runBlocking
@@ -107,17 +101,9 @@ class ContinuousLogcatEntryProcessorTest {
             combinedTimeProvider = FakeCombinedTimeProvider,
             fileUploadingArea = mockFileUploadingArea,
             kernelOopsDetector = { mockKernelOopsDetector },
-            tokenBucketStore = TokenBucketStore(
-                storage = MockTokenBucketStorage(StoredTokenBucketMap()),
-                getMaxBuckets = { 1 },
-                getTokenBucketFactory = {
-                    MockTokenBucketFactory(
-                        defaultCapacity = 99,
-                        defaultPeriod = 1.milliseconds,
-                    )
-                }
-            ),
-            devMode = DEV_MODE_DISABLED,
+            tokenBucketStore = mockk {
+                every { takeSimple(any(), any(), any()) } returns true
+            }
         )
     }
 

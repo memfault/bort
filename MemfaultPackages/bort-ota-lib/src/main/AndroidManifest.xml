@@ -2,51 +2,52 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.memfault.bort.ota.lib">
 
-    <!-- Allows for connectivity checks-->
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Allows writing recovery-based OTA to /data/ota_package -->
-    <uses-permission
-        android:name="android.permission.ACCESS_CACHE_FILESYSTEM"
-        tools:ignore="ProtectedPermissions" />
-    <!-- Allows the download service to work in the foreground -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Access to the internet for software update endpoints and OTA file download -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Allow reading serial -->
-    <uses-permission
-        android:name="android.permission.READ_PRIVILEGED_PHONE_STATE"
-        tools:ignore="ProtectedPermissions" />
-    <!-- Get notified of boot completes for post-OTA clean-up and user notifications -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Read software update settings from Bort -->
-    <uses-permission android:name="com.memfault.bort.permission.READ_SOFTWARE_UPDATE_SETTINGS" />
-    <!-- Add internal metrics to Bort -->
-    <uses-permission android:name="com.memfault.bort.permission.ADD_INTERNAL_METRICS" />
-    <!-- Permission to reboot the device -->
-    <uses-permission
-        android:name="android.permission.REBOOT"
-        tools:ignore="ProtectedPermissions" />
-    <!-- Permission to perform recovery-related operations like verifying and preparing OTA
-     updates -->
-    <uses-permission
-        android:name="android.permission.RECOVERY"
-        tools:ignore="ProtectedPermissions" />
+  <!-- Allows for connectivity checks-->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <application>
+    <receiver android:name=".BootCompleteReceiver">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+        <action android:name="com.memfault.intent.action.OTA_SETTINGS_CHANGED" />
+      </intent-filter>
+    </receiver>
 
-    <application>
-        <service android:name=".download.DownloadOtaService" />
+    <receiver
+        android:name=".CheckForUpdatesReceiver"
+        android:permission="${bortControlPermission}">
+      <intent-filter>
+        <action android:name="com.memfault.intent.action.OTA_CHECK_FOR_UPDATES" />
+      </intent-filter>
+    </receiver>
+    <service android:name=".download.DownloadOtaService" />
+  </application>
+  <!-- Allows writing recovery-based OTA to /data/ota_package -->
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <!-- Allows the download service to work in the foreground -->
+  <uses-permission
+      android:name="android.permission.ACCESS_CACHE_FILESYSTEM"
+      tools:ignore="ProtectedPermissions" />
+  <!-- Access to the internet for software update endpoints and OTA file download -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <!-- Allow reading serial -->
+  <uses-permission android:name="android.permission.INTERNET" />
+  <!-- Get notified of boot completes for post-OTA clean-up and user notifications -->
+  <uses-permission
+      android:name="android.permission.READ_PRIVILEGED_PHONE_STATE"
+      tools:ignore="ProtectedPermissions" />
+  <!-- Read software update settings from Bort -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+  <!-- Add internal metrics to Bort -->
+  <uses-permission android:name="com.memfault.bort.permission.READ_SOFTWARE_UPDATE_SETTINGS" />
+  <!-- Permission to reboot the device -->
+  <uses-permission android:name="com.memfault.bort.permission.ADD_INTERNAL_METRICS" />
+  <!-- Permission to perform recovery-related operations like verifying and preparing OTA
+   updates -->
+  <uses-permission
+      android:name="android.permission.REBOOT"
+      tools:ignore="ProtectedPermissions" />
 
-        <receiver android:name=".BootCompleteReceiver">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="com.memfault.intent.action.OTA_SETTINGS_CHANGED" />
-            </intent-filter>
-        </receiver>
-        <receiver
-            android:name=".CheckForUpdatesReceiver"
-            android:permission="${bortControlPermission}">
-            <intent-filter>
-                <action android:name="com.memfault.intent.action.OTA_CHECK_FOR_UPDATES" />
-            </intent-filter>
-        </receiver>
-    </application>
+  <uses-permission
+      android:name="android.permission.RECOVERY"
+      tools:ignore="ProtectedPermissions" />
 </manifest>

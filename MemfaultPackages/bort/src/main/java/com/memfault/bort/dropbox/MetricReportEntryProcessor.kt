@@ -2,7 +2,6 @@ package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
 import com.memfault.bort.BortJson
-import com.memfault.bort.DevMode
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.metrics.HeartbeatReportCollector
 import com.memfault.bort.settings.MetricReportEnabled
@@ -31,14 +30,10 @@ class MetricReportEntryProcessor @Inject constructor(
     @MetricReportStore private val tokenBucketStore: TokenBucketStore,
     private val metricReportEnabledConfig: MetricReportEnabled,
     private val heartbeatReportCollector: HeartbeatReportCollector,
-    private val devMode: DevMode,
 ) : EntryProcessor() {
     override val tags: List<String> = listOf(DROPBOX_ENTRY_TAG)
 
-    private fun allowedByRateLimit(): Boolean =
-        devMode.isEnabled() || tokenBucketStore.edit { map ->
-            map.upsertBucket(DROPBOX_ENTRY_TAG)?.take(tag = "report") ?: false
-        }
+    private fun allowedByRateLimit(): Boolean = tokenBucketStore.takeSimple(key = DROPBOX_ENTRY_TAG, tag = "report")
 
     override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
         if (!metricReportEnabledConfig()) {

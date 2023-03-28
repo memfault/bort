@@ -3,6 +3,7 @@ package com.memfault.usagereporter.clientserver
 import android.content.Context
 import android.os.DropBoxManager
 import android.os.ParcelFileDescriptor
+import androidx.annotation.VisibleForTesting
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.ClientServerMode
@@ -22,6 +23,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.channels.ChannelResult
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.produceIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.whileSelect
@@ -170,24 +173,45 @@ class ConnectionHandler(
     suspend fun run(channel: AsynchronousSocketChannel, scope: CoroutineScope) {
         val incomingMessages = channel.readMessages(tempDirectory, scope)
         val filesChannel = files.nextFile.produceIn(scope)
+        runChannels(channel, incomingMessages, filesChannel)
+    }
+
+    @VisibleForTesting
+    suspend fun runChannels(
+        channel: AsynchronousSocketChannel,
+        incomingMessages: ReceiveChannel<BortMessage>,
+        filesChannel: ReceiveChannel<File?>,
+    ) {
         whileSelect {
-            filesChannel.onReceive { file ->
-                file?.let {
-                    channel.writeMessage(SendFileMessage(file, dropboxTag = file.extension))
-                    file.deleteSilently()
-                    files.pushOldestFile()
-                }
-                true
-            }
-            incomingMessages.onReceive { message ->
-                when (message) {
-                    is SendFileMessage -> {
-                        getDropBoxManager()?.addFile(message.dropboxTag, message.file, 0)
-                        message.file.deleteSilently()
+            filesChannel.onReceiveCatching { result ->
+                result.whileSelecting { file ->
+                    file?.let {
+                        channel.writeMessage(SendFileMessage(file, dropboxTag = file.extension))
+                        file.deleteSilently()
+                        files.pushOldestFile()
                     }
                 }
-                true
+            }
+            incomingMessages.onReceiveCatching { result ->
+                result.whileSelecting { message ->
+                    when (message) {
+                        is SendFileMessage -> {
+                            getDropBoxManager()?.addFile(message.dropboxTag, message.file, 0)
+                            message.file.deleteSilently()
+                        }
+                    }
+                }
             }
         }
     }
+}
+
+/**
+ * For use in a whileSelect block: handle the result if received successfully, else return false.
+ */
+suspend fun <E> ChannelResult<E>.whileSelecting(block: suspend (E) -> Unit): Boolean = try {
+    block(getOrThrow())
+    true
+} catch (e: Exception) {
+    false
 }

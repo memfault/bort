@@ -106,6 +106,10 @@ class MarUnsampledHoldingArea @Inject constructor(
 
     fun oldestFileUpdatedTimestampMs(): Long? = unsampledHoldingDirectory.oldestFileUpdatedTimestamp()
 
+    fun deleteAllFiles() {
+        cleanupFiles(dir = unsampledHoldingDirectory, maxDirStorageBytes = 0)
+    }
+
     private fun marFileForManifest(manifestFile: File): File {
         val marFileName = manifestFile.name.removeSuffix(".$MANIFEST_EXTENSION")
         return File(unsampledHoldingDirectory, marFileName)

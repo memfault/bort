@@ -55,11 +55,11 @@ class MarFileHoldingArea @Inject constructor(
 ) {
     // Note: coroutine mutex is not re-entrant!
     private val mutex = Mutex()
-    private val sampledStorageMetric = Reporting.report().numberProperty(
+    private val sampledStorageMetric = Reporting.report().distribution(
         name = "mar_sampled_storage",
         internal = true,
     )
-    private val unsampledStorageMetric = Reporting.report().numberProperty(
+    private val unsampledStorageMetric = Reporting.report().distribution(
         name = "mar_unsampled_storage",
         internal = true,
     )
@@ -67,7 +67,7 @@ class MarFileHoldingArea @Inject constructor(
         name = "mar_sampled_deleted",
         internal = true,
     )
-    private val unsampledAgeMetric = Reporting.report().numberProperty(
+    private val unsampledAgeMetric = Reporting.report().distribution(
         name = "mar_unsampled_max_age_ms",
         internal = true,
     )
@@ -130,12 +130,12 @@ class MarFileHoldingArea @Inject constructor(
      * There is a mar file size limit, so multiple files may be created/returned.
      */
     suspend fun bundleMarFilesForUpload(): List<File> = mutex.withLock {
-        sampledStorageMetric.update(sampledHoldingDirectory.directorySize())
-        unsampledStorageMetric.update(unsampledHoldingArea.storageUsedBytes())
+        sampledStorageMetric.record(sampledHoldingDirectory.directorySize())
+        unsampledStorageMetric.record(unsampledHoldingArea.storageUsedBytes())
         val maxUnsampledAgeMs = unsampledHoldingArea.oldestFileUpdatedTimestampMs()?.let {
             combinedTimeProvider.now().timestamp.toEpochMilli() - it
         } ?: 0
-        unsampledAgeMetric.update(maxUnsampledAgeMs)
+        unsampledAgeMetric.record(maxUnsampledAgeMs)
 
         val pendingFiles = sampledHoldingDirectory.listFiles()?.asList() ?: emptyList()
 
@@ -160,6 +160,11 @@ class MarFileHoldingArea @Inject constructor(
             Logger.d("Triggering one-time mar upload after moving files from unsampled")
             oneTimeMarUpload.batchAndUpload()
         }
+    }
+
+    fun deleteAllFiles() {
+        cleanupFiles(dir = sampledHoldingDirectory, maxDirStorageBytes = 0)
+        unsampledHoldingArea.deleteAllFiles()
     }
 
     /**

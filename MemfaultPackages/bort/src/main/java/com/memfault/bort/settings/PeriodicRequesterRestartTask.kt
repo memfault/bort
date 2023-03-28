@@ -28,6 +28,7 @@ class PeriodicRequesterRestartTask @Inject constructor(
     private val dumpsterCapabilities: DumpsterCapabilities,
     private val cachedClientServerMode: CachedClientServerMode,
     private val devMode: DevMode,
+    private val projectKeyProvider: ProjectKeyProvider,
 ) : Task<FetchedSettingsUpdate>() {
     override val getMaxAttempts = { 1 }
 
@@ -39,6 +40,7 @@ class PeriodicRequesterRestartTask @Inject constructor(
             dumpsterCapabilities,
             cachedClientServerMode,
             devMode,
+            projectKeyProvider,
         )
         val new = DynamicSettingsProvider(
             object : ReadonlyFetchedSettingsProvider {
@@ -47,6 +49,7 @@ class PeriodicRequesterRestartTask @Inject constructor(
             dumpsterCapabilities,
             cachedClientServerMode,
             devMode,
+            projectKeyProvider,
         )
         periodicWorkRequesters.forEach {
             it.evaluateSettingsChange(old, new)

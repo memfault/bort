@@ -114,7 +114,7 @@ class CommandRunnerTest {
         assertThrows<CancellationException> {
             future.get()
         }
-        verify(exactly = 1, timeout = 1000) { reportResultMock(143, true) }
+        verify(exactly = 1, timeout = 5000) { reportResultMock(143, true) }
         assertEquals(true, cmd.didTimeout)
     }
 }

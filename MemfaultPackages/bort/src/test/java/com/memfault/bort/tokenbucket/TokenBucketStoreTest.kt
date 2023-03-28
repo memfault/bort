@@ -1,12 +1,16 @@
 package com.memfault.bort.tokenbucket
 
+import com.memfault.bort.DEV_MODE_DISABLED
+import com.memfault.bort.DevMode
 import com.memfault.bort.time.BoxedDuration
+import io.mockk.Called
 import io.mockk.spyk
 import io.mockk.verify
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -44,10 +48,11 @@ class TokenBucketStoreTest {
         val blockResult = 1234
         assertEquals(
             blockResult,
-            TokenBucketStore(
+            RealTokenBucketStore(
                 storage = storageProvider,
                 getMaxBuckets = { 1 },
                 getTokenBucketFactory = { tokenBucketFactory },
+                devMode = DEV_MODE_DISABLED,
             ).edit {
                 // not making any changes to the map here
                 blockResult
@@ -76,10 +81,11 @@ class TokenBucketStoreTest {
         val blockResult = 1234
         assertEquals(
             blockResult,
-            TokenBucketStore(
+            RealTokenBucketStore(
                 storage = storage,
                 getMaxBuckets = { 1 },
                 getTokenBucketFactory = { tokenBucketFactory },
+                devMode = DEV_MODE_DISABLED,
             ).edit { map ->
                 val bucket = map.upsertBucket(key = key, capacity = capacity, period = period)
                 assertNotNull(bucket)
@@ -122,10 +128,11 @@ class TokenBucketStoreTest {
             )
         )
 
-        TokenBucketStore(
+        RealTokenBucketStore(
             storage = storage,
             getMaxBuckets = { 1 },
             getTokenBucketFactory = { tokenBucketFactory },
+            devMode = DEV_MODE_DISABLED,
         ).handleLinuxReboot(previousUptime = 38842.milliseconds)
 
         verify(exactly = 1) {
@@ -159,10 +166,11 @@ class TokenBucketStoreTest {
             )
         )
 
-        TokenBucketStore(
+        RealTokenBucketStore(
             storage = storage,
             getMaxBuckets = { 1 },
             getTokenBucketFactory = { tokenBucketFactory },
+            devMode = DEV_MODE_DISABLED,
         ).handleLinuxReboot(previousUptime = 12345.milliseconds)
 
         verify(exactly = 1) {
@@ -181,10 +189,11 @@ class TokenBucketStoreTest {
     @Test
     fun readCache() {
         val storageProvider = spyk(MockTokenBucketStorage(map = StoredTokenBucketMap()))
-        val store = TokenBucketStore(
+        val store = RealTokenBucketStore(
             storage = storageProvider,
             getMaxBuckets = { 1 },
             getTokenBucketFactory = { tokenBucketFactory },
+            devMode = DEV_MODE_DISABLED,
         )
         store.edit { }
         store.edit { }
@@ -206,10 +215,11 @@ class TokenBucketStoreTest {
                 )
             )
         )
-        val store = TokenBucketStore(
+        val store = RealTokenBucketStore(
             storage = storage,
             getMaxBuckets = { 1 },
             getTokenBucketFactory = { tokenBucketFactory },
+            devMode = DEV_MODE_DISABLED,
         )
         assertEquals(true, store.edit { it.isFull })
         assertEquals(false, store.edit { it.upsertBucket(key)?.take(tag = "test") })
@@ -217,5 +227,35 @@ class TokenBucketStoreTest {
         assertEquals(StoredTokenBucketMap(), storage.map)
         assertEquals(false, store.edit { it.isFull })
         assertEquals(true, store.edit { it.upsertBucket(key)?.take(tag = "test") })
+    }
+
+    @Test
+    fun devModeBypassesRateLimiting() {
+        val map = spyk(
+            StoredTokenBucketMap(
+                mapOf(
+                    key to StoredTokenBucket(
+                        count = 1,
+                        capacity = 0,
+                        period = BoxedDuration(period),
+                        periodStartElapsedRealtime = BoxedDuration(mockElapsedRealtime.now)
+                    )
+                )
+            )
+        )
+        val storage = spyk(MockTokenBucketStorage(map = map))
+        val devMode = object : DevMode {
+            override fun isEnabled(): Boolean = true
+            override fun updateMetric() = Unit
+        }
+        val store: TokenBucketStore = RealTokenBucketStore(
+            storage = storage,
+            getMaxBuckets = { 1 },
+            getTokenBucketFactory = { tokenBucketFactory },
+            devMode = devMode,
+        )
+        assertTrue(store.takeSimple(key = key, tag = "tag"))
+        verify { map wasNot Called }
+        verify { storage wasNot Called }
     }
 }

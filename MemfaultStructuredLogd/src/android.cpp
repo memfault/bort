@@ -21,6 +21,7 @@
 #include "logwriter.h"
 #include "timeutil.h"
 #include "storage.h"
+#include "version.h"
 
 using namespace android;
 
@@ -149,6 +150,10 @@ void createService(const char* storagePath) {
 
     // This log is used in E2E testing to signal test readiness:
     ALOGT("MemfaultStructuredLogd ready");
+
+    reporter->addValue(2, "Heartbeat", getTimeInMsSinceEpoch(), "structuredlogd_version", true,
+                       STATE_LATEST_VALUE, kStructuredLogdVersion, MetricValueType::String,
+                       "string", "property", true);
 
     IPCThreadState::self()->joinThreadPool();
 

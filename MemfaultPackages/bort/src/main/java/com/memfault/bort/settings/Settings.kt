@@ -133,10 +133,20 @@ interface StructuredLogSettings {
 
 interface OtaSettings {
     val updateCheckInterval: Duration
+    val downloadNetworkConstraint: NetworkConstraint
 }
 
 interface StorageSettings {
     val maxClientServerFileTransferStorageBytes: Long
+}
+
+interface FleetSamplingSettings {
+    /** Is this aspect enabled for the project? (does not determine what the resolution should be) */
+    val loggingActive: Boolean
+    /** Is this aspect enabled for the project? (does not determine what the resolution should be) */
+    val debuggingActive: Boolean
+    /** Is this aspect enabled for the project? (does not determine what the resolution should be) */
+    val monitoringActive: Boolean
 }
 
 interface SettingsProvider {
@@ -162,6 +172,7 @@ interface SettingsProvider {
     val structuredLogSettings: StructuredLogSettings
     val otaSettings: OtaSettings
     val storageSettings: StorageSettings
+    val fleetSamplingSettings: FleetSamplingSettings
 
     fun invalidate()
 }

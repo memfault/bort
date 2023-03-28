@@ -111,3 +111,9 @@ class ContinuousLogcat {
 };
 
 };
+
+#if PLATFORM_SDK_VERSION >= 30
+extern "C" {
+void LogdClose(struct logger_list* logger_list);
+}
+#endif

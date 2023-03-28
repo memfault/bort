@@ -65,9 +65,9 @@ dependencies {
     implementation deps.android.work
     implementation deps.memfault.cloud
 
-    testImplementation deps.test.junitApi
-    testImplementation deps.test.junitJupiterEngine
-    testImplementation deps.test.junitVintageEngine
+    testImplementation deps.test.junit.api
+    testImplementation deps.test.junit.jupiter.engine
+    testImplementation deps.test.junit.vintage.engine
     testImplementation deps.test.coroutines
     testImplementation deps.test.mockk
     testImplementation deps.test.robolectric

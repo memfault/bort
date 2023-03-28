@@ -1,18 +1,12 @@
 package com.memfault.bort.dropbox
 
-import com.memfault.bort.DEV_MODE_DISABLED
 import com.memfault.bort.metrics.HeartbeatReportCollector
 import com.memfault.bort.test.util.TestTemporaryFileFactory
-import com.memfault.bort.tokenbucket.MockTokenBucketFactory
-import com.memfault.bort.tokenbucket.MockTokenBucketStorage
-import com.memfault.bort.tokenbucket.StoredTokenBucketMap
-import com.memfault.bort.tokenbucket.TokenBucketStore
 import io.mockk.CapturingSlot
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Before
@@ -24,6 +18,7 @@ class MetricReportEntryProcessorTest {
     lateinit var heartbeat: CapturingSlot<MetricReport>
     lateinit var heartbeatReportCollector: HeartbeatReportCollector
     var metricReportEnabled: Boolean = true
+    private var allowedByRateLimit = true
 
     @Before
     fun setUp() {
@@ -37,19 +32,11 @@ class MetricReportEntryProcessorTest {
 
         processor = MetricReportEntryProcessor(
             temporaryFileFactory = TestTemporaryFileFactory,
-            tokenBucketStore = TokenBucketStore(
-                storage = MockTokenBucketStorage(StoredTokenBucketMap()),
-                getMaxBuckets = { 1 },
-                getTokenBucketFactory = {
-                    MockTokenBucketFactory(
-                        defaultCapacity = 1,
-                        defaultPeriod = 1.milliseconds,
-                    )
-                }
-            ),
+            tokenBucketStore = mockk {
+                every { takeSimple(any(), any(), any()) } answers { allowedByRateLimit }
+            },
             metricReportEnabledConfig = { metricReportEnabled },
             heartbeatReportCollector = heartbeatReportCollector,
-            devMode = DEV_MODE_DISABLED,
         )
     }
 
@@ -122,9 +109,10 @@ class MetricReportEntryProcessorTest {
     @Test
     fun rateLimiting() {
         runBlocking {
-            repeat(2) {
-                processor.process(mockEntry(text = VALID_HEARTBEAT_REPORT_FIXTURE, tag_ = "memfault_report"))
-            }
+            allowedByRateLimit = true
+            processor.process(mockEntry(text = VALID_HEARTBEAT_REPORT_FIXTURE, tag_ = "memfault_report"))
+            allowedByRateLimit = false
+            processor.process(mockEntry(text = VALID_HEARTBEAT_REPORT_FIXTURE, tag_ = "memfault_report"))
             // The second call will be ignored by rate limiting
             verify(exactly = 1) { heartbeatReportCollector.handleFinishedHeartbeatReport(any()) }
         }

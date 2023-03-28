@@ -8,7 +8,6 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder.BIG_ENDIAN
 import java.nio.channels.AsynchronousByteChannel
-import java.nio.channels.AsynchronousSocketChannel
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
@@ -50,7 +49,7 @@ sealed class BortMessage {
     /**
      * Write this message to the channel.
      */
-    suspend fun writeMessage(channel: AsynchronousSocketChannel, timeout: Duration = TIMEOUT) = channel.apply {
+    suspend fun writeMessage(channel: AsynchronousByteChannel, timeout: Duration = TIMEOUT) = channel.apply {
         // Timeout writing a single message is an error and causes a disconnection.
         withTimeout(timeout) {
             writeBytes(HEADER_SIZE) {
@@ -146,7 +145,7 @@ sealed class BortMessage {
     }
 }
 
-suspend fun AsynchronousSocketChannel.writeMessage(message: BortMessage) = message.writeMessage(this)
+suspend fun AsynchronousByteChannel.writeMessage(message: BortMessage) = message.writeMessage(this)
 
 /**
  * Reading/writing a String to the channel.

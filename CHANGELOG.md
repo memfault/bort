@@ -1,6 +1,41 @@
 # Memfault Bort Changelog
 
-## v4.4.0 - January 11th, 2022
+## v4.5.0 - March 27th, 2023
+
+#### :rocket: New Features
+
+- Added metric for [Fleet Sampling](https://mflt.io/android-builtin-metrics)
+  resolutions.
+- Bypass all rate-limits in Dev Mode.
+  [See Documentation](https://mflt.io/android-dev-mode)
+- [Batterystats](https://mflt.io//android-batterystats-metrics) via HRT
+  - Bort writes batterystats history directly to the HRT file produced by the
+    metrics service.
+  - Bort calculates batterystats aggregate metrics to replicate existing backend
+    processing.
+- Allow the project key to be changed at runtime via intent broadcast.
+  [See Documentation](https://mflt.io/android-setting-project-key-at-runtime).
+
+#### :chart_with_upwards_trend: Improvements
+
+- Removed cuttlefish related AOSP patches as they were for internal use only.
+- Improved MAR file bundling.
+- Fixed a socket error when running in Client/Server mode.
+- Fixed a bug that caused MemfaultDumpster to crash.
+- Fixed crash when channel closes in UsageReporter.
+- Updated Android Build Tools and Libraries.
+- Updated AGP to 7.4.1
+- Limit max storage age of MAR files to 7 days (down from 30).
+- StructuredLogD now forces timestamp linearity for time calculations.
+- Fix SELinux violation caused by dumpstate calling `dump()` on the
+  memfault_structured service.
+
+#### :house: Internal
+
+- Fixed incorrect HRT typing on internal metrics.
+- Added metric for tracking deleted MAR files.
+
+## v4.4.0 - January 11th, 2023
 
 #### :rocket: New Features
 

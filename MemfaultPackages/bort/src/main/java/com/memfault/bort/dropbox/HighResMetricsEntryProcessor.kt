@@ -23,9 +23,7 @@ class HighResMetricsEntryProcessor @Inject constructor(
     override val tags: List<String> = listOf(DROPBOX_ENTRY_TAG)
 
     private fun allowedByRateLimit(): Boolean =
-        tokenBucketStore.edit { map ->
-            map.upsertBucket(DROPBOX_ENTRY_TAG)?.take(tag = "high_res") ?: false
-        }
+        tokenBucketStore.takeSimple(key = DROPBOX_ENTRY_TAG, tag = "high_res")
 
     override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
         if (!highResMetricsEnabled()) {

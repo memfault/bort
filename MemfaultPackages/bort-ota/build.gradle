@@ -80,11 +80,11 @@ dependencies {
 
     implementation deps.kotlin.stdlib
     implementation deps.kotlin.coroutines
-    implementation deps.kotlin.coroutinesAndroid
+    implementation deps.kotlin.coroutines.android
 
-    implementation deps.android.activityKtx
+    implementation deps.android.activity
     implementation deps.android.appcompat
-    implementation deps.android.fragmentKtx
+    implementation deps.android.fragment
     implementation deps.android.material
     implementation deps.android.preference
 
@@ -93,9 +93,9 @@ dependencies {
     implementation deps.okhttp
     implementation deps.okio
 
-    testImplementation deps.test.junitApi
-    testRuntimeOnly deps.test.junitJupiterEngine
-    testRuntimeOnly deps.test.junitVintageEngine
+    testImplementation deps.test.junit.api
+    testRuntimeOnly deps.test.junit.jupiter.engine
+    testRuntimeOnly deps.test.junit.vintage.engine
     testImplementation deps.test.coroutines
     testImplementation deps.test.mockk
     testImplementation deps.test.mockWebServer

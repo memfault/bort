@@ -7,7 +7,6 @@ import com.memfault.bort.settings.DynamicSettingsProvider
 import com.memfault.bort.settings.HttpApiSettings
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.settings.SettingsProvider
-import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.shared.LogcatPriority
@@ -19,11 +18,6 @@ import javax.inject.Inject
 class TestOverrideSettings @Inject constructor(
     sharedPreferences: SharedPreferences,
 ) {
-    val projectKeyProvider = object : PreferenceKeyProvider<String>(
-        sharedPreferences = sharedPreferences,
-        defaultValue = BuildConfig.MEMFAULT_PROJECT_API_KEY,
-        preferenceKey = "test-project-api-key"
-    ) {}
 
     val useMarUpload = object : PreferenceKeyProvider<Boolean>(
         sharedPreferences = sharedPreferences,
@@ -51,8 +45,6 @@ class TestSettingsProvider @Inject constructor(
     fun override() = testOverrides.useTestSettingOverrides.getValue()
 
     override val httpApiSettings = object : HttpApiSettings by settings.httpApiSettings {
-        override val projectKey: String
-            get() = if (override()) testOverrides.projectKeyProvider.getValue() else settings.httpApiSettings.projectKey
         override suspend fun useMarUpload(): Boolean =
             if (override()) testOverrides.useMarUpload.getValue() else settings.httpApiSettings.useMarUpload()
         override val batchMarUploads: Boolean

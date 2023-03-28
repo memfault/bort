@@ -3,6 +3,8 @@ package com.memfault.bort.ota.lib
 import android.content.ContentResolver
 import android.database.MatrixCursor
 import android.net.Uri
+import androidx.work.NetworkType.CONNECTED
+import androidx.work.NetworkType.UNMETERED
 import com.memfault.bort.shared.LegacySoftwareUpdateSettings
 import com.memfault.bort.shared.SoftwareUpdateSettings
 import com.memfault.bort.shared.SoftwareUpdateSettings.Companion.createCursor
@@ -37,7 +39,7 @@ class BortSoftwareUpdateSettingsProviderTest {
         updateCheckIntervalMs = 1,
         baseUrl = "baseUrl5",
         projectApiKey = "projectApiKey6",
-        unused = true,
+        downloadNetworkTypeConstraint = CONNECTED,
     )
 
     @Test
@@ -67,7 +69,7 @@ class BortSoftwareUpdateSettingsProviderTest {
         cursor = legacyCreateCursor(settings.asLegacyOtaSettings())
         val provider = BortSoftwareUpdateSettingsProvider(resolver)
         // Default value should be used for new field.
-        assertEquals(settings.copy(unused = false), provider.settings())
+        assertEquals(settings.copy(downloadNetworkTypeConstraint = UNMETERED), provider.settings())
     }
 
     /**

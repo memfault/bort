@@ -15,10 +15,6 @@ import com.memfault.bort.parsers.EXAMPLE_TOMBSTONE
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.time.BaseBootRelativeTime
-import com.memfault.bort.tokenbucket.MockTokenBucketFactory
-import com.memfault.bort.tokenbucket.MockTokenBucketStorage
-import com.memfault.bort.tokenbucket.StoredTokenBucketMap
-import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueUpload
 import com.memfault.bort.uploader.HandleEventOfInterest
 import io.mockk.CapturingSlot
@@ -28,7 +24,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -38,8 +33,6 @@ import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 
-val TEST_BUCKET_CAPACITY = 3
-
 class TombstoneEntryProcessorTest {
     lateinit var processor: UploadingEntryProcessor<TombstoneUploadingEntryProcessorDelegate>
     lateinit var mockEnqueueUpload: EnqueueUpload
@@ -48,6 +41,7 @@ class TombstoneEntryProcessorTest {
     lateinit var builtInMetricsStore: BuiltinMetricsStore
     lateinit var mockHandleEventOfInterest: HandleEventOfInterest
     lateinit var mockPackageNameAllowList: PackageNameAllowList
+    private var allowedByRateLimit = true
 
     @BeforeEach
     fun setUp() {
@@ -67,17 +61,9 @@ class TombstoneEntryProcessorTest {
         processor = UploadingEntryProcessor(
             delegate = TombstoneUploadingEntryProcessorDelegate(
                 packageManagerClient = mockPackageManagerClient,
-                tokenBucketStore = TokenBucketStore(
-                    storage = MockTokenBucketStorage(StoredTokenBucketMap()),
-                    getMaxBuckets = { 1 },
-                    getTokenBucketFactory = {
-                        MockTokenBucketFactory(
-                            defaultCapacity = TEST_BUCKET_CAPACITY,
-                            defaultPeriod = 1.milliseconds,
-                            metrics = builtInMetricsStore,
-                        )
-                    }
-                ),
+                tokenBucketStore = mockk {
+                    every { takeSimple(any(), any(), any()) } answers { allowedByRateLimit }
+                },
                 tempFileFactory = TestTemporaryFileFactory,
                 scrubTombstones = { false },
             ),
@@ -133,12 +119,12 @@ class TombstoneEntryProcessorTest {
         } returns PACKAGE_FIXTURE
 
         runBlocking {
-            val runs = 15
-            (0..runs).forEach {
-                processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "SYSTEM_TOMBSTONE"))
-            }
-            verify(exactly = TEST_BUCKET_CAPACITY) { mockEnqueueUpload.enqueue(any(), any(), any(), any()) }
-            verify(exactly = TEST_BUCKET_CAPACITY) {
+            allowedByRateLimit = true
+            processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "SYSTEM_TOMBSTONE"))
+            allowedByRateLimit = false
+            processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "SYSTEM_TOMBSTONE"))
+            verify(exactly = 1) { mockEnqueueUpload.enqueue(any(), any(), any(), any()) }
+            verify(exactly = 1) {
                 mockHandleEventOfInterest.handleEventOfInterest(any<BaseBootRelativeTime>())
             }
         }

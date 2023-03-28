@@ -85,9 +85,7 @@ internal class RebootEventUploader(
     private val enqueueUpload: EnqueueUpload,
 ) {
     private fun createAndUploadCurrentRebootEvent(bootCount: Int) {
-        val allowedByRateLimit = tokenBucketStore.edit { map ->
-            map.upsertBucket("reboot-event")?.take(tag = "reboot") ?: false
-        }
+        val allowedByRateLimit = tokenBucketStore.takeSimple(key = "reboot-event", tag = "reboot")
 
         if (!allowedByRateLimit) {
             return

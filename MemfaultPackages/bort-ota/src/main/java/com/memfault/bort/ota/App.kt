@@ -1,5 +1,6 @@
 package com.memfault.bort.ota
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.app.PendingIntent
 import android.content.Context
@@ -113,6 +114,7 @@ open class App : Application(), UpdaterProvider {
         super.onTerminate()
     }
 
+    @SuppressLint("MissingPermission")
     private fun sendUpdateNotification(ota: Ota) {
         val notificationManager = NotificationManagerCompat.from(this)
 
@@ -140,6 +142,7 @@ open class App : Application(), UpdaterProvider {
             .cancel(UPDATE_AVAILABLE_NOTIFICATION_ID)
     }
 
+    @SuppressLint("MissingPermission")
     private fun showUpdateCompleteNotification(success: Boolean) {
         val notificationManager = NotificationManagerCompat.from(this)
 

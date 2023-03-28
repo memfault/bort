@@ -1,27 +1,327 @@
 package com.memfault.bort.parsers
 
-import com.memfault.bort.parsers.Transition.NONE
-import com.memfault.bort.parsers.Transition.OFF
-import com.memfault.bort.parsers.Transition.ON
+import com.memfault.bort.metrics.BatteryStatsAgg
+import com.memfault.bort.metrics.BatteryStatsAgg.BatteryLevelAggregator
+import com.memfault.bort.metrics.BatteryStatsAgg.CountByNominalAggregator
+import com.memfault.bort.metrics.BatteryStatsAgg.MaximumValueAggregator
+import com.memfault.bort.metrics.BatteryStatsAgg.TimeByNominalAggregator
+import com.memfault.bort.metrics.BatteryStatsResult
+import com.memfault.bort.metrics.HighResTelemetry.DataType
+import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
+import com.memfault.bort.metrics.HighResTelemetry.DataType.StringType
+import com.memfault.bort.metrics.HighResTelemetry.Datum
+import com.memfault.bort.metrics.HighResTelemetry.MetricType
+import com.memfault.bort.metrics.HighResTelemetry.MetricType.Event
+import com.memfault.bort.metrics.HighResTelemetry.MetricType.Gauge
+import com.memfault.bort.metrics.HighResTelemetry.MetricType.Property
+import com.memfault.bort.metrics.HighResTelemetry.Rollup
+import com.memfault.bort.metrics.HighResTelemetry.RollupMetadata
+import com.memfault.bort.parsers.BatteryStatsConstants.ALARM
+import com.memfault.bort.parsers.BatteryStatsConstants.AUDIO
+import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_COULOMB
+import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_HEALTH
+import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_LEVEL
+import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_PLUG
+import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_PLUGGED
+import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_STATUS
+import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_TEMP
+import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_VOLTAGE
+import com.memfault.bort.parsers.BatteryStatsConstants.BLUETOOTH_LE_SCANNING
+import com.memfault.bort.parsers.BatteryStatsConstants.BOOL_VALUE_FALSE
+import com.memfault.bort.parsers.BatteryStatsConstants.BOOL_VALUE_TRUE
+import com.memfault.bort.parsers.BatteryStatsConstants.BatteryHealth
+import com.memfault.bort.parsers.BatteryStatsConstants.BatteryPlug
+import com.memfault.bort.parsers.BatteryStatsConstants.BatteryStatus
+import com.memfault.bort.parsers.BatteryStatsConstants.CAMERA
+import com.memfault.bort.parsers.BatteryStatsConstants.CHARGING
+import com.memfault.bort.parsers.BatteryStatsConstants.CPU_RUNNING
+import com.memfault.bort.parsers.BatteryStatsConstants.DEVICE_ACTIVE
+import com.memfault.bort.parsers.BatteryStatsConstants.DOZE
+import com.memfault.bort.parsers.BatteryStatsConstants.DozeState
+import com.memfault.bort.parsers.BatteryStatsConstants.FOREGROUND
+import com.memfault.bort.parsers.BatteryStatsConstants.GPS_ON
+import com.memfault.bort.parsers.BatteryStatsConstants.GPS_SIGNAL_STRENGTH
+import com.memfault.bort.parsers.BatteryStatsConstants.GpsSignalStrength
+import com.memfault.bort.parsers.BatteryStatsConstants.I_CONTENT_START
+import com.memfault.bort.parsers.BatteryStatsConstants.I_TYPE
+import com.memfault.bort.parsers.BatteryStatsConstants.I_VERSION
+import com.memfault.bort.parsers.BatteryStatsConstants.JOB
+import com.memfault.bort.parsers.BatteryStatsConstants.LONGWAKE
+import com.memfault.bort.parsers.BatteryStatsConstants.PACKAGE_INSTALL
+import com.memfault.bort.parsers.BatteryStatsConstants.PACKAGE_UNINSTALL
+import com.memfault.bort.parsers.BatteryStatsConstants.PHONE_CONNECTION
+import com.memfault.bort.parsers.BatteryStatsConstants.PHONE_IN_CALL
+import com.memfault.bort.parsers.BatteryStatsConstants.PHONE_RADIO
+import com.memfault.bort.parsers.BatteryStatsConstants.PHONE_SCANNING
+import com.memfault.bort.parsers.BatteryStatsConstants.PHONE_SIGNAL_STRENGTH
+import com.memfault.bort.parsers.BatteryStatsConstants.PHONE_STATE
+import com.memfault.bort.parsers.BatteryStatsConstants.POWER_SAVE
+import com.memfault.bort.parsers.BatteryStatsConstants.PhoneConnection
+import com.memfault.bort.parsers.BatteryStatsConstants.PhoneSignalStrength
+import com.memfault.bort.parsers.BatteryStatsConstants.SCREEN_BRIGHTNESS
+import com.memfault.bort.parsers.BatteryStatsConstants.SCREEN_ON
+import com.memfault.bort.parsers.BatteryStatsConstants.SENSOR
+import com.memfault.bort.parsers.BatteryStatsConstants.START
+import com.memfault.bort.parsers.BatteryStatsConstants.ScreenBrightness
+import com.memfault.bort.parsers.BatteryStatsConstants.TOP_APP
+import com.memfault.bort.parsers.BatteryStatsConstants.Transition
+import com.memfault.bort.parsers.BatteryStatsConstants.USER
+import com.memfault.bort.parsers.BatteryStatsConstants.USER_FOREGROUND
+import com.memfault.bort.parsers.BatteryStatsConstants.VALID_VERSION
+import com.memfault.bort.parsers.BatteryStatsConstants.VIDEO
+import com.memfault.bort.parsers.BatteryStatsConstants.WAKELOCK
+import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_FULL_LOCK
+import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_MULTICAST
+import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_ON
+import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_RADIO
+import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_RUNNING
+import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_SCAN
+import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_SIGNAL_STRENGTH
+import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_SUPPLICANT
+import com.memfault.bort.parsers.BatteryStatsConstants.WifiSignalStrength
+import com.memfault.bort.parsers.BatteryStatsConstants.WifiSupplicantState
+import com.memfault.bort.parsers.BatteryStatsConstants.enumNames
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.Logger
 import java.io.File
 import java.lang.IllegalStateException
 import java.lang.NumberFormatException
-import kotlinx.coroutines.delay
+import java.util.LinkedList
+import kotlinx.serialization.json.JsonPrimitive
 
 class BatteryStatsHistoryParser(
     private val file: File,
-    private val batteryStatsHistoryMetricLogger: BatteryStatsHistoryMetricLogger,
 ) {
     private val hsp = mutableMapOf<Int, HspEntry>()
     private var used = false
+
+    /**
+     * Wall clock. This can get reset during a file. This is used for creating HRT metrics.
+     */
     private var timeMs: Long? = null
+
+    /**
+     * Elapsed time during file, based on `h` deltas. Used for aggregates.
+     */
+    private var elapsedMs: Long = 0
     private var currentTopApp: String? = null
     private var currentForeground: String? = null
     private var reportedErrorMetric = false
+    private val metrics = listOf(
+        // TODO use bools for some of these instead of StringType?
+        BatteryMetric(key = WAKELOCK, type = Property, dataType = StringType),
+        BatteryMetric(
+            key = CPU_RUNNING, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(metricName = "cpu_running_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                CountByNominalAggregator(metricName = "cpu_resume_count_per_hour", state = BOOL_VALUE_TRUE),
+                CountByNominalAggregator(metricName = "cpu_suspend_count_per_hour", state = BOOL_VALUE_FALSE),
+            )
+        ),
+        BatteryMetric(
+            key = BATTERY_LEVEL, type = Gauge, dataType = DoubleType,
+            aggregations = listOf(BatteryLevelAggregator())
+        ),
+        BatteryMetric(
+            key = BATTERY_TEMP, type = Gauge, dataType = DoubleType,
+            aggregations = listOf(MaximumValueAggregator(metricName = "max_battery_temp"))
+        ),
+        BatteryMetric(key = BATTERY_VOLTAGE, type = Gauge, dataType = DoubleType),
+        BatteryMetric(key = BATTERY_COULOMB, type = Gauge, dataType = DoubleType),
+        BatteryMetric(
+            key = BATTERY_HEALTH, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(
+                    metricName = "battery_health_not_good_ratio",
+                    states = enumNames(
+                        listOf(
+                            BatteryHealth.Cold,
+                            BatteryHealth.Failure,
+                            BatteryHealth.OverVoltage,
+                            BatteryHealth.Dead,
+                            BatteryHealth.Overheat,
+                        )
+                    )
+                ),
+            )
+        ),
+        BatteryMetric(key = BATTERY_STATUS, type = Property, dataType = StringType),
+        BatteryMetric(key = BATTERY_PLUG, type = Property, dataType = StringType),
+        BatteryMetric(key = BATTERY_PLUGGED, type = Property, dataType = StringType),
+        BatteryMetric(key = CHARGING, type = Property, dataType = StringType),
+        BatteryMetric(
+            key = AUDIO, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(metricName = "audio_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
+            )
+        ),
+        BatteryMetric(key = CAMERA, type = Property, dataType = StringType),
+        BatteryMetric(key = VIDEO, type = Property, dataType = StringType),
+        BatteryMetric(key = SENSOR, type = Property, dataType = StringType),
+        BatteryMetric(
+            key = GPS_ON, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(metricName = "gps_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
+            )
+        ),
+        BatteryMetric(key = GPS_SIGNAL_STRENGTH, type = Property, dataType = StringType),
+        BatteryMetric(
+            key = SCREEN_ON, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(metricName = "screen_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
+            )
+        ),
+        BatteryMetric(
+            key = SCREEN_BRIGHTNESS, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(
+                    metricName = "screen_brightness_light_or_bright_ratio",
+                    states = enumNames(listOf(ScreenBrightness.Light, ScreenBrightness.Bright)),
+                ),
+            )
+        ),
+        BatteryMetric(
+            key = WIFI_ON, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(metricName = "wifi_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
+            )
+        ),
+        BatteryMetric(key = WIFI_FULL_LOCK, type = Property, dataType = StringType),
+        BatteryMetric(
+            key = WIFI_SCAN, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(metricName = "wifi_scan_ratio", states = listOf(BOOL_VALUE_TRUE)),
+            )
+        ),
+        BatteryMetric(key = WIFI_MULTICAST, type = Property, dataType = StringType),
+        BatteryMetric(
+            key = WIFI_RADIO, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(metricName = "wifi_radio_active_ratio", states = listOf(BOOL_VALUE_TRUE)),
+            )
+        ),
+        BatteryMetric(
+            key = WIFI_RUNNING, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(metricName = "wifi_running_ratio", states = listOf(BOOL_VALUE_TRUE)),
+            )
+        ),
+        BatteryMetric(
+            key = WIFI_SIGNAL_STRENGTH, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(
+                    metricName = "wifi_signal_strength_poor_or_very_poor_ratio",
+                    states = enumNames(listOf(WifiSignalStrength.Poor, WifiSignalStrength.VeryPoor)),
+                ),
+            ),
+        ),
+        BatteryMetric(key = WIFI_SUPPLICANT, type = Property, dataType = StringType),
+        BatteryMetric(key = POWER_SAVE, type = Property, dataType = StringType),
+        BatteryMetric(
+            key = DOZE, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(metricName = "doze_full_ratio", states = enumNames(listOf(DozeState.Full))),
+                TimeByNominalAggregator(
+                    metricName = "doze_ratio",
+                    states = enumNames(listOf(DozeState.Full, DozeState.Light)),
+                ),
+            )
+        ),
+        BatteryMetric(key = USER, type = Property, dataType = StringType),
+        BatteryMetric(key = USER_FOREGROUND, type = Property, dataType = StringType),
+        BatteryMetric(key = JOB, type = Property, dataType = StringType),
+        BatteryMetric(key = PACKAGE_INSTALL, type = Event, dataType = StringType),
+        BatteryMetric(key = PACKAGE_UNINSTALL, type = Event, dataType = StringType),
+        BatteryMetric(key = DEVICE_ACTIVE, type = Property, dataType = StringType),
+        BatteryMetric(
+            key = BLUETOOTH_LE_SCANNING, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(metricName = "bluetooth_scan_ratio", states = listOf(BOOL_VALUE_TRUE)),
+            )
+        ),
+        BatteryMetric(
+            key = PHONE_RADIO, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(metricName = "phone_radio_active_ratio", states = listOf(BOOL_VALUE_TRUE)),
+            )
+        ),
+        BatteryMetric(key = PHONE_CONNECTION, type = Property, dataType = StringType),
+        BatteryMetric(key = PHONE_IN_CALL, type = Property, dataType = StringType),
+        BatteryMetric(
+            key = PHONE_SCANNING, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(metricName = "phone_scanning_ratio", states = listOf(BOOL_VALUE_TRUE)),
+            )
+        ),
+        BatteryMetric(
+            key = PHONE_SIGNAL_STRENGTH, type = Property, dataType = StringType,
+            aggregations = listOf(
+                TimeByNominalAggregator(
+                    metricName = "phone_signal_strength_none_ratio",
+                    states = enumNames(listOf(PhoneSignalStrength.NoSignal)),
+                ),
+                TimeByNominalAggregator(
+                    metricName = "phone_signal_strength_poor_ratio",
+                    states = enumNames(listOf(PhoneSignalStrength.Poor)),
+                ),
+            )
+        ),
+        BatteryMetric(key = PHONE_STATE, type = Property, dataType = StringType),
+        BatteryMetric(key = TOP_APP, type = Property, dataType = StringType),
+        BatteryMetric(key = FOREGROUND, type = Property, dataType = StringType),
+        BatteryMetric(key = LONGWAKE, type = Property, dataType = StringType),
+        BatteryMetric(key = ALARM, type = Property, dataType = StringType),
+        BatteryMetric(key = START, type = Event, dataType = StringType),
+    )
+    private val metricsMap = metrics.associateBy { it.key }
 
-    suspend fun parseToCustomMetrics() {
+    private inner class BatteryMetric(
+        val key: String,
+        private val type: MetricType,
+        private val dataType: DataType,
+        private val data: LinkedList<Datum> = LinkedList(),
+        private val aggregations: List<BatteryStatsAgg> = emptyList(),
+        private val hrt: Boolean = true,
+    ) {
+        /**
+         * Gather the HRT follup for this metric (if there are any values recorded).
+         */
+        fun rollup(): Rollup? {
+            if (data.isEmpty()) return null
+            return Rollup(
+                metadata = RollupMetadata(
+                    stringKey = key,
+                    metricType = type,
+                    dataType = dataType,
+                    internal = false,
+                ),
+                data = data,
+            )
+        }
+
+        /**
+         * Gather the aggregated metric(s).
+         */
+        fun aggregates(): List<Pair<String, JsonPrimitive>> {
+            return aggregations.flatMap { it.finish(elapsedMs) }
+        }
+
+        /**
+         * Add a value, at the current timestamp.
+         */
+        fun addValue(value: JsonPrimitive) {
+            val time = timeMs ?: return
+            if (hrt) {
+                // Drop any previous values which are >= this timestamp (i.e. if there was a backwards time change).
+                data.dropLastWhile { it.t >= time }
+                data.add(Datum(t = time, value))
+            }
+            // Add to aggregations (using elapsed time).
+            aggregations.forEach { it.addValue(elapsedMs, value) }
+        }
+    }
+
+    fun parseToCustomMetrics(): BatteryStatsResult {
         if (used) throw IllegalStateException("Cannot re-use parser")
         used = true
 
@@ -40,8 +340,6 @@ class BatteryStatsHistoryParser(
                         "hsp" -> parseHsp(contentEntries)
                         "h" -> parseHistory(contentEntries)
                     }
-                    // TODO hack to not crash metric service - needs a bulk insert API to remove this.
-                    delay(5)
                 } catch (e: ArrayIndexOutOfBoundsException) {
                     Logger.i("parseToCustomMetrics $line", e)
                     reportErrorMetric()
@@ -51,6 +349,14 @@ class BatteryStatsHistoryParser(
                 }
             }
         }
+        val hrt = metrics.mapNotNull { it.rollup() }
+        val aggregateMetrics = mutableMapOf<String, JsonPrimitive>()
+        metrics.forEach { aggregateMetrics.putAll(it.aggregates()) }
+        return BatteryStatsResult(
+            batteryStatsFileToUpload = null,
+            batteryStatsHrt = hrt,
+            aggregatedMetrics = aggregateMetrics,
+        )
     }
 
     private fun parseHeader(entries: List<String>) = Unit
@@ -60,6 +366,27 @@ class BatteryStatsHistoryParser(
         val uid: Int,
         val value: String,
     )
+
+    private fun addValue(key: String, value: String?) {
+        addValue(key, JsonPrimitive(value))
+    }
+
+    private fun addValue(key: String, value: Boolean?) {
+        // null is false
+        addValue(key, if (value == true) BOOL_VALUE_TRUE else BOOL_VALUE_FALSE)
+    }
+
+    private fun <T : Enum<T>> addValue(key: String, value: Enum<T>?) {
+        addValue(key, JsonPrimitive(value?.name ?: ""))
+    }
+
+    private fun addValue(key: String, value: Long?) {
+        addValue(key, JsonPrimitive(value))
+    }
+
+    private fun addValue(key: String, value: JsonPrimitive) {
+        metricsMap[key]?.addValue(value = value)
+    }
 
     private fun parseHsp(entries: List<String>) {
         val key = entries[0].toInt()
@@ -80,126 +407,82 @@ class BatteryStatsHistoryParser(
         }
     }
 
+    private fun addElapsedTime(sinceLast: Long) {
+        timeMs = timeMs?.plus(sinceLast)?.also {
+            // Only increment if time was already set (we see crazy initial values for this before that).
+            elapsedMs += sinceLast
+        }
+    }
+
     private fun parseHistory(entries: List<String>) {
         val command = entries[0].split(":")
         if (command.size > 1) {
             val sinceLast = command[0].toLong()
-            timeMs = timeMs?.plus(sinceLast)
+            addElapsedTime(sinceLast)
             when (command[1]) {
                 "TIME" -> timeMs = command[2].toLong()
                 "RESET" -> timeMs = command[3].toLong()
-                "START" -> timeMs?.let { batteryStatsHistoryMetricLogger.start(it) }
-                "SHUTDOWN" -> timeMs?.let { batteryStatsHistoryMetricLogger.shutdown(it) }
+                "START" -> timeMs?.let { addValue(START, "Start") }
+                "SHUTDOWN" -> timeMs?.let { addValue(START, "Shutdown") }
             }
         } else {
             val sinceLast = entries[0].toLong()
-            timeMs = timeMs?.plus(sinceLast)
-            timeMs?.let { parseEvent(it, entries.drop(1)) }
+            addElapsedTime(sinceLast)
+            timeMs?.let { parseEvent(entries.drop(1)) }
         }
     }
 
     // Bl=85
     // +r
     // -r
-    private fun parseEvent(timestampMs: Long, entries: List<String>) {
+    private fun parseEvent(entries: List<String>) {
         entries.forEach { event ->
             // Separate try/catch for each entry within the line, so that we don't wipe out every entry if we see one
             // parsing error.
             try {
                 val transition = when (event[0]) {
-                    '+' -> ON
-                    '-' -> OFF
-                    else -> NONE
+                    '+' -> Transition.ON
+                    '-' -> Transition.OFF
+                    else -> Transition.NONE
                 }
                 val content = when (transition) {
-                    NONE -> event
+                    Transition.NONE -> event
                     else -> event.drop(1)
                 }.split("=")
                 val eventType = content[0]
                 val value = content.getOrNull(1)
                 when (eventType) {
-                    "w" -> batteryStatsHistoryMetricLogger.wakelock(
-                        timeMs = timestampMs,
-                        wakeApp = if (transition.bool) hspLookup(value)?.value else null,
-                    )
-                    "r" -> batteryStatsHistoryMetricLogger.cpuRunning(timeMs = timestampMs, running = transition.bool)
-                    // TODO don't add battery metrics if device doesn't have a battery.
-                    "Bl" -> batteryStatsHistoryMetricLogger.batteryLevel(
-                        timeMs = timestampMs,
-                        level = value?.toLong()!!,
-                    )
-                    "Bt" -> batteryStatsHistoryMetricLogger.batteryTemp(timeMs = timestampMs, temp = value?.toLong()!!)
-                    "Bv" -> batteryStatsHistoryMetricLogger.batteryVoltage(
-                        timeMs = timestampMs,
-                        voltage = value?.toLong()!!,
-                    )
-                    "Bcc" -> batteryStatsHistoryMetricLogger.batteryCoulombCharge(
-                        timeMs = timestampMs,
-                        coulomb = value?.toLong()!!,
-                    )
-                    "Bh" -> batteryStatsHistoryMetricLogger.batteryHealth(
-                        timeMs = timestampMs,
-                        health = BatteryHealth.fromString(value!!),
-                    )
-                    "Bs" -> batteryStatsHistoryMetricLogger.batteryStatus(
-                        timeMs = timestampMs,
-                        status = BatteryStatus.fromString(value!!),
-                    )
-                    "Bp" -> batteryStatsHistoryMetricLogger.batteryPlug(
-                        timeMs = timestampMs,
-                        plug = BatteryPlug.fromString(value!!),
-                    )
-                    "BP" -> batteryStatsHistoryMetricLogger.batteryPlugged(
-                        timeMs = timestampMs,
-                        plugged = transition.bool,
-                    )
-                    "ch" -> batteryStatsHistoryMetricLogger.charging(timeMs = timestampMs, charging = transition.bool)
-                    "a" -> batteryStatsHistoryMetricLogger.audio(timeMs = timestampMs, audio = transition.bool)
-                    "ca" -> batteryStatsHistoryMetricLogger.camera(timeMs = timestampMs, camera = transition.bool)
-                    "v" -> batteryStatsHistoryMetricLogger.video(timeMs = timestampMs, video = transition.bool)
-                    "s" -> batteryStatsHistoryMetricLogger.sensor(timeMs = timestampMs, sensor = transition.bool)
-                    "g" -> batteryStatsHistoryMetricLogger.gpsOn(timeMs = timestampMs, gpsOn = transition.bool)
-                    "Gss" -> batteryStatsHistoryMetricLogger.gpsSignalStrength(
-                        timeMs = timestampMs,
-                        gpsSignalStrength = GpsSignalStrength.fromString(value!!),
-                    )
-                    "S" -> batteryStatsHistoryMetricLogger.screenOn(timeMs = timestampMs, screenOn = transition.bool)
-                    "Sb" -> batteryStatsHistoryMetricLogger.screenBrightness(
-                        timeMs = timestampMs,
-                        screenBrightness = ScreenBrightness.fromString(value!!),
-                    )
+                    "w" -> addValue(WAKELOCK, if (transition.bool) hspLookup(value)?.value else null)
+                    "r" -> addValue(CPU_RUNNING, transition.bool)
+                    // TODO MFLT-9391 don't add battery metrics if device doesn't have a battery.
+                    "Bl" -> addValue(BATTERY_LEVEL, value?.toLong()!!)
+                    "Bt" -> addValue(BATTERY_TEMP, value?.toLong()!!)
+                    "Bv" -> addValue(BATTERY_VOLTAGE, value?.toLong()!!)
+                    "Bcc" -> addValue(BATTERY_COULOMB, value?.toLong()!!)
+                    "Bh" -> addValue(BATTERY_HEALTH, BatteryHealth.fromString(value!!))
+                    "Bs" -> addValue(BATTERY_STATUS, BatteryStatus.fromString(value!!))
+                    "Bp" -> addValue(BATTERY_PLUG, BatteryPlug.fromString(value!!))
+                    "BP" -> addValue(BATTERY_PLUGGED, transition.bool)
+                    "ch" -> addValue(CHARGING, transition.bool)
+                    "a" -> addValue(AUDIO, transition.bool)
+                    "ca" -> addValue(CAMERA, transition.bool)
+                    "v" -> addValue(VIDEO, transition.bool)
+                    "s" -> addValue(SENSOR, transition.bool)
+                    "g" -> addValue(GPS_ON, transition.bool)
+                    "Gss" -> addValue(GPS_SIGNAL_STRENGTH, GpsSignalStrength.fromString(value!!))
+                    "S" -> addValue(SCREEN_ON, transition.bool)
+                    "Sb" -> addValue(SCREEN_BRIGHTNESS, ScreenBrightness.fromString(value!!))
                     // new
-                    "W" -> batteryStatsHistoryMetricLogger.wifiOn(timeMs = timestampMs, wifiOn = transition.bool)
-                    "Wl" -> batteryStatsHistoryMetricLogger.wifiFullLock(
-                        timeMs = timestampMs,
-                        wifiFullLock = transition.bool,
-                    )
-                    "Ws" -> batteryStatsHistoryMetricLogger.wifiScan(timeMs = timestampMs, wifiScan = transition.bool)
-                    "Wm" -> batteryStatsHistoryMetricLogger.wifiMulticast(
-                        timeMs = timestampMs,
-                        wifiMulticast = transition.bool,
-                    )
-                    "Wr" -> batteryStatsHistoryMetricLogger.wifiRadio(timeMs = timestampMs, wifiRadio = transition.bool)
-                    "Ww" -> batteryStatsHistoryMetricLogger.wifiRunning(
-                        timeMs = timestampMs,
-                        wifiRunning = transition.bool,
-                    )
-                    "Wss" -> batteryStatsHistoryMetricLogger.wifiSignalStrength(
-                        timeMs = timestampMs,
-                        wifiSignalStrength = SignalStrength.fromString(value!!),
-                    )
-                    "Wsp" -> batteryStatsHistoryMetricLogger.wifiSupplicantState(
-                        timeMs = timestampMs,
-                        wifiSupplicantState = WifiSupplicantState.fromString(value!!),
-                    )
-                    "ps", "lp" -> batteryStatsHistoryMetricLogger.powerSave(
-                        timeMs = timestampMs,
-                        powerSave = transition.bool,
-                    )
-                    "di" -> batteryStatsHistoryMetricLogger.doze(
-                        timeMs = timestampMs,
-                        doze = DozeState.fromString(value!!),
-                    )
+                    "W" -> addValue(WIFI_ON, transition.bool)
+                    "Wl" -> addValue(WIFI_FULL_LOCK, transition.bool)
+                    "Ws" -> addValue(WIFI_SCAN, transition.bool)
+                    "Wm" -> addValue(WIFI_MULTICAST, transition.bool)
+                    "Wr" -> addValue(WIFI_RADIO, transition.bool)
+                    "Ww" -> addValue(WIFI_RUNNING, transition.bool)
+                    "Wss" -> addValue(WIFI_SIGNAL_STRENGTH, WifiSignalStrength.fromString(value!!))
+                    "Wsp" -> addValue(WIFI_SUPPLICANT, WifiSupplicantState.fromString(value!!))
+                    "ps", "lp" -> addValue(POWER_SAVE, transition.bool)
+                    "di" -> addValue(DOZE, DozeState.fromString(value!!))
                     "Etp" -> run {
                         val lookupName = hspLookup(value)?.value
                         val topApp = if (transition.bool) lookupName else null
@@ -207,10 +490,7 @@ class BatteryStatsHistoryParser(
                         // so only clear if this is the currently foregrounded app
                         if (!transition.bool && lookupName != currentTopApp) return@run
                         currentTopApp = topApp
-                        batteryStatsHistoryMetricLogger.topApp(
-                            timeMs = timestampMs,
-                            topApp = topApp,
-                        )
+                        addValue(TOP_APP, topApp)
                     }
                     "Efg" -> run {
                         val lookupName = hspLookup(value)?.value
@@ -219,89 +499,37 @@ class BatteryStatsHistoryParser(
                         // so only clear if this is the currently foregrounded app
                         if (!transition.bool && lookupName != currentForeground) return@run
                         currentForeground = foreground
-                        batteryStatsHistoryMetricLogger.foreground(
-                            timeMs = timestampMs,
-                            foreground = foreground,
-                        )
+                        addValue(FOREGROUND, foreground)
                     }
                     // new
-                    "Eur" -> batteryStatsHistoryMetricLogger.user(
-                        timeMs = timestampMs,
-                        user = if (transition.bool) hspLookup(value)?.value else null,
-                    )
+                    "Eur" -> addValue(USER, if (transition.bool) hspLookup(value)?.value else null)
                     // new
-                    "Euf" -> batteryStatsHistoryMetricLogger.userForeground(
-                        timeMs = timestampMs,
-                        userForeground = if (transition.bool) hspLookup(value)?.value else null,
-                    )
+                    "Euf" -> addValue(USER_FOREGROUND, if (transition.bool) hspLookup(value)?.value else null)
                     // new (didn't show app before)
-                    "Ejb" -> batteryStatsHistoryMetricLogger.job(
-                        timeMs = timestampMs,
-                        job = if (transition.bool) hspLookup(value)?.value else null,
-                    )
-                    "Elw" -> batteryStatsHistoryMetricLogger.longwake(
-                        timeMs = timestampMs,
-                        longwake = if (transition.bool) hspLookup(value)?.value else null,
-                    )
+                    "Ejb" -> addValue(JOB, if (transition.bool) hspLookup(value)?.value else null)
+                    "Elw" -> addValue(LONGWAKE, if (transition.bool) hspLookup(value)?.value else null)
                     // new
                     "Epi" -> hspLookup(value)?.let {
-                        batteryStatsHistoryMetricLogger.packageInstall(
-                            timeMs = timestampMs,
-                            packageInstall = "${it.value}: ${it.uid}",
-                        )
+                        addValue(PACKAGE_INSTALL, "${it.value}: ${it.uid}")
                     }
                     // new
                     "Epu" -> hspLookup(value)?.let {
-                        batteryStatsHistoryMetricLogger.packageUninstall(
-                            timeMs = timestampMs,
-                            packageUninstall = "${it.value}: ${it.uid}",
-                        )
+                        addValue(PACKAGE_UNINSTALL, "${it.value}: ${it.uid}")
                     }
-                    "Eac" -> batteryStatsHistoryMetricLogger.deviceActive(
-                        timeMs = timestampMs,
-                        deviceActive = hspLookup(value)?.value,
-                    )
-                    "bles" -> batteryStatsHistoryMetricLogger.bleScanning(
-                        timeMs = timestampMs,
-                        bleScanning = transition.bool,
-                    )
-                    // TODO don't add phone metrics if device doesn't have cell connectivity
-                    "Pr" -> batteryStatsHistoryMetricLogger.phoneRadio(
-                        timeMs = timestampMs,
-                        phoneRadio = transition.bool,
-                    )
-                    "Pcn" -> batteryStatsHistoryMetricLogger.phoneConnection(
-                        timeMs = timestampMs,
-                        phoneConnection = PhoneConnection.fromString(value!!),
-                    )
-                    "Pcl" -> batteryStatsHistoryMetricLogger.phoneInCall(
-                        timeMs = timestampMs,
-                        phoneInCall = transition.bool,
-                    )
-                    "Psc" -> batteryStatsHistoryMetricLogger.phoneScanning(
-                        timeMs = timestampMs,
-                        phoneScanning = transition.bool,
-                    )
-                    "Pss" -> batteryStatsHistoryMetricLogger.phoneSignalStrength(
-                        timeMs = timestampMs,
-                        phoneSignalStrength = SignalStrength.fromString(value!!),
-                    )
+                    "Eac" -> addValue(DEVICE_ACTIVE, hspLookup(value)?.value)
+                    "bles" -> addValue(BLUETOOTH_LE_SCANNING, transition.bool)
+                    "Pr" -> addValue(PHONE_RADIO, transition.bool)
+                    "Pcn" -> addValue(PHONE_CONNECTION, PhoneConnection.fromString(value!!))
+                    "Pcl" -> addValue(PHONE_IN_CALL, transition.bool)
+                    "Psc" -> addValue(PHONE_SCANNING, transition.bool)
+                    "Pss" -> addValue(PHONE_SIGNAL_STRENGTH, PhoneSignalStrength.fromString(value!!))
                     "Pst" -> {
-                        batteryStatsHistoryMetricLogger.phoneState(
-                            timeMs = timestampMs,
-                            phoneState = transition.bool,
-                        )
+                        addValue(PHONE_STATE, transition.bool)
                         if (!transition.bool) {
-                            batteryStatsHistoryMetricLogger.phoneSignalStrength(
-                                timeMs = timestampMs,
-                                phoneSignalStrength = null,
-                            )
+                            addValue(PHONE_SIGNAL_STRENGTH, null as String?)
                         }
                     }
-                    "Eal" -> batteryStatsHistoryMetricLogger.alarm(
-                        timeMs = timestampMs,
-                        alarm = hspLookup(value)?.value,
-                    )
+                    "Eal" -> addValue(ALARM, hspLookup(value)?.value)
                 }
             } catch (e: ArrayIndexOutOfBoundsException) {
                 Logger.i("parseEvent $event", e)
@@ -323,187 +551,7 @@ class BatteryStatsHistoryParser(
     }
 
     companion object {
-        private const val VALID_VERSION = 9
-        private const val I_VERSION = 0
-        private const val I_TYPE = 1
-        private const val I_CONTENT_START = 2
-
         private val BATTERYSTATS_PARSE_ERROR_METRIC =
             Reporting.report().counter(name = "batterystats_parse_error", internal = true)
-    }
-}
-
-private enum class Transition(
-    val bool: Boolean,
-) {
-    ON(true),
-    OFF(false),
-    NONE(false),
-}
-
-enum class BatteryHealth(
-    private val value: String,
-) {
-    //    Unknown("?"),
-    Good("g"),
-    Overheat("h"),
-    Dead("d"),
-    OverVoltage("v"),
-    Failure("f"),
-    Cold("c"),
-    ;
-
-    companion object {
-        private val map = values().associateBy(BatteryHealth::value)
-        fun fromString(type: String) = map[type] // ?: Unknown
-    }
-}
-
-enum class BatteryStatus(
-    private val value: String,
-) {
-    //    Unknown("?"),
-    Charging("c"),
-    NotCharging("n"),
-    Discharging("d"),
-    Full("f"),
-    ;
-
-    companion object {
-        private val map = values().associateBy(BatteryStatus::value)
-        fun fromString(type: String) = map[type] // ?: Unknown
-    }
-}
-
-enum class BatteryPlug(
-    private val value: String,
-) {
-    //    Unknown("?"),
-    NoPlug("n"),
-    AC("a"),
-    USB("u"),
-    Wireless("w"),
-    ;
-
-    companion object {
-        private val map = values().associateBy(BatteryPlug::value)
-        fun fromString(type: String) = map[type] // ?: Unknown
-    }
-}
-
-enum class SignalStrength(
-    private val value: String,
-) {
-    NoSignal("0"),
-    Poor("1"),
-    Moderate("2"),
-    Good("3"),
-    Great("4"),
-    ;
-
-    companion object {
-        private val map = values().associateBy(SignalStrength::value)
-        fun fromString(type: String) = map[type]
-    }
-}
-
-enum class GpsSignalStrength(
-    private val value: String,
-) {
-    Good("good"),
-    Poor("poor"),
-    ;
-
-    companion object {
-        private val map = values().associateBy(GpsSignalStrength::value)
-        fun fromString(type: String) = map[type]
-    }
-}
-
-enum class DozeState(
-    private val value: String,
-) {
-    Off("off"),
-    Light("light"),
-    Full("full"),
-    ;
-
-    companion object {
-        private val map = values().associateBy(DozeState::value)
-        fun fromString(type: String) = map[type]
-    }
-}
-
-enum class ScreenBrightness(
-    private val value: String,
-) {
-    Dark("0"),
-    Dim("1"),
-    Medium("2"),
-    Light("3"),
-    Bright("4"),
-    ;
-
-    companion object {
-        private val map = values().associateBy(ScreenBrightness::value)
-        fun fromString(type: String) = map[type]
-    }
-}
-
-enum class WifiSupplicantState(
-    private val value: String,
-) {
-    Invalid("inv"),
-    Disconnected("dsc"),
-    Disabled("dis"),
-    Inactive("inact"),
-    Scanning("scan"),
-    Authenticating("auth"),
-    Associating("ascing"),
-    Associated("asced"),
-    FourWayHandshake("4-way"),
-    GroupHandshake("group"),
-    Completed("compl"),
-    Dormant("dorm"),
-    Uninitialized("uninit"),
-    ;
-
-    companion object {
-        private val map = values().associateBy(WifiSupplicantState::value)
-        fun fromString(type: String) = map[type]
-    }
-}
-
-enum class PhoneConnection(
-    private val value: String,
-) {
-    None("none"),
-    Other("other"),
-    EHRPD("ehrpd"),
-    LTE("lte"),
-    EDGE("edge"),
-    HSPA("hspa"),
-    HSPAP("hspap"),
-    OneXRTT("1xrtt"),
-    ;
-
-    companion object {
-        private val map = values().associateBy(PhoneConnection::value)
-        fun fromString(type: String) = map[type]
-    }
-}
-
-enum class PhoneState(
-    private val value: String,
-) {
-    In("in"),
-    Out("out"),
-    Emergency("em"),
-    Off("off"),
-    ;
-
-    companion object {
-        private val map = values().associateBy(PhoneState::value)
-        fun fromString(type: String) = map[type]
     }
 }

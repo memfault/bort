@@ -38,6 +38,7 @@ class SoftwareUpdateSettingsContentProvider : ContentProvider() {
                 updateCheckIntervalMs = settings.otaSettings.updateCheckInterval.inWholeMilliseconds,
                 baseUrl = settings.httpApiSettings.deviceBaseUrl,
                 projectApiKey = settings.httpApiSettings.projectKey,
+                downloadNetworkTypeConstraint = settings.otaSettings.downloadNetworkConstraint.networkType
             )
         }
     }

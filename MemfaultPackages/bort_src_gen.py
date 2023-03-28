@@ -10,14 +10,8 @@ import subprocess
 import sys
 
 try:
-    from typing import Optional
+    import pytest  # TODO: split out tests
 except ImportError:
-    if sys.version_info >= (3, 5):
-        pass
-
-try:
-    import pytest  # noqa: M900 # TODO: split out tests
-except:  # noqa
     pass
 
 
@@ -81,7 +75,7 @@ def _replace_placeholders(content, replacements):
 
 
 def _write_if_changed(content, output_file_abspath):
-    existing_content = None  # type: Optional[str]
+    existing_content = None  # type: str | None
     try:
         with open(output_file_abspath) as file:
             existing_content = file.read()

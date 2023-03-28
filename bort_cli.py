@@ -126,13 +126,20 @@ class Command(abc.ABC):
 
 class PatchAOSPCommand(Command):
     def __init__(
-        self, aosp_root, check_patch_command, apply_patch_command, force, android_release, exclude
+        self,
+        aosp_root,
+        check_patch_command,
+        apply_patch_command,
+        force,
+        android_release,
+        patch_dir,
+        exclude,
     ):
         self._aosp_root = aosp_root
         self._check_patch_command = check_patch_command or self._default_check_patch_command()
         self._apply_patch_command = apply_patch_command or self._default_apply_patch_command()
         self._force = force
-        self._patches_dir = os.path.join(SCRIPT_DIR, "patches", f"android-{android_release}")
+        self._patches_dir = os.path.join(patch_dir, f"android-{android_release}")
         self._exclude_dirs = exclude or []
         self._errors = []
         self._warnings = []
@@ -170,6 +177,12 @@ class PatchAOSPCommand(Command):
         )
         parser.add_argument(
             "--exclude", action="append", help="Directories to exclude from patching"
+        )
+        parser.add_argument(
+            "--patch-dir",
+            type=str,
+            default=os.path.join(SCRIPT_DIR, "patches"),
+            help="Directory containing versioned patches to apply",
         )
 
     @staticmethod

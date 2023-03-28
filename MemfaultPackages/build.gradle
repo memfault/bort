@@ -2,22 +2,6 @@
 
 import static com.memfault.bort.buildsrc.BortSettingsDownloaderKt.fetchBortSettings
 
-// Try to refresh settings/settings.json before configuring the :bort project:
-gradle.beforeProject { project ->
-    if (project.path != ":bort") return
-
-    fetchBortSettings(
-            rootProject.rootDir,
-            rootProject.properties["MEMFAULT_API_BASE_URL"],
-            bortProperty("MEMFAULT_PROJECT_API_KEY"),
-            rootProject.properties["BORT_USE_DEVELOPMENT_SETTINGS_JSON"] == "1",
-            rootProject.properties["SKIP_DOWNLOAD_SYSTEM_SETTINGS_JSON"] == "1",
-            { name -> bortProperty(name) },
-            { msg, exc -> rootProject.logger.log(LogLevel.WARN, msg,
-                    exc == null ? "" : exc) }
-    )
-}
-
 buildscript {
     apply from: 'properties.gradle'
 
@@ -27,104 +11,11 @@ buildscript {
     }
 
     ext.versions = [
-            'androidx'   : [
-                    'activityKtx'                      : '1.5.1',
-                    'appcompat'                        : '1.5.0',
-                    'fragmentKtx'                      : '1.5.2',
-                    'preference'                       : '1.1.1',
-                    'work'                             : '2.7.1',
-                    'room'                             : '2.4.3',
-            ],
-            'android'   : [
-                    'androidGradlePlugin'              : '7.2.2',
-                    'material'                         : '1.4.0',
-            ],
-            'dagger'   : [
-                    'anvil'                            : '2.4.2',
-                    'hilt'                             : '2.43.2',
-            ],
-            'kotlin'   : [
-                    'kotlin'                           : '1.7.10',
-                    'kotlinCoroutines'                 : '1.6.3',
-                    'retrofitKtxSerializationConverter': '0.8.0',
-                    'ktxSerializationJson'             : '1.3.3',
-                    'ktlintGradle'                     : '10.2.0',
-            ],
             'minSdk'                           : bortProperty("MIN_SDK_VERSION") as Integer,
             'targetSdk'                        : bortProperty("TARGET_SDK_VERSION") as Integer,
-            'compileSdk'                       : bortProperty("COMPILE_SDK_VERSION") as Integer,
-            'test'     : [
-                    'coroutinesTest'                   : '1.5.2',
-                    'androidxCoreTest'                 : '1.4.0',
-                    'junit'                            : '5.8.1',
-                    'json'                             : '20210307',
-                    'mockk'                            : '1.12.0',
-                    'robolectric'                      : '4.8',
-            ],
-            'jblake2'                          : '0.4',
-            'memfaultCloud'                    : '2.0.4',
-            'okhttp'                           : '4.10.0',
-            'okio'                             : '3.2.0',
-            'result'                           : '1.1.16',
-            'retrofit'                         : '2.9.0',
-            'jackson'                          : '2.13.2',
-            'zjsonpatch'                       : '0.4.12',
+            'compileSdk'                       : 33
     ]
-    ext.deps = [
-            'android'      : [
-                    'activityKtx'     : "androidx.activity:activity-ktx:${versions.androidx.activityKtx}",
-                    'appcompat'       : "androidx.appcompat:appcompat:${versions.androidx.appcompat}",
-                    'fragmentKtx'     : "androidx.fragment:fragment-ktx:${versions.androidx.fragmentKtx}",
-                    'gradlePlugin'    : "com.android.tools.build:gradle:${versions.android.androidGradlePlugin}",
-                    'material'        : "com.google.android.material:material:${versions.android.material}",
-                    'preference'      : "androidx.preference:preference:${versions.androidx.preference}",
-                    'work'            : "androidx.work:work-runtime-ktx:${versions.androidx.work}",
-            ],
-            'dagger'       : [
-                    'anvil'             : "com.squareup.anvil:gradle-plugin:${versions.dagger.anvil}",
-                    'hilt'              : "com.google.dagger:hilt-android:${versions.dagger.hilt}",
-                    'hiltCompiler'      : "com.google.dagger:hilt-compiler:${versions.dagger.hilt}",
-                    'hiltPlugin'        : "com.google.dagger:hilt-android-gradle-plugin:${versions.dagger.hilt}",
-            ],
-            'kotlin'       : [
-                    'ktlintGradle'      : "org.jlleitschuh.gradle:ktlint-gradle:${versions.kotlin.ktlintGradle}",
-                    'gradlePlugin'      : "org.jetbrains.kotlin:kotlin-gradle-plugin:${versions.kotlin.kotlin}",
-                    'stdlib'            : "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${versions.kotlin.kotlin}",
-                    'coroutines'        : "org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions.kotlin.kotlinCoroutines}",
-                    'coroutinesAndroid' : "org.jetbrains.kotlinx:kotlinx-coroutines-android:${versions.kotlin.kotlinCoroutines}",
-            ],
-            'serialization': [
-                    'plugin'   : "org.jetbrains.kotlin:kotlin-serialization:${versions.kotlin.kotlin}",
-                    'json'     : "org.jetbrains.kotlinx:kotlinx-serialization-json:${versions.kotlin.ktxSerializationJson}",
-                    'converter': "com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter:${versions.kotlin.retrofitKtxSerializationConverter}",
-            ],
-            'jblake2'      : "org.kocakosm:jblake2:${versions.jblake2}",
-            'retrofit'     : "com.squareup.retrofit2:retrofit:${versions.retrofit}",
-            'memfault'     : [
-                    'cloud': "com.memfault.cloud:cloud-android:${versions.memfaultCloud}",
-            ],
-            'okhttp'       : "com.squareup.okhttp3:okhttp:${versions.okhttp}",
-            'okio'         : "com.squareup.okio:okio:${versions.okio}",
-            'result'       : "com.michael-bull.kotlin-result:kotlin-result:${versions.result}",
-            'room'         : [
-                    'compiler'           : "androidx.room:room-compiler:${versions.androidx.room}",
-                    'runtime'            : "androidx.room:room-runtime:${versions.androidx.room}",
-                    'ktx'                : "androidx.room:room-ktx:${versions.androidx.room}",
-            ],
-            'test'         : [
-                    'coroutines'         : "org.jetbrains.kotlinx:kotlinx-coroutines-test:${versions.test.coroutinesTest}",
-                    'json'               : "org.json:json:${versions.test.json}",
-                    'junitApi'           : "org.junit.jupiter:junit-jupiter-api:${versions.test.junit}",
-                    'junitJupiterEngine' : "org.junit.jupiter:junit-jupiter-engine:${versions.test.junit}",
-                    'junitVintageEngine' : "org.junit.vintage:junit-vintage-engine:${versions.test.junit}",
-                    'mockk'              : "io.mockk:mockk:${versions.test.mockk}",
-                    'mockWebServer'      : "com.squareup.okhttp3:mockwebserver:${versions.okhttp}",
-                    'robolectric'        : "org.robolectric:robolectric:${versions.test.robolectric}",
-                    'testCore'           : "androidx.test:core:${versions.test.androidxCoreTest}",
-            ],
-            'jackson'      : "com.fasterxml.jackson.core:jackson-databind:${versions.jackson}",
-            'zjsonpatch'   : "com.flipkart.zjsonpatch:zjsonpatch:${versions.zjsonpatch}",
-    ]
+
     repositories {
         google()
         mavenCentral()
@@ -133,14 +24,32 @@ buildscript {
         }
 
     }
-    dependencies {
-        classpath deps.android.gradlePlugin
-        classpath deps.dagger.anvil
-        classpath deps.dagger.hiltPlugin
-        classpath deps.kotlin.gradlePlugin
-        classpath deps.kotlin.ktlintGradle
-        classpath deps.serialization.plugin
-    }
+}
+
+plugins {
+    alias(deps.plugins.android.application) apply false
+    alias(deps.plugins.android.library) apply false
+    alias(deps.plugins.dagger.anvil) apply false
+    alias(deps.plugins.dagger.hilt) apply false
+    alias(deps.plugins.kotlin) apply false
+    alias(deps.plugins.kotlin.ktlint) apply false
+    alias(deps.plugins.kotlin.serialization) apply false
+}
+
+// Try to refresh settings/settings.json before configuring the :bort project:
+gradle.beforeProject { project ->
+    if (project.path != ":bort") return
+
+    fetchBortSettings(
+        rootProject.rootDir,
+        rootProject.properties["MEMFAULT_API_BASE_URL"],
+        bortProperty("MEMFAULT_PROJECT_API_KEY"),
+        rootProject.properties["BORT_USE_DEVELOPMENT_SETTINGS_JSON"] == "1",
+        rootProject.properties["SKIP_DOWNLOAD_SYSTEM_SETTINGS_JSON"] == "1",
+        { name -> bortProperty(name) },
+        { msg, exc -> rootProject.logger.log(LogLevel.WARN, msg,
+            exc == null ? "" : exc) }
+    )
 }
 
 allprojects {

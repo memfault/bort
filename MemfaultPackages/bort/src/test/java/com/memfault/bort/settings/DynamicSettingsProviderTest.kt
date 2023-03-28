@@ -25,6 +25,8 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class DynamicSettingsProviderTest {
+    private val projectKeyProvider = mockk<ProjectKeyProvider>(relaxed = true)
+
     @Test
     fun testParseRemoteSettings() {
         assertEquals(
@@ -65,7 +67,13 @@ class DynamicSettingsProviderTest {
             every { supportsContinuousLogging() } answers { true }
         }
 
-        val settings = DynamicSettingsProvider(storedSettingsPreferenceProvider, dumpsterCapabilities, mockk(), mockk())
+        val settings = DynamicSettingsProvider(
+            storedSettingsPreferenceProvider = storedSettingsPreferenceProvider,
+            dumpsterCapabilities = dumpsterCapabilities,
+            projectKeyProvider = projectKeyProvider,
+            cachedClientServerMode = mockk(),
+            devMode = mockk()
+        )
 
         // The first call will use the value in resources
         assertEquals(LogLevel.VERBOSE, settings.minLogcatLevel)
@@ -87,7 +95,7 @@ class DynamicSettingsProviderTest {
         val prefProvider = object : ReadonlyFetchedSettingsProvider {
             override fun get(): FetchedSettings = SETTINGS_FIXTURE.toSettings()
         }
-        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities, mockk(), mockk())
+        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities, mockk(), mockk(), projectKeyProvider)
         assertEquals(CONTINUOUS, provider.logcatSettings.collectionMode)
     }
 
@@ -99,7 +107,9 @@ class DynamicSettingsProviderTest {
         val prefProvider = object : ReadonlyFetchedSettingsProvider {
             override fun get(): FetchedSettings = SETTINGS_FIXTURE.toSettings()
         }
-        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities, mockk(), mockk())
+
+        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities, mockk(), mockk(), projectKeyProvider)
+
         assertEquals(PERIODIC, provider.logcatSettings.collectionMode)
     }
 }
@@ -174,10 +184,10 @@ internal val EXPECTED_SETTINGS_DEFAULT = FetchedSettings(
     httpApiWriteTimeout = 0.seconds.boxed(),
     httpApiReadTimeout = 0.seconds.boxed(),
     httpApiCallTimeout = 0.seconds.boxed(),
-    httpApiUseMarUpload = false,
-    httpApiUseDeviceConfig = false,
+    httpApiUseMarUpload = true,
+    httpApiUseDeviceConfig = true,
     httpApiBatchMarUploads = true,
-    httpApiBatchedMarUploadPeriod = 1.hours.boxed(),
+    httpApiBatchedMarUploadPeriod = 2.hours.boxed(),
     logcatCommandTimeout = 60.seconds.boxed(),
     logcatCollectionInterval = 9999.milliseconds.boxed(),
     logcatDataSourceEnabled = false,
@@ -318,11 +328,10 @@ internal val SETTINGS_FIXTURE = """
                 "http_api.read_timeout_ms": 0,
                 "http_api.call_timeout_ms": 0,
                 "http_api.zip_compression_level": 5,
-                "http_api.use_mar_upload": False,
-                "http_api.use_device_config": False,
-                "http_api.use_device_config": False,
+                "http_api.use_mar_upload": True,
+                "http_api.use_device_config": True,
                 "http_api.device_config_interval_ms": 3600000,
-                "http_api.batched_mar_upload_period_ms": 3600000,
+                "http_api.batched_mar_upload_period_ms": 7200000,
                 "http_api.max_mar_file_size_bytes": 250000000,
                 "http_api.max_mar_file_storage_bytes": 250000000,
                 "http_api.mar_unsampled_max_stored_age_ms": 432000000,

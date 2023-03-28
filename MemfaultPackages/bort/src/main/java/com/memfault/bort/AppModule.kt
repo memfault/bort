@@ -32,6 +32,7 @@ import com.memfault.bort.tokenbucket.MetricReportStore
 import com.memfault.bort.tokenbucket.MetricsCollection
 import com.memfault.bort.tokenbucket.RealTokenBucketFactory
 import com.memfault.bort.tokenbucket.RealTokenBucketStorage.Companion.createFor
+import com.memfault.bort.tokenbucket.RealTokenBucketStore
 import com.memfault.bort.tokenbucket.Reboots
 import com.memfault.bort.tokenbucket.StructuredLog
 import com.memfault.bort.tokenbucket.TokenBucketStore
@@ -163,12 +164,14 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "bug_report_requests"),
             getMaxBuckets = { settingsProvider.bugReportSettings.rateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.bugReportSettings.rateLimitingSettings, metrics)
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -182,12 +185,14 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "reboot_events"),
             getMaxBuckets = { settingsProvider.rebootEventsSettings.rateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.rebootEventsSettings.rateLimitingSettings, metrics)
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -201,7 +206,8 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "bug_report_periodic"),
             getMaxBuckets = { 1 },
             getTokenBucketFactory = {
@@ -212,6 +218,7 @@ abstract class AppModule {
                     metrics = metrics,
                 )
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -225,12 +232,14 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "tombstones"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.tombstonesRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.dropBoxSettings.tombstonesRateLimitingSettings, metrics)
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -244,7 +253,8 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "java_execeptions"),
             // Note: the backtrace signature is used as key, so one bucket per issue basically.
             getMaxBuckets = { settingsProvider.dropBoxSettings.javaExceptionsRateLimitingSettings.maxBuckets },
@@ -254,6 +264,7 @@ abstract class AppModule {
                     metrics = metrics,
                 )
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -267,7 +278,8 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "wtfs"),
             // Note: the backtrace signature is used as key, so one bucket per issue basically.
             getMaxBuckets = { settingsProvider.dropBoxSettings.wtfsRateLimitingSettings.maxBuckets },
@@ -277,6 +289,7 @@ abstract class AppModule {
                     metrics = metrics,
                 )
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -290,7 +303,8 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "wtfs_total"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.wtfsTotalRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
@@ -299,6 +313,7 @@ abstract class AppModule {
                     metrics = metrics,
                 )
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -312,12 +327,14 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "anrs"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.anrRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.dropBoxSettings.anrRateLimitingSettings, metrics)
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -331,12 +348,14 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "kmsgs"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.kmsgsRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.dropBoxSettings.kmsgsRateLimitingSettings, metrics)
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -350,12 +369,14 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "memfault_structured"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.structuredLogRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.dropBoxSettings.structuredLogRateLimitingSettings, metrics)
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -369,7 +390,8 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "kernel_oops"),
             getMaxBuckets = { 1 },
             getTokenBucketFactory = {
@@ -380,6 +402,7 @@ abstract class AppModule {
                     metrics = metrics,
                 )
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -393,7 +416,8 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "logcat_periodic"),
             getMaxBuckets = { 1 },
             getTokenBucketFactory = {
@@ -403,6 +427,7 @@ abstract class AppModule {
                     metrics = metrics,
                 )
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -416,7 +441,8 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "metrics_periodic"),
             getMaxBuckets = { 1 },
             getTokenBucketFactory = {
@@ -426,6 +452,7 @@ abstract class AppModule {
                     metrics = metrics,
                 )
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -439,7 +466,8 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "high_res_metrics"),
             getMaxBuckets = { 1 },
             getTokenBucketFactory = {
@@ -449,6 +477,7 @@ abstract class AppModule {
                     metrics = metrics,
                 )
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -462,12 +491,14 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "memfault_report"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.metricReportRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.dropBoxSettings.metricReportRateLimitingSettings, metrics)
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -481,7 +512,8 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "continuous_log"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.continuousLogFileRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
@@ -490,6 +522,7 @@ abstract class AppModule {
                     metrics
                 )
             },
+            devMode = devMode,
         )
 
         @Provides
@@ -503,12 +536,14 @@ abstract class AppModule {
             context: Context,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
-        ) = TokenBucketStore(
+            devMode: DevMode,
+        ): TokenBucketStore = RealTokenBucketStore(
             storage = createFor(context, "mar_file"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.marFileRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.dropBoxSettings.marFileRateLimitingSettings, metrics)
             },
+            devMode = devMode,
         )
 
         @Provides

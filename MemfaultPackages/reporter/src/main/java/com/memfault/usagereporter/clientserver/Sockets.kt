@@ -1,6 +1,5 @@
 package com.memfault.usagereporter.clientserver
 
-import java.lang.IllegalStateException
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousByteChannel
@@ -25,9 +24,34 @@ suspend fun AsynchronousSocketChannel.cConnect(host: String, port: Int) = suspen
     )
 }
 
+/**
+ * Write to channel, using multiple writes if required.
+ *
+ * Multiple writes unlikely to be needed in reality, but helps us test our cRead implementation.
+ *
+ * @return number of bytes written.
+ */
 suspend fun AsynchronousByteChannel.cWrite(data: ByteArray) = cWrite(ByteBuffer.wrap(data))
 
-suspend fun AsynchronousByteChannel.cWrite(buffer: ByteBuffer) = suspendCancellableCoroutine<Int> { cont ->
+/**
+ * Write to channel, using multiple writes if required.
+ *
+ * Multiple writes unlikely to be needed in reality, but helps us test our cRead implementation.
+ *
+ * @return number of bytes written.
+ */
+suspend fun AsynchronousByteChannel.cWrite(buffer: ByteBuffer): Int {
+    while (buffer.hasRemaining()) {
+        val wrote = cWriteChunk(buffer)
+        if (wrote < 1) break
+    }
+    return buffer.position()
+}
+
+/**
+ * Perform a single write.
+ */
+private suspend fun AsynchronousByteChannel.cWriteChunk(buffer: ByteBuffer) = suspendCancellableCoroutine<Int> { cont ->
     write(
         buffer, Unit,
         object : CompletionHandler<Int, Unit> {
@@ -37,19 +61,35 @@ suspend fun AsynchronousByteChannel.cWrite(buffer: ByteBuffer) = suspendCancella
     )
 }
 
+/**
+ * Read [bytes] bytes from the channel, using multiple reads if required.
+ */
 suspend fun AsynchronousByteChannel.cRead(
     bytes: Int,
-) = suspendCancellableCoroutine<ByteBuffer> { cont ->
+): ByteBuffer {
     val buffer = ByteBuffer.allocate(bytes)
+    while (buffer.hasRemaining()) {
+        val read = cReadChunk(buffer)
+        if (read < 1) break
+    }
+    if (buffer.hasRemaining()) throw IllegalStateException("Got ${buffer.position()} bytes, expecting $bytes")
+    buffer.rewind()
+    return buffer
+}
+
+/**
+ * Perform a single read.
+ */
+private suspend fun AsynchronousByteChannel.cReadChunk(
+    buffer: ByteBuffer
+) = suspendCancellableCoroutine<Int> { cont ->
     read(
         buffer,
         Unit,
         object : CompletionHandler<Int, Unit> {
             override fun completed(result: Int, attachment: Unit): Unit =
                 run {
-                    if (result != bytes) {
-                        cont.resumeWithException(IllegalStateException("Got $result bytes, expecting $bytes"))
-                    } else cont.resume(buffer.apply { rewind() })
+                    cont.resume(result)
                 }
 
             override fun failed(exc: Throwable, attachment: Unit): Unit = run { cont.resumeWithException(exc) }

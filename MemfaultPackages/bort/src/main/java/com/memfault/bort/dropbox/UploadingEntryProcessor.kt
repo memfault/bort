@@ -67,8 +67,7 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
     override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
         tempFileFactory.createTemporaryFile(entry.tag, ".txt").useFile { tempFile, preventDeletion ->
             tempFile.outputStream().use { outStream ->
-                val copiedBytes = entry.inputStream.use {
-                    inStream ->
+                val copiedBytes = entry.inputStream.use { inStream ->
                     inStream ?: return@useFile
                     inStream.copyTo(outStream)
                 }
@@ -120,7 +119,4 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
 }
 
 internal fun TokenBucketStore.allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean =
-    edit { map ->
-        val bucket = map.upsertBucket(tokenBucketKey) ?: return@edit false
-        bucket.take(tag = "dropbox_$tag")
-    }
+    takeSimple(key = tokenBucketKey, tag = "dropbox_$tag")

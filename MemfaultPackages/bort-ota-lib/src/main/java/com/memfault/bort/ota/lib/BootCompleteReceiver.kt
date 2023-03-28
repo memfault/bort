@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.memfault.bort.DEV_MODE_DISABLED
@@ -82,8 +81,11 @@ class BootCompleteReceiver : BroadcastReceiver() {
 
     private fun schedulePeriodicUpdateCheck(context: Context, updateCheckIntervalMs: Long) {
         Logger.d("schedulePeriodicUpdateCheck: $updateCheckIntervalMs")
+        val updater = context.applicationContext.updater()
+        val networkType = updater.settings().downloadNetworkTypeConstraint
+
         val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.UNMETERED)
+            .setRequiredNetworkType(networkType)
             .setRequiresBatteryNotLow(true)
             .setRequiresStorageNotLow(true)
             .build()

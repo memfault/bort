@@ -24,6 +24,7 @@ android {
             useJUnitPlatform()
         }
     }
+  namespace 'com.example.buildsrctest'
 }
 
 dependencies {
@@ -32,8 +33,8 @@ dependencies {
 
     testImplementation deps.jackson
     testImplementation deps.zjsonpatch
-    testImplementation deps.test.junitApi
-    testImplementation deps.test.junitJupiterEngine
+    testImplementation deps.test.junit.api
+    testImplementation deps.test.junit.jupiter.engine
     testImplementation deps.test.coroutines
     testImplementation deps.test.mockk
 }

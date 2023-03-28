@@ -2,6 +2,7 @@ package com.memfault.bort.clientserver
 
 import android.content.Context
 import androidx.work.BackoffPolicy
+import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
@@ -23,6 +24,7 @@ import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.settings.HttpApiSettings
 import com.memfault.bort.settings.MaxUploadAttempts
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.UploadConstraints
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.uploader.BACKOFF_DURATION
 import com.memfault.bort.uploader.EnqueuePreparedUploadTask
@@ -97,11 +99,13 @@ class MarBatchingTask @Inject constructor(
             context: Context,
             period: Duration,
             initialDelay: Duration,
+            constraints: Constraints,
         ) {
             periodicWorkRequest<MarBatchingTask>(period, workDataOf()) {
                 addTag(WORK_UNIQUE_NAME_PERIODIC)
                 setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())
                 setInitialDelay(initialDelay.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+                setConstraints(constraints)
             }.also { workRequest ->
                 WorkManager.getInstance(context)
                     .enqueueUniquePeriodicWork(
@@ -134,6 +138,7 @@ class PeriodicMarUploadRequester @Inject constructor(
     private val context: Context,
     private val httpApiSettings: HttpApiSettings,
     private val jitterDelayProvider: JitterDelayProvider,
+    private val constraints: UploadConstraints,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         if (!httpApiSettings.batchMarUploads) return
@@ -147,6 +152,7 @@ class PeriodicMarUploadRequester @Inject constructor(
             context = context,
             period = httpApiSettings.batchedMarUploadPeriod,
             initialDelay = jitter,
+            constraints = constraints(),
         )
     }
 

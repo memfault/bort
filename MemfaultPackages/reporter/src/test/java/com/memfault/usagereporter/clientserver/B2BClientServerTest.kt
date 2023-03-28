@@ -10,12 +10,16 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import java.io.File
+import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.Files
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.fail
 
 class B2BClientServerTest {
     lateinit var uploadDir: File
@@ -81,5 +85,28 @@ class B2BClientServerTest {
         verify(timeout = 1000) { dropboxManager.addFile(CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG, any(), 0) }
 
         job.cancel()
+    }
+
+    @Test
+    fun testRunChannels() {
+        runBlocking {
+            val connectionHandler = ConnectionHandler(
+                files = NoOpSendfileQueue,
+                getDropBoxManager = { null },
+                tempDirectory = cacheDir,
+            )
+            val channel = AsynchronousSocketChannel.open()
+            val incomingMessages = Channel<BortMessage>()
+            val filesChannel = Channel<File?>()
+            launch {
+                incomingMessages.close()
+            }
+            try {
+                connectionHandler.runChannels(channel, incomingMessages, filesChannel)
+            } catch (e: Exception) {
+                // Check that it didn't throw when the channel was closed.
+                fail("Caught Exception: ${e.printStackTrace()}")
+            }
+        }
     }
 }

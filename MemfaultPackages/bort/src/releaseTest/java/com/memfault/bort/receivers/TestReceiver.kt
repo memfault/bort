@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.TestOverrideSettings
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
+import com.memfault.bort.clientserver.MarFileHoldingArea
 import com.memfault.bort.clientserver.MarFileWriter
 import com.memfault.bort.logcat.RealNextLogcatCidProvider
 import com.memfault.bort.reporting.Reporting
@@ -33,6 +34,7 @@ import com.memfault.bort.uploader.FileUploadHoldingArea
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.Instant
 import javax.inject.Inject
+import javax.inject.Provider
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
@@ -51,7 +53,6 @@ private const val WORK_UNIQUE_NAME_SELF_TEST = "com.memfault.bort.work.SELF_TEST
 class TestReceiver : FilteringReceiver(
     setOf(
         "com.memfault.intent.action.TEST_BORT_ECHO",
-        "com.memfault.intent.action.TEST_SETTING_SET_PROJECT_KEY",
         "com.memfault.intent.action.TEST_SETTING_SET_USE_MAR",
         "com.memfault.intent.action.TEST_SETTING_USE_OVERRIDES",
         "com.memfault.intent.action.TEST_SELF_TEST",
@@ -76,29 +77,18 @@ class TestReceiver : FilteringReceiver(
     @Inject lateinit var enqueueUpload: EnqueueUpload
     @Inject lateinit var combinedTimeProvider: CombinedTimeProvider
     @Inject lateinit var temporaryFileFactory: TemporaryFileFactory
+    @Inject lateinit var marFileHoldingArea: Provider<MarFileHoldingArea>
 
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {
         when (action) {
-            "com.memfault.intent.action.TEST_SETTING_SET_PROJECT_KEY" -> {
-                val projectKey = intent.getStringExtra(
-                    "project_key"
-                ) ?: return
-                Logger.test("project_key: $projectKey")
-                TestOverrideSettings(
-                    PreferenceManager.getDefaultSharedPreferences(context)
-                ).also {
-                    Logger.test("Key was: ${it.projectKeyProvider.getValue()}")
-                    it.projectKeyProvider.setValue(projectKey)
-                    Logger.test("Updated to key: ${it.projectKeyProvider.getValue()}")
-                }
-            }
             "com.memfault.intent.action.TEST_SETTING_SET_USE_MAR" -> {
                 val useMar = intent.getBooleanExtra(
                     "use_mar", false
                 )
                 Logger.test("use_mar: $useMar")
+
                 TestOverrideSettings(
-                    PreferenceManager.getDefaultSharedPreferences(context)
+                    PreferenceManager.getDefaultSharedPreferences(context),
                 ).also {
                     Logger.test("use_mar was: ${it.useMarUpload.getValue()}")
                     it.useMarUpload.setValue(useMar)
@@ -111,7 +101,7 @@ class TestReceiver : FilteringReceiver(
                 )
                 Logger.test("use_test_overrides: $useTestOverrides")
                 TestOverrideSettings(
-                    PreferenceManager.getDefaultSharedPreferences(context)
+                    PreferenceManager.getDefaultSharedPreferences(context),
                 ).also {
                     Logger.test("use_test_overrides was: ${it.useTestSettingOverrides.getValue()}")
                     it.useTestSettingOverrides.setValue(useTestOverrides)

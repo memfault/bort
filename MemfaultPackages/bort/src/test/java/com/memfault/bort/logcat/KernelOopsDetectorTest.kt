@@ -4,7 +4,6 @@ import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.parsers.LogcatLine
 import com.memfault.bort.time.BaseAbsoluteTime
 import com.memfault.bort.tokenbucket.TokenBucketStore
-import com.memfault.bort.tokenbucket.takeSimple
 import com.memfault.bort.uploader.HandleEventOfInterest
 import io.mockk.every
 import io.mockk.mockk

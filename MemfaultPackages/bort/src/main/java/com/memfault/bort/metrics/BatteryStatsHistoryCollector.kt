@@ -6,7 +6,6 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.toErrorIf
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.TemporaryFileFactory
-import com.memfault.bort.parsers.BatteryStatsHistoryMetricLogger
 import com.memfault.bort.parsers.BatteryStatsHistoryParser
 import com.memfault.bort.parsers.BatteryStatsParser
 import com.memfault.bort.parsers.BatteryStatsReport
@@ -51,6 +50,7 @@ class RunBatteryStats @Inject constructor(
 
 data class BatteryStatsResult(
     val batteryStatsFileToUpload: File?,
+    val batteryStatsHrt: List<HighResTelemetry.Rollup>?,
     val aggregatedMetrics: Map<String, JsonPrimitive>,
 )
 
@@ -59,7 +59,6 @@ class BatteryStatsHistoryCollector @Inject constructor(
     private val nextBatteryStatsHistoryStartProvider: NextBatteryStatsHistoryStartProvider,
     private val runBatteryStats: RunBatteryStats,
     private val settings: BatteryStatsSettings,
-    private val batteryStatsHistoryMetricLogger: BatteryStatsHistoryMetricLogger,
 ) {
     suspend fun collect(limit: Duration): BatteryStatsResult {
         temporaryFileFactory.createTemporaryFile(
@@ -72,16 +71,13 @@ class BatteryStatsHistoryCollector @Inject constructor(
             )
 
             if (settings.useHighResTelemetry) {
-                val parser = BatteryStatsHistoryParser(batteryStatsFile, batteryStatsHistoryMetricLogger)
-                parser.parseToCustomMetrics()
-                return BatteryStatsResult(
-                    batteryStatsFileToUpload = null,
-                    aggregatedMetrics = emptyMap(),
-                )
+                val parser = BatteryStatsHistoryParser(batteryStatsFile)
+                return parser.parseToCustomMetrics()
             } else {
                 preventDeletion()
                 return BatteryStatsResult(
                     batteryStatsFileToUpload = batteryStatsFile,
+                    batteryStatsHrt = null,
                     aggregatedMetrics = emptyMap(),
                 )
             }
