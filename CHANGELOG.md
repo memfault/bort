@@ -4,11 +4,11 @@
 
 #### :rocket: New Features
 
-- Added metric for [Fleet Sampling](https://mflt.io/android-builtin-metrics)
+- Added metric for [Fleet Sampling](https://mflt.io/android-fleet-sampling)
   resolutions.
 - Bypass all rate-limits in Dev Mode.
   [See Documentation](https://mflt.io/android-dev-mode)
-- [Batterystats](https://mflt.io//android-batterystats-metrics) via HRT
+- [Batterystats](https://mflt.io/android-batterystats-metrics) via HRT
   - Bort writes batterystats history directly to the HRT file produced by the
     metrics service.
   - Bort calculates batterystats aggregate metrics to replicate existing backend
