@@ -7,6 +7,7 @@ import com.memfault.bort.clientserver.MarFileWriter.Companion.MAR_EXTENSION
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.cleanupFiles
+import com.memfault.bort.requester.directorySize
 import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.settings.shouldUpload
 import com.memfault.bort.shared.Logger

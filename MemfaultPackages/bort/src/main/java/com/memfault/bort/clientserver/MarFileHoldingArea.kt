@@ -7,9 +7,11 @@ import com.memfault.bort.Payload
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.cleanupFiles
+import com.memfault.bort.requester.directorySize
 import com.memfault.bort.settings.BatchMarUploads
 import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.MarUnsampledMaxStorageAge
+import com.memfault.bort.settings.MarUnsampledMaxStorageBytes
 import com.memfault.bort.settings.MaxMarStorageBytes
 import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.settings.shouldUpload
@@ -52,6 +54,7 @@ class MarFileHoldingArea @Inject constructor(
     private val combinedTimeProvider: CombinedTimeProvider,
     private val maxMarStorageBytes: MaxMarStorageBytes,
     private val marMaxUnsampledAge: MarUnsampledMaxStorageAge,
+    private val marMaxUnsampledBytes: MarUnsampledMaxStorageBytes,
 ) {
     // Note: coroutine mutex is not re-entrant!
     private val mutex = Mutex()
@@ -186,11 +189,13 @@ class MarFileHoldingArea @Inject constructor(
                 oldestUnsampledFileAgeMs > maxUnsampledAge.inWholeMilliseconds
             }
         }
-        if (usedBytes > limitBytes || cleanupForMaxUnsampledAge) {
+        val unsampledOverLimit = unsampledUsedBytes > marMaxUnsampledBytes()
+        if (usedBytes > limitBytes || cleanupForMaxUnsampledAge || unsampledOverLimit) {
             cleanup(
                 sampledStorageUsedBytes = sampledStorageUsedBytes,
                 limitBytes = limitBytes,
-                maxUnsampledAge = maxUnsampledAge
+                maxUnsampledAge = maxUnsampledAge,
+                maxUnsampledBytes = marMaxUnsampledBytes(),
             )
         }
     }
@@ -198,7 +203,12 @@ class MarFileHoldingArea @Inject constructor(
     /**
      * Cleanup the holding areas: unsampled first, then also sampled if we are still over the limit.
      */
-    private fun cleanup(sampledStorageUsedBytes: Long, limitBytes: Long, maxUnsampledAge: Duration) {
+    private fun cleanup(
+        sampledStorageUsedBytes: Long,
+        limitBytes: Long,
+        maxUnsampledAge: Duration,
+        maxUnsampledBytes: Long
+    ) {
         // Only cleanup the sampled area if it is over limit.
         if (sampledStorageUsedBytes > limitBytes) {
             val result = cleanupFiles(dir = sampledHoldingDirectory, maxDirStorageBytes = limitBytes)
@@ -209,7 +219,7 @@ class MarFileHoldingArea @Inject constructor(
         }
 
         val unsampledLimit = limitBytes - sampledHoldingDirectory.directorySize()
-        unsampledHoldingArea.cleanup(unsampledLimit, maxUnsampledAge)
+        unsampledHoldingArea.cleanup(minOf(unsampledLimit, maxUnsampledBytes), maxUnsampledAge)
     }
 }
 
@@ -234,7 +244,5 @@ class OneTimeMarUpload @Inject constructor(
         enqueueOneTimeBatchMarFiles(context)
     }
 }
-
-fun File.directorySize(): Long = listFiles()?.filter { it.isFile }?.map { it.length() }?.sum() ?: 0
 
 fun File.oldestFileUpdatedTimestamp(): Long? = listFiles()?.map { it.lastModified() }?.minOrNull()

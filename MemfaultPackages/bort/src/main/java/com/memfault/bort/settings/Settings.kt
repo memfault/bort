@@ -105,6 +105,7 @@ interface HttpApiSettings {
     val maxMarFileSizeBytes: Int
     val maxMarStorageBytes: Long
     val maxMarUnsampledStoredAge: Duration
+    val maxMarUnsampledStoredBytes: Long
 }
 
 interface RebootEventsSettings {
@@ -138,6 +139,10 @@ interface OtaSettings {
 
 interface StorageSettings {
     val maxClientServerFileTransferStorageBytes: Long
+    val usageReporterTempMaxStorageBytes: Long
+    val usageReporterTempMaxStorageAge: Duration
+    val bortTempMaxStorageBytes: Long
+    val bortTempMaxStorageAge: Duration
 }
 
 interface FleetSamplingSettings {

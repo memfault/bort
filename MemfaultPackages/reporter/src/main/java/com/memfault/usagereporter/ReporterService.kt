@@ -42,6 +42,7 @@ import com.memfault.bort.shared.VersionResponse
 import com.memfault.usagereporter.UsageReporter.Companion.b2bClientServer
 import com.memfault.usagereporter.UsageReporter.Companion.reporterMetrics
 import com.memfault.usagereporter.UsageReporter.Companion.reporterSettings
+import com.memfault.usagereporter.UsageReporter.Companion.writableReporterSettings
 import com.memfault.usagereporter.clientserver.B2BClientServer
 import com.memfault.usagereporter.metrics.ReporterMetrics
 import java.util.concurrent.TimeUnit
@@ -222,7 +223,7 @@ class ReporterService : Service() {
             getSendReply = ::getSendReply,
             b2BClientServer = b2bClientServer,
             reporterMetrics = reporterMetrics,
-            reporterSettings = reporterSettings,
+            reporterSettings = writableReporterSettings,
         )
     }
 

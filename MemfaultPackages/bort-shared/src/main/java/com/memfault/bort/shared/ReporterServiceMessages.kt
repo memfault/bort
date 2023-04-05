@@ -4,7 +4,11 @@ import android.os.Bundle
 import android.os.DropBoxManager
 import android.os.Message
 import android.os.ParcelFileDescriptor
+import com.memfault.bort.time.BoxedDuration
+import com.memfault.bort.time.DurationAsMillisecondsLong
+import com.memfault.bort.time.boxed
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
 import kotlin.time.DurationUnit.MILLISECONDS
 import kotlin.time.toDuration
 import kotlinx.serialization.Serializable
@@ -378,6 +382,9 @@ object SetMetricCollectionIntervalResponse : SimpleReporterServiceMessage(METRIC
 @Serializable
 data class SetReporterSettingsRequest(
     val maxFileTransferStorageBytes: Long = 50_000_000,
+    val maxReporterTempStorageBytes: Long = 10_000_000,
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val maxReporterTempStorageAge: BoxedDuration = 1.days.boxed(),
 ) : ReporterServiceMessage() {
     override val messageId: Int = REPORTER_SETTINGS_REQ
     override fun toBundle(): Bundle = Bundle().apply {

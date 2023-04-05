@@ -180,22 +180,26 @@ private suspend fun AsynchronousByteChannel.readFileWithName(directory: File): F
     val size = readBuffer(8).getLong()
 
     val tempFile = createTempFile(prefix = "transfer", suffix = null, directory = directory)
-    // Stream file to channel in chunks of BUFFER_SIZE
-    tempFile.outputStream().use { output ->
-        var remaining = size
-        while (remaining > 0) {
-            val numBytes = BUFFER_SIZE.coerceAtMost(remaining.toInt())
-            val bytes = readBuffer(numBytes).array()
-            check(bytes.size == numBytes)
-            output.write(bytes)
-            remaining -= numBytes
-        }
-    }
-
-    check(tempFile.length() == size)
     val destFile = File(directory, fileName)
-    destFile.deleteSilently()
-    tempFile.renameTo(destFile)
+    try {
+        // Stream file to channel in chunks of BUFFER_SIZE
+        tempFile.outputStream().use { output ->
+            var remaining = size
+            while (remaining > 0) {
+                val numBytes = BUFFER_SIZE.coerceAtMost(remaining.toInt())
+                val bytes = readBuffer(numBytes).array()
+                check(bytes.size == numBytes)
+                output.write(bytes)
+                remaining -= numBytes
+            }
+        }
+
+        check(tempFile.length() == size)
+        destFile.deleteSilently()
+        tempFile.renameTo(destFile)
+    } finally {
+        tempFile.deleteSilently()
+    }
     return destFile
 }
 

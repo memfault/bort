@@ -89,6 +89,8 @@ suspend fun applyReporterServiceSettings(
                 SetReporterSettingsRequest(
                     maxFileTransferStorageBytes =
                         settingsProvider.storageSettings.maxClientServerFileTransferStorageBytes,
+                    maxReporterTempStorageBytes = settingsProvider.storageSettings.usageReporterTempMaxStorageBytes,
+                    maxReporterTempStorageAge = settingsProvider.storageSettings.usageReporterTempMaxStorageAge.boxed(),
                 )
             ).onFailure {
                 Logger.w("could not send settings to reporter service", it)

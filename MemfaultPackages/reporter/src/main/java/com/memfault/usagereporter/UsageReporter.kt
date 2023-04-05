@@ -75,6 +75,8 @@ class UsageReporter : Application() {
         _reporterSettings = ReporterSettingsPreferenceProvider(PreferenceManager.getDefaultSharedPreferences(this))
         _b2bClientServer = create(clientServerMode, this, _reporterSettings)
         _reporterMetrics = ReporterMetrics.create(this)
+
+        ReporterFileCleanupTask.schedule(this)
     }
 
     companion object {
@@ -84,6 +86,7 @@ class UsageReporter : Application() {
 
         val b2bClientServer get() = _b2bClientServer
         val reporterMetrics get() = _reporterMetrics
-        val reporterSettings get() = _reporterSettings
+        val writableReporterSettings get() = _reporterSettings
+        val reporterSettings: ReporterSettings get() = _reporterSettings
     }
 }

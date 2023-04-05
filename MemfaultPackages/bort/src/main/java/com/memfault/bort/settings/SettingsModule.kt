@@ -25,6 +25,7 @@ fun interface MaxUploadAttempts : () -> Int
 fun interface MaxMarStorageBytes : () -> Long
 fun interface ZipCompressionLevel : () -> Int
 fun interface MarUnsampledMaxStorageAge : () -> Duration
+fun interface MarUnsampledMaxStorageBytes : () -> Long
 fun interface DropboxScrubTombstones : () -> Boolean
 
 @Module
@@ -115,6 +116,9 @@ abstract class SettingsModule {
         fun fleetSamplingSettings(settingsProvider: SettingsProvider) = settingsProvider.fleetSamplingSettings
 
         @Provides
+        fun storageSettings(settingsProvider: SettingsProvider) = settingsProvider.storageSettings
+
+        @Provides
         fun maxMarStorage(settings: SettingsProvider) =
             MaxMarStorageBytes { settings.httpApiSettings.maxMarStorageBytes }
 
@@ -125,6 +129,10 @@ abstract class SettingsModule {
         @Provides
         fun maxMarUnsampledAge(settings: SettingsProvider) =
             MarUnsampledMaxStorageAge { settings.httpApiSettings.maxMarUnsampledStoredAge }
+
+        @Provides
+        fun maxMarUnsampledStorageBytes(settings: SettingsProvider) =
+            MarUnsampledMaxStorageBytes { settings.httpApiSettings.maxMarUnsampledStoredBytes }
 
         @Provides
         fun scrubTombstones(settings: SettingsProvider) =

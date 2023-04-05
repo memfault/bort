@@ -16,16 +16,22 @@ import com.memfault.bort.Payload.MarPayload
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
+import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.fileExt.md5Hex
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.oneTimeWorkRequest
 import com.memfault.bort.periodicWorkRequest
+import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.PeriodicWorkRequester
+import com.memfault.bort.requester.cleanupFiles
+import com.memfault.bort.requester.directorySize
 import com.memfault.bort.settings.HttpApiSettings
 import com.memfault.bort.settings.MaxUploadAttempts
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.StorageSettings
 import com.memfault.bort.settings.UploadConstraints
 import com.memfault.bort.shared.JitterDelayProvider
+import com.memfault.bort.shared.Logger
 import com.memfault.bort.uploader.BACKOFF_DURATION
 import com.memfault.bort.uploader.EnqueuePreparedUploadTask
 import com.squareup.anvil.annotations.ContributesMultibinding
@@ -52,8 +58,32 @@ class MarBatchingTask @Inject constructor(
     private val deviceInfoProvider: DeviceInfoProvider,
     override val metrics: BuiltinMetricsStore,
     private val enqueuePreparedUploadTask: EnqueuePreparedUploadTask,
+    private val temporaryFileFactory: TemporaryFileFactory,
+    private val storageSettings: StorageSettings,
 ) : Task<Unit>() {
+    private val bortTempDeletedMetric = Reporting.report().counter(
+        name = "bort_temp_deleted",
+        internal = true,
+    )
+    private val bortTempStorageUsedMetric = Reporting.report().numberProperty(
+        name = "bort_temp_storage_bytes",
+        internal = true,
+    )
+
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult = withContext(Dispatchers.IO) {
+        temporaryFileFactory.temporaryFileDirectory?.let { tempDir ->
+            bortTempStorageUsedMetric.update(tempDir.directorySize())
+            val result = cleanupFiles(
+                dir = tempDir,
+                maxDirStorageBytes = storageSettings.bortTempMaxStorageBytes,
+                maxFileAge = storageSettings.bortTempMaxStorageAge
+            )
+            val deleted = result.deletedForStorageCount + result.deletedForAgeCount
+            if (deleted > 0) {
+                Logger.d("Deleted $deleted bort temp files to stay under storage limit")
+                bortTempDeletedMetric.incrementBy(deleted)
+            }
+        }
         val deviceInfo = deviceInfoProvider.getDeviceInfo()
         marFileHoldingArea.bundleMarFilesForUpload().forEach { marFile ->
             enqueuePreparedUploadTask.upload(

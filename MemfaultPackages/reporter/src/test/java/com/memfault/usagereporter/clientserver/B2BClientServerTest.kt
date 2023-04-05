@@ -12,6 +12,8 @@ import io.mockk.verify
 import java.io.File
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.Files
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
@@ -39,6 +41,8 @@ class B2BClientServerTest {
         }
         reporterSettings = object : ReporterSettings {
             override val maxFileTransferStorageBytes: Long = 50000000
+            override val maxReporterTempStorageBytes: Long = 10000000
+            override val maxReporterTempStorageAge: Duration = 1.days
         }
         b2BClientServer = RealB2BClientServer(
             clientServerMode = ClientServerMode.CLIENT,

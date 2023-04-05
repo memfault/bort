@@ -104,6 +104,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.httpApiMaxMarStorageBytes
         override val maxMarUnsampledStoredAge: Duration
             get() = settings.httpApiMarUnsampledMaxStoredAge.duration
+        override val maxMarUnsampledStoredBytes: Long
+            get() = settings.httpApiMaxMarUnsampledStorageBytes
     }
 
     override val deviceInfoSettings = settings.deviceInfoSettings()
@@ -265,6 +267,14 @@ open class DynamicSettingsProvider @Inject constructor(
     override val storageSettings = object : StorageSettings {
         override val maxClientServerFileTransferStorageBytes: Long
             get() = settings.storageMaxClientServerFileTransferStorageBytes
+        override val usageReporterTempMaxStorageBytes: Long
+            get() = settings.storageUsageReporterTempMaxStorageBytes
+        override val usageReporterTempMaxStorageAge: Duration
+            get() = settings.storageUsageReporterTempMaxStorageAge.duration
+        override val bortTempMaxStorageBytes: Long
+            get() = settings.storageBortTempMaxStorageBytes
+        override val bortTempMaxStorageAge: Duration
+            get() = settings.storageBortTempMaxStorageAge.duration
     }
 
     override val fleetSamplingSettings = object : FleetSamplingSettings {

@@ -196,6 +196,9 @@ data class FetchedSettings(
     @SerialName("http_api.max_mar_file_storage_bytes")
     val httpApiMaxMarStorageBytes: Long = 250_000_000,
 
+    @SerialName("http_api.mar_unsampled_max_stored_bytes")
+    val httpApiMaxMarUnsampledStorageBytes: Long = 250_000_000,
+
     @SerialName("http_api.mar_unsampled_max_stored_age_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val httpApiMarUnsampledMaxStoredAge: BoxedDuration = 7.days.boxed(),
@@ -330,6 +333,20 @@ data class FetchedSettings(
 
     @SerialName("storage.max_client_server_file_transfer_storage_bytes")
     val storageMaxClientServerFileTransferStorageBytes: Long = 50_000_000,
+
+    @SerialName("storage.usage_reporter_temp_max_storage_bytes")
+    val storageUsageReporterTempMaxStorageBytes: Long = 10_000_000,
+
+    @SerialName("storage.usage_reporter_temp_max_storage_age_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val storageUsageReporterTempMaxStorageAge: BoxedDuration = 1.days.boxed(),
+
+    @SerialName("storage.bort_temp_max_storage_bytes")
+    val storageBortTempMaxStorageBytes: Long = 250_000_000,
+
+    @SerialName("storage.bort_temp_max_storage_age_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val storageBortTempMaxStorageAge: BoxedDuration = 7.days.boxed(),
 ) {
     @Serializable
     data class FetchedSettingsContainer(

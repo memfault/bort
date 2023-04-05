@@ -82,6 +82,7 @@ internal class MarFileWriterTest {
             override val maxMarFileSizeBytes: Int get() = 3000 + MAR_SIZE_TOLERANCE_BYTES
             override val maxMarStorageBytes: Long get() = TODO("Not used")
             override val maxMarUnsampledStoredAge: Duration get() = TODO("Not used")
+            override val maxMarUnsampledStoredBytes: Long get() = TODO("Not used")
         }
         val temp: TemporaryFileFactory = TestTemporaryFileFactory
         val writer = MarFileWriter(deviceInfo, settings, temp, { 4 })

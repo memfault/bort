@@ -52,6 +52,7 @@ class MarFileHoldingAreaTest {
     }
     private var maxMarStorageBytes: Long = 999_999_999
     private var maxMarUnsampledAge: Duration = Duration.ZERO
+    private var maxMarUnsampledBytes: Long = 999_999_999
     private var unsampledHoldingAreaUsedBytes: Long = 0
     private var unsampledHoldingOldestFileUpdatedMs: Long = 0
 
@@ -269,6 +270,24 @@ class MarFileHoldingAreaTest {
     }
 
     @Test
+    fun cleanupUnsampledAreaForMaxBytes() {
+        val holdingArea = createHoldingArea(batchMarUploads = true, clientServerMode = DISABLED)
+        val manifest1 = MarFileWriterTest.logcat(timeMs = 123456789)
+        val marFile1 = MarFileWriterTest.createMarFile("mar1.mar", manifest1, FILE_CONTENT)
+        val marFileWithManifest1 = MarFileWithManifest(marFile = marFile1, manifest = manifest1)
+        val marFile1Size = marFile1.length()
+
+        maxMarUnsampledBytes = 1
+        unsampledHoldingAreaUsedBytes = 2
+
+        runBlockingTest {
+            holdingArea.addMarFile(marFileWithManifest1)
+            assertMarFileInHoldingArea(sampled = true, unsampled = false, marFile = marFileWithManifest1)
+            verify { unsampledHoldingArea.cleanup(maxMarUnsampledBytes, maxMarUnsampledAge) }
+        }
+    }
+
+    @Test
     fun doNotCleanupUnsampledAreaForMaxAge() {
         val holdingArea = createHoldingArea(batchMarUploads = true, clientServerMode = DISABLED)
         val manifest1 = MarFileWriterTest.logcat(timeMs = 123456789)
@@ -335,6 +354,7 @@ class MarFileHoldingAreaTest {
         combinedTimeProvider = combinedTimeProvider,
         maxMarStorageBytes = { maxMarStorageBytes },
         marMaxUnsampledAge = { maxMarUnsampledAge },
+        marMaxUnsampledBytes = { maxMarUnsampledBytes }
     )
 
     private fun assertMarFileInHoldingArea(

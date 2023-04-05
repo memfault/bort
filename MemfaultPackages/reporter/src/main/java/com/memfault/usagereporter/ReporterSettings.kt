@@ -4,9 +4,12 @@ import android.content.SharedPreferences
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.shared.SetReporterSettingsRequest
+import kotlin.time.Duration
 
 interface ReporterSettings {
     val maxFileTransferStorageBytes: Long
+    val maxReporterTempStorageBytes: Long
+    val maxReporterTempStorageAge: Duration
 }
 
 class ReporterSettingsPreferenceProvider(
@@ -35,4 +38,6 @@ class ReporterSettingsPreferenceProvider(
     }
 
     override val maxFileTransferStorageBytes get() = get().maxFileTransferStorageBytes
+    override val maxReporterTempStorageBytes get() = get().maxReporterTempStorageBytes
+    override val maxReporterTempStorageAge get() = get().maxReporterTempStorageAge.duration
 }

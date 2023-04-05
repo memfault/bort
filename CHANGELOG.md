@@ -1,5 +1,20 @@
 # Memfault Bort Changelog
 
+## v4.5.1 - April 5th, 2023
+
+#### :chart_with_upwards_trend: Improvements
+
+- Fixed an issue where files could be leaked in UsageReporter, when using
+  Client-Server mode.
+- Added remotely-configurable storage limits for UsageReporter/Bort cache
+  folders.
+- Added more granular storage limits for fleet sampling devices with disabled
+  aspects.
+
+#### :house: Internal
+
+- Added internal metrics for storage usage/file cleanup.
+
 ## v4.5.0 - March 27th, 2023
 
 #### :rocket: New Features

@@ -60,6 +60,7 @@ dependencies {
     implementation deps.kotlin.stdlib
     implementation deps.android.preference
     implementation deps.result
+    implementation deps.android.work
 
     testImplementation deps.test.junit.api
     testImplementation deps.test.junit.jupiter.engine

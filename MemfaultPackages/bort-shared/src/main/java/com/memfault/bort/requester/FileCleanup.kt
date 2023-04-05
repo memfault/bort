@@ -54,3 +54,5 @@ data class FileCleanupResult(
     val deletedForStorageCount: Int = 0,
     val deletedForAgeCount: Int = 0,
 )
+
+fun File.directorySize(): Long = listFiles()?.filter { it.isFile }?.map { it.length() }?.sum() ?: 0

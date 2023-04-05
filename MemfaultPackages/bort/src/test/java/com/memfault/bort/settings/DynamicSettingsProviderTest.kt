@@ -242,6 +242,8 @@ private val EXPECTED_SETTINGS = EXPECTED_SETTINGS_DEFAULT.copy(
     httpApiZipCompressionLevel = 5,
     httpApiMarUnsampledMaxStoredAge = 5.days.boxed(),
     logcatCollectionMode = CONTINUOUS,
+    storageUsageReporterTempMaxStorageBytes = 10000001,
+    storageBortTempMaxStorageBytes = 250000001,
 )
 
 internal val SETTINGS_FIXTURE = """
@@ -374,7 +376,11 @@ internal val SETTINGS_FIXTURE = """
                     "default_period_ms": 900000,
                     "max_buckets": 1
                 },
-                "storage.max_client_server_file_transfer_storage_bytes": 55000000
+                "storage.max_client_server_file_transfer_storage_bytes": 55000000,
+                "storage.usage_reporter_temp_max_storage_bytes": 10000001,
+                "storage.usage_reporter_temp_max_storage_age_ms": 86400000,
+                "storage.bort_temp_max_storage_bytes": 250000001,
+                "storage.bort_temp_max_storage_age_ms": 604800000
               }
             }
 """.trimIndent()
