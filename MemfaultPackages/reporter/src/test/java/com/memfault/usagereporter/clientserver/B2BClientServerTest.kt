@@ -8,21 +8,27 @@ import com.memfault.usagereporter.ReporterSettings
 import io.mockk.clearMocks
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.spyk
 import io.mockk.verify
 import java.io.File
+import java.io.IOException
 import java.nio.channels.AsynchronousSocketChannel
 import java.nio.file.Files
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class B2BClientServerTest {
     lateinit var uploadDir: File
     lateinit var cacheDir: File
@@ -41,6 +47,7 @@ class B2BClientServerTest {
         }
         reporterSettings = object : ReporterSettings {
             override val maxFileTransferStorageBytes: Long = 50000000
+            override val maxFileTransferStorageAge: Duration = 7.days
             override val maxReporterTempStorageBytes: Long = 10000000
             override val maxReporterTempStorageAge: Duration = 1.days
         }
@@ -99,7 +106,7 @@ class B2BClientServerTest {
                 getDropBoxManager = { null },
                 tempDirectory = cacheDir,
             )
-            val channel = AsynchronousSocketChannel.open()
+            val channel = RealASCWrapper(AsynchronousSocketChannel.open())
             val incomingMessages = Channel<BortMessage>()
             val filesChannel = Channel<File?>()
             launch {
@@ -111,6 +118,64 @@ class B2BClientServerTest {
                 // Check that it didn't throw when the channel was closed.
                 fail("Caught Exception: ${e.printStackTrace()}")
             }
+        }
+    }
+
+    @Test
+    fun incrementSendCountOnFailure() {
+        runBlocking {
+            val sendFileQueue = spyk(NoOpSendfileQueue)
+            val connectionHandler = ConnectionHandler(
+                files = sendFileQueue,
+                getDropBoxManager = { null },
+                tempDirectory = cacheDir,
+            )
+            val channel = object : ASCWrapper {
+                override suspend fun writeMessage(message: BortMessage) {
+                    throw IOException("failed")
+                }
+                override suspend fun readMessages(directory: File, scope: CoroutineScope): ReceiveChannel<BortMessage> {
+                    return Channel()
+                }
+            }
+            val incomingMessages = Channel<BortMessage>()
+            val filesChannel = Channel<File?>()
+            launch {
+                val file = File.createTempFile("temp", ".$CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG", uploadDir)
+                file.writeText("tmp file content")
+                filesChannel.send(file)
+            }
+            connectionHandler.runChannels(channel, incomingMessages, filesChannel)
+            verify { sendFileQueue.incrementSendCount(any()) }
+        }
+    }
+
+    @Test
+    fun doesNotIncrementSendCountOnSuccess() {
+        runBlocking {
+            val sendFileQueue = spyk(NoOpSendfileQueue)
+            val connectionHandler = ConnectionHandler(
+                files = sendFileQueue,
+                getDropBoxManager = { null },
+                tempDirectory = cacheDir,
+            )
+            val channel = object : ASCWrapper {
+                override suspend fun writeMessage(message: BortMessage) {
+                }
+                override suspend fun readMessages(directory: File, scope: CoroutineScope): ReceiveChannel<BortMessage> {
+                    return Channel()
+                }
+            }
+            val incomingMessages = Channel<BortMessage>()
+            val filesChannel = Channel<File?>()
+            launch {
+                val file = File.createTempFile("temp", ".$CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG", uploadDir)
+                file.writeText("tmp file content")
+                filesChannel.send(file)
+                incomingMessages.close()
+            }
+            connectionHandler.runChannels(channel, incomingMessages, filesChannel)
+            verify(exactly = 0) { sendFileQueue.incrementSendCount(any()) }
         }
     }
 }

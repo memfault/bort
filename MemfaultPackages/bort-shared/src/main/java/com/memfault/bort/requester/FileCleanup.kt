@@ -19,25 +19,29 @@ fun cleanupFiles(
     timeNowMs: Long = System.currentTimeMillis(),
 ): FileCleanupResult {
     if (!dir.exists()) return FileCleanupResult()
-    val filesNewestFirst =
-        dir.listFiles()?.toList()?.sortedByDescending { it.lastModified() } ?: return FileCleanupResult()
+    // Collect lastModified as a stable attribute so that it can't change during sorting.
+    val filesNewestFirst = dir.listFiles()?.toList()
+        ?.filter { it.isFile }
+        ?.map { FileWithMetadata(it, it.lastModified()) }
+        ?.sortedByDescending { it.lastModified }
+        ?: return FileCleanupResult()
 
     var bytesUsed: Long = 0
     val deleted = mutableListOf<String>()
     var deletedForAgeCount = 0
     var deletedForStorageCount = 0
-    filesNewestFirst.filter { it.isFile }.forEach { file ->
-        bytesUsed += file.length()
+    filesNewestFirst.forEach { file ->
+        bytesUsed += file.file.length()
         if (bytesUsed > maxDirStorageBytes) {
-            deleted.add("storage: ${file.name}")
+            deleted.add("storage: ${file.file.name}")
             deletedForStorageCount++
-            file.deleteSilently()
+            file.file.deleteSilently()
         } else if (maxFileAge != ZERO) {
-            val age = (timeNowMs - file.lastModified()).toDuration(MILLISECONDS)
+            val age = (timeNowMs - file.lastModified).toDuration(MILLISECONDS)
             if (age > maxFileAge) {
-                deleted.add("age: ${file.name}")
+                deleted.add("age: ${file.file.name}")
                 deletedForAgeCount++
-                file.deleteSilently()
+                file.file.deleteSilently()
             }
         }
     }
@@ -49,6 +53,11 @@ fun cleanupFiles(
         deletedForAgeCount = deletedForAgeCount,
     )
 }
+
+data class FileWithMetadata(
+    val file: File,
+    val lastModified: Long,
+)
 
 data class FileCleanupResult(
     val deletedForStorageCount: Int = 0,

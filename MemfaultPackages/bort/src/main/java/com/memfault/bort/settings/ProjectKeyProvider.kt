@@ -40,6 +40,11 @@ open class ProjectKeyProvider @Inject constructor(
                 cleanupFiles(dir = it, maxDirStorageBytes = 0)
             }
         }
+
+    fun reset() {
+        Logger.i("Removing project key override")
+        preferenceProvider.remove()
+    }
 }
 
 @Singleton

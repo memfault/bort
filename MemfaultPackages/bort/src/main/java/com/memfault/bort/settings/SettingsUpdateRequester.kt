@@ -55,7 +55,7 @@ internal fun restartPeriodicSettingsUpdate(
         WorkManager.getInstance(context)
             .enqueueUniquePeriodicWork(
                 WORK_UNIQUE_NAME_PERIODIC,
-                ExistingPeriodicWorkPolicy.REPLACE,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 workRequest
             )
     }
@@ -74,10 +74,6 @@ class SettingsUpdateRequester @Inject constructor(
     }
 
     suspend fun restartSetttingsUpdate(delayAfterSettingsUpdate: Boolean) {
-        if (!bortSystemCapabilities.supportsDynamicSettings()) return
-        // Client does not fetch settings - server will forward them.
-        if (cachedClientServerMode.isClient()) return
-
         restartPeriodicSettingsUpdate(
             context = context,
             httpApiSettings = settings.httpApiSettings,
@@ -92,7 +88,13 @@ class SettingsUpdateRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override suspend fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
+    override suspend fun enabled(settings: SettingsProvider): Boolean {
+        return bortSystemCapabilities.supportsDynamicSettings() &&
+            // Client does not fetch settings - server will forward them.
+            !cachedClientServerMode.isClient()
+    }
+
+    override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
         old.sdkSettingsUpdateInterval() != new.sdkSettingsUpdateInterval()
 }
 

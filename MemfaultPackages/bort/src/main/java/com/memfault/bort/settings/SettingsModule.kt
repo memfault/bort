@@ -13,14 +13,12 @@ fun interface StructuredLogEnabled : () -> Boolean
 fun interface HighResMetricsEnabled : () -> Boolean
 fun interface UploadCompressionEnabled : () -> Boolean
 fun interface BatchMarUploads : () -> Boolean
-fun interface UseMarUpload : suspend () -> Boolean
 fun interface UseDeviceConfig : suspend () -> Boolean
 fun interface ProjectKey : () -> String
 fun interface TimeoutConfig : () -> Duration
 fun interface RulesConfig : () -> List<AndroidAppIdScrubbingRule>
 fun interface UploadConstraints : () -> Constraints
 fun interface LogcatCollectionInterval : () -> Duration
-fun interface GetLogcatCollectionMode : () -> LogcatCollectionMode
 fun interface MaxUploadAttempts : () -> Int
 fun interface MaxMarStorageBytes : () -> Long
 fun interface ZipCompressionLevel : () -> Int
@@ -49,10 +47,6 @@ abstract class SettingsModule {
             BatchMarUploads { settings.httpApiSettings.batchMarUploads }
 
         @Provides
-        fun useMarUpload(settings: SettingsProvider) =
-            UseMarUpload { settings.httpApiSettings.useMarUpload() }
-
-        @Provides
         fun useDeviceConfig(settings: SettingsProvider) =
             UseDeviceConfig { settings.httpApiSettings.useDeviceConfig() }
 
@@ -67,10 +61,6 @@ abstract class SettingsModule {
         @Provides
         fun logcatCollectionInterval(settings: SettingsProvider) =
             LogcatCollectionInterval { settings.logcatSettings.collectionInterval }
-
-        @Provides
-        fun logcatCollectionMode(settings: SettingsProvider) =
-            GetLogcatCollectionMode { settings.logcatSettings.collectionMode }
 
         @Provides
         fun constraints(settings: SettingsProvider) = UploadConstraints { settings.httpApiSettings.uploadConstraints }

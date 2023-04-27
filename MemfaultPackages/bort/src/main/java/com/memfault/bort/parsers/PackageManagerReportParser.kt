@@ -1,6 +1,6 @@
 package com.memfault.bort.parsers
 
-import com.memfault.bort.FileUploadPayload
+import com.memfault.bort.AndroidPackage
 import java.io.InputStream
 
 data class Package(
@@ -10,12 +10,12 @@ data class Package(
     val versionCode: Long? = null,
     val versionName: String? = null,
 ) {
-    fun toUploaderPackage(): FileUploadPayload.Package? {
+    fun toUploaderPackage(): AndroidPackage? {
         userId ?: return null
         codePath ?: return null
         versionCode ?: return null
         versionName ?: return null
-        return FileUploadPayload.Package(
+        return AndroidPackage(
             id = id,
             versionCode = versionCode,
             versionName = versionName,

@@ -51,7 +51,7 @@ class ClientConnector(
                     socket.cConnect(host = host, port = port)
                     Logger.d("ClientConnector: connected")
                     CONNECTED_METRIC.increment()
-                    connectionHandler.run(socket, scope)
+                    connectionHandler.run(RealASCWrapper(socket), scope)
                 }
             } catch (e: Exception) {
                 // Any exception either was caused by, or triggers, disconnection, and a reconnection attempt.
@@ -93,7 +93,7 @@ class ServerConnector(
                     Logger.d("ServerConnector: connected")
                     CONNECTED_METRIC.increment()
                     serverSocket.use {
-                        connectionHandler.run(serverSocket, scope)
+                        connectionHandler.run(RealASCWrapper(serverSocket), scope)
                     }
                 }
             } catch (e: Exception) {

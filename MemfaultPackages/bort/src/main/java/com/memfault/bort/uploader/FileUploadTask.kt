@@ -3,10 +3,8 @@ package com.memfault.bort.uploader
 import androidx.work.Data
 import androidx.work.workDataOf
 import com.memfault.bort.BortJson
-import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploader
 import com.memfault.bort.Payload
-import com.memfault.bort.Payload.LegacyPayload
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
@@ -21,50 +19,34 @@ import javax.inject.Inject
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.SerializationException
 
 val BACKOFF_DURATION = 5.minutes
 
 private const val PATH_KEY = "PATH"
 private const val METADATA_KEY = "METADATA"
-private const val CONTINUATION_KEY = "CONTINUATION"
 private const val SHOULD_COMPRESS_KEY = "SHOULD_COMPRESS"
 
 data class FileUploadTaskInput(
     val file: File,
     val payload: Payload,
-    val continuation: FileUploadContinuation? = null,
     val shouldCompress: Boolean = true,
 ) {
     fun toWorkerInputData(): Data =
         workDataOf(
             PATH_KEY to file.path,
             METADATA_KEY to BortJson.encodeToString(Payload.serializer(), payload),
-            CONTINUATION_KEY to continuation?.let { BortJson.encodeToString(FileUploadContinuation.serializer(), it) },
             SHOULD_COMPRESS_KEY to shouldCompress,
         )
 
     companion object {
-        /**
-         * We might have legacy payload stored ([FileUploadPayload]), so fallback to deserializing that format if the
-         * new format ([Payload]) fails.
-         */
         private fun deserializePayload(payload: String): Payload {
-            return try {
-                BortJson.decodeFromString(Payload.serializer(), payload)
-            } catch (e: SerializationException) {
-                LegacyPayload(BortJson.decodeFromString(FileUploadPayload.serializer(), payload))
-            }
+            return BortJson.decodeFromString(Payload.serializer(), payload)
         }
 
         fun fromData(inputData: Data) =
             FileUploadTaskInput(
                 file = File(checkNotNull(inputData.getString(PATH_KEY), { "File path missing" })),
                 payload = deserializePayload(checkNotNull(inputData.getString(METADATA_KEY)) { "Metadata missing" }),
-                continuation = inputData.getString(CONTINUATION_KEY)?.let {
-                    BortJson.decodeFromString(FileUploadContinuation.serializer(), it)
-                },
-                shouldCompress = inputData.getBoolean(SHOULD_COMPRESS_KEY, false),
             )
     }
 }
@@ -117,17 +99,9 @@ class FileUploadTask @Inject constructor(
             Logger.logEvent("upload", "start", worker.runAttemptCount.toString())
             upload(input.file, input.payload, input.shouldCompress).also {
                 Logger.logEvent("upload", "result", it.toString())
-                "UploadWorker result=$it payloadClass=${input.payload.className()}".also { message ->
+                "UploadWorker result=$it payloadClass=${input.payload.payloadClassName()}".also { message ->
                     Logger.v(message)
                     Logger.test(message)
-                }
-            }.also { result ->
-                input.continuation?.let {
-                    when (result) {
-                        TaskResult.SUCCESS -> it.success(worker.applicationContext)
-                        TaskResult.FAILURE -> it.failure(worker.applicationContext)
-                        TaskResult.RETRY -> Unit
-                    }
                 }
             }
         }
@@ -139,8 +113,7 @@ class FileUploadTask @Inject constructor(
         get() = maxUploadAttempts
 
     companion object {
-        fun Payload.className() = when (this) {
-            is LegacyPayload -> this.payload.javaClass.simpleName
+        fun Payload.payloadClassName() = when (this) {
             is Payload.MarPayload -> this.payload.javaClass.simpleName
         }
     }

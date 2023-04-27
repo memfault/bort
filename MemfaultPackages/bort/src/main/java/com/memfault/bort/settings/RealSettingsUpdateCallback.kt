@@ -10,6 +10,7 @@ import com.memfault.bort.DumpsterClient
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.dropbox.DropBoxConfigureFilterSettings
 import com.memfault.bort.reporting.CustomEvent
+import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.INTENT_ACTION_OTA_SETTINGS_CHANGED
 import com.memfault.bort.shared.Logger
@@ -26,6 +27,7 @@ class SettingsUpdateCallback @Inject constructor(
     private val bortEnabledProvider: BortEnabledProvider,
     private val continuousLoggingController: ContinuousLoggingController,
     private val dropBoxConfigureFilterSettings: DropBoxConfigureFilterSettings,
+    private val periodicWorkManager: PeriodicWorkManager,
 ) {
     suspend fun onSettingsUpdated(
         settingsProvider: SettingsProvider,
@@ -42,7 +44,7 @@ class SettingsUpdateCallback @Inject constructor(
         reloadCustomEventConfigFrom(settingsProvider.structuredLogSettings)
 
         // Update periodic tasks that might have changed after a settings update
-        PeriodicRequesterRestartTask.schedule(context, fetchedSettingsUpdate)
+        periodicWorkManager.maybeRestartTasksAfterSettingsChange(fetchedSettingsUpdate)
 
         dropBoxConfigureFilterSettings.configureFilterSettings()
 
@@ -89,6 +91,8 @@ suspend fun applyReporterServiceSettings(
                 SetReporterSettingsRequest(
                     maxFileTransferStorageBytes =
                         settingsProvider.storageSettings.maxClientServerFileTransferStorageBytes,
+                    maxFileTransferStorageAge =
+                        settingsProvider.storageSettings.maxClientServerFileTransferStorageAge.boxed(),
                     maxReporterTempStorageBytes = settingsProvider.storageSettings.usageReporterTempMaxStorageBytes,
                     maxReporterTempStorageAge = settingsProvider.storageSettings.usageReporterTempMaxStorageAge.boxed(),
                 )

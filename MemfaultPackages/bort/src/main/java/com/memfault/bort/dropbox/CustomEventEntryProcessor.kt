@@ -2,8 +2,8 @@ package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
 import com.memfault.bort.DeviceInfoProvider
-import com.memfault.bort.StructuredLogFileUploadPayload
 import com.memfault.bort.TemporaryFileFactory
+import com.memfault.bort.clientserver.MarMetadata.StructuredLogMarMetadata
 import com.memfault.bort.settings.StructuredLogEnabled
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
@@ -58,16 +58,12 @@ class StructuredLogEntryProcessor @Inject constructor(
 
             val time = combinedTimeProvider.now()
             enqueueUpload.enqueue(
-                tempFile,
-                StructuredLogFileUploadPayload(
+                file = tempFile,
+                metadata = StructuredLogMarMetadata(
+                    logFileName = tempFile.name,
                     cid = metadata.cid,
                     nextCid = metadata.nextCid,
-                    hardwareVersion = deviceInfo.hardwareVersion,
-                    deviceSerial = deviceInfo.deviceSerial,
-                    softwareVersion = deviceInfo.softwareVersion,
-                    collectionTime = time,
                 ),
-                DROPBOX_ENTRY_TAG,
                 collectionTime = time,
             )
 

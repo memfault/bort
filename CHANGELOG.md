@@ -1,5 +1,34 @@
 # Memfault Bort Changelog
 
+## v4.6.0 - April 26th, 2023
+
+#### :rocket: New Features
+
+- Removed (previously deprecated) individual file upload support:
+  [MAR](https://mflt.io/android-mar) is the only supported upload mechanism.
+
+#### :chart_with_upwards_trend: Improvements
+
+- Bort will resend Config State when not synced with backend.
+- Fixed an issue where if SDK settings change, they are not applied immediately,
+  and fleet sampling configuration may not be updated.
+- If the project key was changed at runtime, enable resetting it:
+  [See Documentation](https://mflt.io/android-setting-project-key-at-runtime).
+- Fixed a FileNotFoundException in Bort processing files to upload.
+- Fixed a crash during file cleanup, caused by modified date changing during the
+  cleanup process.
+- Limit DropBoxManager queries to a maximum file age of 1 hour after a fresh
+  install of Bort.
+- When using Client-Server mode, limit the age and retry count of files waiting
+  to be transferred to the Server device in UsageReporter.
+- Fixed a UsageReporter crash when a message is received during service
+  shutdown.
+
+#### :house: Internal
+
+- Added an internal metric for the Bort package name.
+- Track any task worker failures.
+
 ## v4.5.1 - April 5th, 2023
 
 #### :chart_with_upwards_trend: Improvements

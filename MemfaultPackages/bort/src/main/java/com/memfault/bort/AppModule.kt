@@ -5,8 +5,6 @@ import android.content.Context
 import android.content.res.Resources
 import android.os.Looper
 import androidx.preference.PreferenceManager
-import androidx.work.BackoffPolicy
-import com.memfault.bort.ingress.IngressService
 import com.memfault.bort.logcat.KernelOopsDetector
 import com.memfault.bort.logcat.NoopLogcatLineProcessor
 import com.memfault.bort.metrics.BuiltinMetricsStore
@@ -16,7 +14,6 @@ import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.SettingsUpdateService
 import com.memfault.bort.settings.readBundledSettings
 import com.memfault.bort.shared.BASIC_COMMAND_TIMEOUT_MS
-import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.JitterDelayProvider.ApplyJitter.APPLY
 import com.memfault.bort.tokenbucket.Anr
 import com.memfault.bort.tokenbucket.BugReportPeriodic
@@ -39,9 +36,6 @@ import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.Tombstone
 import com.memfault.bort.tokenbucket.Wtf
 import com.memfault.bort.tokenbucket.WtfTotal
-import com.memfault.bort.uploader.EnqueueHttpTask
-import com.memfault.bort.uploader.HttpTask
-import com.memfault.bort.uploader.HttpTaskCallFactory
 import com.memfault.bort.uploader.PreparedUploadService
 import com.squareup.anvil.annotations.ContributesTo
 import com.squareup.anvil.annotations.compat.MergeModules
@@ -552,11 +546,6 @@ abstract class AppModule {
 
         @Provides
         @Singleton
-        fun ingressService(settingsProvider: SettingsProvider, httpTaskCallFactory: HttpTaskCallFactory) =
-            IngressService.create(settingsProvider.httpApiSettings, httpTaskCallFactory)
-
-        @Provides
-        @Singleton
         fun uploadService(retrofit: Retrofit) = retrofit.create(PreparedUploadService::class.java)
 
         @Provides
@@ -574,20 +563,6 @@ abstract class AppModule {
                 okHttpClient = okHttpClient,
                 deviceBaseUrl = settingsProvider.httpApiSettings.deviceBaseUrl
             )
-
-        @Provides
-        fun enqueueHttpTask(
-            context: Context,
-            settingsProvider: SettingsProvider,
-            jitterDelayProvider: JitterDelayProvider,
-        ) = EnqueueHttpTask { input ->
-            enqueueWorkOnce<HttpTask>(context, input.toWorkerInputData()) {
-                setInitialDelay(jitterDelayProvider.randomJitterDelay())
-                setConstraints(settingsProvider.httpApiSettings.uploadConstraints)
-                setBackoffCriteria(BackoffPolicy.EXPONENTIAL, input.backoffDuration.toJavaDuration())
-                input.taskTags.forEach { tag -> addTag(tag) }
-            }
-        }
 
         @Provides
         fun dataScrubber(settingsProvider: SettingsProvider): DataScrubber = DataScrubber(

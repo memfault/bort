@@ -1,27 +1,34 @@
 package com.memfault.bort.uploader
 
+import com.memfault.bort.BortJson
 import com.memfault.bort.FakeCombinedTimeProvider
-import com.memfault.bort.FileUploadToken
 import com.memfault.bort.LogcatCollectionId
-import com.memfault.bort.LogcatFileUploadPayload
 import com.memfault.bort.MockSharedPreferences
+import com.memfault.bort.clientserver.MarMetadata.LogcatMarMetadata
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.makeFakeSharedPreferences
 import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.FileUploadHoldingAreaSettings
 import com.memfault.bort.settings.LogcatCollectionMode
+import com.memfault.bort.settings.LogcatCollectionMode.PERIODIC
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.settings.RateLimitingSettings
 import com.memfault.bort.settings.Resolution.NOT_APPLICABLE
 import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.shared.LogcatFilterSpec
+import com.memfault.bort.time.BoxedDuration
+import com.memfault.bort.time.CombinedTime
+import com.memfault.bort.uploader.PendingFileUploadEntry.TimeSpan
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.verify
 import java.io.File
+import java.time.Instant
 import java.util.UUID
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.serialization.decodeFromString
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -37,7 +44,7 @@ class FileUploadHoldingAreaTest {
     val eventOfInterestTTL = 7.seconds
     val maxStoredEventsOfInterestVal = 4
     val collectionTime = FakeCombinedTimeProvider.now()
-    var logcatCollectionMode = LogcatCollectionMode.PERIODIC
+    var logcatCollectionMode = PERIODIC
 
     lateinit var tempFiles: MutableList<File>
 
@@ -73,7 +80,6 @@ class FileUploadHoldingAreaTest {
             logcatSettings = logcatSettings,
             currentSamplingConfig = currentSamplingConfig,
             combinedTimeProvider = FakeCombinedTimeProvider,
-            logcatCollectionMode = { logcatSettings.collectionMode },
         )
     }
 
@@ -94,26 +100,29 @@ class FileUploadHoldingAreaTest {
         PendingFileUploadEntry(
             timeSpan = makeSpan(start, end),
             payload = LogcatFileUploadPayload(
-                file = FileUploadToken(md5 = "", name = ""),
-                hardwareVersion = "",
-                deviceSerial = "",
-                softwareVersion = "",
-                softwareType = "",
                 collectionTime = collectionTime,
                 command = emptyList(),
                 cid = LogcatCollectionId(UUID.randomUUID()),
                 nextCid = LogcatCollectionId(UUID.randomUUID()),
             ),
-            debugTag = UUID.randomUUID().toString(),
             file = makeTempFile(),
         )
+
+    private fun PendingFileUploadEntry.asMarMetadata() = LogcatMarMetadata(
+        logFileName = file.name,
+        command = payload.command,
+        cid = payload.cid,
+        nextCid = payload.nextCid,
+        containsOops = payload.containsOops,
+        collectionMode = payload.collectionMode,
+    )
 
     @Test
     fun addEnqueueImmediately() {
         val entry = makeEntry(9.seconds, 10.seconds)
         fileUploadHoldingArea.handleEventOfInterest(10.seconds)
         fileUploadHoldingArea.add(entry)
-        verify { mockEnqueueUpload.enqueue(entry.file, entry.payload, entry.debugTag, collectionTime) }
+        verify { mockEnqueueUpload.enqueue(entry.file, entry.asMarMetadata(), entry.payload.collectionTime) }
     }
 
     @Test
@@ -152,7 +161,9 @@ class FileUploadHoldingAreaTest {
         assertEquals(listOf(expectToHoldEntry), fileUploadHoldingArea.readEntries())
         verify {
             mockEnqueueUpload.enqueue(
-                expectToUploadEntry.file, expectToUploadEntry.payload, expectToUploadEntry.debugTag, collectionTime
+                expectToUploadEntry.file,
+                expectToUploadEntry.asMarMetadata(),
+                expectToUploadEntry.payload.collectionTime,
             )
         }
         assertEquals(false, expectToDeleteEntry.file.exists())
@@ -190,7 +201,6 @@ class FileUploadHoldingAreaTest {
             mockEnqueueUpload.enqueue(
                 file = expectToDeleteEntry.file,
                 metadata = any(),
-                debugTag = expectToDeleteEntry.debugTag,
                 collectionTime = collectionTime,
             )
         }
@@ -213,9 +223,9 @@ class FileUploadHoldingAreaTest {
         verify(exactly = 1) {
             mockEnqueueUpload.enqueue(
                 file = expectToStoreEntry.file,
-                metadata = expectToStoreEntry.payload.copy(debuggingResolution = NOT_APPLICABLE),
-                debugTag = expectToStoreEntry.debugTag,
+                metadata = expectToStoreEntry.asMarMetadata(),
                 collectionTime = collectionTime,
+                overrideDebuggingResolution = NOT_APPLICABLE,
             )
         }
         assertEquals(listOf(expectToHoldEntry), fileUploadHoldingArea.readEntries())
@@ -226,5 +236,71 @@ class FileUploadHoldingAreaTest {
         val eventTimes = (0..10).map { it.seconds }
         eventTimes.forEach(fileUploadHoldingArea::handleEventOfInterest)
         assertEquals(eventTimes.takeLast(maxStoredEventsOfInterestVal), fileUploadHoldingArea.readEventTimes())
+    }
+
+    @Test
+    fun deserializeLegacyUploadMetadata() {
+        // json taken from before legacy upload path was removed, to verify that persisted log files can still be read
+        // after that change.
+        val json =
+            """[{"time_span":{"start_ms":-581638,"end_ms":318362},"payload":{"file":{"token":"","md5":
+                |"f1aac8411c696d59a66997f9d244cb16","name":"logcat.txt"},"hardware_version":"cutf","device_serial":
+                |"CUTTLEFISHCVD02","software_version":"eng.memfau.20200430.234000","software_type":"android-build",
+                |"collection_time":{"uptime_ms":318362,"elapsed_realtime_ms":318362,"linux_boot_id":
+                |"9649a5cb-8e35-4041-8b84-6b8abfb3750d","boot_count":1,"timestamp":"2023-04-07T23:22:58.110Z"},
+                |"command":["logcat","-b","all","-D","-d","-T","1680906178.098000000","-v","threadtime","-v","nsec",
+                |"-v","printable","-v","uid","-v","UTC","-v","year","*:W"],"cid":{
+                |"uuid":"798d0fa6-2cce-438f-9dcc-c5abb6cfe867"},"next_cid":{"uuid":
+                |"4c0d08a3-bd2a-4dc0-ad62-4a252f4d3abe"},"contains_oops":false,"collection_mode":"periodic"},
+                |"file":"/data/user/0/com.memfault.smartfridge.bort/cache/logcat900531055540371522.txt",
+                |"debug_tag":"UPLOAD_LOGCAT"}]""".trimMargin()
+        val decoded = BortJson.decodeFromString<List<PendingFileUploadEntry>>(json)
+        assertEquals(
+            listOf(
+                PendingFileUploadEntry(
+                    timeSpan = TimeSpan(
+                        start = BoxedDuration((-581638).milliseconds),
+                        end = BoxedDuration((318362).milliseconds),
+                    ),
+                    payload = LogcatFileUploadPayload(
+                        collectionTime = CombinedTime(
+                            uptime = BoxedDuration(318362.milliseconds),
+                            elapsedRealtime = BoxedDuration(318362.milliseconds),
+                            linuxBootId = "9649a5cb-8e35-4041-8b84-6b8abfb3750d",
+                            bootCount = 1,
+                            timestamp = Instant.parse("2023-04-07T23:22:58.110Z"),
+                        ),
+                        command = listOf(
+                            "logcat",
+                            "-b",
+                            "all",
+                            "-D",
+                            "-d",
+                            "-T",
+                            "1680906178.098000000",
+                            "-v",
+                            "threadtime",
+                            "-v",
+                            "nsec",
+                            "-v",
+                            "printable",
+                            "-v",
+                            "uid",
+                            "-v",
+                            "UTC",
+                            "-v",
+                            "year",
+                            "*:W",
+                        ),
+                        cid = LogcatCollectionId(UUID.fromString("798d0fa6-2cce-438f-9dcc-c5abb6cfe867")),
+                        nextCid = LogcatCollectionId(UUID.fromString("4c0d08a3-bd2a-4dc0-ad62-4a252f4d3abe")),
+                        containsOops = false,
+                        collectionMode = PERIODIC,
+                    ),
+                    file = File("/data/user/0/com.memfault.smartfridge.bort/cache/logcat900531055540371522.txt"),
+                )
+            ),
+            decoded,
+        )
     }
 }

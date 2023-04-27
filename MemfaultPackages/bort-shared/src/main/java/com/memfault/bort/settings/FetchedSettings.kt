@@ -334,6 +334,10 @@ data class FetchedSettings(
     @SerialName("storage.max_client_server_file_transfer_storage_bytes")
     val storageMaxClientServerFileTransferStorageBytes: Long = 50_000_000,
 
+    @SerialName("storage.max_client_server_file_transfer_storage_age_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val storageMaxClientServerFileTransferStorageAge: BoxedDuration = 7.days.boxed(),
+
     @SerialName("storage.usage_reporter_temp_max_storage_bytes")
     val storageUsageReporterTempMaxStorageBytes: Long = 10_000_000,
 
@@ -372,7 +376,6 @@ data class RateLimitingSettings(
     val maxBuckets: Int,
 )
 
-@Serializable
 data class FetchedSettingsUpdate(
     val old: FetchedSettings,
     val new: FetchedSettings,

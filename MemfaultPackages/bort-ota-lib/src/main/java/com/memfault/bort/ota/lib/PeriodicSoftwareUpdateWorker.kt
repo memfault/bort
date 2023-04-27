@@ -3,6 +3,7 @@ package com.memfault.bort.ota.lib
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.memfault.bort.shared.runAndTrackExceptions
 import kotlinx.coroutines.flow.first
 
 /**
@@ -12,7 +13,7 @@ class PeriodicSoftwareUpdateWorker(
     appContext: Context,
     params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "PeriodicSoftwareUpdateWorker") {
         val updater = applicationContext.updater()
         if (updater.updateState.value.allowsUpdateCheck()) {
             updater.perform(Action.CheckForUpdate(background = true))
@@ -21,6 +22,6 @@ class PeriodicSoftwareUpdateWorker(
             // the action handler implementation
             updater.updateState.first { it != State.CheckingForUpdates }
         }
-        return Result.success()
+        Result.success()
     }
 }

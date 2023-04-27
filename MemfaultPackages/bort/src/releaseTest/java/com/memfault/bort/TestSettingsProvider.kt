@@ -18,13 +18,6 @@ import javax.inject.Inject
 class TestOverrideSettings @Inject constructor(
     sharedPreferences: SharedPreferences,
 ) {
-
-    val useMarUpload = object : PreferenceKeyProvider<Boolean>(
-        sharedPreferences = sharedPreferences,
-        defaultValue = false,
-        preferenceKey = "test-use-mar-upload"
-    ) {}
-
     /**
      * Whether to use test override settings. This should be set during E2E tests.
      */
@@ -45,8 +38,6 @@ class TestSettingsProvider @Inject constructor(
     fun override() = testOverrides.useTestSettingOverrides.getValue()
 
     override val httpApiSettings = object : HttpApiSettings by settings.httpApiSettings {
-        override suspend fun useMarUpload(): Boolean =
-            if (override()) testOverrides.useMarUpload.getValue() else settings.httpApiSettings.useMarUpload()
         override val batchMarUploads: Boolean
             get() = if (override()) false else settings.httpApiSettings.batchMarUploads
     }

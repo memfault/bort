@@ -2,9 +2,6 @@ package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
 import com.memfault.bort.DataScrubber
-import com.memfault.bort.DeviceInfoProvider
-import com.memfault.bort.FileUploadToken
-import com.memfault.bort.LogcatFileUploadPayload
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.PackageNameAllowList
 import com.memfault.bort.TemporaryFileFactory
@@ -26,6 +23,7 @@ import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.ContinuousLogFile
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.FileUploadHoldingArea
+import com.memfault.bort.uploader.LogcatFileUploadPayload
 import com.memfault.bort.uploader.PendingFileUploadEntry
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
@@ -48,7 +46,6 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
     private val packageNameAllowList: PackageNameAllowList,
     private val temporaryFileFactory: TemporaryFileFactory,
     private val nextLogcatCidProvider: NextLogcatCidProvider,
-    private val deviceInfoProvider: DeviceInfoProvider,
     private val combinedTimeProvider: CombinedTimeProvider,
     private val fileUploadingArea: FileUploadHoldingArea,
     private val kernelOopsDetector: Provider<LogcatLineProcessor>,
@@ -118,7 +115,6 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
 
         val (cid, nextCid) = nextLogcatCidProvider.rotate()
 
-        val deviceInfo = deviceInfoProvider.getDeviceInfo()
         val now = combinedTimeProvider.now()
 
         // We know the exact timestamps and span but timeSpan takes elapsedRealTime rather than instants,
@@ -132,14 +128,7 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
         val fileUploadEntry = PendingFileUploadEntry(
             timeSpan = PendingFileUploadEntry.TimeSpan.from(start, end),
             payload = LogcatFileUploadPayload(
-                hardwareVersion = deviceInfo.hardwareVersion,
-                deviceSerial = deviceInfo.deviceSerial,
-                softwareVersion = deviceInfo.softwareVersion,
                 collectionTime = now,
-                file = FileUploadToken(
-                    md5 = metadata.md5,
-                    name = "logcat.txt",
-                ),
                 command = continuousLogcatCommand.toList(),
                 cid = cid,
                 nextCid = nextCid,
@@ -147,9 +136,8 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
                 collectionMode = CONTINUOUS,
             ),
             file = metadata.file,
-            debugTag = DEBUG_TAG
         )
-        Logger.test("continuous log file uploaded with uuid=${fileUploadEntry.payload.cid}")
+        Logger.test("continuous log file uploaded with uuid=$cid")
 
         fileUploadingArea.add(fileUploadEntry)
     }
@@ -161,5 +149,3 @@ data class ProcessedLogcatFileMetadata(
     val file: File,
     val md5: String,
 )
-
-private const val DEBUG_TAG = "UPLOAD_LOGCAT"

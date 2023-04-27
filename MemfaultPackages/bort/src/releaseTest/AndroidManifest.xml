@@ -7,7 +7,6 @@
             tools:ignore="ExportedReceiver">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.TEST_SETTING_SET_PROJECT_KEY" />
-                <action android:name="com.memfault.intent.action.TEST_SETTING_SET_USE_MAR" />
                 <action android:name="com.memfault.intent.action.TEST_SETTING_USE_OVERRIDES" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="com.memfault.intent.action.TEST_BORT_ECHO" />

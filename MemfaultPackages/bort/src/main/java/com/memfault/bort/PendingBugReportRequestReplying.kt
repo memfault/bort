@@ -8,12 +8,11 @@ import com.memfault.bort.shared.INTENT_ACTION_BUG_REPORT_REQUEST_REPLY
 import com.memfault.bort.shared.INTENT_EXTRA_BUG_REPORT_REQUEST_STATUS
 
 enum class BugReportRequestStatus(val value: String) {
-    OK_UPLOAD_COMPLETED("OK_UPLOAD_COMPLETED"),
+    OK_UPLOAD_QUEUED("OK_UPLOAD_QUEUED"),
     ERROR_ALREADY_PENDING("ERROR_ALREADY_PENDING"),
     ERROR_TIMEOUT("ERROR_TIMEOUT"),
     ERROR_SDK_NOT_ENABLED("ERROR_SDK_NOT_ENABLED"),
     ERROR_RATE_LIMITED("ERROR_RATE_LIMITED"),
-    ERROR_UPLOAD_FAILED("ERROR_UPLOAD_FAILED"),
 }
 
 fun BugReportRequest.broadcastReply(context: Context, status: BugReportRequestStatus) {

@@ -3,14 +3,16 @@ package com.memfault.bort.receivers
 import android.content.Context
 import android.content.Intent
 import com.memfault.bort.BortSystemCapabilities
-import com.memfault.bort.BugReportFileUploadPayload
+import com.memfault.bort.BugReportRequestStatus
 import com.memfault.bort.BugReportRequestTimeoutTask
-import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.INTENT_ACTION_BUGREPORT_FINISHED
 import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
 import com.memfault.bort.PendingBugReportRequestAccessor
+import com.memfault.bort.ProcessingOptions
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.addFileToZip
+import com.memfault.bort.broadcastReply
+import com.memfault.bort.clientserver.MarMetadata.BugReportMarMetadata
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.ZipCompressionLevel
@@ -18,15 +20,12 @@ import com.memfault.bort.shared.INTENT_EXTRA_BUG_REPORT_REQUEST_ID
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.goAsync
 import com.memfault.bort.time.CombinedTimeProvider
-import com.memfault.bort.uploader.BugReportFileUploadContinuation
 import com.memfault.bort.uploader.EnqueueUpload
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-private const val WORK_TAG = "com.memfault.bort.work.tag.UPLOAD_BUGREPORT"
 
 @AndroidEntryPoint
 class BugReportReceiver : BortEnabledFilteringReceiver(
@@ -38,7 +37,6 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
     @Inject lateinit var temporaryFileFactory: TemporaryFileFactory
     @Inject lateinit var enqueueUpload: EnqueueUpload
     @Inject lateinit var combinedTimeProvider: CombinedTimeProvider
-    @Inject lateinit var deviceInfoProvider: DeviceInfoProvider
     @Inject lateinit var zipCompressionLevel: ZipCompressionLevel
 
     override fun onReceivedAndEnabled(context: Context, intent: Intent, action: String) {
@@ -78,15 +76,12 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
 
             val dropBoxDataSourceEnabledAndSupported = settingsProvider.dropBoxSettings.dataSourceEnabled &&
                 bortSystemCapabilities.supportsCaliperDropBoxTraces()
-            val deviceInfo = deviceInfoProvider.getDeviceInfo()
 
             enqueueUpload.enqueue(
                 file = file,
-                metadata = BugReportFileUploadPayload(
-                    hardwareVersion = deviceInfo.hardwareVersion,
-                    deviceSerial = deviceInfo.deviceSerial,
-                    softwareVersion = deviceInfo.softwareVersion,
-                    processingOptions = BugReportFileUploadPayload.ProcessingOptions(
+                metadata = BugReportMarMetadata(
+                    bugReportFileName = file.name,
+                    processingOptions = ProcessingOptions(
                         processAnrs = !dropBoxDataSourceEnabledAndSupported,
                         processJavaExceptions = !dropBoxDataSourceEnabledAndSupported,
                         processLastKmsg = !dropBoxDataSourceEnabledAndSupported,
@@ -95,16 +90,9 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
                     ),
                     requestId = requestId,
                 ),
-                debugTag = WORK_TAG,
                 collectionTime = collectionTime,
-                continuation = request?.let {
-                    BugReportFileUploadContinuation(
-                        request = it,
-                    )
-                },
-                /* Already a .zip file, not much to gain by recompressing */
-                shouldCompress = false,
             )
+            request?.broadcastReply(context, BugReportRequestStatus.OK_UPLOAD_QUEUED)
         }
     }
 

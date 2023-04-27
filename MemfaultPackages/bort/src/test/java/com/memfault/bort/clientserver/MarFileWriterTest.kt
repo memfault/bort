@@ -1,20 +1,19 @@
 package com.memfault.bort.clientserver
 
 import com.memfault.bort.BortJson
-import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.LogcatCollectionId
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.clientserver.MarFileWriter.Companion.MAR_SIZE_TOLERANCE_BYTES
 import com.memfault.bort.clientserver.MarFileWriter.Companion.chunkByElementSize
 import com.memfault.bort.clientserver.MarFileWriter.Companion.writeBatchedMarFile
 import com.memfault.bort.clientserver.MarFileWriter.Companion.writeMarFile
+import com.memfault.bort.clientserver.MarFileWriterTest.Companion.filename
 import com.memfault.bort.settings.HttpApiSettings
 import com.memfault.bort.settings.NetworkConstraint
 import com.memfault.bort.settings.Resolution
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.boxed
-import io.mockk.mockk
 import java.io.File
 import java.io.FileInputStream
 import java.time.Instant
@@ -26,6 +25,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.assertThrows
 
 internal class MarFileWriterTest {
     @Test
@@ -35,6 +35,17 @@ internal class MarFileWriterTest {
 
         ZipInputStream(FileInputStream(marFile)).use { zip ->
             zip.assertNextEntry(marFile, manifest, FILE_CONTENT)
+            assertNull(zip.nextEntry)
+        }
+    }
+
+    @Test
+    fun createMarFileWithNoAttachment() {
+        val manifest = heartbeat(timeMs = 123456789, filename = null)
+        val marFile = createMarFile("mar.mar", manifest, fileContent = null)
+
+        ZipInputStream(FileInputStream(marFile)).use { zip ->
+            zip.assertNextEntry(marFile, manifest, fileContent = null)
             assertNull(zip.nextEntry)
         }
     }
@@ -61,7 +72,6 @@ internal class MarFileWriterTest {
 
     @Test
     fun mergeToMultipleFiles() {
-        val deviceInfo: DeviceInfoProvider = mockk()
         val settings = object : HttpApiSettings {
             override val projectKey: String get() = "key"
             override val filesBaseUrl: String get() = TODO("Not used")
@@ -74,7 +84,6 @@ internal class MarFileWriterTest {
             override val readTimeout: Duration get() = TODO("Not used")
             override val callTimeout: Duration get() = TODO("Not used")
             override val zipCompressionLevel: Int = 4
-            override suspend fun useMarUpload(): Boolean = TODO("Not used")
             override val batchMarUploads: Boolean get() = TODO("Not used")
             override val batchedMarUploadPeriod: Duration get() = TODO("Not used")
             override suspend fun useDeviceConfig(): Boolean = TODO("Not used")
@@ -85,7 +94,7 @@ internal class MarFileWriterTest {
             override val maxMarUnsampledStoredBytes: Long get() = TODO("Not used")
         }
         val temp: TemporaryFileFactory = TestTemporaryFileFactory
-        val writer = MarFileWriter(deviceInfo, settings, temp, { 4 })
+        val writer = MarFileWriter(settings, temp, { 4 })
 
         // file size: 1290
         val manifest1 = heartbeat(timeMs = 123456789)
@@ -137,6 +146,18 @@ internal class MarFileWriterTest {
         assertEquals(expected, elements.chunkByElementSize(10) { it.toLong() })
     }
 
+    @Test
+    fun fileMissingThrowsException() {
+        var marFile = File.createTempFile("marfile", ".mar")
+
+        val inputFile = File("/this/does/not/exist.bin")
+        val manifest = heartbeat(timeMs = 123456789)
+        val marFileWriter = MarFileWriter
+        assertThrows<FileMissingException> {
+            marFileWriter.writeMarFile(marFile, manifest, inputFile, 0)
+        }
+    }
+
     private fun ZipInputStream.assertNextEntry(marFile: File, manifest: MarManifest, fileContent: String?) {
         val dirEntry = nextEntry
         assertTrue(dirEntry.isDirectory)
@@ -179,20 +200,21 @@ internal class MarFileWriterTest {
             timestamp = Instant.ofEpochMilli(timeMs)
         )
 
-        fun heartbeat(timeMs: Long, resolution: Resolution = Resolution.NORMAL) = MarManifest(
-            collectionTime = time(timeMs),
-            type = "android-heartbeat",
-            device = device,
-            metadata = MarMetadata.HeartbeatMarMetadata(
-                batteryStatsFileName = "batterystats",
-                heartbeatIntervalMs = 2,
-                customMetrics = emptyMap(),
-                builtinMetrics = emptyMap(),
-            ),
-            debuggingResolution = Resolution.NOT_APPLICABLE,
-            loggingResolution = Resolution.NOT_APPLICABLE,
-            monitoringResolution = resolution,
-        )
+        fun heartbeat(timeMs: Long, filename: String? = "batterystats", resolution: Resolution = Resolution.NORMAL) =
+            MarManifest(
+                collectionTime = time(timeMs),
+                type = "android-heartbeat",
+                device = device,
+                metadata = MarMetadata.HeartbeatMarMetadata(
+                    batteryStatsFileName = filename,
+                    heartbeatIntervalMs = 2,
+                    customMetrics = emptyMap(),
+                    builtinMetrics = emptyMap(),
+                ),
+                debuggingResolution = Resolution.NOT_APPLICABLE,
+                loggingResolution = Resolution.NOT_APPLICABLE,
+                monitoringResolution = resolution,
+            )
 
         fun logcat(timeMs: Long, resolution: Resolution = Resolution.NORMAL) = MarManifest(
             collectionTime = time(timeMs),

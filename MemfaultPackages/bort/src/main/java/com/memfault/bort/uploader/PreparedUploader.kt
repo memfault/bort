@@ -1,18 +1,11 @@
 package com.memfault.bort.uploader
 
-import com.memfault.bort.BugReportFileUploadPayload
 import com.memfault.bort.DeviceInfo
 import com.memfault.bort.DeviceInfoProvider
-import com.memfault.bort.DropBoxEntryFileUploadPayload
-import com.memfault.bort.FileUploadTokenOnly
-import com.memfault.bort.HeartbeatFileUploadPayload
-import com.memfault.bort.LogcatFileUploadPayload
 import com.memfault.bort.MarFileUploadPayload
 import com.memfault.bort.Payload
-import com.memfault.bort.Payload.LegacyPayload
 import com.memfault.bort.Payload.MarPayload
 import com.memfault.bort.SOFTWARE_TYPE
-import com.memfault.bort.StructuredLogFileUploadPayload
 import com.memfault.bort.http.ProjectKeyAuthenticated
 import com.memfault.bort.http.gzip
 import com.memfault.bort.shared.Logger
@@ -30,15 +23,9 @@ import retrofit2.http.Body
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
-import retrofit2.http.Path
 import retrofit2.http.Url
 
 enum class PrepareFileKind(val value: String) {
-    ANDROID_BUG_REPORT("android-bugreport"),
-    ANDROID_DROPBOX("android-dropbox"),
-    ANDROID_HEARTBEAT("android-heartbeat"),
-    ANDROID_LOGCAT("android-logcat"),
-    ANDROID_STRUCTURED("android-structured"),
     MAR("mar"),
 }
 
@@ -84,38 +71,6 @@ interface PreparedUploadService {
         @Url url: String,
         @Body file: RequestBody,
         @Header("Content-Encoding") contentEncoding: String? = null,
-    ): Response<Unit>
-
-    @POST("/api/v0/upload/{upload_type}")
-    @ProjectKeyAuthenticated
-    suspend fun commit(
-        @Path(value = "upload_type") uploadType: String,
-        @Body payload: BugReportFileUploadPayload,
-    ): Response<Unit>
-
-    @POST("/api/v0/upload/android-logcat")
-    @ProjectKeyAuthenticated
-    suspend fun commitLogcat(
-        @Body payload: LogcatFileUploadPayload,
-    ): Response<Unit>
-
-    @POST("/api/v0/upload/android-dropbox-manager-entry/{family}")
-    @ProjectKeyAuthenticated
-    suspend fun commitDropBoxEntry(
-        @Path(value = "family") entryFamily: String,
-        @Body payload: DropBoxEntryFileUploadPayload,
-    ): Response<Unit>
-
-    @POST("/api/v0/upload/android-structured")
-    @ProjectKeyAuthenticated
-    suspend fun commitStructuredLog(
-        @Body payload: StructuredLogFileUploadPayload,
-    ): Response<Unit>
-
-    @POST("/api/v0/events/android-heartbeat")
-    @ProjectKeyAuthenticated
-    suspend fun commitHeartbeat(
-        @Body commitRequest: HeartbeatFileUploadPayload,
     ): Response<Unit>
 
     @POST("/api/v0/upload/mar")
@@ -176,46 +131,6 @@ class PreparedUploader @Inject constructor(
      */
     suspend fun commit(token: String, wrapper: Payload): Response<Unit> {
         return when (wrapper) {
-            is LegacyPayload -> when (val payload = wrapper.payload) {
-                is BugReportFileUploadPayload ->
-                    preparedUploadService.commit(
-                        uploadType = "bugreport",
-                        payload = payload.copy(file = FileUploadTokenOnly(token))
-                    ).also {
-                        eventLogger.log("commit", "done", "bugreport")
-                    }
-                is DropBoxEntryFileUploadPayload ->
-                    preparedUploadService.commitDropBoxEntry(
-                        entryFamily = payload.metadata.family,
-                        payload = payload.copy(file = FileUploadTokenOnly(token)),
-                    ).also {
-                        eventLogger.log("commit", "done", payload.metadata.family)
-                    }
-                is StructuredLogFileUploadPayload ->
-                    preparedUploadService.commitStructuredLog(
-                        payload = payload.copy(file = FileUploadTokenOnly(token))
-                    )
-                is HeartbeatFileUploadPayload -> {
-                    preparedUploadService.commitHeartbeat(
-                        payload.copy(
-                            attachments = payload.attachments.copy(
-                                batteryStats = payload.attachments.batteryStats?.copy(
-                                    file = payload.attachments.batteryStats.file.copy(
-                                        token = token,
-                                    )
-                                )
-                            )
-                        )
-                    ).also {
-                        eventLogger.log("commit", "done", "heartbeat")
-                    }
-                }
-                is LogcatFileUploadPayload -> {
-                    preparedUploadService.commitLogcat(
-                        payload.copy(file = payload.file.copy(token = token))
-                    )
-                }
-            }
             is MarPayload -> {
                 preparedUploadService.commitMar(wrapper.payload.copy(file = wrapper.payload.file.copy(token = token)))
             }
@@ -231,12 +146,5 @@ fun DeviceInfo.asDevice() = PrepareRequestData.Device(
 )
 
 fun Payload.kind() = when (this) {
-    is LegacyPayload -> when (this.payload) {
-        is BugReportFileUploadPayload -> PrepareFileKind.ANDROID_BUG_REPORT
-        is DropBoxEntryFileUploadPayload -> PrepareFileKind.ANDROID_DROPBOX
-        is StructuredLogFileUploadPayload -> PrepareFileKind.ANDROID_STRUCTURED
-        is HeartbeatFileUploadPayload -> PrepareFileKind.ANDROID_HEARTBEAT
-        is LogcatFileUploadPayload -> PrepareFileKind.ANDROID_LOGCAT
-    }
     is MarPayload -> PrepareFileKind.MAR
 }

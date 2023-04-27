@@ -1,6 +1,7 @@
 package com.memfault.bort.uploader
 
-import com.memfault.bort.BugReportFileUploadPayload
+import com.memfault.bort.FileUploadToken
+import com.memfault.bort.MarFileUploadPayload
 import com.memfault.bort.Payload
 import com.memfault.bort.TaskResult
 import java.io.File
@@ -33,8 +34,9 @@ class MemfaultFileUploaderTest {
         }
     }
 
-    fun fileUploadPayload() = Payload.LegacyPayload(
-        BugReportFileUploadPayload(
+    fun fileUploadPayload() = Payload.MarPayload(
+        MarFileUploadPayload(
+            file = FileUploadToken("", "", ""),
             hardwareVersion = "",
             deviceSerial = "",
             softwareVersion = "",

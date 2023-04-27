@@ -97,7 +97,6 @@ interface HttpApiSettings {
     val readTimeout: Duration
     val callTimeout: Duration
     val zipCompressionLevel: Int
-    suspend fun useMarUpload(): Boolean
     val batchMarUploads: Boolean
     val batchedMarUploadPeriod: Duration
     suspend fun useDeviceConfig(): Boolean
@@ -139,6 +138,7 @@ interface OtaSettings {
 
 interface StorageSettings {
     val maxClientServerFileTransferStorageBytes: Long
+    val maxClientServerFileTransferStorageAge: Duration
     val usageReporterTempMaxStorageBytes: Long
     val usageReporterTempMaxStorageAge: Duration
     val bortTempMaxStorageBytes: Long

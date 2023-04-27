@@ -382,6 +382,8 @@ object SetMetricCollectionIntervalResponse : SimpleReporterServiceMessage(METRIC
 @Serializable
 data class SetReporterSettingsRequest(
     val maxFileTransferStorageBytes: Long = 50_000_000,
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val maxFileTransferStorageAge: BoxedDuration = 7.days.boxed(),
     val maxReporterTempStorageBytes: Long = 10_000_000,
     @Serializable(with = DurationAsMillisecondsLong::class)
     val maxReporterTempStorageAge: BoxedDuration = 1.days.boxed(),

@@ -1,17 +1,15 @@
 package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
-import com.memfault.bort.DeviceInfoProvider
-import com.memfault.bort.DropBoxEntryFileUploadMetadata
-import com.memfault.bort.DropBoxEntryFileUploadPayload
-import com.memfault.bort.FileUploadPayload
+import com.memfault.bort.AndroidPackage
 import com.memfault.bort.PackageNameAllowList
 import com.memfault.bort.TemporaryFileFactory
+import com.memfault.bort.TimezoneWithId
+import com.memfault.bort.clientserver.MarMetadata.DropBoxMarMetadata
 import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.metricForTraceTag
 import com.memfault.bort.time.AbsoluteTime
-import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.time.toAbsoluteTime
@@ -28,14 +26,6 @@ interface UploadingEntryProcessorDelegate {
 
     fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean
 
-    suspend fun createMetadata(
-        entryInfo: EntryInfo,
-        tag: String,
-        fileTime: AbsoluteTime?,
-        entryTime: AbsoluteTime,
-        collectionTime: BootRelativeTime
-    ): DropBoxEntryFileUploadMetadata
-
     suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo = EntryInfo(entry.tag)
 
     fun isTraceEntry(entry: DropBoxManager.Entry): Boolean = true
@@ -46,7 +36,7 @@ interface UploadingEntryProcessorDelegate {
 data class EntryInfo(
     val tokenBucketKey: String,
     val packageName: String? = null,
-    val packages: List<FileUploadPayload.Package> = emptyList(),
+    val packages: List<AndroidPackage> = emptyList(),
 )
 
 class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject constructor(
@@ -55,7 +45,6 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
     private val enqueueUpload: EnqueueUpload,
     private val nextLogcatCidProvider: NextLogcatCidProvider,
     private val bootRelativeTimeProvider: BootRelativeTimeProvider,
-    private val deviceInfoProvider: DeviceInfoProvider,
     private val builtinMetricsStore: BuiltinMetricsStore,
     private val packageNameAllowList: PackageNameAllowList,
     private val handleEventOfInterest: HandleEventOfInterest,
@@ -87,24 +76,18 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
 
             val fileToUpload = delegate.scrub(tempFile, entry.tag)
 
-            val deviceInfo = deviceInfoProvider.getDeviceInfo()
             val now = bootRelativeTimeProvider.now()
             enqueueUpload.enqueue(
-                fileToUpload,
-                DropBoxEntryFileUploadPayload(
-                    hardwareVersion = deviceInfo.hardwareVersion,
-                    deviceSerial = deviceInfo.deviceSerial,
-                    softwareVersion = deviceInfo.softwareVersion,
+                file = fileToUpload,
+                metadata = DropBoxMarMetadata(
+                    entryFileName = fileToUpload.name,
+                    tag = entry.tag,
+                    entryTime = entry.timeMillis.toAbsoluteTime(),
+                    timezone = TimezoneWithId.deviceDefault,
                     cidReference = nextLogcatCidProvider.cid,
-                    metadata = delegate.createMetadata(
-                        info,
-                        entry.tag,
-                        fileTime,
-                        entry.timeMillis.toAbsoluteTime(),
-                        now,
-                    )
+                    packages = info.packages,
+                    fileTime = fileTime,
                 ),
-                debugTag = delegate.debugTag,
                 collectionTime = combinedTimeProvider.now(),
             )
 

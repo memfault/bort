@@ -10,8 +10,8 @@ import androidx.work.WorkManager
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.TestOverrideSettings
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
-import com.memfault.bort.clientserver.MarFileHoldingArea
-import com.memfault.bort.clientserver.MarFileWriter
+import com.memfault.bort.clientserver.MarMetadata
+import com.memfault.bort.dropbox.DropBoxLastProcessedEntryProvider
 import com.memfault.bort.logcat.RealNextLogcatCidProvider
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.restartPeriodicLogcatCollection
@@ -34,7 +34,6 @@ import com.memfault.bort.uploader.FileUploadHoldingArea
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.Instant
 import javax.inject.Inject
-import javax.inject.Provider
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
@@ -53,7 +52,6 @@ private const val WORK_UNIQUE_NAME_SELF_TEST = "com.memfault.bort.work.SELF_TEST
 class TestReceiver : FilteringReceiver(
     setOf(
         "com.memfault.intent.action.TEST_BORT_ECHO",
-        "com.memfault.intent.action.TEST_SETTING_SET_USE_MAR",
         "com.memfault.intent.action.TEST_SETTING_USE_OVERRIDES",
         "com.memfault.intent.action.TEST_SELF_TEST",
         "com.memfault.intent.action.TEST_ADD_EVENT_OF_INTEREST",
@@ -73,28 +71,13 @@ class TestReceiver : FilteringReceiver(
     @Inject lateinit var storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider
     @Inject lateinit var tokenBucketStoreRegistry: TokenBucketStoreRegistry
     @Inject lateinit var bootRelativeTimeProvider: BootRelativeTimeProvider
-    @Inject lateinit var marFileWriter: MarFileWriter
     @Inject lateinit var enqueueUpload: EnqueueUpload
     @Inject lateinit var combinedTimeProvider: CombinedTimeProvider
     @Inject lateinit var temporaryFileFactory: TemporaryFileFactory
-    @Inject lateinit var marFileHoldingArea: Provider<MarFileHoldingArea>
+    @Inject lateinit var dropBoxLastProcessedEntryProvider: DropBoxLastProcessedEntryProvider
 
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {
         when (action) {
-            "com.memfault.intent.action.TEST_SETTING_SET_USE_MAR" -> {
-                val useMar = intent.getBooleanExtra(
-                    "use_mar", false
-                )
-                Logger.test("use_mar: $useMar")
-
-                TestOverrideSettings(
-                    PreferenceManager.getDefaultSharedPreferences(context),
-                ).also {
-                    Logger.test("use_mar was: ${it.useMarUpload.getValue()}")
-                    it.useMarUpload.setValue(useMar)
-                    Logger.test("Updated to use_mar: ${it.useMarUpload.getValue()}")
-                }
-            }
             "com.memfault.intent.action.TEST_SETTING_USE_OVERRIDES" -> {
                 val useTestOverrides = intent.getBooleanExtra(
                     "use_test_overrides", false
@@ -181,6 +164,7 @@ class TestReceiver : FilteringReceiver(
             "com.memfault.intent.action.TEST_SETUP" -> {
                 resetDynamicSettings()
                 resetRateLimits()
+                resetDropboxCursor()
             }
             "com.memfault.intent.action.TEST_UPLOAD_MAR" -> enqueueOneTimeBatchMarFiles(
                 context = context,
@@ -200,22 +184,25 @@ class TestReceiver : FilteringReceiver(
         tokenBucketStoreRegistry.reset()
     }
 
+    private fun resetDropboxCursor() {
+        dropBoxLastProcessedEntryProvider.timeMillis = combinedTimeProvider.now().timestamp.toEpochMilli()
+    }
+
     private fun testUploadCdr() {
         CoroutineScope(Dispatchers.IO).launch {
             val duration = 15.minutes
             val start = Instant.now() - duration.toJavaDuration()
             temporaryFileFactory.createTemporaryFile("cdr", suffix = null).useFile { tempFile, preventDeletion ->
                 tempFile.writeBytes(Random.nextBytes(10000))
-                val mar = marFileWriter.createForCustomDataRecording(
-                    file = tempFile,
+                val metadata = MarMetadata.CustomDataRecordingMarMetadata(
+                    recordingFileName = tempFile.name,
                     startTime = AbsoluteTime(start),
-                    duration = duration,
+                    durationMs = duration.inWholeMilliseconds,
                     mimeTypes = listOf("test"),
                     reason = "just testing",
-                    collectionTime = combinedTimeProvider.now(),
                 )
                 preventDeletion()
-                enqueueUpload.enqueueMar(mar)
+                enqueueUpload.enqueue(file = tempFile, metadata = metadata, collectionTime = combinedTimeProvider.now())
             }
         }
     }

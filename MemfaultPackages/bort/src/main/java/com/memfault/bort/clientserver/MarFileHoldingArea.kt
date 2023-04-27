@@ -5,6 +5,8 @@ import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.MarFileSampledHoldingDir
 import com.memfault.bort.Payload
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
+import com.memfault.bort.clientserver.MarMetadata.Companion.createManifest
+import com.memfault.bort.clientserver.MarMetadata.DeviceConfigMarMetadata
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.cleanupFiles
 import com.memfault.bort.requester.directorySize
@@ -13,6 +15,7 @@ import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.MarUnsampledMaxStorageAge
 import com.memfault.bort.settings.MarUnsampledMaxStorageBytes
 import com.memfault.bort.settings.MaxMarStorageBytes
+import com.memfault.bort.settings.ProjectKey
 import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.settings.shouldUpload
 import com.memfault.bort.shared.CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG
@@ -55,6 +58,8 @@ class MarFileHoldingArea @Inject constructor(
     private val maxMarStorageBytes: MaxMarStorageBytes,
     private val marMaxUnsampledAge: MarUnsampledMaxStorageAge,
     private val marMaxUnsampledBytes: MarUnsampledMaxStorageBytes,
+    private val deviceInfoProvider: DeviceInfoProvider,
+    private val projectKey: ProjectKey,
 ) {
     // Note: coroutine mutex is not re-entrant!
     private val mutex = Mutex()
@@ -156,13 +161,26 @@ class MarFileHoldingArea @Inject constructor(
             addedFilesFromUnsampled = true
         }
         // Add a new mar entry, confirming that we processed this config revision.
-        val deviceConfigMar = marFileWriter.createForDeviceConfig(newConfig.revision, combinedTimeProvider.now())
-        addMarFile(deviceConfigMar)
+        addDeviceConfigMarEntry(newConfig.revision)
 
         if (addedFilesFromUnsampled) {
             Logger.d("Triggering one-time mar upload after moving files from unsampled")
+            Logger.test("Fleet-sampling one-time upload")
             oneTimeMarUpload.batchAndUpload()
         }
+    }
+
+    suspend fun addDeviceConfigMarEntry(revision: Int) {
+        val deviceConfigManifest = createManifest(
+            metadata = DeviceConfigMarMetadata(revision = revision),
+            collectionTime = combinedTimeProvider.now(),
+            deviceInfoProvider = deviceInfoProvider,
+            projectKey = projectKey,
+        )
+        val deviceConfigMarResult = marFileWriter.createMarFile(file = null, manifest = deviceConfigManifest)
+        deviceConfigMarResult
+            .onSuccess { marFile -> addMarFile(marFile) }
+            .onFailure { e -> Logger.w("Error writing deviceConfigMar file.", e) }
     }
 
     fun deleteAllFiles() {
@@ -234,7 +252,6 @@ class OneTimeMarUpload @Inject constructor(
             file = marFileToUpload,
             metadata = Payload.MarPayload(MarBatchingTask.createMarPayload(marFileToUpload, deviceInfo)),
             debugTag = MarBatchingTask.UPLOAD_TAG_MAR,
-            continuation = null,
             shouldCompress = false,
             applyJitter = true,
         )

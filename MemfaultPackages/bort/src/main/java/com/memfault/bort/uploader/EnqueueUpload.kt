@@ -2,18 +2,17 @@ package com.memfault.bort.uploader
 
 import android.content.Context
 import androidx.work.BackoffPolicy
-import com.memfault.bort.FileUploadPayload
+import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.Payload
 import com.memfault.bort.clientserver.MarFileHoldingArea
-import com.memfault.bort.clientserver.MarFileWithManifest
 import com.memfault.bort.clientserver.MarFileWriter
+import com.memfault.bort.clientserver.MarMetadata
+import com.memfault.bort.clientserver.MarMetadata.Companion.createManifest
 import com.memfault.bort.enqueueWorkOnce
 import com.memfault.bort.fileExt.deleteSilently
-import com.memfault.bort.ingress.IngressService
-import com.memfault.bort.ingress.RebootEvent
-import com.memfault.bort.settings.CurrentSamplingConfig
+import com.memfault.bort.settings.ProjectKey
+import com.memfault.bort.settings.Resolution
 import com.memfault.bort.settings.UploadConstraints
-import com.memfault.bort.settings.UseMarUpload
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.CombinedTime
@@ -32,70 +31,38 @@ import kotlinx.coroutines.launch
  */
 @Singleton
 class EnqueueUpload @Inject constructor(
-    private val context: Context,
     private val marFileWriter: MarFileWriter,
-    private val ingressService: IngressService,
-    private val enqueuePreparedUploadTask: EnqueuePreparedUploadTask,
-    private val useMarUpload: UseMarUpload,
     private val marHoldingArea: MarFileHoldingArea,
-    private val currentSamplingConfig: CurrentSamplingConfig,
+    private val deviceInfoProvider: DeviceInfoProvider,
+    private val projectKey: ProjectKey,
 ) {
-    fun enqueue(rebootEvent: RebootEvent, rebootTime: CombinedTime) {
-        CoroutineScope(Dispatchers.IO).launch {
-            if (useMarUpload()) {
-                val mar = marFileWriter.createForReboot(rebootEvent, rebootTime)
-                marHoldingArea.addMarFile(mar)
-            } else {
-                ingressService.uploadRebootEvents(listOf(rebootEvent)).execute()
-            }
-        }
-    }
-
-    /**
-     * Enqueue a file which can only be uploaded as a mar.
-     */
-    suspend fun enqueueMar(
-        mar: MarFileWithManifest,
-    ) {
-        if (!useMarUpload()) {
-            Logger.w("mar disabled; not uploading $mar")
-            return
-        }
-        marHoldingArea.addMarFile(mar)
-    }
-
     /**
      * Enqueue a file for upload.
      */
     fun enqueue(
-        file: File,
-        metadata: FileUploadPayload,
-        debugTag: String,
+        file: File?,
+        metadata: MarMetadata,
         collectionTime: CombinedTime,
-        continuation: FileUploadContinuation? = null,
-        shouldCompress: Boolean = true,
+        /**
+         * Set to override the debugging resolution from its default.
+         * Null/unset = default for type (as defined during manifest creation).
+         *
+         * Note: the only type that ever changes a reoslution is logging for the debugging aspect. Add more overrides
+         * here if we ever need them.
+         **/
+        overrideDebuggingResolution: Resolution? = null,
     ) {
         CoroutineScope(Dispatchers.IO).launch {
-            if (useMarUpload()) {
-                val mar = marFileWriter.createForFile(file, metadata, collectionTime)
-                file.deleteSilently()
-                marHoldingArea.addMarFile(mar)
-                continuation?.success(context)
-            } else {
-                // Don't upload "unsampled" files, if mar is disabled.
-                if (marFileWriter.checkShouldUpload(metadata, file, collectionTime, currentSamplingConfig)) {
-                    enqueuePreparedUploadTask.upload(
-                        file = file,
-                        metadata = Payload.LegacyPayload(metadata),
-                        continuation = continuation,
-                        shouldCompress = shouldCompress,
-                        debugTag = debugTag,
-                        applyJitter = true,
-                    )
-                } else {
-                    file.deleteSilently()
-                }
+            var manifest = createManifest(metadata, collectionTime, deviceInfoProvider, projectKey)
+            overrideDebuggingResolution?.let {
+                manifest = manifest.copy(debuggingResolution = it)
             }
+            val marFileWriteResult = marFileWriter.createMarFile(file, manifest)
+
+            file?.deleteSilently()
+            marFileWriteResult
+                .onSuccess { marFile -> marHoldingArea.addMarFile(marFile) }
+                .onFailure { e -> Logger.w("Error writing mar file.", e) }
         }
     }
 }
@@ -112,13 +79,12 @@ class EnqueuePreparedUploadTask @Inject constructor(
         file: File,
         metadata: Payload,
         debugTag: String,
-        continuation: FileUploadContinuation?,
         shouldCompress: Boolean,
         applyJitter: Boolean,
     ) {
         enqueueWorkOnce<FileUploadTask>(
             context,
-            FileUploadTaskInput(file, metadata, continuation, shouldCompress).toWorkerInputData()
+            FileUploadTaskInput(file, metadata, shouldCompress).toWorkerInputData()
         ) {
             if (applyJitter) {
                 setInitialDelay(jitterDelayProvider.randomJitterDelay())

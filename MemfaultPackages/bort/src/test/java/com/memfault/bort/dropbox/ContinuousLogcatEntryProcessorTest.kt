@@ -4,10 +4,8 @@ import android.os.DropBoxManager
 import com.memfault.bort.DataScrubber
 import com.memfault.bort.EmailScrubbingRule
 import com.memfault.bort.FakeCombinedTimeProvider
-import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.PackageNameAllowList
-import com.memfault.bort.fileExt.md5Hex
 import com.memfault.bort.logcat.FakeNextLogcatCidProvider
 import com.memfault.bort.logcat.KernelOopsDetector
 import com.memfault.bort.logcat.NextLogcatCidProvider
@@ -97,13 +95,12 @@ class ContinuousLogcatEntryProcessorTest {
             packageNameAllowList = mockPackageNameAllowList,
             temporaryFileFactory = TestTemporaryFileFactory,
             nextLogcatCidProvider = logcatCidProvider,
-            deviceInfoProvider = FakeDeviceInfoProvider(),
             combinedTimeProvider = FakeCombinedTimeProvider,
             fileUploadingArea = mockFileUploadingArea,
             kernelOopsDetector = { mockKernelOopsDetector },
             tokenBucketStore = mockk {
                 every { takeSimple(any(), any(), any()) } returns true
-            }
+            },
         )
     }
 
@@ -125,12 +122,6 @@ class ContinuousLogcatEntryProcessorTest {
         withProcessedEntry {
             assertEquals(java.util.UUID(0, it.toLong() + 2), logcatCidProvider.cid.uuid)
         }
-    }
-
-    @Test
-    fun `md5 matches`() = withProcessedEntry {
-        assertTrue(addedFileSlot.isCaptured)
-        assertEquals(addedFileSlot.captured.file.md5Hex(), addedFileSlot.captured.payload.file.md5)
     }
 
     @Test

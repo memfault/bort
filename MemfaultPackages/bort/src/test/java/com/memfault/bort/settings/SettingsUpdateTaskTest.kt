@@ -166,6 +166,7 @@ class SettingsUpdateTaskTest {
         val settings = SETTINGS_FIXTURE.toSettings().copy(bugReportMaxUploadAttempts = 73)
         val deviceConfigResponse = DecodedDeviceConfig(
             revision = 1,
+            completedRevision = 1,
             memfault = FetchedDeviceConfigContainer.Memfault(
                 bort = FetchedDeviceConfigContainer.Bort(
                     sdkSettings = settings,
@@ -207,7 +208,8 @@ class SettingsUpdateTaskTest {
                     debuggingResolution = SamplingConfig.DEFAULT_DEBUGGING,
                     loggingResolution = SamplingConfig.DEFAULT_LOGGING,
                     monitoringResolution = SamplingConfig.DEFAULT_MONITORING,
-                )
+                ),
+                completedRevision = 1,
             )
         }
         coVerify(exactly = 0) { linkedDeviceFileSender.sendFileToLinkedDevice(any(), any()) }
@@ -221,6 +223,7 @@ class SettingsUpdateTaskTest {
         val settings_server = SETTINGS_FIXTURE.toSettings().copy(bugReportMaxUploadAttempts = 73)
         val deviceConfigResponse_server = DecodedDeviceConfig(
             revision = 2,
+            completedRevision = 2,
             memfault = FetchedDeviceConfigContainer.Memfault(
                 bort = FetchedDeviceConfigContainer.Bort(
                     sdkSettings = settings_server,
@@ -242,6 +245,7 @@ class SettingsUpdateTaskTest {
         val settings_client = SETTINGS_FIXTURE.toSettings().copy(structuredLogNumEventsBeforeDump = 12345)
         val deviceConfigResponse_client = DecodedDeviceConfig(
             revision = 3,
+            completedRevision = 3,
             memfault = FetchedDeviceConfigContainer.Memfault(
                 bort = FetchedDeviceConfigContainer.Bort(
                     sdkSettings = settings_client,
@@ -303,7 +307,8 @@ class SettingsUpdateTaskTest {
                     debuggingResolution = Resolution.LOW,
                     loggingResolution = Resolution.LOW,
                     monitoringResolution = Resolution.LOW,
-                )
+                ),
+                completedRevision = 2,
             )
         }
         coVerify(exactly = 1) {

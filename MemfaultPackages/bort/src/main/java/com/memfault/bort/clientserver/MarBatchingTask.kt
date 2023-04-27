@@ -90,7 +90,6 @@ class MarBatchingTask @Inject constructor(
                 file = marFile,
                 metadata = MarPayload(createMarPayload(marFile, deviceInfo)),
                 debugTag = UPLOAD_TAG_MAR,
-                continuation = null,
                 shouldCompress = false,
                 // Jitter was applied when batching - don't apply again for the upload.
                 applyJitter = false,
@@ -140,7 +139,7 @@ class MarBatchingTask @Inject constructor(
                 WorkManager.getInstance(context)
                     .enqueueUniquePeriodicWork(
                         WORK_UNIQUE_NAME_PERIODIC,
-                        ExistingPeriodicWorkPolicy.REPLACE,
+                        ExistingPeriodicWorkPolicy.UPDATE,
                         workRequest
                     )
             }
@@ -171,8 +170,6 @@ class PeriodicMarUploadRequester @Inject constructor(
     private val constraints: UploadConstraints,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
-        if (!httpApiSettings.batchMarUploads) return
-
         // Jitter is based on the mar batching period.
         val maxJitterDelay = httpApiSettings.batchedMarUploadPeriod.toJavaDuration()
         val jitter: Duration
@@ -190,8 +187,10 @@ class PeriodicMarUploadRequester @Inject constructor(
         MarBatchingTask.cancelPeriodic(context)
     }
 
-    override suspend fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
-        old.httpApiSettings.useMarUpload() != new.httpApiSettings.useMarUpload() ||
-            old.httpApiSettings.batchMarUploads != new.httpApiSettings.batchMarUploads ||
-            old.httpApiSettings.batchedMarUploadPeriod != new.httpApiSettings.batchedMarUploadPeriod
+    override suspend fun enabled(settings: SettingsProvider): Boolean {
+        return settings.httpApiSettings.batchMarUploads
+    }
+
+    override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
+        old.httpApiSettings.batchedMarUploadPeriod != new.httpApiSettings.batchedMarUploadPeriod
 }

@@ -28,6 +28,7 @@ import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.BugReportRequest
 import com.memfault.bort.shared.INTENT_ACTION_BUG_REPORT_START
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.runAndTrackExceptions
 import com.memfault.bort.tokenbucket.BugReportPeriodic
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.squareup.anvil.annotations.ContributesBinding
@@ -43,8 +44,6 @@ import kotlin.time.Duration
 import kotlin.time.DurationUnit
 
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.REQUEST_PERIODIC_BUGREPORT"
-private const val WORK_INTERVAL_PREFERENCE_KEY = "com.memfault.bort.work.BUGREPORT_INTERVAL"
-private const val WORK_INTERVAL_PREFERENCE_ABSENT = -1L
 private const val WORK_TAG = "BUGREPORT_PERIODIC"
 
 private const val MINIMAL_INPUT_DATA_KEY = "minimal"
@@ -139,8 +138,6 @@ class BugReportRequester @Inject constructor(
     private val bugReportSettings: BugReportSettings,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
-        if (!bugReportSettings.dataSourceEnabled) return
-
         val requestInterval = bugReportSettings.requestInterval
         val initialDelay = if (justBooted) bugReportSettings.firstBugReportDelayAfterBoot else null
 
@@ -162,7 +159,7 @@ class BugReportRequester @Inject constructor(
             Logger.test("Requesting bug report every ${requestInterval.toDouble(DurationUnit.HOURS)} hours")
         }.build().also {
             val existingWorkPolicy =
-                if (settingsChanged) ExistingPeriodicWorkPolicy.REPLACE
+                if (settingsChanged) ExistingPeriodicWorkPolicy.UPDATE
                 else ExistingPeriodicWorkPolicy.KEEP
 
             WorkManager.getInstance(context)
@@ -180,10 +177,13 @@ class BugReportRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override suspend fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
+    override suspend fun enabled(settings: SettingsProvider): Boolean {
+        return settings.bugReportSettings.dataSourceEnabled
+    }
+
+    override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
         // Note: not including firstBugReportDelayAfterBoot because that is only used immediately after booting.
-        old.bugReportSettings.dataSourceEnabled != new.bugReportSettings.dataSourceEnabled ||
-            old.bugReportSettings.requestInterval != new.bugReportSettings.requestInterval ||
+        old.bugReportSettings.requestInterval != new.bugReportSettings.requestInterval ||
             old.bugReportSettings.defaultOptions != new.bugReportSettings.defaultOptions
 }
 
@@ -206,12 +206,13 @@ class BugReportRequestWorker @AssistedInject constructor(
     private val startBugReport: StartBugReport,
 ) : CoroutineWorker(appContext, workerParameters) {
 
-    override suspend fun doWork(): Result =
+    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "BugReportRequestWorker") {
         if (bortEnabledProvider.isEnabled() &&
             tokenBucketStore.takeSimple(tag = BUGREPORT_RATE_LIMITING_TAG) && captureBugReport()
         ) Result.success() else Result.failure()
+    }
 
-    suspend fun captureBugReport(): Boolean = startBugReport.requestBugReport(
+    private suspend fun captureBugReport(): Boolean = startBugReport.requestBugReport(
         context = applicationContext,
         pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
         request = inputData.toBugReportOptions(),

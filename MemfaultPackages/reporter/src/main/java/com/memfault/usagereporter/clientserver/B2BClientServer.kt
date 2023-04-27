@@ -13,10 +13,10 @@ import com.memfault.usagereporter.ReporterSettings
 import com.memfault.usagereporter.clientserver.BortMessage.Companion.readMessages
 import com.memfault.usagereporter.clientserver.BortMessage.SendFileMessage
 import com.memfault.usagereporter.clientserver.RealB2BClientServer.Companion.start
+import com.memfault.usagereporter.clientserver.RealSendfileQueue.Companion.extractDropboxTag
 import com.memfault.usagereporter.getDropBoxManager
 import java.io.File
 import java.nio.channels.AsynchronousSocketChannel
-import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
@@ -49,7 +49,7 @@ interface B2BClientServer {
                 else -> RealB2BClientServer(
                     clientServerMode = clientServerMode,
                     getDropBoxManager = context::getDropBoxManager,
-                    uploadsDir = File(context.filesDir, "client-server-uploads"),
+                    uploadsDir = clientServerUploadsDir(context),
                     cacheDir = context.cacheDir,
                     port = BuildConfig.CLIENT_SERVER_PORT,
                     host = BuildConfig.CLIENT_SERVER_HOST,
@@ -58,6 +58,8 @@ interface B2BClientServer {
             }
     }
 }
+
+fun clientServerUploadsDir(context: Context) = File(context.filesDir, "client-server-uploads")
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RealB2BClientServer(
@@ -89,18 +91,13 @@ class RealB2BClientServer(
      * Write the file descriptor to disk, and enqueue for upload to remote Bort instance.
      */
     override fun enqueueFile(dropboxTag: String, descriptor: ParcelFileDescriptor) {
-        val file = createFile(dropboxTag)
+        val file = uploadsQueue.createFile(dropboxTag)
         ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { input ->
             file.outputStream().use { output ->
                 input.copyTo(output)
             }
             uploadsQueue.pushOldestFile()
         }
-    }
-
-    private fun createFile(dropboxTag: String) = File(uploadsDir, "${UUID.randomUUID()}.$dropboxTag").apply {
-        uploadsDir.mkdirs()
-        deleteSilently()
     }
 
     private fun create(clientServerMode: ClientServerMode) = when (clientServerMode) {
@@ -158,6 +155,30 @@ object NoOpB2BClientServer : B2BClientServer {
 }
 
 /**
+ * Simpler wrapper around channels to allow easier testing.
+ */
+interface ASCWrapper {
+    suspend fun writeMessage(message: BortMessage)
+    suspend fun readMessages(
+        directory: File,
+        scope: CoroutineScope,
+    ): ReceiveChannel<BortMessage>
+}
+
+class RealASCWrapper(
+    private val channel: AsynchronousSocketChannel,
+) : ASCWrapper {
+    override suspend fun writeMessage(message: BortMessage) {
+        channel.writeMessage(message)
+    }
+
+    override suspend fun readMessages(
+        directory: File,
+        scope: CoroutineScope,
+    ): ReceiveChannel<BortMessage> = channel.readMessages(directory, scope)
+}
+
+/**
  * Handles sending/receiving messages over an established socket connection.
  */
 @ExperimentalCoroutinesApi
@@ -170,7 +191,7 @@ class ConnectionHandler(
      * Handle this connection, until an error occurs - then an IOException is expected.
      */
     @FlowPreview
-    suspend fun run(channel: AsynchronousSocketChannel, scope: CoroutineScope) {
+    suspend fun run(channel: ASCWrapper, scope: CoroutineScope) {
         val incomingMessages = channel.readMessages(tempDirectory, scope)
         val filesChannel = files.nextFile.produceIn(scope)
         runChannels(channel, incomingMessages, filesChannel)
@@ -178,7 +199,7 @@ class ConnectionHandler(
 
     @VisibleForTesting
     suspend fun runChannels(
-        channel: AsynchronousSocketChannel,
+        channel: ASCWrapper,
         incomingMessages: ReceiveChannel<BortMessage>,
         filesChannel: ReceiveChannel<File?>,
     ) {
@@ -186,9 +207,16 @@ class ConnectionHandler(
             filesChannel.onReceiveCatching { result ->
                 result.whileSelecting { file ->
                     file?.let {
-                        channel.writeMessage(SendFileMessage(file, dropboxTag = file.extension))
-                        file.deleteSilently()
-                        files.pushOldestFile()
+                        try {
+                            channel.writeMessage(SendFileMessage(file, dropboxTag = file.extractDropboxTag()))
+                            file.deleteSilently()
+                            files.pushOldestFile()
+                        } finally {
+                            // If the file still exists, it failed to send: increment its retry count.
+                            if (file.exists()) {
+                                files.incrementSendCount(file)
+                            }
+                        }
                     }
                 }
             }

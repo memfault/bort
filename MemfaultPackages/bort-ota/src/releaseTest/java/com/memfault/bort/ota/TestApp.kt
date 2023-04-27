@@ -90,7 +90,7 @@ class TestApp : App() {
         CoroutineScope(Dispatchers.Default).launch {
             updater.updateState.collect { state ->
                 testLog("updater state=$state")
-                handleState(updater(), state)
+                handleState(updater, state)
             }
         }.also {
             collectJob?.cancel()

@@ -98,7 +98,7 @@ class BootCompleteReceiver : BroadcastReceiver() {
         }.build()
 
         WorkManager.getInstance(context)
-            .enqueueUniquePeriodicWork(PERIODIC_UPDATE_WORK, ExistingPeriodicWorkPolicy.REPLACE, request)
+            .enqueueUniquePeriodicWork(PERIODIC_UPDATE_WORK, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 
     private fun deleteUpdateFileIfExists() {

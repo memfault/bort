@@ -3,19 +3,15 @@ package com.memfault.bort.metrics
 import android.os.RemoteException
 import androidx.work.Data
 import com.memfault.bort.BortSystemCapabilities
-import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DumpsterClient
-import com.memfault.bort.FileUploadToken
-import com.memfault.bort.HeartbeatFileUploadPayload
 import com.memfault.bort.IntegrationChecker
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
-import com.memfault.bort.clientserver.MarFileWriter
+import com.memfault.bort.clientserver.MarMetadata.CustomDataRecordingMarMetadata
+import com.memfault.bort.clientserver.MarMetadata.HeartbeatMarMetadata
 import com.memfault.bort.dropbox.MetricReport
-import com.memfault.bort.fileExt.md5Hex
-import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.metrics.HighResTelemetry.Companion.mergeHrtIntoFile
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.Logger
@@ -30,17 +26,13 @@ import java.time.Instant
 import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.toKotlinDuration
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
 
 class MetricsCollectionTask @Inject constructor(
     private val batteryStatsHistoryCollector: BatteryStatsHistoryCollector,
     private val enqueueUpload: EnqueueUpload,
-    private val nextLogcatCidProvider: NextLogcatCidProvider,
     private val combinedTimeProvider: CombinedTimeProvider,
     private val lastHeartbeatEndTimeProvider: LastHeartbeatEndTimeProvider,
-    private val deviceInfoProvider: DeviceInfoProvider,
     override val metrics: BuiltinMetricsStore,
     @MetricsCollection private val tokenBucketStore: TokenBucketStore,
     private val packageManagerClient: PackageManagerClient,
@@ -52,7 +44,6 @@ class MetricsCollectionTask @Inject constructor(
     private val dumpsterClient: DumpsterClient,
     private val bortSystemCapabilities: BortSystemCapabilities,
     private val integrationChecker: IntegrationChecker,
-    private val marFileWriter: MarFileWriter,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -109,53 +100,33 @@ class MetricsCollectionTask @Inject constructor(
         val startTime = Instant.ofEpochMilli(metricReport.startTimestampMs)
         val endTime = Instant.ofEpochMilli(metricReport.endTimestampMs)
         val duration = java.time.Duration.between(startTime, endTime).toKotlinDuration()
-        val mar = marFileWriter.createForCustomDataRecording(
-            file = highResFile,
+        val metadata = CustomDataRecordingMarMetadata(
+            recordingFileName = highResFile.name,
             startTime = AbsoluteTime(startTime),
-            duration = duration,
+            durationMs = duration.inWholeMilliseconds,
             mimeTypes = listOf(HIGH_RES_METRICS_MIME_TYPE),
             reason = HIGH_RES_METRICS_REASON,
-            collectionTime = combinedTimeProvider.now(),
         )
-
-        enqueueUpload.enqueueMar(mar)
+        enqueueUpload.enqueue(highResFile, metadata, collectionTime = combinedTimeProvider.now())
     }
 
-    private suspend fun uploadHeartbeat(
+    private fun uploadHeartbeat(
         batteryStatsFile: File?,
         collectionTime: CombinedTime,
         heartbeatInterval: Duration,
         heartbeatReportMetrics: Map<String, JsonPrimitive>,
         heartbeatReportInternalMetrics: Map<String, JsonPrimitive>,
     ) {
-        val deviceInfo = deviceInfoProvider.getDeviceInfo()
         enqueueUpload.enqueue(
             // Note: this is the only upload type which may not have a file. To avoid changing the entire PreparedUpload
             // stack to support this (which is only needed until we migrate the mar), use a fake file.
-            batteryStatsFile ?: File("/dev/null"),
-            HeartbeatFileUploadPayload(
-                hardwareVersion = deviceInfo.hardwareVersion,
-                deviceSerial = deviceInfo.deviceSerial,
-                softwareVersion = deviceInfo.softwareVersion,
-                collectionTime = collectionTime,
+            file = batteryStatsFile,
+            metadata = HeartbeatMarMetadata(
+                batteryStatsFileName = batteryStatsFile?.name,
                 heartbeatIntervalMs = heartbeatInterval.inWholeMilliseconds,
                 customMetrics = heartbeatReportMetrics,
                 builtinMetrics = heartbeatReportInternalMetrics,
-                attachments = HeartbeatFileUploadPayload.Attachments(
-                    batteryStats = batteryStatsFile?.let {
-                        HeartbeatFileUploadPayload.Attachments.BatteryStats(
-                            file = FileUploadToken(
-                                md5 = withContext(Dispatchers.IO) {
-                                    batteryStatsFile.md5Hex()
-                                },
-                                name = "batterystats.txt",
-                            )
-                        )
-                    }
-                ),
-                cidReference = nextLogcatCidProvider.cid,
             ),
-            DEBUG_TAG,
             collectionTime = collectionTime,
         )
     }
@@ -220,7 +191,6 @@ class MetricsCollectionTask @Inject constructor(
     }
 }
 
-private const val DEBUG_TAG = "UPLOAD_HEARTBEAT"
 private const val HIGH_RES_METRICS_MIME_TYPE = "application/vnd.memfault.hrt.v1"
 private const val HIGH_RES_METRICS_REASON = "memfault-high-res-metrics"
 private const val SUPPORTS_CALIPER_METRICS_KEY = "supports_caliper_metrics"

@@ -1,25 +1,12 @@
 package com.memfault.bort.uploader
 
-import com.memfault.bort.AnrFileUploadMetadata
-import com.memfault.bort.BugReportFileUploadPayload
-import com.memfault.bort.DropBoxEntryFileUploadPayload
-import com.memfault.bort.FakeBootRelativeTimeProvider
-import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.FakeDeviceInfoProvider
-import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.FileUploadToken
-import com.memfault.bort.LogcatCollectionId
-import com.memfault.bort.LogcatFileUploadPayload
-import com.memfault.bort.Payload.LegacyPayload
+import com.memfault.bort.MarFileUploadPayload
+import com.memfault.bort.Payload.MarPayload
 import com.memfault.bort.TemporaryFile
-import com.memfault.bort.TimezoneWithId
-import com.memfault.bort.TombstoneFileUploadMetadata
 import com.memfault.bort.http.PROJECT_KEY_HEADER
-import com.memfault.bort.logcat.generateLogcatCollectionIds
-import com.memfault.bort.settings.LogcatCollectionMode.PERIODIC
-import com.memfault.bort.time.toAbsoluteTime
 import java.nio.charset.Charset
-import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
@@ -38,8 +25,9 @@ internal class PreparedUploaderTest {
     @get:Rule
     val server = MockWebServer()
 
-    fun fileUploadPayload() = LegacyPayload(
-        BugReportFileUploadPayload(
+    private fun fileUploadPayload() = MarPayload(
+        MarFileUploadPayload(
+            file = FileUploadToken("", "", ""),
             hardwareVersion = "",
             deviceSerial = "",
             softwareVersion = "",
@@ -101,164 +89,32 @@ internal class PreparedUploaderTest {
     }
 
     @Test
-    fun commitBugReport() {
-        server.enqueue(MockResponse())
-        runBlocking {
-            createUploader(server).commit("someToken", fileUploadPayload())
-        }
-        val recordedRequest = server.takeRequest(5, TimeUnit.MILLISECONDS)
-        checkNotNull(recordedRequest)
-        assertEquals("application/json; charset=utf-8", recordedRequest.getHeader("Content-Type"))
-        assertEquals(SECRET_KEY, recordedRequest.getHeader(PROJECT_KEY_HEADER))
-        assertEquals(
-            """{"file":{"token":"someToken"},"hardware_version":"","device_serial":"","software_version":"",""" +
-                """"software_type":"","processing_options":{"process_anrs":true,""" +
-                """"process_java_exceptions":true,"process_last_kmsg":true,"process_recovery_kmsg":true,""" +
-                """"process_tombstones":true},"request_id":null}""",
-            recordedRequest.body.readUtf8()
-        )
-    }
-
-    @Test
-    fun commitTombstone() {
-        server.enqueue(MockResponse())
-
-        runBlocking {
-            val deviceInfo = FakeDeviceInfoProvider().getDeviceInfo()
-            createUploader(server).commit(
-                "someToken",
-                LegacyPayload(
-                    DropBoxEntryFileUploadPayload(
-                        hardwareVersion = deviceInfo.hardwareVersion,
-                        softwareVersion = deviceInfo.softwareVersion,
-                        deviceSerial = deviceInfo.deviceSerial,
-                        metadata = TombstoneFileUploadMetadata(
-                            tag = "SYSTEM_TOMBSTONE",
-                            fileTime = 1234.toLong().toAbsoluteTime(),
-                            entryTime = 4321.toLong().toAbsoluteTime(),
-                            packages = listOf(
-                                FileUploadPayload.Package(
-                                    id = "com.app",
-                                    versionName = "1.0.0",
-                                    versionCode = 1,
-                                    userId = 1001,
-                                    codePath = "/data/app/apk"
-                                )
-                            ),
-                            collectionTime = FakeBootRelativeTimeProvider.now(),
-                            timezone = TimezoneWithId("UTC"),
-                        ),
-                        cidReference = generateLogcatCollectionIds().first(),
-                    )
-                )
-            )
-        }
-        val recordedRequest = server.takeRequest(5, TimeUnit.MILLISECONDS)
-        checkNotNull(recordedRequest)
-        assertEquals("/api/v0/upload/android-dropbox-manager-entry/tombstone", recordedRequest.path)
-        assertEquals("application/json; charset=utf-8", recordedRequest.getHeader("Content-Type"))
-        assertEquals(SECRET_KEY, recordedRequest.getHeader(PROJECT_KEY_HEADER))
-        assertEquals(
-            (
-                """{"file":{"token":"someToken"},"hardware_version":"HW-FOO","device_serial":"SN1234",""" +
-                    """"software_version":"1.0.0","software_type":"android-build",""" +
-                    """"cid_ref":{"uuid":"00000000-0000-0000-0000-000000000001"},""" +
-                    """"metadata":{"type":"tombstone",""" +
-                    """"tag":"SYSTEM_TOMBSTONE","file_time":{"timestamp":"1970-01-01T00:00:01.234Z"},""" +
-                    """"entry_time":{"timestamp":"1970-01-01T00:00:04.321Z"},""" +
-                    """"collection_time":{"uptime_ms":987,"elapsed_realtime_ms":456,""" +
-                    """"linux_boot_id":"230295cb-04d4-40b8-8624-ec37089b9b75","boot_count":67},""" +
-                    """"timezone":{"id":"UTC"},"packages":[{"id":"com.app","version_code":1,"version_name":"1.0.0",""" +
-                    """"user_id":1001,"code_path":"/data/app/apk"}]}}"""
-                ),
-            recordedRequest.body.readUtf8()
-        )
-    }
-
-    @Test
-    fun commitAnr() {
+    fun commitMar() {
         server.enqueue(MockResponse())
         runBlocking {
             val deviceInfo = FakeDeviceInfoProvider().getDeviceInfo()
             createUploader(server).commit(
                 "someToken",
-                LegacyPayload(
-                    DropBoxEntryFileUploadPayload(
+                MarPayload(
+                    MarFileUploadPayload(
                         hardwareVersion = deviceInfo.hardwareVersion,
                         softwareVersion = deviceInfo.softwareVersion,
                         deviceSerial = deviceInfo.deviceSerial,
-                        metadata =
-                            AnrFileUploadMetadata(
-                                tag = "data_app_anr",
-                                fileTime = 1234.toLong().toAbsoluteTime(),
-                                entryTime = 4321.toLong().toAbsoluteTime(),
-                                collectionTime = FakeBootRelativeTimeProvider.now(),
-                                timezone = TimezoneWithId("Europe/Amsterdam"),
-                            ),
-                        cidReference = generateLogcatCollectionIds().first(),
-                    )
-                )
-            )
-        }
-        val recordedRequest = server.takeRequest(5, TimeUnit.MILLISECONDS)
-        checkNotNull(recordedRequest)
-        assertEquals("/api/v0/upload/android-dropbox-manager-entry/anr", recordedRequest.path)
-        assertEquals("application/json; charset=utf-8", recordedRequest.getHeader("Content-Type"))
-        assertEquals(SECRET_KEY, recordedRequest.getHeader(PROJECT_KEY_HEADER))
-        assertEquals(
-            (
-                """{"file":{"token":"someToken"},"hardware_version":"HW-FOO","device_serial":"SN1234",""" +
-                    """"software_version":"1.0.0","software_type":"android-build",""" +
-                    """"cid_ref":{"uuid":"00000000-0000-0000-0000-000000000001"},""" +
-                    """"metadata":{"type":"anr",""" +
-                    """"tag":"data_app_anr","file_time":{"timestamp":"1970-01-01T00:00:01.234Z"},""" +
-                    """"entry_time":{"timestamp":"1970-01-01T00:00:04.321Z"},""" +
-                    """"collection_time":{"uptime_ms":987,"elapsed_realtime_ms":456,""" +
-                    """"linux_boot_id":"230295cb-04d4-40b8-8624-ec37089b9b75",""" +
-                    """"boot_count":67},"timezone":{"id":"Europe/Amsterdam"},"packages":[]}}"""
-                ),
-            recordedRequest.body.readUtf8()
-        )
-    }
-
-    @Test
-    fun commitLogcat() {
-        server.enqueue(MockResponse())
-        runBlocking {
-            val deviceInfo = FakeDeviceInfoProvider().getDeviceInfo()
-            createUploader(server).commit(
-                "someToken",
-                LegacyPayload(
-                    LogcatFileUploadPayload(
-                        hardwareVersion = deviceInfo.hardwareVersion,
-                        softwareVersion = deviceInfo.softwareVersion,
-                        deviceSerial = deviceInfo.deviceSerial,
-                        collectionTime = FakeCombinedTimeProvider.now(),
                         file = FileUploadToken("", "aa", "logcat.txt"),
-                        command = listOf("logcat", "-d"),
-                        cid = LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000001")),
-                        nextCid = LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000002")),
-                        containsOops = true,
-                        collectionMode = PERIODIC,
                     )
                 )
             )
         }
         val recordedRequest = server.takeRequest(5, TimeUnit.MILLISECONDS)
         checkNotNull(recordedRequest)
-        assertEquals("/api/v0/upload/android-logcat", recordedRequest.path)
+        assertEquals("/api/v0/upload/mar", recordedRequest.path)
         assertEquals("application/json; charset=utf-8", recordedRequest.getHeader("Content-Type"))
         assertEquals(SECRET_KEY, recordedRequest.getHeader(PROJECT_KEY_HEADER))
         assertEquals(
             (
                 """{"file":{"token":"someToken","md5":"aa","name":"logcat.txt"},""" +
                     """"hardware_version":"HW-FOO","device_serial":"SN1234","software_version":"1.0.0",""" +
-                    """"software_type":"android-build","collection_time":{"uptime_ms":987,""" +
-                    """"elapsed_realtime_ms":456,"linux_boot_id":"230295cb-04d4-40b8-8624-ec37089b9b75",""" +
-                    """"boot_count":67,"timestamp":"1970-01-02T10:17:36Z"},"command":["logcat","-d"],""" +
-                    """"cid":{"uuid":"00000000-0000-0000-0000-000000000001"},""" +
-                    """"next_cid":{"uuid":"00000000-0000-0000-0000-000000000002"},"contains_oops":true,""" +
-                    """"collection_mode":"periodic"}""".trimMargin()
+                    """"software_type":"android-build"}""".trimMargin()
                 ),
             recordedRequest.body.readUtf8()
         )

@@ -49,7 +49,7 @@ internal fun restartPeriodicMetricsCollection(
         WorkManager.getInstance(context)
             .enqueueUniquePeriodicWork(
                 WORK_UNIQUE_NAME_PERIODIC,
-                ExistingPeriodicWorkPolicy.REPLACE,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 workRequest
             )
     }
@@ -65,9 +65,7 @@ class MetricsCollectionRequester @Inject constructor(
         restartPeriodicCollection(resetLastHeartbeatTime = justBooted, collectImmediately = false)
     }
 
-    suspend fun restartPeriodicCollection(resetLastHeartbeatTime: Boolean, collectImmediately: Boolean) {
-        if (!metricsSettings.dataSourceEnabled) return
-
+    fun restartPeriodicCollection(resetLastHeartbeatTime: Boolean, collectImmediately: Boolean) {
         val collectionInterval = maxOf(MINIMUM_COLLECTION_INTERVAL, metricsSettings.collectionInterval)
         Logger.test("Collecting metrics every ${collectionInterval.toDouble(DurationUnit.MINUTES)} minutes")
 
@@ -85,7 +83,10 @@ class MetricsCollectionRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override suspend fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
-        old.metricsSettings.dataSourceEnabled != new.metricsSettings.dataSourceEnabled ||
-            old.metricsSettings.collectionInterval != new.metricsSettings.collectionInterval
+    override suspend fun enabled(settings: SettingsProvider): Boolean {
+        return settings.metricsSettings.dataSourceEnabled
+    }
+
+    override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
+        old.metricsSettings.collectionInterval != new.metricsSettings.collectionInterval
 }

@@ -8,6 +8,7 @@ import kotlin.time.Duration
 
 interface ReporterSettings {
     val maxFileTransferStorageBytes: Long
+    val maxFileTransferStorageAge: Duration
     val maxReporterTempStorageBytes: Long
     val maxReporterTempStorageAge: Duration
 }
@@ -38,6 +39,7 @@ class ReporterSettingsPreferenceProvider(
     }
 
     override val maxFileTransferStorageBytes get() = get().maxFileTransferStorageBytes
+    override val maxFileTransferStorageAge get() = get().maxFileTransferStorageAge.duration
     override val maxReporterTempStorageBytes get() = get().maxReporterTempStorageBytes
     override val maxReporterTempStorageAge get() = get().maxReporterTempStorageAge.duration
 }

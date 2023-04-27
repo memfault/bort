@@ -51,7 +51,7 @@ internal fun restartPeriodicLogcatCollection(
         WorkManager.getInstance(context)
             .enqueueUniquePeriodicWork(
                 WORK_UNIQUE_NAME_PERIODIC,
-                ExistingPeriodicWorkPolicy.REPLACE,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 workRequest
             )
     }
@@ -64,10 +64,6 @@ class LogcatCollectionRequester @Inject constructor(
     private val bortSystemCapabilities: BortSystemCapabilities,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
-        if (!logcatSettings.dataSourceEnabled) return
-        if (logcatSettings.collectionMode != LogcatCollectionMode.PERIODIC) return
-        if (!bortSystemCapabilities.supportsCaliperLogcatCollection()) return
-
         val collectionInterval = maxOf(MINIMUM_COLLECTION_INTERVAL, logcatSettings.collectionInterval)
         Logger.test("Collecting logcat every ${collectionInterval.toDouble(DurationUnit.MINUTES)} minutes")
 
@@ -86,8 +82,12 @@ class LogcatCollectionRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override suspend fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean =
-        old.logcatSettings.dataSourceEnabled != new.logcatSettings.dataSourceEnabled ||
-            old.logcatSettings.collectionInterval != new.logcatSettings.collectionInterval ||
-            old.logcatSettings.collectionMode != new.logcatSettings.collectionMode
+    override suspend fun enabled(settings: SettingsProvider): Boolean {
+        return settings.logcatSettings.dataSourceEnabled &&
+            settings.logcatSettings.collectionMode == LogcatCollectionMode.PERIODIC &&
+            bortSystemCapabilities.supportsCaliperLogcatCollection()
+    }
+
+    override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
+        old.logcatSettings.collectionInterval != new.logcatSettings.collectionInterval
 }

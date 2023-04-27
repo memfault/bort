@@ -9,7 +9,6 @@ import com.memfault.bort.BootCountTracker
 import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DumpsterClient
-import com.memfault.bort.InjectSet
 import com.memfault.bort.LinuxBootId
 import com.memfault.bort.LinuxRebootTracker
 import com.memfault.bort.RealLastTrackedBootCountProvider
@@ -21,7 +20,7 @@ import com.memfault.bort.dropbox.DropBoxConfigureFilterSettings
 import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
 import com.memfault.bort.logcat.handleTimeChanged
-import com.memfault.bort.requester.PeriodicWorkRequester
+import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
 import com.memfault.bort.settings.ContinuousLoggingController
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.applyReporterServiceSettings
@@ -44,27 +43,44 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         Intent.ACTION_TIME_CHANGED,
     )
 ) {
-    @Inject lateinit var periodicWorkRequesters: InjectSet<PeriodicWorkRequester>
-    @Inject lateinit var dumpsterClient: DumpsterClient
-    @Inject lateinit var settingsProvider: SettingsProvider
-    @Inject lateinit var deviceInfoProvider: DeviceInfoProvider
-    @Inject lateinit var enqueueUpload: EnqueueUpload
-    @Inject lateinit var reporterServiceConnector: ReporterServiceConnector
-    @Inject lateinit var fileUploadHoldingArea: FileUploadHoldingArea
-    @Inject lateinit var tokenBucketStoreRegistry: TokenBucketStoreRegistry
-    @Reboots @Inject lateinit var tokenBucketStore: TokenBucketStore
-    @Inject lateinit var bortSystemCapabilities: BortSystemCapabilities
-    @Inject lateinit var readLinuxBootId: LinuxBootId
-    @Inject lateinit var dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider
-    @Inject lateinit var continuousLoggingController: ContinuousLoggingController
-    @Inject lateinit var dropBoxConfigureFilterSettings: DropBoxConfigureFilterSettings
-    @Inject lateinit var clientDeviceInfoSender: ClientDeviceInfoSender
+    @Inject
+    lateinit var periodicWorkManager: PeriodicWorkManager
+    @Inject
+    lateinit var dumpsterClient: DumpsterClient
+    @Inject
+    lateinit var settingsProvider: SettingsProvider
+    @Inject
+    lateinit var deviceInfoProvider: DeviceInfoProvider
+    @Inject
+    lateinit var enqueueUpload: EnqueueUpload
+    @Inject
+    lateinit var reporterServiceConnector: ReporterServiceConnector
+    @Inject
+    lateinit var fileUploadHoldingArea: FileUploadHoldingArea
+    @Inject
+    lateinit var tokenBucketStoreRegistry: TokenBucketStoreRegistry
+    @Reboots
+    @Inject
+    lateinit var tokenBucketStore: TokenBucketStore
+    @Inject
+    lateinit var bortSystemCapabilities: BortSystemCapabilities
+    @Inject
+    lateinit var readLinuxBootId: LinuxBootId
+    @Inject
+    lateinit var dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider
+    @Inject
+    lateinit var continuousLoggingController: ContinuousLoggingController
+    @Inject
+    lateinit var dropBoxConfigureFilterSettings: DropBoxConfigureFilterSettings
+    @Inject
+    lateinit var clientDeviceInfoSender: ClientDeviceInfoSender
 
     private fun onPackageReplaced() {
         goAsync {
-            periodicWorkRequesters.forEach {
-                it.startPeriodic()
-            }
+            periodicWorkManager.scheduleTasksAfterBootOrEnable(
+                bortEnabled = bortEnabledProvider.isEnabled(),
+                justBooted = false,
+            )
         }
     }
 
@@ -82,8 +98,8 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         }
 
         goAsync {
-            val bortEnabled = !bortEnabledProvider.requiresRuntimeEnable() ||
-                bortEnabledProvider.isEnabled()
+            val bortEnabled = bortEnabledProvider.isEnabled()
+            // Note - this doesn't do anything if Bort is disabled (this method isn't called).
             dumpsterClient.setBortEnabled(bortEnabled)
             dumpsterClient.setStructuredLogEnabled(settingsProvider.structuredLogSettings.dataSourceEnabled)
             // Pass the new settings to structured logging (after we enable/disable it)
@@ -121,9 +137,10 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
                 }
             }
 
-            periodicWorkRequesters.forEach {
-                it.startPeriodic(justBooted = true)
-            }
+            periodicWorkManager.scheduleTasksAfterBootOrEnable(
+                bortEnabled = bortEnabledProvider.isEnabled(),
+                justBooted = false,
+            )
         }
     }
 

@@ -2,11 +2,11 @@ package com.memfault.bort.dropbox
 
 import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.FakeDeviceInfoProvider
-import com.memfault.bort.FileUploadPayload
 import com.memfault.bort.LogcatCollectionId
-import com.memfault.bort.StructuredLogFileUploadPayload
+import com.memfault.bort.clientserver.MarMetadata
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.test.util.TestTemporaryFileFactory
+import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.uploader.EnqueueUpload
 import io.mockk.CapturingSlot
 import io.mockk.every
@@ -31,7 +31,8 @@ import org.robolectric.annotation.Config
 class CustomEventEntryProcessorTest {
     lateinit var processor: StructuredLogEntryProcessor
     lateinit var mockEnqueueUpload: EnqueueUpload
-    lateinit var fileUploadPayloadSlot: CapturingSlot<FileUploadPayload>
+    lateinit var marMetadataSlot: CapturingSlot<MarMetadata>
+    lateinit var collectionTimeSlot: CapturingSlot<CombinedTime>
     lateinit var builtInMetricsStore: BuiltinMetricsStore
     var dataSourceEnabled: Boolean = true
     private var allowedByRateLimit = true
@@ -41,9 +42,10 @@ class CustomEventEntryProcessorTest {
         dataSourceEnabled = true
         mockEnqueueUpload = mockk(relaxed = true)
 
-        fileUploadPayloadSlot = slot()
+        marMetadataSlot = slot()
+        collectionTimeSlot = slot()
         every {
-            mockEnqueueUpload.enqueue(any(), capture(fileUploadPayloadSlot), any(), any())
+            mockEnqueueUpload.enqueue(any(), capture(marMetadataSlot), capture(collectionTimeSlot))
         } returns Unit
         builtInMetricsStore = BuiltinMetricsStore()
 
@@ -55,7 +57,7 @@ class CustomEventEntryProcessorTest {
                 every { takeSimple(any(), any(), any()) } answers { allowedByRateLimit }
             },
             combinedTimeProvider = FakeCombinedTimeProvider,
-            structuredLogDataSourceEnabledConfig = { dataSourceEnabled }
+            structuredLogDataSourceEnabledConfig = { dataSourceEnabled },
         )
     }
 
@@ -65,13 +67,10 @@ class CustomEventEntryProcessorTest {
             val info = FakeDeviceInfoProvider().getDeviceInfo()
 
             processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE))
-            val payload = fileUploadPayloadSlot.captured as StructuredLogFileUploadPayload
-            assertEquals(LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000002")), payload.cid)
-            assertEquals(LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000003")), payload.nextCid)
-            assertEquals(FakeCombinedTimeProvider.now(), payload.collectionTime)
-            assertEquals(info.deviceSerial, payload.deviceSerial)
-            assertEquals(info.hardwareVersion, payload.hardwareVersion)
-            assertEquals(info.softwareVersion, payload.softwareVersion)
+            val metadata = marMetadataSlot.captured as MarMetadata.StructuredLogMarMetadata
+            assertEquals(LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000002")), metadata.cid)
+            assertEquals(LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000003")), metadata.nextCid)
+            assertEquals(FakeCombinedTimeProvider.now(), collectionTimeSlot.captured)
         }
     }
 
@@ -83,7 +82,7 @@ class CustomEventEntryProcessorTest {
             allowedByRateLimit = false
             processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
             verify(exactly = 1) {
-                mockEnqueueUpload.enqueue(any(), any(), any(), any())
+                mockEnqueueUpload.enqueue(any(), any(), any())
             }
         }
     }
@@ -93,7 +92,7 @@ class CustomEventEntryProcessorTest {
         dataSourceEnabled = false
         runBlocking {
             processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
-            verify(exactly = 0) { mockEnqueueUpload.enqueue(any(), any(), any(), any()) }
+            verify(exactly = 0) { mockEnqueueUpload.enqueue(any(), any(), any()) }
         }
     }
 }

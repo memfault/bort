@@ -1,12 +1,7 @@
 package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
-import com.memfault.bort.DropBoxEntryFileUploadMetadata
-import com.memfault.bort.JavaExceptionFileUploadMetadata
-import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.parsers.JavaExceptionParser
-import com.memfault.bort.time.AbsoluteTime
-import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.tokenbucket.JavaException
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.Wtf
@@ -56,13 +51,4 @@ class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
         } catch (e: Exception) {
             EntryInfo(entry.tag)
         }
-
-    override suspend fun createMetadata(
-        entryInfo: EntryInfo,
-        tag: String,
-        fileTime: AbsoluteTime?,
-        entryTime: AbsoluteTime,
-        collectionTime: BootRelativeTime,
-    ): DropBoxEntryFileUploadMetadata =
-        JavaExceptionFileUploadMetadata(tag, fileTime, entryTime, collectionTime, TimezoneWithId.deviceDefault)
 }

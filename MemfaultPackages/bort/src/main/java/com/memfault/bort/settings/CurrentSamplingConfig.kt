@@ -17,7 +17,6 @@ import javax.inject.Singleton
 class CurrentSamplingConfig @Inject constructor(
     private val configPref: SamplingConfigPreferenceProvider,
     private val marFileHoldingArea: Provider<MarFileHoldingArea>,
-    private val useMarUpload: UseMarUpload,
     private val fleetSamplingSettings: FleetSamplingSettings,
 ) {
     private val debuggingResolutionMetric = Reporting.report()
@@ -32,20 +31,25 @@ class CurrentSamplingConfig @Inject constructor(
 
     suspend fun get(): SamplingConfig = cachedProperty.get()
 
-    suspend fun update(config: SamplingConfig) {
+    suspend fun update(newConfig: SamplingConfig, completedRevision: Int?) {
         updateMetrics()
 
-        if (config == get()) return
-        Logger.d("CurrentSamplingConfig...changed: $config")
-        configPref.set(config)
+        val existingConfig = get()
+        if (newConfig == existingConfig) {
+            if (completedRevision != null && completedRevision != existingConfig.revision) {
+                // Resend a device-config revision (the server has not reported receiving it).
+                marFileHoldingArea.get().addDeviceConfigMarEntry(existingConfig.revision)
+            }
+            return
+        }
+        Logger.d("CurrentSamplingConfig...changed: $newConfig")
+        configPref.set(newConfig)
         cachedProperty.invalidate()
-        handleSamplingConfigChange(config)
+        handleSamplingConfigChange(newConfig)
     }
 
     private suspend fun handleSamplingConfigChange(newConfig: SamplingConfig) {
-        if (useMarUpload()) {
-            marFileHoldingArea.get().handleSamplingConfigChange(newConfig)
-        }
+        marFileHoldingArea.get().handleSamplingConfigChange(newConfig)
     }
 
     suspend fun updateMetrics() {

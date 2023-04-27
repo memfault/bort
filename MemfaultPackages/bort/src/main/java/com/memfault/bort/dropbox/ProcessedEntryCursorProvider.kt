@@ -9,12 +9,14 @@ import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BaseAbsoluteTime
+import com.memfault.bort.time.CombinedTimeProvider
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.concurrent.withLock
+import kotlin.time.Duration.Companion.hours
 
 interface DropBoxLastProcessedEntryProvider {
     var timeMillis: Long
@@ -26,15 +28,25 @@ interface DropBoxPendingTimeChangeProvider {
 
 @ContributesBinding(SingletonComponent::class, boundType = DropBoxLastProcessedEntryProvider::class)
 class RealDropBoxLastProcessedEntryProvider @Inject constructor(
-    sharedPreferences: SharedPreferences
+    sharedPreferences: SharedPreferences,
+    private val timeProvider: CombinedTimeProvider,
 ) : DropBoxLastProcessedEntryProvider, PreferenceKeyProvider<Long>(
     sharedPreferences = sharedPreferences,
-    defaultValue = 0,
+    defaultValue = NOT_SET,
     preferenceKey = PREFERENCE_LAST_PROCESSED_DROPBOX_ENTRY_TIME_MILLIS
 ) {
     override var timeMillis
-        get() = super.getValue()
+        get() = when (val timeMs = super.getValue()) {
+            // Only used once after Bort first starts: accept dropbox entries going back up to INITIAL_DROPBOX_LIMIT.
+            NOT_SET -> timeProvider.now().timestamp.toEpochMilli() - INITIAL_DROPBOX_LIMIT.inWholeMilliseconds
+            else -> timeMs
+        }
         set(value) = super.setValue(value)
+
+    companion object {
+        private const val NOT_SET: Long = 0
+        private val INITIAL_DROPBOX_LIMIT = 1.hours
+    }
 }
 
 @ContributesBinding(SingletonComponent::class, boundType = DropBoxPendingTimeChangeProvider::class)

@@ -230,10 +230,12 @@ class ReporterService : Service() {
     override fun onDestroy() {
         Logger.d("Destroying ReporterService")
 
+        Handler(handlerThread.looper).post {
+            commandExecutor.shutdown()
+        }
         handlerThread.quitSafely()
         Logger.v("handlerThread quit safely!")
 
-        commandExecutor.shutdown()
         val timedOut = !commandExecutor.awaitTermination(
             COMMAND_EXECUTOR_TERMINATION_WAIT_SECS,
             TimeUnit.SECONDS

@@ -1,8 +1,9 @@
 package com.memfault.bort.uploader
 
 import androidx.work.workDataOf
-import com.memfault.bort.BugReportFileUploadPayload
+import com.memfault.bort.FileUploadToken
 import com.memfault.bort.FileUploader
+import com.memfault.bort.MarFileUploadPayload
 import com.memfault.bort.Payload
 import com.memfault.bort.TaskResult
 import io.mockk.coVerify
@@ -34,8 +35,12 @@ class FileUploadTaskTest {
         }
     }
 
-    fun fileUploadPayload() = Payload.LegacyPayload(
-        BugReportFileUploadPayload(
+    fun fileUploadPayload() = Payload.MarPayload(
+        MarFileUploadPayload(
+            file = FileUploadToken(
+                md5 = "",
+                name = "",
+            ),
             hardwareVersion = "",
             deviceSerial = "",
             softwareVersion = "",
@@ -135,7 +140,7 @@ class FileUploadTaskTest {
         }
         assert(result == TaskResult.SUCCESS)
         assertFalse(file.exists())
-        coVerify { mockUploader.upload(file, ofType(Payload.LegacyPayload::class), shouldCompress = true) }
+        coVerify { mockUploader.upload(file, ofType(Payload.MarPayload::class), shouldCompress = true) }
     }
 
     @Test

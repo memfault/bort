@@ -16,7 +16,6 @@ import com.memfault.bort.INTENT_ACTION_UPDATE_PROJECT_KEY
 import com.memfault.bort.INTENT_EXTRA_BORT_ENABLED
 import com.memfault.bort.INTENT_EXTRA_DEV_MODE_ENABLED
 import com.memfault.bort.INTENT_EXTRA_PROJECT_KEY
-import com.memfault.bort.InjectSet
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.RealDevMode
 import com.memfault.bort.ReporterServiceConnector
@@ -25,7 +24,7 @@ import com.memfault.bort.clientserver.ClientDeviceInfoSender
 import com.memfault.bort.dropbox.DropBoxConfigureFilterSettings
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.requester.MetricsCollectionRequester
-import com.memfault.bort.requester.PeriodicWorkRequester
+import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
 import com.memfault.bort.requester.StartRealBugReport
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.ContinuousLoggingController
@@ -58,7 +57,7 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
 ) {
     @Inject lateinit var dumpsterClient: DumpsterClient
     @Inject lateinit var bortEnabledProvider: BortEnabledProvider
-    @Inject lateinit var periodicWorkRequesters: InjectSet<PeriodicWorkRequester>
+    @Inject lateinit var periodicWorkManager: PeriodicWorkManager
     @Inject lateinit var settingsProvider: SettingsProvider
     @Inject lateinit var pendingBugReportRequestAccessor: PendingBugReportRequestAccessor
     @Inject lateinit var fileUploadHoldingArea: FileUploadHoldingArea
@@ -145,13 +144,7 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
                 bortEnabledProvider = bortEnabledProvider,
             )
 
-            periodicWorkRequesters.forEach {
-                if (isNowEnabled) {
-                    it.startPeriodic()
-                } else {
-                    it.cancelPeriodic()
-                }
-            }
+            periodicWorkManager.scheduleTasksAfterBootOrEnable(bortEnabled = isNowEnabled, justBooted = false)
 
             dumpsterClient.setBortEnabled(isNowEnabled)
             dumpsterClient.setStructuredLogEnabled(
@@ -202,8 +195,12 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
 
     private fun onChangeProjectKey(intent: Intent) {
         // This is allowed to run before enabling Bort (in fact this is encouraged if possible).
-        val newProjectKey = intent.getStringExtra(INTENT_EXTRA_PROJECT_KEY) ?: return
-        projectKeyProvider.projectKey = newProjectKey
+        val newProjectKey = intent.getStringExtra(INTENT_EXTRA_PROJECT_KEY)
+        if (newProjectKey != null) {
+            projectKeyProvider.projectKey = newProjectKey
+        } else {
+            projectKeyProvider.reset()
+        }
     }
 
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {

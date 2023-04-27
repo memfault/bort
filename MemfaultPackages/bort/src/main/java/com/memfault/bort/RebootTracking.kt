@@ -2,7 +2,7 @@ package com.memfault.bort
 
 import android.content.SharedPreferences
 import android.os.SystemClock
-import com.memfault.bort.ingress.RebootEvent
+import com.memfault.bort.clientserver.MarMetadata.RebootMarMetadata
 import com.memfault.bort.ingress.RebootEventInfo
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
@@ -92,23 +92,24 @@ internal class RebootEventUploader(
         }
 
         val bootInstant = getBootInstant()
-        val rebootEvent = RebootEvent.create(
-            capturedDate = bootInstant,
-            deviceInfo = deviceInfo,
-            eventInfo = RebootEventInfo.fromAndroidBootReason(
-                bootCount = bootCount,
-                linuxBootId = getLinuxBootId(),
-                androidBootReason = AndroidBootReason.parse(androidSysBootReason)
-            )
+        val rebootEvent = RebootEventInfo.fromAndroidBootReason(
+            bootCount = bootCount,
+            linuxBootId = getLinuxBootId(),
+            androidBootReason = AndroidBootReason.parse(androidSysBootReason)
         )
         val rebootTime = CombinedTime(
             uptime = 0.milliseconds.boxed(),
             elapsedRealtime = 0.milliseconds.boxed(),
-            linuxBootId = rebootEvent.event_info.linux_boot_id,
-            bootCount = rebootEvent.event_info.boot_count,
+            linuxBootId = rebootEvent.linux_boot_id,
+            bootCount = rebootEvent.boot_count,
             timestamp = bootInstant,
         )
-        enqueueUpload.enqueue(rebootEvent, rebootTime)
+        val metadata = RebootMarMetadata(
+            reason = rebootEvent.reason,
+            subreason = rebootEvent.subreason,
+            details = rebootEvent.details,
+        )
+        enqueueUpload.enqueue(file = null, metadata = metadata, collectionTime = rebootTime)
     }
 
     fun handleUntrackedBootCount(bootCount: Int) = createAndUploadCurrentRebootEvent(bootCount)

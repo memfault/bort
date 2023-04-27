@@ -85,9 +85,6 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.httpApiCallTimeout.duration
         override val zipCompressionLevel: Int
             get() = settings.httpApiZipCompressionLevel
-        // Mar is mandatory for client/server mode (on both server and client).
-        override suspend fun useMarUpload(): Boolean =
-            cachedClientServerMode.isEnabled() || settings.httpApiUseMarUpload
         override val batchMarUploads: Boolean
             get() = settings.httpApiBatchMarUploads && !devMode.isEnabled()
         override val batchedMarUploadPeriod: Duration
@@ -267,6 +264,8 @@ open class DynamicSettingsProvider @Inject constructor(
     override val storageSettings = object : StorageSettings {
         override val maxClientServerFileTransferStorageBytes: Long
             get() = settings.storageMaxClientServerFileTransferStorageBytes
+        override val maxClientServerFileTransferStorageAge: Duration
+            get() = settings.storageMaxClientServerFileTransferStorageAge.duration
         override val usageReporterTempMaxStorageBytes: Long
             get() = settings.storageUsageReporterTempMaxStorageBytes
         override val usageReporterTempMaxStorageAge: Duration

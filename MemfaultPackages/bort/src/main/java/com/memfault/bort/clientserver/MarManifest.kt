@@ -1,10 +1,12 @@
 package com.memfault.bort.clientserver
 
-import com.memfault.bort.BugReportFileUploadPayload.ProcessingOptions
-import com.memfault.bort.FileUploadPayload
+import com.memfault.bort.AndroidPackage
+import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.LogcatCollectionId
+import com.memfault.bort.ProcessingOptions
 import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.settings.LogcatCollectionMode
+import com.memfault.bort.settings.ProjectKey
 import com.memfault.bort.settings.Resolution
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.CombinedTime
@@ -101,7 +103,7 @@ sealed class MarMetadata {
         @SerialName("cid_ref")
         val cidReference: LogcatCollectionId,
         @SerialName("packages")
-        val packages: List<FileUploadPayload.Package>,
+        val packages: List<AndroidPackage>,
         @SerialName("file_time")
         val fileTime: AbsoluteTime?,
     ) : MarMetadata()
@@ -151,4 +153,91 @@ sealed class MarMetadata {
         @SerialName("revision")
         val revision: Int,
     ) : MarMetadata()
+
+    companion object {
+        suspend fun createManifest(
+            metadata: MarMetadata,
+            collectionTime: CombinedTime,
+            deviceInfoProvider: DeviceInfoProvider,
+            projectKey: ProjectKey,
+        ): MarManifest {
+            val device = deviceInfoProvider.getDeviceInfo().asDevice(projectKey())
+            return when (metadata) {
+                is HeartbeatMarMetadata -> MarManifest(
+                    collectionTime = collectionTime,
+                    type = "android-heartbeat",
+                    device = device,
+                    metadata = metadata,
+                    debuggingResolution = Resolution.NOT_APPLICABLE,
+                    loggingResolution = Resolution.NOT_APPLICABLE,
+                    monitoringResolution = Resolution.NORMAL,
+                )
+                is BugReportMarMetadata -> MarManifest(
+                    collectionTime = collectionTime,
+                    type = "android-bugreport",
+                    device = device,
+                    metadata = metadata,
+                    debuggingResolution = Resolution.NORMAL,
+                    loggingResolution = Resolution.NOT_APPLICABLE,
+                    monitoringResolution = Resolution.NOT_APPLICABLE,
+                )
+                is DropBoxMarMetadata -> MarManifest(
+                    collectionTime = collectionTime,
+                    type = "android-dropbox",
+                    device = device,
+                    metadata = metadata,
+                    debuggingResolution = Resolution.NORMAL,
+                    loggingResolution = Resolution.NOT_APPLICABLE,
+                    monitoringResolution = Resolution.NOT_APPLICABLE,
+                )
+                is LogcatMarMetadata -> MarManifest(
+                    collectionTime = collectionTime,
+                    type = "android-logcat",
+                    device = device,
+                    metadata = metadata,
+                    debuggingResolution = Resolution.NORMAL,
+                    loggingResolution = Resolution.NORMAL,
+                    monitoringResolution = Resolution.NOT_APPLICABLE,
+                )
+                is StructuredLogMarMetadata -> MarManifest(
+                    collectionTime = collectionTime,
+                    type = "android-structured",
+                    device = device,
+                    metadata = metadata,
+                    debuggingResolution = Resolution.NORMAL,
+                    loggingResolution = Resolution.NOT_APPLICABLE,
+                    monitoringResolution = Resolution.NOT_APPLICABLE,
+                )
+                is CustomDataRecordingMarMetadata -> MarManifest(
+                    collectionTime = collectionTime,
+                    type = "custom-data-recording",
+                    device = device,
+                    metadata = metadata,
+                    debuggingResolution = Resolution.NORMAL,
+                    loggingResolution = Resolution.NOT_APPLICABLE,
+                    monitoringResolution = Resolution.NOT_APPLICABLE,
+                )
+                is DeviceConfigMarMetadata -> MarManifest(
+                    collectionTime = collectionTime,
+                    type = "android-device-config",
+                    device = device,
+                    metadata = metadata,
+                    // All resolutions are set of OFF. This means that the file is always uploaded, regardless of device
+                    // fleet-sampling configuration.
+                    debuggingResolution = Resolution.OFF,
+                    loggingResolution = Resolution.OFF,
+                    monitoringResolution = Resolution.OFF,
+                )
+                is RebootMarMetadata -> MarManifest(
+                    collectionTime = collectionTime,
+                    type = "android-reboot",
+                    device = device,
+                    metadata = metadata,
+                    debuggingResolution = Resolution.NORMAL,
+                    loggingResolution = Resolution.NOT_APPLICABLE,
+                    monitoringResolution = Resolution.NOT_APPLICABLE,
+                )
+            }
+        }
+    }
 }

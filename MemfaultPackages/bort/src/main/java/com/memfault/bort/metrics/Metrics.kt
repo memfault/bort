@@ -36,6 +36,7 @@ private const val USAGE_REPORTER_VERSION_NAME = "usagereporter_version_name"
 private const val DUMPSTER_VERSION = "dumpster_version"
 private const val RUNTIME_ENABLE_REQUIRED = "runtime_enable_required"
 private const val OS_VERSION = "os_version"
+private const val BORT_PACKAGE_NAME = "bort_package_name"
 
 /**
  * A store for built-in metrics.
@@ -145,6 +146,9 @@ suspend fun updateBuiltinProperties(
 
     metrics[OS_VERSION] = JsonPrimitive(Build.VERSION.SDK_INT)
     devicePropertiesStore.upsert(name = OS_VERSION, value = Build.VERSION.SDK_INT, internal = true)
+
+    metrics[BORT_PACKAGE_NAME] = JsonPrimitive(BuildConfig.APPLICATION_ID)
+    devicePropertiesStore.upsert(name = BORT_PACKAGE_NAME, value = BuildConfig.APPLICATION_ID, internal = true)
 
     return metrics + integrationChecker.checkIntegrationAndReport()
 }

@@ -39,9 +39,6 @@ class UptimeTickRequester @Inject constructor(
     private val bortSystemCapabilities: BortSystemCapabilities,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
-        // This task is only needed if running on an old SDK version.
-        if (bortSystemCapabilities.supportsCaliperMetrics()) return
-
         periodicWorkRequest<UptimeTickTask>(
             INTERVAL,
             workDataOf()
@@ -51,7 +48,7 @@ class UptimeTickRequester @Inject constructor(
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(
                     UPTIME_UNIQUE_NAME_PERIODIC,
-                    ExistingPeriodicWorkPolicy.REPLACE,
+                    ExistingPeriodicWorkPolicy.UPDATE,
                     workRequest
                 )
         }
@@ -61,7 +58,12 @@ class UptimeTickRequester @Inject constructor(
         WorkManager.getInstance(context).cancelUniqueWork(UPTIME_UNIQUE_NAME_PERIODIC)
     }
 
-    override suspend fun restartRequired(old: SettingsProvider, new: SettingsProvider): Boolean = false
+    override suspend fun enabled(settings: SettingsProvider): Boolean {
+        // This task is only needed if running on an old SDK version.
+        return !bortSystemCapabilities.supportsCaliperMetrics()
+    }
+
+    override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean = false
 
     companion object {
         private const val UPTIME_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.UPTIME_TICK"

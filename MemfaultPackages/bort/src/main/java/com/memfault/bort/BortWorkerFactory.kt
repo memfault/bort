@@ -10,10 +10,8 @@ import com.memfault.bort.dropbox.DropBoxGetEntriesTask
 import com.memfault.bort.logcat.LogcatCollectionTask
 import com.memfault.bort.metrics.MetricsCollectionTask
 import com.memfault.bort.requester.UptimeTickTask
-import com.memfault.bort.settings.PeriodicRequesterRestartTask
 import com.memfault.bort.settings.SettingsUpdateTask
 import com.memfault.bort.uploader.FileUploadTask
-import com.memfault.bort.uploader.HttpTask
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlin.reflect.KClass
@@ -36,27 +34,23 @@ class BortWorkerFactory @Inject constructor(
 }
 
 class BortTaskFactory @Inject constructor(
-    private val http: Provider<HttpTask>,
     private val fileUpload: Provider<FileUploadTask>,
     private val dropBox: Provider<DropBoxGetEntriesTask>,
     private val metrics: Provider<MetricsCollectionTask>,
     private val bugReportTimeout: Provider<BugReportRequestTimeoutTask>,
     private val logcat: Provider<LogcatCollectionTask>,
     private val settings: Provider<SettingsUpdateTask>,
-    private val periodicReq: Provider<PeriodicRequesterRestartTask>,
     private val uptime: Provider<UptimeTickTask>,
     private val marBatching: Provider<MarBatchingTask>,
 ) : TaskFactory {
     override fun create(inputData: Data): Task<*>? {
         return when (inputData.workDelegateClass) {
-            HttpTask::class.qualifiedName -> http.get()
             FileUploadTask::class.qualifiedName -> fileUpload.get()
             DropBoxGetEntriesTask::class.qualifiedName -> dropBox.get()
             MetricsCollectionTask::class.qualifiedName -> metrics.get()
             BugReportRequestTimeoutTask::class.qualifiedName -> bugReportTimeout.get()
             LogcatCollectionTask::class.qualifiedName -> logcat.get()
             SettingsUpdateTask::class.qualifiedName -> settings.get()
-            PeriodicRequesterRestartTask::class.qualifiedName -> periodicReq.get()
             UptimeTickTask::class.qualifiedName -> uptime.get()
             MarBatchingTask::class.qualifiedName -> marBatching.get()
             else -> null

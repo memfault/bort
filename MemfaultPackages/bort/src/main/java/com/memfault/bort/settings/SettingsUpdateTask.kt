@@ -96,6 +96,6 @@ suspend fun DecodedDeviceConfig.handleUpdate(
         settingsUpdateHandler.handleSettingsUpdate(it)
     }
     memfault?.sampling?.let {
-        samplingConfig.update(it.asSamplingConfig(revision))
+        samplingConfig.update(it.asSamplingConfig(revision), completedRevision = completedRevision)
     }
 }

@@ -10,13 +10,22 @@ import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.cleanupFiles
 import com.memfault.bort.requester.directorySize
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.runAndTrackExceptions
+import com.memfault.usagereporter.clientserver.RealSendfileQueue
+import com.memfault.usagereporter.clientserver.clientServerUploadsDir
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.toJavaDuration
 
 class ReporterFileCleanupTask(private val appContext: Context, workerParams: WorkerParameters) :
     CoroutineWorker(appContext, workerParams) {
 
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "ReporterFileCleanupTask") {
+        cleanupCacheDir()
+        RealSendfileQueue.cleanup(clientServerUploadsDir(appContext), UsageReporter.reporterSettings)
+        Result.success()
+    }
+
+    private fun cleanupCacheDir() {
         val tempDir = appContext.cacheDir
         reporterTempStorageUsedMetric.update(tempDir.directorySize())
         val result = cleanupFiles(
@@ -29,7 +38,6 @@ class ReporterFileCleanupTask(private val appContext: Context, workerParams: Wor
             Logger.d("Deleted $deleted UsageReporter temp files to stay under storage limit")
             reporterTempDeletedMetric.incrementBy(deleted)
         }
-        return Result.success()
     }
 
     companion object {

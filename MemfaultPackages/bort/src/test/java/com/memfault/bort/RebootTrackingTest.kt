@@ -10,13 +10,14 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Test
 
 class RebootTrackingTest {
     @Test
-    fun testIfBootNotTrackedYet() {
+    fun testIfBootNotTrackedYet() = runTest {
         val currentBootCount = 1
         val untrackedBootCountHandler: (Int) -> Unit = mockk {
             every { this@mockk(any()) } returns Unit
@@ -63,9 +64,9 @@ private const val TEST_BUCKET_CAPACITY = 5
 
 class RebootEventUploaderTest {
     @Test
-    fun rateLimit() {
+    fun rateLimit() = runTest {
         val enqueueUpload = mockk<EnqueueUpload>(relaxed = true) {
-            every { enqueue(any(), any()) } returns Unit
+            every { enqueue(any(), any(), any()) } returns Unit
         }
 
         val uploader = RebootEventUploader(
@@ -90,6 +91,6 @@ class RebootEventUploaderTest {
             uploader.handleUntrackedBootCount(1)
         }
 
-        verify(exactly = TEST_BUCKET_CAPACITY) { enqueueUpload.enqueue(any(), any()) }
+        verify(exactly = TEST_BUCKET_CAPACITY) { enqueueUpload.enqueue(any(), any(), any()) }
     }
 }

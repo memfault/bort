@@ -1,7 +1,7 @@
 package com.memfault.bort.settings
 
-import com.memfault.bort.BugReportFileUploadPayload
 import com.memfault.bort.FakeCombinedTimeProvider
+import com.memfault.bort.ProcessingOptions
 import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.clientserver.MarDevice
 import com.memfault.bort.clientserver.MarManifest
@@ -43,7 +43,7 @@ class ResolutionTest {
         device = marDevice,
         metadata = MarMetadata.BugReportMarMetadata(
             bugReportFileName = "filename",
-            processingOptions = BugReportFileUploadPayload.ProcessingOptions(),
+            processingOptions = ProcessingOptions(),
         ),
         debuggingResolution = Resolution.NORMAL,
         loggingResolution = Resolution.NOT_APPLICABLE,

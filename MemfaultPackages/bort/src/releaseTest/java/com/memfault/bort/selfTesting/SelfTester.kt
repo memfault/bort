@@ -8,6 +8,7 @@ import com.memfault.bort.IndividualWorkerFactory
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.runAndTrackExceptions
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -67,13 +68,13 @@ class SelfTestWorker @AssistedInject constructor(
     private val dumpsterClient: DumpsterClient,
 ) : CoroutineWorker(appContext, workerParameters) {
 
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "SelfTestWorker") {
         val tester = SelfTester(
             reporterServiceConnector = reporterServiceConnector,
             settingsProvider = settingsProvider,
             dumpsterClient = dumpsterClient,
         )
         Logger.test("Bort self test: ${tester.run().toTestResult()}")
-        return Result.success()
+        Result.success()
     }
 }

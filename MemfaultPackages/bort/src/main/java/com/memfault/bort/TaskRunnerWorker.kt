@@ -13,6 +13,7 @@ import androidx.work.WorkRequest
 import androidx.work.WorkerParameters
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.runAndTrackExceptions
 import com.memfault.bort.uploader.limitAttempts
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.assisted.Assisted
@@ -125,13 +126,14 @@ class TaskRunnerWorker @AssistedInject constructor(
     private val taskFactory: BortTaskFactory
 ) : CoroutineWorker(appContext, workerParameters) {
 
-    override suspend fun doWork(): Result =
+    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = inputData.workDelegateClass) {
         when (val task = taskFactory.create(inputData)) {
             null -> Result.failure().also {
                 Logger.e("Could not create task for inputData (id=$id)")
             }
             else -> task.doWork(this).toWorkerResult()
         }
+    }
 }
 
 private const val WORK_DELEGATE_CLASS = "__WORK_DELEGATE_CLASS"

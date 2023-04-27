@@ -9,7 +9,6 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.SerialDescriptor
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonObject
@@ -22,6 +21,8 @@ import kotlinx.serialization.json.JsonObject
 @Serializable(with = DecodedDeviceConfigSerializer::class)
 data class DecodedDeviceConfig(
     val revision: Int,
+    /** Last reported completed revision, per the backend */
+    val completedRevision: Int?,
     val memfault: FetchedDeviceConfigContainer.Memfault?,
     val others: JsonObject,
 ) {
@@ -48,6 +49,7 @@ class DecodedDeviceConfigSerializer : KSerializer<DecodedDeviceConfig> {
         val others = JsonObject(container.data.config.filterNot { it.key == KEY_MEMFAULT })
         return DecodedDeviceConfig(
             revision = container.data.revision,
+            completedRevision = container.data.completedRevision,
             memfault = memfault,
             others = others,
         )
@@ -83,6 +85,8 @@ data class FetchedDeviceConfigContainer(
         val config: JsonObject,
         @SerialName("revision")
         val revision: Int,
+        @SerialName("completed")
+        val completedRevision: Int? = null,
     )
 
     @Serializable

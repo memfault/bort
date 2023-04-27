@@ -3,21 +3,24 @@ package com.memfault.bort.uploader
 import android.content.SharedPreferences
 import android.os.SystemClock
 import com.memfault.bort.FileAsAbsolutePathSerializer
-import com.memfault.bort.LogcatFileUploadPayload
+import com.memfault.bort.LogcatCollectionId
 import com.memfault.bort.UploadHoldingArea
+import com.memfault.bort.clientserver.MarMetadata.LogcatMarMetadata
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.getJson
 import com.memfault.bort.putJson
 import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.FileUploadHoldingAreaSettings
-import com.memfault.bort.settings.GetLogcatCollectionMode
 import com.memfault.bort.settings.LogcatCollectionInterval
+import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.LogcatSettings
+import com.memfault.bort.settings.Resolution
 import com.memfault.bort.settings.Resolution.NORMAL
 import com.memfault.bort.settings.Resolution.NOT_APPLICABLE
 import com.memfault.bort.time.BaseAbsoluteTime
 import com.memfault.bort.time.BaseBootRelativeTime
 import com.memfault.bort.time.BoxedDuration
+import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.time.DurationAsMillisecondsLong
 import com.squareup.anvil.annotations.ContributesBinding
@@ -39,6 +42,31 @@ internal const val ENTRIES_KEY = "entries"
 typealias ElapsedRealtime = Duration
 typealias BoxedElapsedRealtime = BoxedDuration
 
+/**
+ * This used to be part of the legacy file upload path - it now lives here, and on its own, to keep compatibility with
+ * serialized log files. Some fields have been removed.
+ */
+@Serializable
+data class LogcatFileUploadPayload(
+    @SerialName("collection_time")
+    val collectionTime: CombinedTime,
+
+    @SerialName("command")
+    val command: List<String>,
+
+    @SerialName("cid")
+    val cid: LogcatCollectionId,
+
+    @SerialName("next_cid")
+    val nextCid: LogcatCollectionId,
+
+    @SerialName("contains_oops")
+    val containsOops: Boolean? = null,
+
+    @SerialName("collection_mode")
+    val collectionMode: LogcatCollectionMode? = null,
+)
+
 @Serializable
 data class PendingFileUploadEntry(
     @SerialName("time_span")
@@ -50,9 +78,6 @@ data class PendingFileUploadEntry(
     @SerialName("file")
     @Serializable(with = FileAsAbsolutePathSerializer::class)
     val file: File,
-
-    @SerialName("debug_tag")
-    val debugTag: String,
 ) {
     @Serializable
     data class TimeSpan(
@@ -97,7 +122,6 @@ class FileUploadHoldingArea @Inject constructor(
     private val logcatSettings: LogcatSettings,
     private val currentSamplingConfig: CurrentSamplingConfig,
     private val combinedTimeProvider: CombinedTimeProvider,
-    private val logcatCollectionMode: GetLogcatCollectionMode,
 ) : HandleEventOfInterest {
     private val lock = ReentrantLock()
     private var eventTimes: List<ElapsedRealtime> = readEventTimes()
@@ -119,7 +143,7 @@ class FileUploadHoldingArea @Inject constructor(
     fun add(entry: PendingFileUploadEntry) {
         lock.withLock {
             if (eventTimes.any(entry.timeSpan.spanWithMargin()::contains)) {
-                enqueueUpload.enqueue(entry.file, entry.payload, entry.debugTag, entry.payload.collectionTime)
+                enqueueUpload.enqueueLogcatUpload(entry = entry)
             } else {
                 entries = entries + listOf(entry)
                 persist()
@@ -142,9 +166,7 @@ class FileUploadHoldingArea @Inject constructor(
             entries = entries.filter { entry ->
                 entry.timeSpan.spanWithMargin().let {
                     if (it.contains(time)) false.also {
-                        enqueueUpload.enqueue(
-                            entry.file, entry.payload, entry.debugTag, entry.payload.collectionTime
-                        )
+                        enqueueUpload.enqueueLogcatUpload(entry = entry)
                     } else if (it.shouldBeDeletedAt(time)) false.also {
                         removeEntry(entry)
                     } else true
@@ -202,12 +224,10 @@ class FileUploadHoldingArea @Inject constructor(
         // Only keep logs that didn't overlap an event, if (1) we are configured to store them, or, (2) we are in a
         // logging resolution which would upload them immediately.
         if (logcatSettings.storeUnsampled || currentSamplingConfig.get().loggingResolution == NORMAL) {
-            // Did not overlap with an event of interest: only has a logging aspect.
-            enqueueUpload.enqueue(
-                file = entry.file,
-                metadata = entry.payload.copy(debuggingResolution = NOT_APPLICABLE),
-                debugTag = entry.debugTag,
-                collectionTime = entry.payload.collectionTime,
+            enqueueUpload.enqueueLogcatUpload(
+                entry = entry,
+                // Did not overlap with an event of interest: only has a logging aspect.
+                overrideDebuggingResolution = NOT_APPLICABLE,
             )
         } else {
             entry.file.deleteSilently()
@@ -220,4 +240,26 @@ class FileUploadHoldingArea @Inject constructor(
 
     internal fun PendingFileUploadEntry.TimeSpan.spanWithMargin() =
         copy(end = BoxedElapsedRealtime(end.duration + settings.trailingMargin))
+
+    companion object {
+        fun EnqueueUpload.enqueueLogcatUpload(
+            entry: PendingFileUploadEntry,
+            overrideDebuggingResolution: Resolution? = null,
+        ) {
+            enqueue(
+                file = entry.file,
+                metadata = LogcatMarMetadata(
+                    logFileName = entry.file.name,
+                    command = entry.payload.command,
+                    cid = entry.payload.cid,
+                    nextCid = entry.payload.nextCid,
+                    containsOops = entry.payload.containsOops,
+                    collectionMode = entry.payload.collectionMode,
+                ),
+                collectionTime = entry.payload.collectionTime,
+                // Did not overlap with an event of interest: only has a logging aspect.
+                overrideDebuggingResolution = overrideDebuggingResolution,
+            )
+        }
+    }
 }

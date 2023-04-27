@@ -1,6 +1,7 @@
 package com.memfault.bort.clientserver
 
 import com.memfault.bort.FakeCombinedTimeProvider
+import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.clientserver.MarFileWriterTest.Companion.FILE_CONTENT
 import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.Resolution
@@ -38,8 +39,8 @@ class MarFileHoldingAreaTest {
         marFile = deviceConfigMarFile,
         manifest = deviceConfigManifest,
     )
-    private val marFileWriter = mockk<MarFileWriter> {
-        coEvery { createForDeviceConfig(NEW_REVISION, any()) } returns deviceConfigMar
+    private val marFileWriter = mockk<MarFileWriter>(relaxed = true) {
+        every { createMarFile(null, any()) } returns Result.success(deviceConfigMar)
     }
     private val oneTimeMarUpload = mockk<OneTimeMarUpload>(relaxed = true)
     private val currentSamplingConfig = mockk<CurrentSamplingConfig> { coEvery { get() } returns SamplingConfig() }
@@ -328,7 +329,7 @@ class MarFileHoldingAreaTest {
 
         fun deviceConfig(timeMs: Long) = MarManifest(
             collectionTime = MarFileWriterTest.time(timeMs),
-            type = "android-heartbeat",
+            type = "android-device-config",
             device = MarFileWriterTest.device,
             metadata = MarMetadata.DeviceConfigMarMetadata(
                 revision = NEW_REVISION,
@@ -354,7 +355,9 @@ class MarFileHoldingAreaTest {
         combinedTimeProvider = combinedTimeProvider,
         maxMarStorageBytes = { maxMarStorageBytes },
         marMaxUnsampledAge = { maxMarUnsampledAge },
-        marMaxUnsampledBytes = { maxMarUnsampledBytes }
+        marMaxUnsampledBytes = { maxMarUnsampledBytes },
+        deviceInfoProvider = FakeDeviceInfoProvider(),
+        projectKey = { "" }
     )
 
     private fun assertMarFileInHoldingArea(
