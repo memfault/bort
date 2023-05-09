@@ -65,7 +65,7 @@ class DebugInfoInjectingInterceptorTest {
                             every { appVersionCode } returns 1
                         },
                         mockk {
-                            every { deviceId() } returns "DEMO"
+                            every { id() } returns "DEMO"
                         },
                         bortEnabledProvider,
                         deviceInfoProvider,
@@ -105,7 +105,7 @@ class DebugInfoInjectingInterceptorTest {
                         every { appVersionCode } returns 1
                     },
                     mockk {
-                        every { deviceId() } returns "DEMO"
+                        every { id() } returns "DEMO"
                     },
                     bortEnabledProvider,
                     deviceInfoProvider,

@@ -7,7 +7,6 @@ import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import com.github.michaelbull.result.onFailure
 import com.memfault.bort.ReporterClient
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.ServiceGetter
@@ -37,25 +36,15 @@ class DefaultDropBoxDelay @Inject constructor() : DropBoxRetryDelay {
     override suspend fun delay() = delay(DEFAULT_RETRY_DELAY_MILLIS)
 }
 
-class DropBoxConfigureFilterSettings @Inject constructor(
-    private val reporterServiceConnector: ReporterServiceConnector,
+class DropBoxFilterSettings @Inject constructor(
     private val entryProcessors: DropBoxEntryProcessors,
     private val settings: DropBoxSettings,
     private val bortEnabledProvider: BortEnabledProvider,
 ) {
-    suspend fun configureFilterSettings() {
-        val tags = if (bortEnabledProvider.isEnabled()) {
-            entryProcessors.map.keys.subtract(settings.excludedTags).toList()
-        } else {
-            emptyList()
-        }
-        reporterServiceConnector.connect { getConnection ->
-            getConnection()
-                .dropBoxSetTagFilter(tags)
-                .onFailure {
-                    Logger.d("Failed to configure dropbox tags")
-                }
-        }
+    fun tagFilter(): List<String> = if (bortEnabledProvider.isEnabled()) {
+        entryProcessors.map.keys.subtract(settings.excludedTags).toList()
+    } else {
+        emptyList()
     }
 }
 

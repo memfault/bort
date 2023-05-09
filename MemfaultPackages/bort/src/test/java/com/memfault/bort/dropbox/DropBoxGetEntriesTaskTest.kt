@@ -8,7 +8,6 @@ import com.memfault.bort.ReporterServiceConnection
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.TaskResult
 import com.memfault.bort.createMockServiceConnector
-import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.settings.RateLimitingSettings
 import com.memfault.bort.shared.DropBoxGetNextEntryRequest
@@ -51,22 +50,12 @@ class DropBoxGetEntriesTaskTest {
     lateinit var processedEntryCursorProvider: ProcessedEntryCursorProvider
     lateinit var retryDelay: suspend () -> Unit
     lateinit var entryProcessors: DropBoxEntryProcessors
-    private var bortEnabled = true
 
     private val mockRateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 10,
         defaultPeriod = 15.minutes.boxed(),
         maxBuckets = 1,
     )
-    private val bortEnabledProvider = object : BortEnabledProvider {
-        override fun setEnabled(isOptedIn: Boolean) { }
-
-        override fun isEnabled(): Boolean {
-            return bortEnabled
-        }
-
-        override fun requiresRuntimeEnable(): Boolean = true
-    }
 
     private val mockDropboxSettings = object : DropBoxSettings {
         override val dataSourceEnabled = true
@@ -256,45 +245,6 @@ class DropBoxGetEntriesTaskTest {
         assertEquals(TaskResult.SUCCESS, result)
         assertEquals(10, lastProcessedEntryProvider.timeMillis)
         verifyCloseCalled()
-    }
-
-    @Test
-    fun ignoredTagsArePassed() {
-        mockGetExcludedTags = setOf(TEST_TAG_TO_IGNORE)
-        val configureFilterSettings = DropBoxConfigureFilterSettings(
-            reporterServiceConnector = mockServiceConnector,
-            entryProcessors = entryProcessors,
-            settings = mockDropboxSettings,
-            bortEnabledProvider = bortEnabledProvider,
-        )
-
-        runBlocking {
-            configureFilterSettings.configureFilterSettings()
-        }
-
-        coVerify {
-            mockServiceConnection.sendAndReceive(DropBoxSetTagFilterRequest(listOf(TEST_TAG)))
-        }
-    }
-
-    @Test
-    fun noTagsPassedWhenBortDisabled() {
-        mockGetExcludedTags = setOf(TEST_TAG_TO_IGNORE)
-        bortEnabled = false
-        val configureFilterSettings = DropBoxConfigureFilterSettings(
-            reporterServiceConnector = mockServiceConnector,
-            entryProcessors = entryProcessors,
-            settings = mockDropboxSettings,
-            bortEnabledProvider = bortEnabledProvider,
-        )
-
-        runBlocking {
-            configureFilterSettings.configureFilterSettings()
-        }
-
-        coVerify {
-            mockServiceConnection.sendAndReceive(DropBoxSetTagFilterRequest(emptyList()))
-        }
     }
 
     private fun runAndAssertNoop() {

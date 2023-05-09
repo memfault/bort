@@ -728,6 +728,12 @@ class DevMode(Command):
         _send_broadcast(
             self._bort_app_id, "Changing Bort developer mode", broadcast_cmd, self._device
         )
+        logging.info("")
+        logging.info(
+            "To bypass server-side rate limits temporarily for development, "
+            "please enable Server-Side Development Mode for this device.\n"
+            " - https://docs.memfault.com/docs/platform/rate-limiting/#server-side-development-mode"
+        )
 
 
 class ValidateConnectedDevice(Command):

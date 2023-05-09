@@ -1,13 +1,13 @@
 package com.memfault.bort
 
-import android.content.Context
+import android.app.Application
 import com.memfault.bort.metrics.DevicePropertiesStore
 import com.memfault.bort.shared.Logger
 import javax.inject.Inject
 import kotlinx.serialization.json.JsonPrimitive
 
 class IntegrationChecker @Inject constructor(
-    private val context: Context,
+    private val application: Application,
     private val devicePropertiesStore: DevicePropertiesStore,
 ) {
     fun checkIntegrationAndReport(): Map<String, JsonPrimitive> {
@@ -18,9 +18,9 @@ class IntegrationChecker @Inject constructor(
 
     private fun isSeContextValid(): Boolean {
         try {
-            val lsOutput = Runtime.getRuntime().exec("ls -lZd ${context.dataDir}").inputStream.bufferedReader().use {
-                it.readText()
-            }
+            val lsOutput = Runtime.getRuntime().exec("ls -lZd ${application.dataDir}")
+                .inputStream.bufferedReader()
+                .use { it.readText() }
             return lsOutput.contains("u:object_r:bort_app_data_file:s0").also { valid ->
                 if (!valid) {
                     Logger.e("Bort secontext invalid: $lsOutput")

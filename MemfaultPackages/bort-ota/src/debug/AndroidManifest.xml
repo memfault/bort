@@ -5,7 +5,7 @@
     <application android:name=".TestApp"
         tools:replace="android:name">
         <activity android:name=".UpdateActivity">
-            <!-- Show the activity on launcher for releaseTest -->
+            <!-- Show the activity on launcher for debug -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

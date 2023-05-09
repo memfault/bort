@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <receiver
+            android:name=".selftest.ReporterTestReceiver"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.TEST_REPORTER_SELF_TEST" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

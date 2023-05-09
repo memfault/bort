@@ -21,7 +21,7 @@ import com.memfault.bort.RealDevMode
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.broadcastReply
 import com.memfault.bort.clientserver.ClientDeviceInfoSender
-import com.memfault.bort.dropbox.DropBoxConfigureFilterSettings
+import com.memfault.bort.dropbox.DropBoxFilterSettings
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.requester.MetricsCollectionRequester
 import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
@@ -70,7 +70,7 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
     @Inject lateinit var settingsUpdateRequester: SettingsUpdateRequester
     @Inject lateinit var devMode: RealDevMode
     @Inject lateinit var continuousLoggingController: ContinuousLoggingController
-    @Inject lateinit var dropBoxConfigureFilterSettings: DropBoxConfigureFilterSettings
+    @Inject lateinit var dropBoxFilterSettings: DropBoxFilterSettings
     @Inject lateinit var clientDeviceInfoSender: ClientDeviceInfoSender
     @Inject lateinit var appUpgrade: AppUpgrade
     @Inject lateinit var projectKeyProvider: ProjectKeyProvider
@@ -142,6 +142,7 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
                 reporterServiceConnector = reporterServiceConnector,
                 settingsProvider = settingsProvider,
                 bortEnabledProvider = bortEnabledProvider,
+                dropBoxFilterSettings = dropBoxFilterSettings,
             )
 
             periodicWorkManager.scheduleTasksAfterBootOrEnable(bortEnabled = isNowEnabled, justBooted = false)
@@ -151,7 +152,6 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
                 isNowEnabled &&
                     settingsProvider.structuredLogSettings.dataSourceEnabled
             )
-            dropBoxConfigureFilterSettings.configureFilterSettings()
             continuousLoggingController.configureContinuousLogging()
             // Pass the new settings to structured logging (after we enable/disable it)
             reloadCustomEventConfigFrom(settingsProvider.structuredLogSettings)

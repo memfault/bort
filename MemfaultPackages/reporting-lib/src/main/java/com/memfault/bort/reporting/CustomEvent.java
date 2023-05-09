@@ -4,12 +4,14 @@ import android.os.RemoteException;
 import android.os.SystemClock;
 
 import com.memfault.bort.internal.ILogger;
+import kotlin.Deprecated;
 
 /**
  * Custom event logging for memfault-powered devices.
  *
  * @see #log(String, String)
  */
+@Deprecated(message = "Use the Reporting.report().event() api.")
 public final class CustomEvent {
     private static final String LOG_TAG = "customevent";
 
@@ -32,6 +34,7 @@ public final class CustomEvent {
      * @param tag A contextual tag for the message
      * @param message A free-form JSON structure, invalid JSON will fail silently and be ignored.
      */
+    @Deprecated(message = "Use the Reporting.report().event() api.")
     public static void log(long timestamp, String tag, String message) {
         try {
             ILogger logger = obtainRemoteLogger();
@@ -53,6 +56,7 @@ public final class CustomEvent {
      * @param message A free-form JSON structure, while you can provide invalid JSON, it will be
      *                wrapped in an error-typed structure and JSON will be escaped.
      */
+    @Deprecated(message = "Use the Reporting.report().event() api.")
     public static void log(String tag, String message) {
         log(timestamp(), tag, message);
     }
@@ -63,6 +67,7 @@ public final class CustomEvent {
      *
     * @return The current timestamp.
      */
+    @Deprecated(message = "Use the Reporting.report().event() api.")
     public static long timestamp() {
         return SystemClock.elapsedRealtimeNanos();
     }

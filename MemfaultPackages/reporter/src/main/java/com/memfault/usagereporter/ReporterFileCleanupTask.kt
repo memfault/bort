@@ -1,6 +1,7 @@
 package com.memfault.usagereporter
 
 import android.content.Context
+import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -13,15 +14,22 @@ import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.runAndTrackExceptions
 import com.memfault.usagereporter.clientserver.RealSendfileQueue
 import com.memfault.usagereporter.clientserver.clientServerUploadsDir
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.toJavaDuration
 
-class ReporterFileCleanupTask(private val appContext: Context, workerParams: WorkerParameters) :
-    CoroutineWorker(appContext, workerParams) {
+@HiltWorker
+class ReporterFileCleanupTask
+@AssistedInject constructor(
+    @Assisted private val appContext: Context,
+    @Assisted workerParams: WorkerParameters,
+    private val reporterSettings: ReporterSettingsPreferenceProvider,
+) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "ReporterFileCleanupTask") {
         cleanupCacheDir()
-        RealSendfileQueue.cleanup(clientServerUploadsDir(appContext), UsageReporter.reporterSettings)
+        RealSendfileQueue.cleanup(clientServerUploadsDir(appContext), reporterSettings)
         Result.success()
     }
 
@@ -30,8 +38,8 @@ class ReporterFileCleanupTask(private val appContext: Context, workerParams: Wor
         reporterTempStorageUsedMetric.update(tempDir.directorySize())
         val result = cleanupFiles(
             dir = tempDir,
-            maxDirStorageBytes = UsageReporter.reporterSettings.maxReporterTempStorageBytes,
-            maxFileAge = UsageReporter.reporterSettings.maxReporterTempStorageAge
+            maxDirStorageBytes = reporterSettings.maxReporterTempStorageBytes,
+            maxFileAge = reporterSettings.maxReporterTempStorageAge
         )
         val deleted = result.deletedForStorageCount + result.deletedForAgeCount
         if (deleted > 0) {

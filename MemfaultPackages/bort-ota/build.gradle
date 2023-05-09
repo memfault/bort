@@ -1,18 +1,15 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlinx-serialization'
-apply from: "../properties.gradle"
+apply from: rootProject.file("properties.gradle")
+apply plugin: 'common-android'
 
 def keystoreProperties = loadBortOtaKeystoreProperties()
 def keystoreFilePath = getKeystoreFilePath()
 
 android {
-    compileSdkVersion versions.compileSdk
-
     defaultConfig {
         applicationId bortProperty("BORT_OTA_APPLICATION_ID")
-        minSdkVersion versions.minSdk
-        targetSdkVersion versions.targetSdk
         versionCode loadVersionCode() as Integer
         versionName loadVersionName() as String
 
@@ -31,45 +28,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig signingConfigs.release
+        }
+
         release {
             signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-
-        // Used for CI. Do not use for production.
-        releaseTest {
-            initWith release
-        }
-    }
-
-    variantFilter { variant ->
-        if (variant.buildType.name.endsWith('debug')) {
-            variant.setIgnore(true);
-        }
-    }
-
-    lintOptions {
-        abortOnError true
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8.toString()
-        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
-        freeCompilerArgs += "-Xopt-in=kotlin.time.ExperimentalTime"
-        freeCompilerArgs += "-Xopt-in=kotlinx.coroutines.ExperimentalCoroutinesApi"
-    }
-
-    testOptions {
-        // Needed to unit test against AIDL-generated code
-        unitTests.returnDefaultValues = true
-        unitTests.all {
-            useJUnitPlatform()
         }
     }
 }
@@ -125,7 +91,7 @@ afterEvaluate {
             }
         }
     }
-    tasks.named("assembleReleaseTest").configure {
+    tasks.named("assembleDebug").configure {
         finalizedBy tasks.named("exportPem")
     }
 }

@@ -1,7 +1,7 @@
 package com.memfault.bort.http
 
-import com.memfault.bort.DeviceIdProvider
 import com.memfault.bort.DeviceInfoProvider
+import com.memfault.bort.InstallationIdProvider
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.shared.SdkVersionInfo
 import com.squareup.anvil.annotations.ContributesMultibinding
@@ -26,7 +26,7 @@ internal const val X_REQUEST_ID = "X-Request-ID"
 @ContributesMultibinding(SingletonComponent::class)
 class DebugInfoInjectingInterceptor @Inject constructor(
     private val sdkVersionInfo: SdkVersionInfo,
-    private val deviceIdProvider: DeviceIdProvider,
+    private val installationIdProvider: InstallationIdProvider,
     private val bortEnabledProvider: BortEnabledProvider,
     private val deviceInfoProvider: DeviceInfoProvider,
 ) : Interceptor {
@@ -55,7 +55,7 @@ class DebugInfoInjectingInterceptor @Inject constructor(
                 QUERY_PARAM_UPSTREAM_GIT_SHA to sdkVersionInfo.upstreamGitSha,
                 QUERY_PARAM_VERSION_NAME to sdkVersionInfo.appVersionName,
                 QUERY_PARAM_VERSION_CODE to sdkVersionInfo.appVersionCode.toString(),
-                QUERY_PARAM_DEVICE_ID to deviceIdProvider.deviceId(),
+                QUERY_PARAM_DEVICE_ID to installationIdProvider.id(),
                 X_REQUEST_ID to xRequestId
             ).forEach { key, value -> addQueryParameter(key, value) }
         }.build()

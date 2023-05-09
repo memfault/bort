@@ -1,5 +1,6 @@
 package com.memfault.bort.clientserver
 
+import android.app.Application
 import android.content.Context
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
@@ -164,7 +165,7 @@ class MarBatchingTask @Inject constructor(
 
 @ContributesMultibinding(SingletonComponent::class)
 class PeriodicMarUploadRequester @Inject constructor(
-    private val context: Context,
+    private val application: Application,
     private val httpApiSettings: HttpApiSettings,
     private val jitterDelayProvider: JitterDelayProvider,
     private val constraints: UploadConstraints,
@@ -176,7 +177,7 @@ class PeriodicMarUploadRequester @Inject constructor(
         val bootDelay = if (justBooted) 5.minutes else ZERO
         jitter = bootDelay + jitterDelayProvider.randomJitterDelay(maxDelay = maxJitterDelay).toKotlinDuration()
         MarBatchingTask.schedulePeriodicMarBatching(
-            context = context,
+            context = application,
             period = httpApiSettings.batchedMarUploadPeriod,
             initialDelay = jitter,
             constraints = constraints(),
@@ -184,7 +185,7 @@ class PeriodicMarUploadRequester @Inject constructor(
     }
 
     override fun cancelPeriodic() {
-        MarBatchingTask.cancelPeriodic(context)
+        MarBatchingTask.cancelPeriodic(application)
     }
 
     override suspend fun enabled(settings: SettingsProvider): Boolean {

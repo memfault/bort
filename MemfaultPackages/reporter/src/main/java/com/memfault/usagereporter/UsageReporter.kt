@@ -1,10 +1,10 @@
 package com.memfault.usagereporter
 
 import android.app.Application
-import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.os.Build
-import android.os.DropBoxManager
-import androidx.preference.PreferenceManager
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
 import com.memfault.bort.shared.BuildConfigSdkVersionInfo
 import com.memfault.bort.shared.ClientServerMode
 import com.memfault.bort.shared.LogLevel
@@ -17,14 +17,24 @@ import com.memfault.usagereporter.clientserver.B2BClientServer.Companion.create
 import com.memfault.usagereporter.metrics.ReporterMetrics
 import com.memfault.usagereporter.receivers.ConnectivityReceiver
 import com.memfault.usagereporter.receivers.DropBoxEntryAddedForwardingReceiver
+import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
 
-class UsageReporter : Application() {
+@HiltAndroidApp
+class UsageReporter : Application(), Configuration.Provider {
+
+    @Inject lateinit var connectivityReceiver: ConnectivityReceiver
+    @Inject lateinit var dropBoxEntryAddedForwardingReceiver: DropBoxEntryAddedForwardingReceiver
+    @Inject lateinit var hiltWorkerFactory: HiltWorkerFactory
+    @Inject lateinit var reporterSettingsPreferenceProvider: ReporterSettingsPreferenceProvider
+    @Inject lateinit var reporterMetrics: ReporterMetrics
+    @Inject lateinit var sharedPreferences: SharedPreferences
+
     override fun onCreate() {
         super.onCreate()
 
         // Reads a previously-set log level
-        val preferenceManager = PreferenceManager.getDefaultSharedPreferences(this)
-        val minLogcatLevel = RealLogLevelPreferenceProvider(preferenceManager).getLogLevel()
+        val minLogcatLevel = RealLogLevelPreferenceProvider(sharedPreferences).getLogLevel()
 
         Logger.initTags(tag = "mflt-report", testTag = "mflt-report-test")
         Logger.initSettings(
@@ -60,33 +70,28 @@ class UsageReporter : Application() {
             )
         }
 
-        registerReceiver(
-            DropBoxEntryAddedForwardingReceiver(RealDropBoxFilterSettingsProvider(preferenceManager)),
-            IntentFilter(DropBoxManager.ACTION_DROPBOX_ENTRY_ADDED)
-        )
-        ConnectivityReceiver().register(this)
-
         val sysProp = SystemPropertiesProxy.get(ClientServerMode.SYSTEM_PROP)
         val clientServerMode = ClientServerMode.decode(sysProp)
         Logger.test("UsageReporter started, clientServerMode=$clientServerMode")
 
         // This is created in the application, rather than the service, so that it keeps running when the service
         // unbinds.
-        _reporterSettings = ReporterSettingsPreferenceProvider(PreferenceManager.getDefaultSharedPreferences(this))
-        _b2bClientServer = create(clientServerMode, this, _reporterSettings)
-        _reporterMetrics = ReporterMetrics.create(this)
+        _b2bClientServer = create(clientServerMode, this, reporterSettingsPreferenceProvider)
+
+        connectivityReceiver.start()
+        dropBoxEntryAddedForwardingReceiver.start()
+        reporterMetrics.init()
 
         ReporterFileCleanupTask.schedule(this)
     }
 
-    companion object {
-        private lateinit var _b2bClientServer: B2BClientServer
-        private lateinit var _reporterMetrics: ReporterMetrics
-        private lateinit var _reporterSettings: ReporterSettingsPreferenceProvider
+    override fun getWorkManagerConfiguration(): Configuration = Configuration.Builder()
+        .setWorkerFactory(hiltWorkerFactory)
+        .build()
 
+    companion object {
+
+        private lateinit var _b2bClientServer: B2BClientServer
         val b2bClientServer get() = _b2bClientServer
-        val reporterMetrics get() = _reporterMetrics
-        val writableReporterSettings get() = _reporterSettings
-        val reporterSettings: ReporterSettings get() = _reporterSettings
     }
 }

@@ -6,13 +6,9 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.components.SingletonComponent
 
-/**
- * Bindings which are applicable only to the "releaseTest" build. These replace those defined in ReleaseTestModule in
- * the "release" build
- */
 @Module
 @ContributesTo(SingletonComponent::class, replaces = [ReleaseModule::class])
-class ReleaseTestModule {
+class DebugModule {
     companion object {
         @Provides
         fun applyJitter() = JitterDelayProvider.ApplyJitter.DO_NOT_APPLY

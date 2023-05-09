@@ -13,7 +13,7 @@ include ':reporting-lib'
 include ':reporter'
 include ':buildSrcTest'
 
-// Don't build the OTA app unless required (i.e. don't force configuring it's application ID,
+// Don't build the OTA app unless required (i.e. don't force configuring its application ID,
 // keystore, etc if not being used). This checks the same environment variable as the AOSP build
 // (when deciding whether to include the OTA app in the system image).
 def includeOta = System.getenv("TARGET_USES_MFLT_OTA")

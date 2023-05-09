@@ -1,6 +1,6 @@
 package com.memfault.bort
 
-import android.content.Context
+import android.app.Application
 import com.memfault.bort.shared.BugReportRequest
 import io.mockk.mockk
 import io.mockk.verify
@@ -10,13 +10,13 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class BugReportRequestTimeoutTaskTest {
-    lateinit var context: Context
+    lateinit var application: Application
     lateinit var mockStorage: PendingBugReportRequestStorage
     lateinit var pendingBugReportRequestAccessor: PendingBugReportRequestAccessor
 
     @BeforeEach
     fun setUp() {
-        context = mockk(relaxed = true)
+        application = mockk(relaxed = true)
         mockStorage = MockPendingBugReportRequestStorage(null)
         pendingBugReportRequestAccessor = PendingBugReportRequestAccessor(
             storage = mockStorage
@@ -37,10 +37,11 @@ class BugReportRequestTimeoutTaskTest {
                 ),
             )
         )
-        BugReportRequestTimeoutTask(context, pendingBugReportRequestAccessor, mockk(relaxed = true)).doWork(requestId)
+        BugReportRequestTimeoutTask(application, pendingBugReportRequestAccessor, mockk(relaxed = true))
+            .doWork(requestId)
         assertNull(pendingBugReportRequestAccessor.get())
         verify(exactly = 1) {
-            context.sendBroadcast(any())
+            application.sendBroadcast(any())
         }
     }
 
@@ -55,10 +56,11 @@ class BugReportRequestTimeoutTaskTest {
                 requestId = requestId,
             )
         )
-        BugReportRequestTimeoutTask(context, pendingBugReportRequestAccessor, mockk(relaxed = true)).doWork("bar")
+        BugReportRequestTimeoutTask(application, pendingBugReportRequestAccessor, mockk(relaxed = true))
+            .doWork("bar")
         assertEquals(requestId, pendingBugReportRequestAccessor.get()?.requestId)
         verify(exactly = 0) {
-            context.sendBroadcast(any())
+            application.sendBroadcast(any())
         }
     }
 }

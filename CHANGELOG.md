@@ -1,5 +1,17 @@
 # Memfault Bort Changelog
 
+## v4.7.0
+
+### :chart_with_upwards_trend: Improvements
+
+- Disable the UsageReporter -Receiver classes when Bort is disabled.
+- Add missing deprecation annotations to CustomEvent API.
+
+#### :house: Internal
+
+- Report a Bort installation id to track new app install vs existing app where
+  data was cleared.
+
 ## v4.6.0 - April 26th, 2023
 
 #### :rocket: New Features

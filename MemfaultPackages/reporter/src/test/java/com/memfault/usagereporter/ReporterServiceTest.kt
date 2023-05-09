@@ -22,7 +22,6 @@ import com.memfault.bort.shared.SetLogLevelRequest
 import com.memfault.bort.shared.SetLogLevelResponse
 import com.memfault.bort.shared.VersionRequest
 import com.memfault.bort.shared.VersionResponse
-import com.memfault.usagereporter.UsageReporter.Companion.reporterSettings
 import io.mockk.CapturingSlot
 import io.mockk.every
 import io.mockk.mockk

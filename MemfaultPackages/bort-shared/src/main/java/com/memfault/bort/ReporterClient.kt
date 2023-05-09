@@ -1,7 +1,7 @@
 package com.memfault.bort
 
+import android.app.Application
 import android.content.ComponentName
-import android.content.Context
 import android.os.DropBoxManager
 import android.os.Handler
 import android.os.IBinder
@@ -64,10 +64,10 @@ typealias ReporterServiceConnection = ServiceMessageConnection<ReporterServiceMe
 typealias ReporterServiceConnector = ServiceConnector<ReporterClient>
 
 class RealReporterServiceConnector @Inject constructor(
-    context: Context,
+    application: Application,
     @Main val inboundLooper: Looper,
 ) : ReporterServiceConnector(
-    context,
+    application,
     ComponentName(
         APPLICATION_ID_MEMFAULT_USAGE_REPORTER,
         REPORTER_SERVICE_QUALIFIED_NAME

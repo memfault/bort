@@ -3,6 +3,7 @@ package com.memfault.bort.metrics
 import android.os.Build
 import com.memfault.bort.BuildConfig
 import com.memfault.bort.DumpsterClient
+import com.memfault.bort.InstallationIdProvider
 import com.memfault.bort.IntegrationChecker
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.parsers.Package
@@ -27,6 +28,7 @@ const val SETTINGS_CHANGED = "settings_changed"
 const val BATTERYSTATS_FAILED = "batterystats_failed"
 const val MAX_ATTEMPTS = "max_attempts"
 private const val DROP_BOX_TRACE_TAG_COUNT_PER_HOUR_TEMPLATE = "drop_box_trace_%s_count"
+const val BORT_INSTALLATION_ID = "bort_installation_id"
 private const val BORT_VERSION_CODE = "bort_version_code"
 private const val BORT_VERSION_NAME = "bort_version_name"
 const val BORT_UPSTREAM_VERSION_CODE = "bort_upstream_version_code"
@@ -44,8 +46,6 @@ private const val BORT_PACKAGE_NAME = "bort_package_name"
 class BuiltinMetricsStore @Inject constructor() {
     /**
      * Add a simple counting metric: number of times an event happened.
-     *
-     * @param synchronous should be written to persistent storage immediately?
      */
     fun increment(name: String, incrementBy: Int = 1) {
         Reporting.report().counter(name = name, sumInReport = true, internal = true).incrementBy(incrementBy)
@@ -95,6 +95,7 @@ suspend fun updateBuiltinProperties(
     devicePropertiesStore: DevicePropertiesStore,
     dumpsterClient: DumpsterClient,
     integrationChecker: IntegrationChecker,
+    installationIdProvider: InstallationIdProvider,
 ): Map<String, JsonPrimitive> {
     val metrics = mutableMapOf<String, JsonPrimitive>()
     metrics[BORT_VERSION_CODE] = JsonPrimitive(BuildConfig.VERSION_CODE)
@@ -146,6 +147,9 @@ suspend fun updateBuiltinProperties(
 
     metrics[OS_VERSION] = JsonPrimitive(Build.VERSION.SDK_INT)
     devicePropertiesStore.upsert(name = OS_VERSION, value = Build.VERSION.SDK_INT, internal = true)
+
+    metrics[BORT_INSTALLATION_ID] = JsonPrimitive(installationIdProvider.id())
+    devicePropertiesStore.upsert(name = BORT_INSTALLATION_ID, value = installationIdProvider.id(), internal = true)
 
     metrics[BORT_PACKAGE_NAME] = JsonPrimitive(BuildConfig.APPLICATION_ID)
     devicePropertiesStore.upsert(name = BORT_PACKAGE_NAME, value = BuildConfig.APPLICATION_ID, internal = true)

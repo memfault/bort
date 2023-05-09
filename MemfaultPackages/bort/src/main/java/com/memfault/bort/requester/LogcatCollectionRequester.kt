@@ -1,5 +1,6 @@
 package com.memfault.bort.requester
 
+import android.app.Application
 import android.content.Context
 import androidx.preference.PreferenceManager
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -59,7 +60,7 @@ internal fun restartPeriodicLogcatCollection(
 
 @ContributesMultibinding(SingletonComponent::class)
 class LogcatCollectionRequester @Inject constructor(
-    private val context: Context,
+    private val application: Application,
     private val logcatSettings: LogcatSettings,
     private val bortSystemCapabilities: BortSystemCapabilities,
 ) : PeriodicWorkRequester() {
@@ -70,7 +71,7 @@ class LogcatCollectionRequester @Inject constructor(
         // MFLT-2753: after booting, attempt to collect logs from pstore (logcat -L)
 
         restartPeriodicLogcatCollection(
-            context = context,
+            context = application,
             collectionInterval = collectionInterval,
             lastLogcatEnd = if (justBooted) 0L.toAbsoluteTime() else AbsoluteTime.now(),
         )
@@ -78,7 +79,7 @@ class LogcatCollectionRequester @Inject constructor(
 
     override fun cancelPeriodic() {
         Logger.test("Cancelling $WORK_UNIQUE_NAME_PERIODIC")
-        WorkManager.getInstance(context)
+        WorkManager.getInstance(application)
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 

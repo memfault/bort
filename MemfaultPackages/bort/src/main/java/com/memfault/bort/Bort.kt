@@ -23,7 +23,7 @@ open class Bort : Application(), Configuration.Provider {
     @Inject lateinit var uptimeTracker: UptimeTracker
     @Inject lateinit var settingsProvider: SettingsProvider
     @Inject lateinit var workerFactory: Provider<BortWorkerFactory>
-    @Inject lateinit var deviceIdProvider: DeviceIdProvider
+    @Inject lateinit var installationIdProvider: InstallationIdProvider
     @Inject lateinit var appUpgrade: AppUpgrade
 
     override fun onCreate() {
@@ -64,7 +64,7 @@ open class Bort : Application(), Configuration.Provider {
             Logger.initLogFile(this@Bort)
             Logger.logEvent(
                 "bort-oncreate",
-                "device=${deviceIdProvider.deviceId()}",
+                "installationId=${installationIdProvider.id()}",
                 "appVersionName=${sdkVersionInfo.appVersionName}",
                 "appVersionCode=${sdkVersionInfo.appVersionCode}",
                 "currentGitSha=${sdkVersionInfo.currentGitSha}",

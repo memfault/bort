@@ -1,5 +1,6 @@
 package com.memfault.bort
 
+import android.app.Application
 import android.content.Context
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
@@ -16,7 +17,7 @@ private const val TIMEOUT_WORK_TAG = "BUG_REPORT_TIMEOUT"
 private const val TIMEOUT_WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.BUG_REPORT_TIMEOUT"
 
 class BugReportRequestTimeoutTask @Inject constructor(
-    private val context: Context,
+    private val application: Application,
     private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
     override val metrics: BuiltinMetricsStore,
 ) : Task<String?>() {
@@ -32,7 +33,7 @@ class BugReportRequestTimeoutTask @Inject constructor(
             else it.requestId == requestId
         }.also { (_, request) ->
             request?.broadcastReply(
-                context, BugReportRequestStatus.ERROR_TIMEOUT
+                application, BugReportRequestStatus.ERROR_TIMEOUT
             )
         }
     }

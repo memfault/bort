@@ -387,6 +387,7 @@ data class SetReporterSettingsRequest(
     val maxReporterTempStorageBytes: Long = 10_000_000,
     @Serializable(with = DurationAsMillisecondsLong::class)
     val maxReporterTempStorageAge: BoxedDuration = 1.days.boxed(),
+    val bortEnabled: Boolean = true,
 ) : ReporterServiceMessage() {
     override val messageId: Int = REPORTER_SETTINGS_REQ
     override fun toBundle(): Bundle = Bundle().apply {

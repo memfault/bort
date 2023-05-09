@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
-class RandomUuidDeviceIdProviderTest {
+class RandomUuidInstallationIdProviderTest {
     lateinit var mockSharedPreferences: MockSharedPreferences
 
     @BeforeEach
@@ -17,11 +17,11 @@ class RandomUuidDeviceIdProviderTest {
     @Test
     fun setsRandomUUIDWhenUninitialized() {
         assertNull(mockSharedPreferences.backingStorage[PREFERENCE_DEVICE_ID])
-        val deviceIdProvider = RandomUuidDeviceIdProvider(mockSharedPreferences)
+        val deviceIdProvider = RandomUuidInstallationIdProvider(mockSharedPreferences)
 
         val id = mockSharedPreferences.backingStorage[PREFERENCE_DEVICE_ID]
         assertNotNull(id)
-        assertEquals(id, deviceIdProvider.deviceId())
+        assertEquals(id, deviceIdProvider.id())
     }
 
     @Test
@@ -29,7 +29,7 @@ class RandomUuidDeviceIdProviderTest {
         val id = "00000000-0000-0000-0000-000000000000"
         mockSharedPreferences.backingStorage[PREFERENCE_DEVICE_ID] = id
 
-        val deviceIdProvider = RandomUuidDeviceIdProvider(mockSharedPreferences)
-        assertEquals(id, deviceIdProvider.deviceId())
+        val deviceIdProvider = RandomUuidInstallationIdProvider(mockSharedPreferences)
+        assertEquals(id, deviceIdProvider.id())
     }
 }

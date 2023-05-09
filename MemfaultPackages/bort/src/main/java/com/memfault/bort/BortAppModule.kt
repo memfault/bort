@@ -3,8 +3,6 @@ package com.memfault.bort
 import android.app.Application
 import android.content.Context
 import android.content.res.Resources
-import android.os.Looper
-import androidx.preference.PreferenceManager
 import com.memfault.bort.logcat.KernelOopsDetector
 import com.memfault.bort.logcat.NoopLogcatLineProcessor
 import com.memfault.bort.metrics.BuiltinMetricsStore
@@ -38,7 +36,6 @@ import com.memfault.bort.tokenbucket.Wtf
 import com.memfault.bort.tokenbucket.WtfTotal
 import com.memfault.bort.uploader.PreparedUploadService
 import com.squareup.anvil.annotations.ContributesTo
-import com.squareup.anvil.annotations.compat.MergeModules
 import dagger.Binds
 import dagger.Lazy
 import dagger.Module
@@ -63,8 +60,8 @@ import retrofit2.Retrofit
 import vnd.myandroid.bortappid.CustomLogScrubber
 
 /**
- * Bindings which are applicable only to the "release" build. These are replaced by ReleaseTestModule in the
- * "releaseTest" build
+ * Bindings which are applicable only to the "release" build. These are replaced by DebugModule in the
+ * debug build
  */
 @Module
 @ContributesTo(SingletonComponent::class)
@@ -83,7 +80,7 @@ class ReleaseModule {
  */
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class AppModule {
+abstract class BortAppModule {
     companion object {
         @Provides
         @Singleton
@@ -120,11 +117,6 @@ abstract class AppModule {
             )
             .build()
 
-        @Provides
-        fun sharedPrefs(context: Application) = PreferenceManager.getDefaultSharedPreferences(
-            context
-        )
-
         @UploadHoldingArea
         @Provides
         fun holdingAreaPharedPrefs(context: Application) = context.getSharedPreferences(
@@ -138,9 +130,6 @@ abstract class AppModule {
         }
 
         @Provides
-        fun resources(context: Application) = context.resources
-
-        @Provides
         fun bootId() = LinuxBootId { File("/proc/sys/kernel/random/boot_id").readText().trim() }
 
         @Provides
@@ -148,19 +137,15 @@ abstract class AppModule {
         fun basicTimeout(): Long = BASIC_COMMAND_TIMEOUT_MS
 
         @Provides
-        @Main
-        fun mainLooper() = Looper.getMainLooper()
-
-        @Provides
         @Singleton
         @BugReportRequestStore
         fun bugReportRequest(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "bug_report_requests"),
+            storage = createFor(application, "bug_report_requests"),
             getMaxBuckets = { settingsProvider.bugReportSettings.rateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.bugReportSettings.rateLimitingSettings, metrics)
@@ -176,12 +161,12 @@ abstract class AppModule {
         @Singleton
         @Reboots
         fun reboots(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "reboot_events"),
+            storage = createFor(application, "reboot_events"),
             getMaxBuckets = { settingsProvider.rebootEventsSettings.rateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.rebootEventsSettings.rateLimitingSettings, metrics)
@@ -197,12 +182,12 @@ abstract class AppModule {
         @Singleton
         @BugReportPeriodic
         fun bugReportPeriodic(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "bug_report_periodic"),
+            storage = createFor(application, "bug_report_periodic"),
             getMaxBuckets = { 1 },
             getTokenBucketFactory = {
                 RealTokenBucketFactory(
@@ -223,12 +208,12 @@ abstract class AppModule {
         @Singleton
         @Tombstone
         fun tombstone(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "tombstones"),
+            storage = createFor(application, "tombstones"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.tombstonesRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.dropBoxSettings.tombstonesRateLimitingSettings, metrics)
@@ -244,12 +229,12 @@ abstract class AppModule {
         @Singleton
         @JavaException
         fun javaException(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "java_execeptions"),
+            storage = createFor(application, "java_execeptions"),
             // Note: the backtrace signature is used as key, so one bucket per issue basically.
             getMaxBuckets = { settingsProvider.dropBoxSettings.javaExceptionsRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
@@ -269,12 +254,12 @@ abstract class AppModule {
         @Singleton
         @Wtf
         fun wtf(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "wtfs"),
+            storage = createFor(application, "wtfs"),
             // Note: the backtrace signature is used as key, so one bucket per issue basically.
             getMaxBuckets = { settingsProvider.dropBoxSettings.wtfsRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
@@ -294,12 +279,12 @@ abstract class AppModule {
         @Singleton
         @WtfTotal
         fun wtfTotal(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "wtfs_total"),
+            storage = createFor(application, "wtfs_total"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.wtfsTotalRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(
@@ -318,12 +303,12 @@ abstract class AppModule {
         @Singleton
         @Anr
         fun anrs(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "anrs"),
+            storage = createFor(application, "anrs"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.anrRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.dropBoxSettings.anrRateLimitingSettings, metrics)
@@ -339,12 +324,12 @@ abstract class AppModule {
         @Singleton
         @Kmsg
         fun kmsg(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "kmsgs"),
+            storage = createFor(application, "kmsgs"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.kmsgsRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.dropBoxSettings.kmsgsRateLimitingSettings, metrics)
@@ -360,12 +345,12 @@ abstract class AppModule {
         @Singleton
         @StructuredLog
         fun structuredLog(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "memfault_structured"),
+            storage = createFor(application, "memfault_structured"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.structuredLogRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.dropBoxSettings.structuredLogRateLimitingSettings, metrics)
@@ -381,12 +366,12 @@ abstract class AppModule {
         @Singleton
         @KernelOops
         fun kernelOops(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "kernel_oops"),
+            storage = createFor(application, "kernel_oops"),
             getMaxBuckets = { 1 },
             getTokenBucketFactory = {
                 val settings = settingsProvider.logcatSettings.kernelOopsRateLimitingSettings
@@ -407,12 +392,12 @@ abstract class AppModule {
         @Singleton
         @Logcat
         fun logcat(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "logcat_periodic"),
+            storage = createFor(application, "logcat_periodic"),
             getMaxBuckets = { 1 },
             getTokenBucketFactory = {
                 RealTokenBucketFactory(
@@ -432,12 +417,12 @@ abstract class AppModule {
         @Singleton
         @MetricsCollection
         fun metricCollection(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "metrics_periodic"),
+            storage = createFor(application, "metrics_periodic"),
             getMaxBuckets = { 1 },
             getTokenBucketFactory = {
                 RealTokenBucketFactory(
@@ -457,12 +442,12 @@ abstract class AppModule {
         @Singleton
         @HighResMetricsFile
         fun highResMetricsFile(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "high_res_metrics"),
+            storage = createFor(application, "high_res_metrics"),
             getMaxBuckets = { 1 },
             getTokenBucketFactory = {
                 RealTokenBucketFactory(
@@ -482,12 +467,12 @@ abstract class AppModule {
         @Singleton
         @MetricReportStore
         fun metricReports(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "memfault_report"),
+            storage = createFor(application, "memfault_report"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.metricReportRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.dropBoxSettings.metricReportRateLimitingSettings, metrics)
@@ -503,12 +488,12 @@ abstract class AppModule {
         @Singleton
         @ContinuousLogFile
         fun continuousLogFiles(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "continuous_log"),
+            storage = createFor(application, "continuous_log"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.continuousLogFileRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(
@@ -527,12 +512,12 @@ abstract class AppModule {
         @Singleton
         @MarDropbox
         fun marDropbox(
-            context: Context,
+            application: Application,
             settingsProvider: SettingsProvider,
             metrics: BuiltinMetricsStore,
             devMode: DevMode,
         ): TokenBucketStore = RealTokenBucketStore(
-            storage = createFor(context, "mar_file"),
+            storage = createFor(application, "mar_file"),
             getMaxBuckets = { settingsProvider.dropBoxSettings.marFileRateLimitingSettings.maxBuckets },
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(settingsProvider.dropBoxSettings.marFileRateLimitingSettings, metrics)
@@ -579,18 +564,15 @@ abstract class AppModule {
 
         @Provides
         @MarFileSampledHoldingDir
-        fun marFileSampledHoldingDir(context: Context) = File(context.filesDir, "mar-uploads")
+        fun marFileSampledHoldingDir(application: Application) = File(application.filesDir, "mar-uploads")
 
         @Provides
         @MarFileUnsampledHoldingDir
-        fun marFileUnsampledHoldingDir(context: Context) = File(context.filesDir, "mar-unsampled")
+        fun marFileUnsampledHoldingDir(application: Application) = File(application.filesDir, "mar-unsampled")
     }
 
     @Binds
     abstract fun reporterConnector(real: RealReporterServiceConnector): ReporterServiceConnector
-
-    @Binds
-    abstract fun context(context: Application): Context
 }
 
 @Qualifier
@@ -615,8 +597,3 @@ annotation class MarFileUnsampledHoldingDir
 typealias InjectSet<T> = Set<@JvmSuppressWildcards T>
 
 // typealias InjectMap<K, V> = Map<@JvmSuppressWildcards K, @JvmSuppressWildcards V>
-
-// Binds Anvil (for ContributesBinding) to Hilt's component.
-@MergeModules(SingletonComponent::class)
-@InstallIn(SingletonComponent::class)
-class AnvilModule

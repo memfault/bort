@@ -33,6 +33,12 @@
         android:supportsRtl="true"
         tools:ignore="MissingApplicationIcon">
 
+        <!-- Disable the default initializer in order to provide a custom WorkerFactory -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            tools:node="remove" />
+
         <service
             android:name=".ReporterService"
             android:enabled="true"

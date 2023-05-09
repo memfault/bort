@@ -1,6 +1,6 @@
 package com.memfault.bort.time
 
-import android.content.Context
+import android.content.ContentResolver
 import android.os.SystemClock
 import android.provider.Settings
 import com.memfault.bort.LinuxBootId
@@ -79,7 +79,7 @@ interface BootRelativeTimeProvider {
 
 @ContributesBinding(SingletonComponent::class)
 class RealBootRelativeTimeProvider @Inject constructor(
-    private val context: Context,
+    private val contentResolver: ContentResolver,
     private val readLinuxBootId: LinuxBootId,
 ) : BootRelativeTimeProvider {
     override fun now(): BootRelativeTime =
@@ -88,7 +88,7 @@ class RealBootRelativeTimeProvider @Inject constructor(
                 uptime = uptime.milliseconds.boxed(),
                 elapsedRealtime = elapsedRealtime.milliseconds.boxed(),
                 linuxBootId = readLinuxBootId(),
-                bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT),
+                bootCount = Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT),
             )
         }
 }

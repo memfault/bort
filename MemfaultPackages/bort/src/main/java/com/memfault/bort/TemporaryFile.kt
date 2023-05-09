@@ -1,6 +1,6 @@
 package com.memfault.bort
 
-import android.content.Context
+import android.app.Application
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
@@ -15,8 +15,8 @@ interface TemporaryFileFactory {
 }
 
 @ContributesBinding(SingletonComponent::class)
-class RealTemporaryFileFactory @Inject constructor(context: Context) : TemporaryFileFactory {
-    override val temporaryFileDirectory: File = context.cacheDir
+class RealTemporaryFileFactory @Inject constructor(application: Application) : TemporaryFileFactory {
+    override val temporaryFileDirectory: File = application.cacheDir
 }
 
 class TemporaryFile(

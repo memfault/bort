@@ -16,7 +16,7 @@ import com.memfault.bort.RealLastTrackedLinuxBootIdProvider
 import com.memfault.bort.RebootEventUploader
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.clientserver.ClientDeviceInfoSender
-import com.memfault.bort.dropbox.DropBoxConfigureFilterSettings
+import com.memfault.bort.dropbox.DropBoxFilterSettings
 import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
 import com.memfault.bort.logcat.handleTimeChanged
@@ -71,7 +71,7 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
     @Inject
     lateinit var continuousLoggingController: ContinuousLoggingController
     @Inject
-    lateinit var dropBoxConfigureFilterSettings: DropBoxConfigureFilterSettings
+    lateinit var dropBoxFilterSettings: DropBoxFilterSettings
     @Inject
     lateinit var clientDeviceInfoSender: ClientDeviceInfoSender
 
@@ -107,13 +107,13 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
             clientDeviceInfoSender.maybeSendDeviceInfoToServer()
 
             applyReporterServiceSettings(
-                reporterServiceConnector,
-                settingsProvider,
-                bortEnabledProvider,
+                reporterServiceConnector = reporterServiceConnector,
+                settingsProvider = settingsProvider,
+                bortEnabledProvider = bortEnabledProvider,
+                dropBoxFilterSettings = dropBoxFilterSettings,
             )
 
             continuousLoggingController.configureContinuousLogging()
-            dropBoxConfigureFilterSettings.configureFilterSettings()
 
             if (settingsProvider.rebootEventsSettings.dataSourceEnabled &&
                 bortSystemCapabilities.supportsRebootEvents()

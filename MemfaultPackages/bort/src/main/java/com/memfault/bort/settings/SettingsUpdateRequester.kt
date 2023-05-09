@@ -63,7 +63,7 @@ internal fun restartPeriodicSettingsUpdate(
 
 @ContributesMultibinding(scope = SingletonComponent::class)
 class SettingsUpdateRequester @Inject constructor(
-    private val context: Application,
+    private val application: Application,
     private val settings: SettingsProvider,
     private val jitterDelayProvider: JitterDelayProvider,
     private val bortSystemCapabilities: BortSystemCapabilities,
@@ -75,7 +75,7 @@ class SettingsUpdateRequester @Inject constructor(
 
     suspend fun restartSetttingsUpdate(delayAfterSettingsUpdate: Boolean) {
         restartPeriodicSettingsUpdate(
-            context = context,
+            context = application,
             httpApiSettings = settings.httpApiSettings,
             updateInterval = settings.sdkSettingsUpdateInterval(),
             delayAfterSettingsUpdate = delayAfterSettingsUpdate,
@@ -84,7 +84,7 @@ class SettingsUpdateRequester @Inject constructor(
     }
 
     override fun cancelPeriodic() {
-        WorkManager.getInstance(context)
+        WorkManager.getInstance(application)
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 

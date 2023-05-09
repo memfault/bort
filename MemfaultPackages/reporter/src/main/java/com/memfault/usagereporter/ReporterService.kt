@@ -40,12 +40,11 @@ import com.memfault.bort.shared.UnknownMessageException
 import com.memfault.bort.shared.VersionRequest
 import com.memfault.bort.shared.VersionResponse
 import com.memfault.usagereporter.UsageReporter.Companion.b2bClientServer
-import com.memfault.usagereporter.UsageReporter.Companion.reporterMetrics
-import com.memfault.usagereporter.UsageReporter.Companion.reporterSettings
-import com.memfault.usagereporter.UsageReporter.Companion.writableReporterSettings
 import com.memfault.usagereporter.clientserver.B2BClientServer
 import com.memfault.usagereporter.metrics.ReporterMetrics
+import dagger.hilt.android.AndroidEntryPoint
 import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 import kotlin.time.Duration
 
 private const val COMMAND_EXECUTOR_MAX_THREADS = 2
@@ -190,13 +189,19 @@ class ReporterServiceMessageHandler(
     }
 }
 
+@AndroidEntryPoint
 class ReporterService : Service() {
+
+    @Inject lateinit var reporterMetrics: ReporterMetrics
+    @Inject lateinit var reporterSettingsPreferenceProvider: ReporterSettingsPreferenceProvider
+
     private var messenger: Messenger? = null
     private lateinit var commandExecutor: TimeoutThreadPoolExecutor
     private lateinit var handlerThread: HandlerThread
     private lateinit var messageHandler: ReporterServiceMessageHandler
 
     override fun onCreate() {
+        super.onCreate()
         Logger.d("Creating ReporterService")
         handlerThread = HandlerThread("ReporterService", THREAD_PRIORITY_BACKGROUND).apply {
             start()
@@ -210,9 +215,7 @@ class ReporterService : Service() {
             enqueueCommand = ::enqueueCommand,
             dropBoxMessageHandler = DropBoxMessageHandler(
                 getDropBoxManager = ::getDropBoxManager,
-                filterSettingsProvider = RealDropBoxFilterSettingsProvider(
-                    preferenceManager
-                )
+                filterSettingsProvider = RealDropBoxFilterSettingsProvider(preferenceManager)
             ),
             serviceMessageFromMessage = ReporterServiceMessage.Companion::fromMessage,
             setLogLevel = { logLevel ->
@@ -223,7 +226,7 @@ class ReporterService : Service() {
             getSendReply = ::getSendReply,
             b2BClientServer = b2bClientServer,
             reporterMetrics = reporterMetrics,
-            reporterSettings = writableReporterSettings,
+            reporterSettings = reporterSettingsPreferenceProvider,
         )
     }
 
@@ -280,7 +283,8 @@ class ReporterService : Service() {
 fun Context.getDropBoxManager(): DropBoxManager? =
     getSystemService(Service.DROPBOX_SERVICE) as DropBoxManager?
 
-class RealDropBoxFilterSettingsProvider(
+class RealDropBoxFilterSettingsProvider
+@Inject constructor(
     sharedPreferences: SharedPreferences
 ) : DropBoxFilterSettingsProvider, PreferenceKeyProvider<Set<String>>(
     sharedPreferences = sharedPreferences,

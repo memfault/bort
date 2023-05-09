@@ -3,14 +3,10 @@ apply plugin: 'kotlin-android'
 apply plugin: 'kotlinx-serialization'
 apply plugin: 'maven-publish'
 apply plugin: 'signing'
+apply plugin: 'common-android'
 
 android {
-    compileSdkVersion versions.compileSdk
-
     defaultConfig {
-        minSdkVersion versions.minSdk
-        targetSdkVersion versions.targetSdk
-
       // Used by BuildConfigSdkVersionInfo:
         buildConfigField "String", "APP_VERSION_NAME", "\"${loadVersionName()}\""
         buildConfigField "int", "APP_VERSION_CODE", "${loadVersionCode()}"
@@ -26,9 +22,6 @@ android {
         release {
             minifyEnabled false
         }
-        releaseTest {
-            initWith release
-        }
     }
 
     sourceSets {
@@ -37,12 +30,6 @@ android {
         }
     }
 
-    testOptions {
-        unitTests.returnDefaultValues = true
-        unitTests.all {
-            useJUnitPlatform()
-        }
-    }
   namespace 'com.memfault.bort.structured'
 }
 
@@ -75,7 +62,7 @@ afterEvaluate {
 
                 groupId = 'com.memfault.bort'
                 artifactId = 'reporting-lib'
-                version = 1.1
+                version = 1.2
 
                 pom {
                     name = 'Bort Reporting'

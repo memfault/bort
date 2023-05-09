@@ -1,6 +1,5 @@
 package com.memfault.bort.metrics
 
-import android.content.Context
 import android.os.Environment
 import com.memfault.bort.reporting.NumericAgg
 import com.memfault.bort.reporting.Reporting
@@ -12,9 +11,8 @@ import kotlinx.coroutines.withContext
 /**
  * Collects internal storage usage stats, and records them as metrics.
  */
-class StorageStatsCollector @Inject constructor(
-    private val context: Context,
-) {
+class StorageStatsCollector
+@Inject constructor() {
     private val freeBytesMetric =
         Reporting.report().distribution("storage.data.bytes_free", listOf(NumericAgg.LATEST_VALUE))
     private val totalBytesMetric =

@@ -1,20 +1,28 @@
 package com.memfault.usagereporter.metrics
 
-import android.content.Context
+import android.app.Application
 import android.os.Handler
 import android.os.Looper
-import androidx.preference.PreferenceManager
 import com.memfault.bort.shared.Logger
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.time.Duration
 
 /**
  * Manages regular metric collection.
  */
-class ReporterMetrics(
+@Singleton
+class ReporterMetrics @Inject constructor(
+    application: Application,
     private val reporterMetricsPreferenceProvider: ReporterMetricsPreferenceProvider,
-    private val handler: Handler,
-    private val collectors: Set<MetricCollector>,
 ) {
+
+    private val handler: Handler = Handler(Looper.getMainLooper())
+
+    private val collectors: Set<MetricCollector> = setOf(
+        TemperatureMetricCollector(application),
+    )
+
     private var collectionInterval = reporterMetricsPreferenceProvider.getDurationValue()
 
     fun init() {
@@ -43,17 +51,6 @@ class ReporterMetrics(
             if (!interval.isPositive()) return
             handler.postDelayed(::collectMetrics, interval.inWholeMilliseconds)
         }
-    }
-
-    companion object {
-        fun create(context: Context) = ReporterMetrics(
-            reporterMetricsPreferenceProvider =
-                ReporterMetricsPreferenceProvider(PreferenceManager.getDefaultSharedPreferences(context)),
-            handler = Handler(Looper.getMainLooper()),
-            collectors = setOf(
-                TemperatureMetricCollector(context),
-            ),
-        ).also { it.init() }
     }
 }
 

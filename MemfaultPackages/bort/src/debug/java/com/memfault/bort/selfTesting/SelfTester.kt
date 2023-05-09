@@ -1,6 +1,6 @@
 package com.memfault.bort.selfTesting
 
-import android.content.Context
+import android.app.Application
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.memfault.bort.DumpsterClient
@@ -61,7 +61,7 @@ interface SelfTestWorkerFactory : IndividualWorkerFactory {
 }
 
 class SelfTestWorker @AssistedInject constructor(
-    appContext: Context,
+    appContext: Application,
     @Assisted workerParameters: WorkerParameters,
     val reporterServiceConnector: ReporterServiceConnector,
     val settingsProvider: SettingsProvider,

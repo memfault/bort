@@ -1,5 +1,6 @@
 package com.memfault.bort
 
+import android.app.Application
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.Data
@@ -121,7 +122,7 @@ interface TaskRunnerWorkerFactory : IndividualWorkerFactory {
 }
 
 class TaskRunnerWorker @AssistedInject constructor(
-    appContext: Context,
+    appContext: Application,
     @Assisted workerParameters: WorkerParameters,
     private val taskFactory: BortTaskFactory
 ) : CoroutineWorker(appContext, workerParameters) {

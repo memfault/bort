@@ -1,6 +1,6 @@
 package com.memfault.bort.requester
 
-import android.content.Context
+import android.app.Application
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
@@ -35,7 +35,7 @@ class UptimeTickTask @Inject constructor(
  */
 @ContributesMultibinding(SingletonComponent::class)
 class UptimeTickRequester @Inject constructor(
-    private val context: Context,
+    private val application: Application,
     private val bortSystemCapabilities: BortSystemCapabilities,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
@@ -45,7 +45,7 @@ class UptimeTickRequester @Inject constructor(
         ) {
             addTag(UPTIME_WORK_TAG)
         }.also { workRequest ->
-            WorkManager.getInstance(context)
+            WorkManager.getInstance(application)
                 .enqueueUniquePeriodicWork(
                     UPTIME_UNIQUE_NAME_PERIODIC,
                     ExistingPeriodicWorkPolicy.UPDATE,
@@ -55,7 +55,7 @@ class UptimeTickRequester @Inject constructor(
     }
 
     override fun cancelPeriodic() {
-        WorkManager.getInstance(context).cancelUniqueWork(UPTIME_UNIQUE_NAME_PERIODIC)
+        WorkManager.getInstance(application).cancelUniqueWork(UPTIME_UNIQUE_NAME_PERIODIC)
     }
 
     override suspend fun enabled(settings: SettingsProvider): Boolean {

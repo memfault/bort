@@ -1,6 +1,6 @@
 package com.memfault.bort.clientserver
 
-import android.content.Context
+import android.app.Application
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.MarFileSampledHoldingDir
 import com.memfault.bort.Payload
@@ -244,7 +244,7 @@ class MarFileHoldingArea @Inject constructor(
 class OneTimeMarUpload @Inject constructor(
     private val enqueuePreparedUploadTask: EnqueuePreparedUploadTask,
     private val deviceInfoProvider: DeviceInfoProvider,
-    private val context: Context,
+    private val application: Application,
 ) {
     suspend fun uploadMarFile(marFileToUpload: File) {
         val deviceInfo = deviceInfoProvider.getDeviceInfo()
@@ -258,7 +258,7 @@ class OneTimeMarUpload @Inject constructor(
     }
 
     fun batchAndUpload() {
-        enqueueOneTimeBatchMarFiles(context)
+        enqueueOneTimeBatchMarFiles(application)
     }
 }
 

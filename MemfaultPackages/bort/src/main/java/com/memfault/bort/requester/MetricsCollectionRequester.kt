@@ -1,5 +1,6 @@
 package com.memfault.bort.requester
 
+import android.app.Application
 import android.content.Context
 import androidx.preference.PreferenceManager
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -57,7 +58,7 @@ internal fun restartPeriodicMetricsCollection(
 
 @ContributesMultibinding(SingletonComponent::class)
 class MetricsCollectionRequester @Inject constructor(
-    private val context: Context,
+    private val application: Application,
     private val metricsSettings: MetricsSettings,
     private val bootRelativeTimeProvider: BootRelativeTimeProvider,
 ) : PeriodicWorkRequester() {
@@ -70,7 +71,7 @@ class MetricsCollectionRequester @Inject constructor(
         Logger.test("Collecting metrics every ${collectionInterval.toDouble(DurationUnit.MINUTES)} minutes")
 
         restartPeriodicMetricsCollection(
-            context = context,
+            context = application,
             collectionInterval = collectionInterval,
             lastHeartbeatEnd = if (resetLastHeartbeatTime) bootRelativeTimeProvider.now() else null,
             collectImmediately = collectImmediately,
@@ -79,7 +80,7 @@ class MetricsCollectionRequester @Inject constructor(
 
     override fun cancelPeriodic() {
         Logger.test("Cancelling $WORK_UNIQUE_NAME_PERIODIC")
-        WorkManager.getInstance(context)
+        WorkManager.getInstance(application)
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 

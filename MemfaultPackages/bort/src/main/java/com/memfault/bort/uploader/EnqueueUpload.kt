@@ -1,6 +1,6 @@
 package com.memfault.bort.uploader
 
-import android.content.Context
+import android.app.Application
 import androidx.work.BackoffPolicy
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.Payload
@@ -71,7 +71,7 @@ class EnqueueUpload @Inject constructor(
  * Creates a task for a file to be uploaded using prepared upload.
  */
 class EnqueuePreparedUploadTask @Inject constructor(
-    private val context: Context,
+    private val application: Application,
     private val jitterDelayProvider: JitterDelayProvider,
     private val constraints: UploadConstraints,
 ) {
@@ -83,7 +83,7 @@ class EnqueuePreparedUploadTask @Inject constructor(
         applyJitter: Boolean,
     ) {
         enqueueWorkOnce<FileUploadTask>(
-            context,
+            application,
             FileUploadTaskInput(file, metadata, shouldCompress).toWorkerInputData()
         ) {
             if (applyJitter) {

@@ -4,6 +4,7 @@ import android.os.RemoteException
 import androidx.work.Data
 import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.DumpsterClient
+import com.memfault.bort.InstallationIdProvider
 import com.memfault.bort.IntegrationChecker
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.Task
@@ -44,6 +45,7 @@ class MetricsCollectionTask @Inject constructor(
     private val dumpsterClient: DumpsterClient,
     private val bortSystemCapabilities: BortSystemCapabilities,
     private val integrationChecker: IntegrationChecker,
+    private val installationIdProvider: InstallationIdProvider,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -58,7 +60,13 @@ class MetricsCollectionTask @Inject constructor(
         systemPropertiesCollector.updateSystemProperties()
         appVersionsCollector.updateAppVersions()
         val fallbackInternalMetrics =
-            updateBuiltinProperties(packageManagerClient, devicePropertiesStore, dumpsterClient, integrationChecker)
+            updateBuiltinProperties(
+                packageManagerClient,
+                devicePropertiesStore,
+                dumpsterClient,
+                integrationChecker,
+                installationIdProvider,
+            )
 
         val heartbeatReport = heartbeatReportCollector.finishAndCollectHeartbeatReport()
         val heartbeatReportMetrics = AggregateMetricFilter.filterAndRenameMetrics(

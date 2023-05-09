@@ -1,5 +1,6 @@
 package com.memfault.bort.requester
 
+import android.app.Application
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -134,7 +135,7 @@ class StartRealBugReport @Inject constructor() : StartBugReport {
 
 @ContributesMultibinding(SingletonComponent::class)
 class BugReportRequester @Inject constructor(
-    private val context: Context,
+    private val application: Application,
     private val bugReportSettings: BugReportSettings,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
@@ -162,7 +163,7 @@ class BugReportRequester @Inject constructor(
                 if (settingsChanged) ExistingPeriodicWorkPolicy.UPDATE
                 else ExistingPeriodicWorkPolicy.KEEP
 
-            WorkManager.getInstance(context)
+            WorkManager.getInstance(application)
                 .enqueueUniquePeriodicWork(
                     WORK_UNIQUE_NAME_PERIODIC,
                     existingWorkPolicy,
@@ -173,7 +174,7 @@ class BugReportRequester @Inject constructor(
 
     override fun cancelPeriodic() {
         Logger.test("Cancelling $WORK_UNIQUE_NAME_PERIODIC")
-        WorkManager.getInstance(context)
+        WorkManager.getInstance(application)
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
@@ -195,7 +196,7 @@ interface BugReportRequestWorkerFactory : IndividualWorkerFactory {
 }
 
 class BugReportRequestWorker @AssistedInject constructor(
-    appContext: Context,
+    appContext: Application,
     @Assisted workerParameters: WorkerParameters,
     private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
     @BugReportPeriodic private val tokenBucketStore: TokenBucketStore,
