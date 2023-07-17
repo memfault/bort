@@ -20,7 +20,7 @@ import io.mockk.verify
 import java.io.File
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
@@ -69,7 +69,7 @@ class MarFileHoldingAreaTest {
         val manifest = MarFileWriterTest.heartbeat(timeMs = 123456789)
         val marFile = MarFileWriterTest.createMarFile("mar1.mar", manifest, FILE_CONTENT)
         val marFileWithManifest = MarFileWithManifest(marFile = marFile, manifest = manifest)
-        runBlockingTest {
+        runTest {
             holdingArea.addMarFile(marFileWithManifest)
             coVerify(exactly = 1) { oneTimeMarUpload.uploadMarFile(marFile) }
             assertMarFileInHoldingArea(sampled = false, unsampled = false, marFile = marFileWithManifest)
@@ -88,7 +88,7 @@ class MarFileHoldingAreaTest {
         val manifest = MarFileWriterTest.heartbeat(timeMs = 123456789)
         val marFile = MarFileWriterTest.createMarFile("mar1.mar", manifest, FILE_CONTENT)
         val marFileWithManifest = MarFileWithManifest(marFile = marFile, manifest = manifest)
-        runBlockingTest {
+        runTest {
             holdingArea.addMarFile(marFileWithManifest)
             coVerify(exactly = 0) { oneTimeMarUpload.uploadMarFile(marFile) }
             assertMarFileInHoldingArea(sampled = true, unsampled = false, marFile = marFileWithManifest)
@@ -107,7 +107,7 @@ class MarFileHoldingAreaTest {
         val manifest = MarFileWriterTest.heartbeat(timeMs = 123456789)
         val marFile = MarFileWriterTest.createMarFile("mar1.mar", manifest, FILE_CONTENT)
         val marFileWithManifest = MarFileWithManifest(marFile = marFile, manifest = manifest)
-        runBlockingTest {
+        runTest {
             holdingArea.addMarFile(marFileWithManifest)
             coVerify(exactly = 0) { oneTimeMarUpload.uploadMarFile(marFile) }
             assertMarFileInHoldingArea(sampled = false, unsampled = false, marFile = marFileWithManifest)
@@ -126,7 +126,7 @@ class MarFileHoldingAreaTest {
         val manifest = MarFileWriterTest.heartbeat(timeMs = 123456789, resolution = HIGH)
         val marFile = MarFileWriterTest.createMarFile("mar1.mar", manifest, FILE_CONTENT)
         val marFileWithManifest = MarFileWithManifest(marFile = marFile, manifest = manifest)
-        runBlockingTest {
+        runTest {
             holdingArea.addMarFile(marFileWithManifest)
             coVerify(exactly = 0) { oneTimeMarUpload.uploadMarFile(marFile) }
             assertMarFileInHoldingArea(sampled = false, unsampled = true, marFile = marFileWithManifest)
@@ -145,7 +145,7 @@ class MarFileHoldingAreaTest {
         val manifest = MarFileWriterTest.heartbeat(timeMs = 123456789, resolution = HIGH)
         val marFile = MarFileWriterTest.createMarFile("mar1.mar", manifest, FILE_CONTENT)
         val marFileWithManifest = MarFileWithManifest(marFile = marFile, manifest = manifest)
-        runBlockingTest {
+        runTest {
             holdingArea.addMarFile(marFileWithManifest)
             coVerify(exactly = 0) { oneTimeMarUpload.uploadMarFile(marFile) }
             assertMarFileInHoldingArea(sampled = false, unsampled = true, marFile = marFileWithManifest)
@@ -168,7 +168,7 @@ class MarFileHoldingAreaTest {
         // Add file to the "unsampled" holding area's "eligible for upload" queue.
         eligibleForUpload.add(marFileWithManifest)
 
-        runBlockingTest {
+        runTest {
             holdingArea.handleSamplingConfigChange(SamplingConfig(revision = NEW_REVISION, loggingResolution = HIGH))
             // File was moved from unsampled -> sampled.
             verify(exactly = 1) { unsampledHoldingArea.removeManifest(marFileWithManifest) }
@@ -189,7 +189,7 @@ class MarFileHoldingAreaTest {
     @Test
     fun moveFromUnsampled_noEligibleFiles() {
         val holdingArea = createHoldingArea(batchMarUploads = true, clientServerMode = DISABLED)
-        runBlockingTest {
+        runTest {
             holdingArea.handleSamplingConfigChange(SamplingConfig(revision = NEW_REVISION, loggingResolution = HIGH))
             // File was moved from unsampled -> sampled.
             verify(exactly = 0) { unsampledHoldingArea.removeManifest(any()) }
@@ -210,7 +210,6 @@ class MarFileHoldingAreaTest {
         val manifest1 = MarFileWriterTest.logcat(timeMs = 123456789)
         val marFile1 = MarFileWriterTest.createMarFile("mar1.mar", manifest1, FILE_CONTENT)
         val marFileWithManifest1 = MarFileWithManifest(marFile = marFile1, manifest = manifest1)
-        val marFile1Size = marFile1.length()
         // Wait before creating the second file, to ensure that it has a later modification timestamp.
         Thread.sleep(5)
         val manifest2 = MarFileWriterTest.logcat(timeMs = 222222222)
@@ -218,7 +217,7 @@ class MarFileHoldingAreaTest {
         val marFileWithManifest2 = MarFileWithManifest(marFile = marFile2, manifest = manifest2)
         val marFile2Size = marFile2.length()
 
-        runBlockingTest {
+        runTest {
             holdingArea.addMarFile(marFileWithManifest1)
             assertMarFileInHoldingArea(sampled = true, unsampled = false, marFile = marFileWithManifest1)
             clearMocks(unsampledHoldingArea)
@@ -244,7 +243,7 @@ class MarFileHoldingAreaTest {
         val offset = 5
         maxMarStorageBytes = marFile1Size + offset
 
-        runBlockingTest {
+        runTest {
             holdingArea.addMarFile(marFileWithManifest1)
             assertMarFileInHoldingArea(sampled = true, unsampled = false, marFile = marFileWithManifest1)
             verify { unsampledHoldingArea.cleanup(offset.toLong(), maxMarUnsampledAge) }
@@ -263,7 +262,7 @@ class MarFileHoldingAreaTest {
         unsampledHoldingOldestFileUpdatedMs =
             combinedTimeProvider.now().timestamp.toEpochMilli() - maxMarUnsampledAge.inWholeMilliseconds - 1
 
-        runBlockingTest {
+        runTest {
             holdingArea.addMarFile(marFileWithManifest1)
             assertMarFileInHoldingArea(sampled = true, unsampled = false, marFile = marFileWithManifest1)
             verify { unsampledHoldingArea.cleanup(maxMarStorageBytes - marFile1Size, maxMarUnsampledAge) }
@@ -276,12 +275,11 @@ class MarFileHoldingAreaTest {
         val manifest1 = MarFileWriterTest.logcat(timeMs = 123456789)
         val marFile1 = MarFileWriterTest.createMarFile("mar1.mar", manifest1, FILE_CONTENT)
         val marFileWithManifest1 = MarFileWithManifest(marFile = marFile1, manifest = manifest1)
-        val marFile1Size = marFile1.length()
 
         maxMarUnsampledBytes = 1
         unsampledHoldingAreaUsedBytes = 2
 
-        runBlockingTest {
+        runTest {
             holdingArea.addMarFile(marFileWithManifest1)
             assertMarFileInHoldingArea(sampled = true, unsampled = false, marFile = marFileWithManifest1)
             verify { unsampledHoldingArea.cleanup(maxMarUnsampledBytes, maxMarUnsampledAge) }
@@ -299,7 +297,7 @@ class MarFileHoldingAreaTest {
         unsampledHoldingOldestFileUpdatedMs =
             combinedTimeProvider.now().timestamp.toEpochMilli() - maxMarUnsampledAge.inWholeMilliseconds + 1
 
-        runBlockingTest {
+        runTest {
             holdingArea.addMarFile(marFileWithManifest1)
             assertMarFileInHoldingArea(sampled = true, unsampled = false, marFile = marFileWithManifest1)
             verify(exactly = 0) { unsampledHoldingArea.cleanup(any(), any()) }
@@ -317,7 +315,7 @@ class MarFileHoldingAreaTest {
         unsampledHoldingAreaUsedBytes = 0
         maxMarStorageBytes = marFile1Size
 
-        runBlockingTest {
+        runTest {
             holdingArea.addMarFile(marFileWithManifest1)
             assertMarFileInHoldingArea(sampled = true, unsampled = false, marFile = marFileWithManifest1)
             verify(exactly = 0) { unsampledHoldingArea.cleanup(any(), any()) }

@@ -7,8 +7,8 @@ import dagger.Provides
 import dagger.hilt.components.SingletonComponent
 
 @Module
-@ContributesTo(SingletonComponent::class, replaces = [ReleaseModule::class])
-class DebugModule {
+@ContributesTo(SingletonComponent::class, replaces = [BortReleaseModule::class])
+class BortDebugModule {
     companion object {
         @Provides
         fun applyJitter() = JitterDelayProvider.ApplyJitter.DO_NOT_APPLY

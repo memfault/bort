@@ -18,6 +18,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
@@ -63,6 +64,7 @@ class B2BClientServerTest {
         )
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     @Test
     fun testLoopback() {
         val job = GlobalScope.launch {
@@ -75,6 +77,7 @@ class B2BClientServerTest {
         job.cancel()
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     @Test
     fun testReconnection() {
         val job = GlobalScope.launch {
@@ -86,7 +89,7 @@ class B2BClientServerTest {
         verify(timeout = 1000) { dropboxManager.addFile(CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG, any(), 0) }
 
         clearMocks(dropboxManager)
-        b2BClientServer.clientOrServer!!.close()
+        b2BClientServer.clientOrServer.close()
         // Wait for aysync disconnect/reconnect
         Thread.sleep(100)
 
@@ -116,7 +119,7 @@ class B2BClientServerTest {
                 connectionHandler.runChannels(channel, incomingMessages, filesChannel)
             } catch (e: Exception) {
                 // Check that it didn't throw when the channel was closed.
-                fail("Caught Exception: ${e.printStackTrace()}")
+                fail("Caught Exception: $e")
             }
         }
     }

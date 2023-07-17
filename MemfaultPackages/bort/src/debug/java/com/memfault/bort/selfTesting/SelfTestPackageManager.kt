@@ -35,8 +35,10 @@ class SelfTestPackageManager(
             testCases.map { testCase ->
                 getClient().packageManagerRun(testCase.cmd, timeout) { invocation ->
                     invocation.awaitInputStream().map { stream ->
-                        withContext(Dispatchers.IO) {
-                            stream.bufferedReader().readText()
+                        stream.use {
+                            withContext(Dispatchers.IO) {
+                                stream.bufferedReader().readText()
+                            }
                         }
                     }.toErrorIf({ !it.contains(testCase.expectation) }) {
                         Exception("\"Package manager text for $testCase:\\n$it\"").also { Logger.e("$it") }

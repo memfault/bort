@@ -22,6 +22,7 @@ import com.memfault.bort.fileExt.md5Hex
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.oneTimeWorkRequest
 import com.memfault.bort.periodicWorkRequest
+import com.memfault.bort.reporting.NumericAgg
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.requester.cleanupFiles
@@ -66,14 +67,15 @@ class MarBatchingTask @Inject constructor(
         name = "bort_temp_deleted",
         internal = true,
     )
-    private val bortTempStorageUsedMetric = Reporting.report().numberProperty(
+    private val bortTempStorageUsedMetric = Reporting.report().distribution(
         name = "bort_temp_storage_bytes",
+        aggregations = listOf(NumericAgg.LATEST_VALUE),
         internal = true,
     )
 
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult = withContext(Dispatchers.IO) {
         temporaryFileFactory.temporaryFileDirectory?.let { tempDir ->
-            bortTempStorageUsedMetric.update(tempDir.directorySize())
+            bortTempStorageUsedMetric.record(tempDir.directorySize())
             val result = cleanupFiles(
                 dir = tempDir,
                 maxDirStorageBytes = storageSettings.bortTempMaxStorageBytes,

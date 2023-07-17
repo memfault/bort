@@ -99,17 +99,14 @@ internal class MarFileWriterTest {
         // file size: 1290
         val manifest1 = heartbeat(timeMs = 123456789)
         val marFile1 = createMarFile("mar1.mar", manifest1, FILE_CONTENT)
-        println("len 1: ${marFile1.name} ${marFile1.length()}")
 
         // file size: 1326
         val manifest2 = heartbeat(timeMs = 123456789)
         val marFile2 = createMarFile("mar2.mar", manifest2, FILE_CONTENT_2)
-        println("len 2: ${marFile2.name} ${marFile2.length()}")
 
         // file size: 1310
         val manifest3 = logcat(timeMs = 987654321)
         val marFile3 = createMarFile("mar3.mar", manifest3, FILE_CONTENT_3)
-        println("len 3: ${marFile3.name} ${marFile3.length()}")
 
         // Batch with a 3000 byte limit (configured in settings above).
         val batched = writer.batchMarFiles(listOf(marFile1, marFile2, marFile3))

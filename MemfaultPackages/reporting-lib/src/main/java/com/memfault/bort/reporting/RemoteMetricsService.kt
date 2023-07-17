@@ -11,7 +11,7 @@ import kotlinx.serialization.json.putJsonArray
 /**
  * Logging daemon over AIDL
  */
-object RemoteMetricsService {
+internal object RemoteMetricsService {
     private const val TAG = "RemoteMetricsService"
 
     /**

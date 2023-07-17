@@ -7,6 +7,7 @@ import com.memfault.bort.shared.SetReporterSettingsRequest
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,7 @@ interface ReporterSettings {
 /**
  * Returns a Flow that subscribes to the [onBortEnabledFlow] if Bort is enabled, otherwise doesn't emit.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 fun <T> StateFlow<SetReporterSettingsRequest>.onBortEnabledFlow(
     logName: String,
     bortEnabledFlow: suspend () -> Flow<T>

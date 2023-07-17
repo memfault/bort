@@ -262,6 +262,7 @@ data class LogcatCommand(
 
     companion object {
         fun fromBundle(bundle: Bundle) = with(bundle) {
+            @Suppress("DEPRECATION")
             LogcatCommand(
                 filterSpecs = getParcelableArray(FILTER_SPECS)?.mapNotNull {
                     LogcatFilterSpec.fromBundle(it as Bundle)

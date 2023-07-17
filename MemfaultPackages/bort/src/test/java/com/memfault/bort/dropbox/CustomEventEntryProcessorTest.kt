@@ -64,8 +64,6 @@ class CustomEventEntryProcessorTest {
     @Test
     fun enqueues() {
         runBlocking {
-            val info = FakeDeviceInfoProvider().getDeviceInfo()
-
             processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE))
             val metadata = marMetadataSlot.captured as MarMetadata.StructuredLogMarMetadata
             assertEquals(LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000002")), metadata.cid)

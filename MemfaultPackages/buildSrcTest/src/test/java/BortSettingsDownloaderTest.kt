@@ -56,7 +56,6 @@ class BortSettingsDownloaderTest {
             "ANDROID_BUILD_VERSION_SOURCE" to "build_fingerprint_and_system_property",
             "ANDROID_DEVICE_SERIAL_KEY" to "ro.serialno",
             "ANDROID_HARDWARE_VERSION_KEY" to "ro.product.board",
-            "DATA_SOURCE_CALIPER_DROP_BOX_TRACES_ENABLED" to "true",
             "MEMFAULT_API_BASE_URL" to "http://localhost:8000",
             "MEMFAULT_FILES_BASE_URL" to "http://localhost:8000",
             "MEMFAULT_INGRESS_BASE_URL" to "http://localhost:8000",

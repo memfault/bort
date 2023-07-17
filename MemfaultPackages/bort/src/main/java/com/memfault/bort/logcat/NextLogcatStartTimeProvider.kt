@@ -28,11 +28,11 @@ class RealNextLogcatStartTimeProvider @Inject constructor(
     defaultValue = BortJson.encodeToString(AbsoluteTime.serializer(), DEFAULT_LAST_END),
     preferenceKey = PREFERENCE_NEXT_LOGCAT_START_TIME_JSON,
 ) {
-    override var nextStart
+    override var nextStart: BaseAbsoluteTime
         get() = try {
             BortJson.decodeFromString(
                 AbsoluteTime.serializer(), super.getValue()
-            ) as BaseAbsoluteTime
+            )
         } catch (e: SerializationException) {
             AbsoluteTime.now().also {
                 Logger.w("Logcat start time failed to deserialize, falling back to now")

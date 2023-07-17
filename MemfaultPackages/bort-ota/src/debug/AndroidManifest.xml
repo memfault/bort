@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="com.memfault.bort.ota">
-    <application android:name=".TestApp"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application android:name=".TestOtaApp"
         tools:replace="android:name">
         <activity android:name=".UpdateActivity">
             <!-- Show the activity on launcher for debug -->
@@ -13,10 +12,9 @@
         </activity>
 
         <receiver
-            android:name=".TestReceiver"
+            android:name=".OtaTestReceiver"
             tools:ignore="ExportedReceiver">
             <intent-filter>
-                <action android:name="com.memfault.intent.action.TEST_BORT_OTA_CHECK_FOR_UPDATE" />
                 <action android:name="com.memfault.intent.action.TEST_BORT_OTA_ECHO" />
             </intent-filter>
         </receiver>

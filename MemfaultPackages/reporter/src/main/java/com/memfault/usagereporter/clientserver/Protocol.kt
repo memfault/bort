@@ -179,6 +179,7 @@ private suspend fun AsynchronousByteChannel.readFileWithName(directory: File): F
     val fileName = readString()
     val size = readBuffer(8).getLong()
 
+    @Suppress("DEPRECATION")
     val tempFile = createTempFile(prefix = "transfer", suffix = null, directory = directory)
     val destFile = File(directory, fileName)
     try {

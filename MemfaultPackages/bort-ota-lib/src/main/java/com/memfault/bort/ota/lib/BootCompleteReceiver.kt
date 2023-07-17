@@ -3,11 +3,6 @@ package com.memfault.bort.ota.lib
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import androidx.work.Constraints
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
-import com.memfault.bort.DEV_MODE_DISABLED
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.INTENT_ACTION_OTA_SETTINGS_CHANGED
 import com.memfault.bort.shared.InternalMetric
@@ -15,12 +10,12 @@ import com.memfault.bort.shared.InternalMetric.Companion.OTA_BOOT_COMPLETED
 import com.memfault.bort.shared.InternalMetric.Companion.OTA_REBOOT_UPDATE_ERROR
 import com.memfault.bort.shared.InternalMetric.Companion.OTA_REBOOT_UPDATE_SUCCESS
 import com.memfault.bort.shared.InternalMetric.Companion.sendMetric
-import com.memfault.bort.shared.JitterDelayProvider
-import com.memfault.bort.shared.JitterDelayProvider.ApplyJitter.APPLY
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.goAsync
+import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
-import java.util.concurrent.TimeUnit
+import javax.inject.Inject
+import kotlinx.coroutines.flow.first
 
 /**
  * This receiver ensures that the initial state of the updater is correctly set once the device boots. It deletes
@@ -28,7 +23,11 @@ import java.util.concurrent.TimeUnit
  *
  * Note: this class is referred to by fully qualified name in Constants.OTA_RECEIVER_CLASS in bort-shared.
  */
+@AndroidEntryPoint
 class BootCompleteReceiver : BroadcastReceiver() {
+    @Inject lateinit var updaterSettingsProvider: SoftwareUpdateSettingsProvider
+    @Inject lateinit var updater: Updater
+
     override fun onReceive(context: Context, intent: Intent?) {
         if (Intent.ACTION_BOOT_COMPLETED == intent?.action) {
             onBootComplete(context)
@@ -39,7 +38,6 @@ class BootCompleteReceiver : BroadcastReceiver() {
 
     private fun onBootComplete(context: Context) {
         deleteUpdateFileIfExists()
-        val updater = context.applicationContext.updater()
         context.sendMetric(InternalMetric(key = OTA_BOOT_COMPLETED))
         Logger.i(
             TAG_BOOT_COMPLETED,
@@ -49,13 +47,14 @@ class BootCompleteReceiver : BroadcastReceiver() {
             )
         )
 
-        schedulePeriodicUpdateCheck(context, updater.settings().updateCheckIntervalMs)
+        PeriodicSoftwareUpdateWorker.schedule(context, updaterSettingsProvider)
         goAsync {
-            when (val currentState = updater.updateState.value) {
+            when (val currentState = updater.updateState.first()) {
                 // When booting from this state, a reboot to update was requested. If the version changed, report this
                 // as a success, otherwise as an error.
                 is State.RebootedForInstallation -> {
-                    val updateSuccessful = currentState.updatingFromVersion != updater.settings().currentVersion
+                    val updateSuccessful =
+                        currentState.updatingFromVersion != updaterSettingsProvider.get().currentVersion
                     context.sendMetric(
                         InternalMetric(
                             key = if (updateSuccessful) OTA_REBOOT_UPDATE_SUCCESS else OTA_REBOOT_UPDATE_ERROR
@@ -67,6 +66,7 @@ class BootCompleteReceiver : BroadcastReceiver() {
                         else Event.RebootToUpdateFailed
                     )
                 }
+
                 else -> {}
             }
             updater.setState(State.Idle)
@@ -74,31 +74,8 @@ class BootCompleteReceiver : BroadcastReceiver() {
     }
 
     private fun onSettingsUpdated(context: Context) {
-        val updater = context.applicationContext.updater()
-        updater.updateSettings(context)
-        schedulePeriodicUpdateCheck(context, updater.settings().updateCheckIntervalMs)
-    }
-
-    private fun schedulePeriodicUpdateCheck(context: Context, updateCheckIntervalMs: Long) {
-        Logger.d("schedulePeriodicUpdateCheck: $updateCheckIntervalMs")
-        val updater = context.applicationContext.updater()
-        val networkType = updater.settings().downloadNetworkTypeConstraint
-
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(networkType)
-            .setRequiresBatteryNotLow(true)
-            .setRequiresStorageNotLow(true)
-            .build()
-
-        val request = PeriodicWorkRequestBuilder<PeriodicSoftwareUpdateWorker>(
-            updateCheckIntervalMs, TimeUnit.MILLISECONDS
-        ).apply {
-            setConstraints(constraints)
-            setInitialDelay(JitterDelayProvider(applyJitter = APPLY, devMode = DEV_MODE_DISABLED).randomJitterDelay())
-        }.build()
-
-        WorkManager.getInstance(context)
-            .enqueueUniquePeriodicWork(PERIODIC_UPDATE_WORK, ExistingPeriodicWorkPolicy.UPDATE, request)
+        updaterSettingsProvider.update()
+        PeriodicSoftwareUpdateWorker.schedule(context, updaterSettingsProvider)
     }
 
     private fun deleteUpdateFileIfExists() {

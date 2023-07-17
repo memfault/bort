@@ -31,8 +31,10 @@ class SelfTestReporterServiceTimeouts(
                 getClient().sleep(delaySeconds = testCase.delaySeconds, timeout = 1.seconds) { invocation ->
                     invocation.awaitInputStream().onFailure {
                         Logger.d("Sleep stream was null")
-                    }.map {
-                        it.bufferedReader().readText()
+                    }.map { stream ->
+                        stream.use {
+                            stream.bufferedReader().readText()
+                        }
                     }.andThen {
                         invocation.awaitResponse().toErrorIf({ testCase.expectedResponse != it }) {
                             Exception("Expected error not observed: ${testCase.expectedResponse} vs $it").also {

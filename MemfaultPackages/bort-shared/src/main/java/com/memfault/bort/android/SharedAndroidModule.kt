@@ -2,10 +2,8 @@ package com.memfault.bort.android
 
 import android.app.Application
 import android.content.ContentResolver
-import android.content.SharedPreferences
 import android.content.res.Resources
 import android.os.Looper
-import android.preference.PreferenceManager
 import com.memfault.bort.Main
 import com.squareup.anvil.annotations.ContributesTo
 import dagger.Module
@@ -19,11 +17,7 @@ import kotlinx.coroutines.Dispatchers
  */
 @ContributesTo(SingletonComponent::class)
 @Module
-class AndroidModule {
-    @Provides
-    fun provideSharedPreferences(application: Application): SharedPreferences =
-        PreferenceManager.getDefaultSharedPreferences(application)
-
+class SharedAndroidModule {
     @Provides
     fun contentResolver(application: Application): ContentResolver = application.contentResolver
 

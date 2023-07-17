@@ -28,7 +28,7 @@ fun interface DropboxScrubTombstones : () -> Boolean
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class SettingsModule {
+abstract class BortSettingsModule {
     companion object {
         @Provides
         fun rulesConfig(settings: SettingsProvider) =

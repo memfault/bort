@@ -112,6 +112,12 @@ class FetchedDeviceConfigContainerTest {
                                 "default_period_ms": 900000,
                                 "max_buckets": 1
                             },
+                            "selinux_violation_events.data_source_enabled": false,
+                            "selinux_violation_events.rate_limiting_settings": {
+                                "default_capacity": 2,
+                                "default_period_ms": 86400000,
+                                "max_buckets": 15
+                            },
                             "storage.max_client_server_file_transfer_storage_bytes": 50000000,
                             "structured_log.data_source_enabled": True,
                             "structured_log.dump_period_ms": 7200000,
@@ -240,6 +246,12 @@ class FetchedDeviceConfigContainerTest {
                                 "default_capacity": 5,
                                 "default_period_ms": 900000,
                                 "max_buckets": 1
+                            },
+                            "selinux_violation_events.data_source_enabled": false,
+                            "selinux_violation_events.rate_limiting_settings": {
+                                "default_capacity": 2,
+                                "default_period_ms": 86400000,
+                                "max_buckets": 15
                             },
                             "storage.max_client_server_file_transfer_storage_bytes": 50000000,
                             "structured_log.data_source_enabled": True,

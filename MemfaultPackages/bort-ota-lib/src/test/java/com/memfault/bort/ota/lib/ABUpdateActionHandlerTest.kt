@@ -1,12 +1,15 @@
 package com.memfault.bort.ota.lib
 
+import android.app.Application
 import android.content.SharedPreferences
+import com.memfault.bort.shared.SoftwareUpdateSettings
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -15,10 +18,16 @@ private const val OLD_SOFTWARE_VERSION = "old"
 
 class ABUpdateActionHandlerTest {
     private lateinit var testingUpdateEngine: AndroidUpdateEngine
-    private lateinit var softwareUpdateChecker: SoftwareUpdateChecker
-    private lateinit var rebootDevice: () -> Unit
+    private lateinit var softwareUpdateCheckerMock: SoftwareUpdateChecker
+    private lateinit var rebootDevice: RebootDevice
     private lateinit var handler: ABUpdateActionHandler
     private lateinit var cachedOtaProvider: CachedOtaProvider
+    private lateinit var updater: Updater
+    private lateinit var application: Application
+    private lateinit var settings: SoftwareUpdateSettings
+    private lateinit var scheduleDownload: ScheduleDownload
+    private lateinit var otaRulesProvider: OtaRulesProvider
+    private lateinit var settingsProvider: SoftwareUpdateSettingsProvider
 
     private val updateEngineCallbacks = mutableListOf<AndroidUpdateEngineCallback>()
     private val collectedStates = mutableListOf<State>()
@@ -28,7 +37,7 @@ class ABUpdateActionHandlerTest {
         url = "http://localhost/ota.zip",
         version = "1.3.2",
         releaseNotes = "Fixed some bugs, added some new features.",
-        metadata = mapOf(
+        artifactMetadata = mapOf(
             "METADATA_HASH" to "z4x6Wb+qNYpMKA7+KnMcbSFK6fxX8vbyEzhK2gBfJbQ=",
             "FILE_SIZE" to "99449",
             "METADATA_SIZE" to "51846",
@@ -41,41 +50,53 @@ class ABUpdateActionHandlerTest {
 
     @BeforeEach
     fun setup() {
-        softwareUpdateChecker = mockk {
+        softwareUpdateCheckerMock = mockk {
             coEvery { getLatestRelease() } coAnswers { ota }
         }
         rebootDevice = mockk {
             every { this@mockk.invoke() } returns Unit
         }
-
         cachedOtaProvider = object : CachedOtaProvider {
             private var cachedOta: Ota? = null
             override fun get(): Ota? = ota
-            override fun set(ota: Ota?) { cachedOta = ota }
+            override fun set(ota: Ota?) {
+                cachedOta = ota
+            }
         }
-
         testingUpdateEngine = mockk {
             every { bind(any()) } answers {
                 updateEngineCallbacks += firstArg<AndroidUpdateEngineCallback>()
             }
             every { applyPayload(any(), any(), any(), any()) } returns Unit
         }
-
+        application = mockk()
+        settings = mockk {
+            every { currentVersion } answers { OLD_SOFTWARE_VERSION }
+        }
+        updater = mockk {
+            coEvery { setState(any()) } answers { collectedStates.add(arg(0)) }
+            coEvery { triggerEvent(any()) } answers { collectedEvents.add(arg(0)) }
+        }
+        scheduleDownload = mockk(relaxed = true)
+        otaRulesProvider = mockk()
+        settingsProvider = mockk {
+            every { get() } answers { settings }
+        }
         handler =
             ABUpdateActionHandler(
                 androidUpdateEngine = testingUpdateEngine,
-                softwareUpdateChecker = softwareUpdateChecker,
-                setState = ::setState,
-                triggerEvent = ::triggerEvent,
                 rebootDevice = rebootDevice,
                 cachedOtaProvider = cachedOtaProvider,
-                currentSoftwareVersion = OLD_SOFTWARE_VERSION,
+                updater = updater,
+                scheduleDownload = scheduleDownload,
+                softwareUpdateChecker = softwareUpdateCheckerMock,
+                application = application,
+                otaRulesProvider = otaRulesProvider,
+                settingsProvider = settingsProvider,
             )
     }
 
-    suspend fun setState(state: State) = synchronized(this) { collectedStates.add(state) }
-    suspend fun triggerEvent(event: Event) = synchronized(this) { collectedEvents.add(event) }
-    suspend fun forEachCallback(block: AndroidUpdateEngineCallback.() -> Unit) {
+    private suspend fun forEachCallback(block: AndroidUpdateEngineCallback.() -> Unit) {
         updateEngineCallbacks.forEach(block)
         delay(100)
     }
@@ -86,10 +107,49 @@ class ABUpdateActionHandlerTest {
     }
 
     @Test
-    fun testCheckForUpdate() = runBlocking {
-        handler.handle(State.Idle, Action.CheckForUpdate())
-        assertEquals(listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!)), collectedStates)
+    fun testCheckForUpdate_foreground() = runBlocking {
+        handler.handle(State.Idle, Action.CheckForUpdate(background = false))
+        assertEquals(
+            listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = false)),
+            collectedStates,
+        )
         assertEquals(listOf<Event>(), collectedEvents)
+    }
+
+    @Test
+    fun testCheckForUpdate_forcedNotSet() = runTest {
+        ota = ota?.copy(isForced = null)
+        handler.handle(State.Idle, Action.CheckForUpdate(background = true))
+        assertEquals(
+            listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = true)),
+            collectedStates,
+        )
+        assertEquals(listOf<Event>(), collectedEvents)
+        verify(exactly = 0) { scheduleDownload.scheduleDownload(any()) }
+    }
+
+    @Test
+    fun testCheckForUpdate_notForced() = runTest {
+        ota = ota?.copy(isForced = false)
+        handler.handle(State.Idle, Action.CheckForUpdate(background = true))
+        assertEquals(
+            listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = true)),
+            collectedStates,
+        )
+        assertEquals(listOf<Event>(), collectedEvents)
+        verify(exactly = 0) { scheduleDownload.scheduleDownload(any()) }
+    }
+
+    @Test
+    fun testCheckForUpdate_forced_scheduleAutoDownload() = runTest {
+        ota = ota?.copy(isForced = true)
+        handler.handle(State.Idle, Action.CheckForUpdate(background = true))
+        assertEquals(
+            listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = false)),
+            collectedStates,
+        )
+        assertEquals(listOf<Event>(), collectedEvents)
+        verify(exactly = 1) { scheduleDownload.scheduleDownload(ota!!) }
     }
 
     @Test
@@ -113,9 +173,9 @@ class ABUpdateActionHandlerTest {
         verify(exactly = 1) {
             testingUpdateEngine.applyPayload(
                 ota!!.url,
-                ota!!.metadata["_MFLT_PAYLOAD_OFFSET"]!!.toLong(),
-                ota!!.metadata["_MFLT_PAYLOAD_SIZE"]!!.toLong(),
-                ota!!.metadata.map { "${it.key}=${it.value}" }.toTypedArray(),
+                ota!!.artifactMetadata["_MFLT_PAYLOAD_OFFSET"]!!.toLong(),
+                ota!!.artifactMetadata["_MFLT_PAYLOAD_SIZE"]!!.toLong(),
+                ota!!.artifactMetadata.map { "${it.key}=${it.value}" }.toTypedArray(),
             )
         }
     }
@@ -141,9 +201,9 @@ class ABUpdateActionHandlerTest {
         verify(exactly = 1) {
             testingUpdateEngine.applyPayload(
                 ota!!.url,
-                ota!!.metadata["_MFLT_PAYLOAD_OFFSET"]!!.toLong(),
-                ota!!.metadata["_MFLT_PAYLOAD_SIZE"]!!.toLong(),
-                ota!!.metadata.map { "${it.key}=${it.value}" }.toTypedArray(),
+                ota!!.artifactMetadata["_MFLT_PAYLOAD_OFFSET"]!!.toLong(),
+                ota!!.artifactMetadata["_MFLT_PAYLOAD_SIZE"]!!.toLong(),
+                ota!!.artifactMetadata.map { "${it.key}=${it.value}" }.toTypedArray(),
             )
         }
     }

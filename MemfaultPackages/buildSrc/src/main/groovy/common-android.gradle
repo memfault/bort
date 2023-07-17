@@ -1,5 +1,6 @@
 // Standardizes all our android gradle plugin options that apply for every
-// Android module.
+// Android module. This applies shared Kotlin configuration on top of the
+// java specific version of this plugin.
 //
 // Requires that either the 'com.android.application' or 'com.android.library'
 // plugins have been applied before applying this buildscript plugin on top.
@@ -7,36 +8,20 @@
 // In the future we can split into 'common-android-library' and
 // 'common-android-app', etc., to better specify specific configurations.
 
+plugins {
+    id 'common-android-java'
+}
+
 android {
-    compileSdkVersion versions.compileSdk
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    defaultConfig {
-        minSdkVersion versions.minSdk
-        targetSdkVersion versions.targetSdk
-    }
-
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8.toString()
-        freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
-        freeCompilerArgs += "-Xopt-in=kotlin.time.ExperimentalTime"
+        jvmTarget = JavaVersion.VERSION_17.toString()
+        freeCompilerArgs += "-opt-in=kotlin.RequiresOptIn"
+        freeCompilerArgs += "-opt-in=kotlin.time.ExperimentalTime"
         freeCompilerArgs += "-Xjvm-default=all"
+        allWarningsAsErrors = true
     }
+}
 
-    lint {
-        abortOnError true
-    }
-
-    testOptions {
-        // Needed to unit test against AIDL-generated code
-        unitTests.returnDefaultValues = true
-        unitTests.all {
-            useJUnitPlatform()
-            testLogging.showStandardStreams = true
-        }
-    }
+dependencies {
+    api deps.bundles.kotlin
 }

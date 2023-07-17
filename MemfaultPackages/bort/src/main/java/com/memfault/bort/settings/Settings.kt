@@ -49,6 +49,7 @@ interface BatteryStatsSettings {
     val dataSourceEnabled: Boolean
     val commandTimeout: Duration
     val useHighResTelemetry: Boolean
+    val collectSummary: Boolean
 }
 
 interface MetricsSettings {
@@ -108,6 +109,11 @@ interface HttpApiSettings {
 }
 
 interface RebootEventsSettings {
+    val dataSourceEnabled: Boolean
+    val rateLimitingSettings: RateLimitingSettings
+}
+
+interface SelinuxViolationSettings {
     val dataSourceEnabled: Boolean
     val rateLimitingSettings: RateLimitingSettings
 }
@@ -172,6 +178,7 @@ interface SettingsProvider {
     val logcatSettings: LogcatSettings
     val fileUploadHoldingAreaSettings: FileUploadHoldingAreaSettings
     val rebootEventsSettings: RebootEventsSettings
+    val selinuxViolationSettings: SelinuxViolationSettings
     val dataScrubbingSettings: DataScrubbingSettings
     val packageManagerSettings: PackageManagerSettings
     val structuredLogSettings: StructuredLogSettings
@@ -222,6 +229,9 @@ fun SettingsProvider.selectSettingsToMap(): Map<String, Any> = mapOf(
     ),
     "BatteryStats Settings" to mapOf(
         "dataSourceEnabled" to batteryStatsSettings.dataSourceEnabled,
+    ),
+    "Selinux Violation Settings" to mapOf(
+        "dataSourceEnabled" to selinuxViolationSettings.dataSourceEnabled,
     ),
 )
 

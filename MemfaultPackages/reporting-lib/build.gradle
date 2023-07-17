@@ -6,6 +6,11 @@ apply plugin: 'signing'
 apply plugin: 'common-android'
 
 android {
+    buildFeatures {
+        buildConfig = true
+        aidl = true
+    }
+
     defaultConfig {
       // Used by BuildConfigSdkVersionInfo:
         buildConfigField "String", "APP_VERSION_NAME", "\"${loadVersionName()}\""
@@ -18,16 +23,14 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildTypes {
-        release {
-            minifyEnabled false
-        }
-    }
-
     sourceSets {
         main {
             aidl.srcDirs += '../../MemfaultStructuredLogd/aidl'
         }
+    }
+
+    kotlinOptions {
+        freeCompilerArgs += '-Xexplicit-api=warning'
     }
 
   namespace 'com.memfault.bort.structured'
@@ -35,8 +38,6 @@ android {
 
 dependencies {
     implementation deps.serialization.json
-    testImplementation deps.test.junit.api
-    testImplementation deps.test.junit.jupiter.engine
 }
 
 tasks.register("androidSourcesJar", Jar) {

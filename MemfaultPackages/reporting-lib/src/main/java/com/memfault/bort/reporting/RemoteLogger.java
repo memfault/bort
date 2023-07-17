@@ -2,6 +2,7 @@ package com.memfault.bort.reporting;
 
 import android.annotation.SuppressLint;
 import android.os.IBinder;
+import android.util.Log;
 
 import com.memfault.bort.internal.ILogger;
 
@@ -13,6 +14,8 @@ import java.lang.reflect.Method;
  * to avoid paying the cost of reflection on each call.
  */
 final class RemoteLogger {
+    private static final String TAG = "RemoteLogger";
+
     /**
      * The service still uses the old name for this feature: structured logging.
      */
@@ -72,11 +75,9 @@ final class RemoteLogger {
                 }
             }
         } catch (ClassNotFoundException ex) {
-            new IllegalStateException("Could not find ServiceManager, please contact Memfault support.", ex)
-                    .printStackTrace();
+            Log.i(TAG, "Could not find ServiceManager, please contact Memfault support.", ex);
         } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException ex) {
-            new IllegalStateException("Could not find or call ServiceManager#getService, please contact Memfault support.", ex)
-                    .printStackTrace();
+            Log.i(TAG, "Could not find or call ServiceManager#getService, please contact Memfault support.", ex);
         } catch (Exception ex) {
             // ignored
         }

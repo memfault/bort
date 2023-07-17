@@ -11,10 +11,10 @@ import com.memfault.bort.shared.SoftwareUpdateSettings.Companion.createCursor
 import com.memfault.bort.shared.asLegacyOtaSettings
 import io.mockk.every
 import io.mockk.mockk
-import junit.framework.Assert.assertEquals
-import junit.framework.Assert.assertNull
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -60,14 +60,14 @@ class BortSoftwareUpdateSettingsProviderTest {
     @Test
     fun newOtaNewBort() {
         cursor = createCursor(settings)
-        val provider = BortSoftwareUpdateSettingsProvider(resolver)
+        val provider = BortSoftwareUpdateSettingsFetcher(resolver)
         assertEquals(settings, provider.settings())
     }
 
     @Test
     fun newOtaOldBort() {
         cursor = legacyCreateCursor(settings.asLegacyOtaSettings())
-        val provider = BortSoftwareUpdateSettingsProvider(resolver)
+        val provider = BortSoftwareUpdateSettingsFetcher(resolver)
         // Default value should be used for new field.
         assertEquals(settings.copy(downloadNetworkTypeConstraint = UNMETERED), provider.settings())
     }
@@ -118,7 +118,6 @@ class BortSoftwareUpdateSettingsProviderTest {
                     try {
                         Json.decodeFromString(LegacySoftwareUpdateSettings.serializer(), serializedConfig)
                     } catch (ex: SerializationException) {
-                        ex.printStackTrace()
                         null
                     }
                 } else {

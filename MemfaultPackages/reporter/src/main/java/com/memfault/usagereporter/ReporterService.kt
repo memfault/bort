@@ -10,6 +10,7 @@ import android.os.HandlerThread
 import android.os.IBinder
 import android.os.Message
 import android.os.Messenger
+import android.os.ParcelFileDescriptor
 import android.os.Process.THREAD_PRIORITY_BACKGROUND
 import android.os.RemoteException
 import androidx.preference.PreferenceManager
@@ -106,6 +107,7 @@ class ReporterServiceMessageHandler(
     private val b2BClientServer: B2BClientServer,
     private val reporterMetrics: ReporterMetrics,
     private val reporterSettings: ReporterSettingsPreferenceProvider,
+    private val createPipe: CreatePipe,
 ) : Handler.Callback {
 
     override fun handleMessage(message: Message): Boolean {
@@ -184,8 +186,10 @@ class ReporterServiceMessageHandler(
         val reportResult: CommandRunnerReportResult = { exitCode, didTimeout ->
             sendReply(RunCommandResponse(exitCode, didTimeout))
         }
-        enqueueCommand(request.command.toList(), request.runnerOptions, reportResult)
-        sendReply(RunCommandContinue())
+        val (readFd, writeFd) = createPipe()
+        enqueueCommand(request.command.toList(), request.runnerOptions.copy(outFd = writeFd), reportResult)
+        sendReply(RunCommandContinue(readFd))
+        readFd.close()
     }
 }
 
@@ -227,6 +231,7 @@ class ReporterService : Service() {
             b2BClientServer = b2bClientServer,
             reporterMetrics = reporterMetrics,
             reporterSettings = reporterSettingsPreferenceProvider,
+            createPipe = ParcelFileDescriptor::createPipe,
         )
     }
 

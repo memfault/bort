@@ -1,15 +1,19 @@
 package com.memfault.bort.ota.lib
 
-import android.content.Context
+import android.app.Application
 import com.memfault.bort.shared.InternalMetric
 import com.memfault.bort.shared.InternalMetric.Companion.sendMetric
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Inject
 
 fun interface MetricLogger {
     fun addMetric(metric: InternalMetric)
 }
 
-class RealMetricLogger(
-    private val context: Context,
+@ContributesBinding(SingletonComponent::class)
+class RealMetricLogger @Inject constructor(
+    private val context: Application,
 ) : MetricLogger {
     override fun addMetric(metric: InternalMetric) = context.sendMetric(metric)
 }

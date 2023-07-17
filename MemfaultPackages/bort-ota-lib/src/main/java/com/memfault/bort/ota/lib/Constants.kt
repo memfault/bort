@@ -11,3 +11,5 @@ const val CACHED_OTA_KEY = "com.memfault.bort.updater.cached.ota"
 const val DOWNLOAD_PROGRESS_KEY = "com.memfault.bort.updater.download_progress"
 
 const val PERIODIC_UPDATE_WORK = "com.memfault.bort.updater.periodic_update_check_work"
+const val SCHEDULED_DOWNLOAD_WORK = "com.memfault.bort.updater.download_work"
+const val SCHEDULED_INSTALL_WORK = "com.memfault.bort.updater.install_work"

@@ -20,6 +20,7 @@ import com.memfault.bort.selfTesting.SelfTestWorker
 import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.StoredSettingsPreferenceProvider
+import com.memfault.bort.settings.asLoggerSettings
 import com.memfault.bort.settings.restartPeriodicSettingsUpdate
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
@@ -88,6 +89,8 @@ class TestReceiver : FilteringReceiver(
                 ).also {
                     Logger.test("use_test_overrides was: ${it.useTestSettingOverrides.getValue()}")
                     it.useTestSettingOverrides.setValue(useTestOverrides)
+                    // Logger.test() needs to start working immediately.
+                    Logger.initSettings(settingsProvider.asLoggerSettings())
                     Logger.test("Updated to use_test_overrides: ${it.useTestSettingOverrides.getValue()}")
                 }
             }

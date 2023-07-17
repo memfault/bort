@@ -20,7 +20,7 @@ private fun isPrimaryUserViaProxy(): Boolean = try {
 fun isPrimaryUser(): Boolean = isPrimaryUserViaProxy()
 
 fun disableAppComponents(context: Context) = with(context) {
-    val packageInfo = packageManager.getPackageInfo(
+    @Suppress("DEPRECATION") val packageInfo = packageManager.getPackageInfo(
         packageName,
         PackageManager.GET_ACTIVITIES
             or PackageManager.GET_SERVICES

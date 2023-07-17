@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.memfault.bort.shared
 
 import android.content.Context

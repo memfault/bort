@@ -181,6 +181,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.batteryStatsCommandTimeout.duration
         override val useHighResTelemetry: Boolean
             get() = settings.highResTelemetryEnabled && settings.batteryStatsUseHrt
+        override val collectSummary: Boolean
+            get() = settings.batteryStatsCollectSummary
     }
 
     override val logcatSettings = object : LogcatSettings {
@@ -222,6 +224,13 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.rebootEventsDataSourceEnabled
         override val rateLimitingSettings: RateLimitingSettings
             get() = settings.rebootEventsRateLimitingSettings
+    }
+
+    override val selinuxViolationSettings = object : SelinuxViolationSettings {
+        override val dataSourceEnabled: Boolean
+            get() = settings.selinuxViolationEventsDataSourceEnabled
+        override val rateLimitingSettings: RateLimitingSettings
+            get() = settings.selinuxViolationEventsRateLimitingSettings
     }
 
     override val dataScrubbingSettings = object : DataScrubbingSettings {

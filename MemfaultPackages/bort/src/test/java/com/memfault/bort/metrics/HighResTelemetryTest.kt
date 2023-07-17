@@ -17,7 +17,6 @@ internal class HighResTelemetryTest {
         tempFile.useFile { f, _ ->
             f.writeText(HRT_FILE)
             val hrt = HighResTelemetry.decodeFromStream(f)
-            println("hrt: $hrt")
             val recoded = BortJson.encodeToString(HighResTelemetry.serializer(), hrt)
             assertEquals(HRT_FILE, recoded)
         }

@@ -349,7 +349,7 @@ class BatteryStatsHistoryParser(
                 }
             }
         }
-        val hrt = metrics.mapNotNull { it.rollup() }
+        val hrt = metrics.mapNotNull { it.rollup() }.toSet()
         val aggregateMetrics = mutableMapOf<String, JsonPrimitive>()
         metrics.forEach { aggregateMetrics.putAll(it.aggregates()) }
         return BatteryStatsResult(
@@ -359,6 +359,7 @@ class BatteryStatsHistoryParser(
         )
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun parseHeader(entries: List<String>) = Unit
 
     data class HspEntry(

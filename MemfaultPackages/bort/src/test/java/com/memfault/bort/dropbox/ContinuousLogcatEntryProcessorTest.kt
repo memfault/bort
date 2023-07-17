@@ -9,6 +9,7 @@ import com.memfault.bort.PackageNameAllowList
 import com.memfault.bort.logcat.FakeNextLogcatCidProvider
 import com.memfault.bort.logcat.KernelOopsDetector
 import com.memfault.bort.logcat.NextLogcatCidProvider
+import com.memfault.bort.logcat.SelinuxViolationLogcatDetector
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.settings.LogcatCollectionMode
@@ -39,6 +40,7 @@ class ContinuousLogcatEntryProcessorTest {
     lateinit var logcatCidProvider: NextLogcatCidProvider
     lateinit var mockFileUploadingArea: FileUploadHoldingArea
     lateinit var mockKernelOopsDetector: KernelOopsDetector
+    lateinit var selinuxViolationLogcatDetector: SelinuxViolationLogcatDetector
     lateinit var mockPackageManagerClient: PackageManagerClient
     lateinit var mockPackageNameAllowList: PackageNameAllowList
     lateinit var processor: ContinuousLogcatEntryProcessor
@@ -69,6 +71,8 @@ class ContinuousLogcatEntryProcessorTest {
 
         mockKernelOopsDetector = mockk(relaxed = true)
 
+        selinuxViolationLogcatDetector = mockk(relaxed = true)
+
         logcatCidProvider = FakeNextLogcatCidProvider.incrementing()
 
         logcatDataSourceEnabled = true
@@ -98,6 +102,7 @@ class ContinuousLogcatEntryProcessorTest {
             combinedTimeProvider = FakeCombinedTimeProvider,
             fileUploadingArea = mockFileUploadingArea,
             kernelOopsDetector = { mockKernelOopsDetector },
+            selinuxViolationLogcatDetector = selinuxViolationLogcatDetector,
             tokenBucketStore = mockk {
                 every { takeSimple(any(), any(), any()) } returns true
             },

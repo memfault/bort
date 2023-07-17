@@ -34,6 +34,19 @@ plugins {
     alias(deps.plugins.kotlin) apply false
     alias(deps.plugins.kotlin.ktlint) apply false
     alias(deps.plugins.kotlin.serialization) apply false
+    alias(deps.plugins.gradle.versions) apply true
+}
+
+// Configure gradle-versions plugin to only tell us about stable releases.
+def isNonStable = { String version ->
+    def stableKeyword = ['RELEASE', 'FINAL', 'GA'].any { it -> version.toUpperCase().contains(it) }
+    def regex = /^[0-9,.v-]+(-r)?$/
+    return !stableKeyword && !(version ==~ regex)
+}
+tasks.named("dependencyUpdates").configure {
+    rejectVersionIf {
+        isNonStable(it.candidate.version)
+    }
 }
 
 // Try to refresh settings/settings.json before configuring the :bort project:

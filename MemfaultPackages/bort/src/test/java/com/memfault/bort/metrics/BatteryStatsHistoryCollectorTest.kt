@@ -1,6 +1,7 @@
 package com.memfault.bort.metrics
 
 import com.memfault.bort.settings.BatteryStatsSettings
+import com.memfault.bort.shared.BatteryStatsCommand
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import io.mockk.coEvery
 import io.mockk.coVerifyOrder
@@ -34,12 +35,12 @@ class BatteryStatsHistoryCollectorTest {
     fun setUp() {
         nextBatteryStatsHistoryStartProvider = FakeNextBatteryStatsHistoryStartProvider(0)
         val outputStreamSlot = slot<OutputStream>()
-        val historyStartSlot = slot<Long>()
+        val commandSlot = slot<BatteryStatsCommand>()
         mockRunBatteryStats = mockk()
         coEvery {
-            mockRunBatteryStats.runBatteryStats(capture(outputStreamSlot), capture(historyStartSlot), any())
+            mockRunBatteryStats.runBatteryStats(capture(outputStreamSlot), capture(commandSlot), any())
         } coAnswers {
-            batteryStatsOutputByHistoryStart[historyStartSlot.captured].let { output ->
+            batteryStatsOutputByHistoryStart[commandSlot.captured.historyStart].let { output ->
                 checkNotNull(output)
                 output.byteInputStream().use {
                     it.copyTo(outputStreamSlot.captured)
@@ -50,6 +51,7 @@ class BatteryStatsHistoryCollectorTest {
             override val dataSourceEnabled = true
             override val commandTimeout = 1.minutes
             override val useHighResTelemetry: Boolean = false
+            override val collectSummary: Boolean = false
         }
         collector = BatteryStatsHistoryCollector(
             TestTemporaryFileFactory,
@@ -77,7 +79,7 @@ class BatteryStatsHistoryCollectorTest {
             tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
         }
         coVerifyOrder {
-            mockRunBatteryStats.runBatteryStats(any(), 1000, 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 1000), 1.minutes)
         }
         assertEquals(1100, nextBatteryStatsHistoryStartProvider.historyStart)
         assertEquals(batteryStatsOutputByHistoryStart[1000], tempFile?.readText())
@@ -101,8 +103,8 @@ class BatteryStatsHistoryCollectorTest {
             tempFile = collector.collect(limit = 1.hours).batteryStatsFileToUpload
         }
         coVerifyOrder {
-            mockRunBatteryStats.runBatteryStats(any(), 1000, 1.minutes)
-            mockRunBatteryStats.runBatteryStats(any(), 0, 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 1000), 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 0), 1.minutes)
         }
         assertEquals(505, nextBatteryStatsHistoryStartProvider.historyStart)
         assertEquals(batteryStatsOutputByHistoryStart[0], tempFile?.readText())
@@ -129,8 +131,8 @@ class BatteryStatsHistoryCollectorTest {
             tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
         }
         coVerifyOrder {
-            mockRunBatteryStats.runBatteryStats(any(), 1000, 1.minutes)
-            mockRunBatteryStats.runBatteryStats(any(), 100000, 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 1000), 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 100000), 1.minutes)
         }
         assertEquals(100005, nextBatteryStatsHistoryStartProvider.historyStart)
         assertEquals(batteryStatsOutputByHistoryStart[100000], tempFile?.readText())
@@ -158,9 +160,9 @@ class BatteryStatsHistoryCollectorTest {
             tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
         }
         coVerifyOrder {
-            mockRunBatteryStats.runBatteryStats(any(), 1000, 1.minutes)
-            mockRunBatteryStats.runBatteryStats(any(), 0, 1.minutes)
-            mockRunBatteryStats.runBatteryStats(any(), 100000, 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 1000), 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 0), 1.minutes)
+            mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 100000), 1.minutes)
         }
         assertEquals(100005, nextBatteryStatsHistoryStartProvider.historyStart)
         assertEquals(batteryStatsOutputByHistoryStart[100000], tempFile?.readText())

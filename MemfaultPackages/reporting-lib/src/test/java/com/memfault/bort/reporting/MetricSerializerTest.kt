@@ -3,7 +3,7 @@ package com.memfault.bort.reporting
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-class MetricSerializerTest {
+public class MetricSerializerTest {
     private val testMetric = MetricValue(
         timeMs = 123456,
         reportType = "heartbeat",
@@ -19,7 +19,7 @@ class MetricSerializerTest {
     )
 
     @Test
-    fun testStringMetric() {
+    public fun testStringMetric() {
         assertEquals(
             """{"version":3,"timestampMs":123456,"reportType":"heartbeat","eventName":"metric_a",""" +
                 """"aggregations":["SUM","COUNT","MAX","MEAN","MIN","LATEST_VALUE","TIME_PER_HOUR","TIME_TOTALS"],""" +
@@ -29,7 +29,7 @@ class MetricSerializerTest {
     }
 
     @Test
-    fun testInternalMetric() {
+    public fun testInternalMetric() {
         assertEquals(
             """{"version":3,"timestampMs":123456,"reportType":"heartbeat","eventName":"metric_a",""" +
                 """"internal":true,""" +
@@ -40,7 +40,7 @@ class MetricSerializerTest {
     }
 
     @Test
-    fun testNumberMetric() {
+    public fun testNumberMetric() {
         assertEquals(
             """{"version":3,"timestampMs":123456,"reportType":"heartbeat","eventName":"metric_a",""" +
                 """"aggregations":["SUM","COUNT","MAX","MEAN","MIN","LATEST_VALUE","TIME_PER_HOUR","TIME_TOTALS"],""" +
@@ -50,7 +50,7 @@ class MetricSerializerTest {
     }
 
     @Test
-    fun testFinishReport() {
+    public fun testFinishReport() {
         assertEquals(
             """{"version":2,"timestampMs":12345,"reportType":"heartbeat"}""",
             FinishReport(12345, "heartbeat").toJson()
@@ -58,7 +58,7 @@ class MetricSerializerTest {
     }
 
     @Test
-    fun testRollingFinishReport() {
+    public fun testRollingFinishReport() {
         assertEquals(
             """{"version":2,"timestampMs":12345,"reportType":"heartbeat","startNextReport":true}""",
             FinishReport(12345, "heartbeat", startNextReport = true).toJson()

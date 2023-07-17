@@ -26,16 +26,18 @@ class RunBatteryStats @Inject constructor(
 ) {
     suspend fun runBatteryStats(
         outputStream: OutputStream,
-        historyStart: Long,
+        batteryStatsCommand: BatteryStatsCommand,
         timeout: Duration,
     ) {
         reporterServiceConnector.connect { getClient ->
             getClient().batteryStatsRun(
-                BatteryStatsCommand(c = true, historyStart = historyStart),
+                batteryStatsCommand,
                 timeout
             ) { invocation ->
                 invocation.awaitInputStream().map { stream ->
-                    stream.copyTo(outputStream)
+                    stream.use {
+                        stream.copyTo(outputStream)
+                    }
                 }.andThen {
                     invocation.awaitResponse(timeout).toErrorIf({ it.exitCode != 0 }) {
                         Exception("Remote error: $it")
@@ -50,9 +52,13 @@ class RunBatteryStats @Inject constructor(
 
 data class BatteryStatsResult(
     val batteryStatsFileToUpload: File?,
-    val batteryStatsHrt: List<HighResTelemetry.Rollup>?,
+    val batteryStatsHrt: Set<HighResTelemetry.Rollup>,
     val aggregatedMetrics: Map<String, JsonPrimitive>,
-)
+) {
+    companion object {
+        val EMPTY = BatteryStatsResult(null, emptySet(), emptyMap())
+    }
+}
 
 class BatteryStatsHistoryCollector @Inject constructor(
     private val temporaryFileFactory: TemporaryFileFactory,
@@ -77,7 +83,7 @@ class BatteryStatsHistoryCollector @Inject constructor(
                 preventDeletion()
                 return BatteryStatsResult(
                     batteryStatsFileToUpload = batteryStatsFile,
-                    batteryStatsHrt = null,
+                    batteryStatsHrt = emptySet(),
                     aggregatedMetrics = emptyMap(),
                 )
             }
@@ -139,7 +145,7 @@ class BatteryStatsHistoryCollector @Inject constructor(
         withContext(Dispatchers.IO) {
             batteryStatsFile.outputStream().use {
                 runBatteryStats.runBatteryStats(
-                    it, historyStart, settings.commandTimeout
+                    it, BatteryStatsCommand(c = true, historyStart = historyStart), settings.commandTimeout
                 )
             }
             batteryStatsFile.inputStream().use {

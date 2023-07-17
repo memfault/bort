@@ -21,11 +21,16 @@ import com.google.android.material.snackbar.Snackbar
 import com.memfault.bort.ota.lib.Event
 import com.memfault.bort.ota.lib.State
 import com.memfault.bort.shared.Logger
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 
+@AndroidEntryPoint
 class UpdateActivity : AppCompatActivity() {
+    @Inject lateinit var updateViewModelFactory: UpdateViewModelFactory
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.settings_container)
@@ -36,7 +41,8 @@ class UpdateActivity : AppCompatActivity() {
             setDisplayHomeAsUpEnabled(true)
         }
 
-        val model: UpdateViewModel by viewModels { UpdateViewModelFactory(application.components) }
+        val model: UpdateViewModel by viewModels { updateViewModelFactory }
+        @Suppress("DEPRECATION")
         lifecycleScope.launchWhenStarted {
             model.state.collect {
                 handle(it)
@@ -52,7 +58,7 @@ class UpdateActivity : AppCompatActivity() {
             is Event.DownloadFailed ->
                 Snackbar.make(
                     findViewById(R.id.coordinator),
-                    R.string.download_failed,
+                    com.memfault.bort.ota.lib.R.string.download_failed,
                     Snackbar.LENGTH_SHORT
                 ).show()
             is Event.VerificationFailed ->
@@ -72,7 +78,7 @@ class UpdateActivity : AppCompatActivity() {
     }
 
     private fun handle(state: State) {
-        val forceExhaustiveWhen: Any = when (state) {
+        when (state) {
             is State.Idle ->
                 supportFragmentManager.beginTransaction()
                     .replace(R.id.settings_container, MainPreferenceFragment())
@@ -135,8 +141,8 @@ class MainPreferenceFragment : PreferenceFragmentCompat() {
         setPreferencesFromResource(R.xml.main_preference_screen, rootKey)
     }
 
-    override fun onPreferenceTreeClick(preference: Preference?): Boolean =
-        when (preference?.key) {
+    override fun onPreferenceTreeClick(preference: Preference): Boolean =
+        when (preference.key) {
             "check_for_updates" -> true.also { checkForUpdatedClicked() }
             else -> super.onPreferenceTreeClick(preference)
         }
@@ -177,9 +183,9 @@ class UpdateAvailableFragment : Fragment() {
     private val updateViewModel by activityViewModels<UpdateViewModel>()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        val state = updateViewModel.state.value as? State.UpdateAvailable
+        val state = updateViewModel.badCurrentState() as? State.UpdateAvailable
         if (state == null) {
-            Logger.d("UpdateAvailableFragment: unexpected state = ${updateViewModel.state.value}")
+            Logger.d("UpdateAvailableFragment: unexpected state = ${updateViewModel.badCurrentState()}")
             // This is a race condition - another Fragment will displayed for the correct state soon.
             return null
         }
@@ -203,9 +209,9 @@ class UpdateReadyFragment : Fragment() {
     private val updateViewModel by activityViewModels<UpdateViewModel>()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        val state = updateViewModel.state.value as? State.ReadyToInstall
+        val state = updateViewModel.badCurrentState() as? State.ReadyToInstall
         if (state == null) {
-            Logger.d("UpdateReadyFragment: unexpected state = ${updateViewModel.state.value}")
+            Logger.d("UpdateReadyFragment: unexpected state = ${updateViewModel.badCurrentState()}")
             // This is a race condition - another Fragment will displayed for the correct state soon.
             return null
         }
@@ -247,9 +253,9 @@ class RebootNeededFragment : Fragment() {
     private val updateViewModel by activityViewModels<UpdateViewModel>()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        val state = updateViewModel.state.value as? State.RebootNeeded
+        val state = updateViewModel.badCurrentState() as? State.RebootNeeded
         if (state == null) {
-            Logger.d("RebootNeededFragment: unexpected state = ${updateViewModel.state.value}")
+            Logger.d("RebootNeededFragment: unexpected state = ${updateViewModel.badCurrentState()}")
             // This is a race condition - another Fragment will displayed for the correct state soon.
             return null
         }

@@ -152,13 +152,12 @@ def _parse_keytool_printcert_sha256(keytool_output, keytool_cmd):
             in_fingerprints_section = False
         if in_fingerprints_section and "SHA256: " in line:
             return line.partition(": ")[2]
-    else:
-        cmd_str = " ".join(keytool_cmd)
-        raise Exception(
-            "Failed to extract SHA256 fingerprint. keytool cmd `{}` output:\n{}".format(
-                cmd_str, keytool_output
-            )
+    cmd_str = " ".join(keytool_cmd)
+    raise Exception(
+        "Failed to extract SHA256 fingerprint. keytool cmd `{}` output:\n{}".format(
+            cmd_str, keytool_output
         )
+    )
 
 
 def _hex_colon_format(hex_input):

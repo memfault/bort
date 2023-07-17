@@ -15,7 +15,7 @@ import org.junit.rules.TemporaryFolder
 
 internal class MarUnsampledHoldingAreaTest {
     @get:Rule
-    private val tempFolder = TemporaryFolder.builder().assureDeletion().build()
+    val tempFolder = TemporaryFolder.builder().assureDeletion().build()
     private lateinit var unsampledHoldingDirectory: File
 
     @Before
@@ -62,14 +62,14 @@ internal class MarUnsampledHoldingAreaTest {
         val marFile2Size = marFile2.length()
         holdingArea.add(marFileWithManifest2)
 
-        assertTrue(unsampledHoldingDirectory.listFiles().size == 4)
+        assertTrue(unsampledHoldingDirectory.listFiles()!!.size == 4)
 
         // Run cleanup - will delete the mar file (over limit), and should also cleanup the manifest file.
         val manifest1Size = BortJson.encodeToString(MarManifest.serializer(), manifest1).length
         val manifest2Size = BortJson.encodeToString(MarManifest.serializer(), manifest2).length
         holdingArea.cleanup(limitBytes = marFile2Size + manifest1Size + manifest2Size, Duration.ZERO)
 
-        assertTrue(unsampledHoldingDirectory.listFiles().size == 2)
+        assertTrue(unsampledHoldingDirectory.listFiles()!!.size == 2)
         val eligible = holdingArea.eligibleForUpload(SamplingConfig(monitoringResolution = HIGH))
         assertEquals(1, eligible.size)
         val first = eligible.first()
@@ -97,6 +97,6 @@ internal class MarUnsampledHoldingAreaTest {
         // Run cleanup
         holdingArea.cleanup(limitBytes = 999_999_999, Duration.ZERO)
 
-        assertTrue(unsampledHoldingDirectory.listFiles().size == 0)
+        assertTrue(unsampledHoldingDirectory.listFiles()!!.size == 0)
     }
 }

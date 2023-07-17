@@ -72,7 +72,7 @@ class BuiltinMetricsStore @Inject constructor() {
 }
 
 fun metricForTraceTag(tag: String) = DROP_BOX_TRACE_TAG_COUNT_PER_HOUR_TEMPLATE
-    .format(tag.toLowerCase(Locale.ROOT))
+    .format(tag.lowercase(Locale.ROOT))
 
 private var cachedReporterVersion: Package? = null
 private var cachedDumpsterVersion: Int? = null

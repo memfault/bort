@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.memfault.bort.shared
 
 import android.os.Bundle
@@ -33,7 +35,12 @@ const val MINIMUM_VALID_VERSION_METRIC_COLLECTION = 6
  */
 const val MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS = 7
 
-val REPORTER_SERVICE_VERSION: Int = MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS
+/**
+ * - Changed interface so that reporter generates pipes, not Bort.
+ */
+const val MINIMUM_VALID_VERSION_REPORTER_CREATES_PIPES = 8
+
+val REPORTER_SERVICE_VERSION: Int = MINIMUM_VALID_VERSION_REPORTER_CREATES_PIPES
 
 // Generic responses:
 val ERROR_RSP = -1
@@ -102,7 +109,7 @@ abstract class ReporterServiceMessage : ServiceMessage {
                 RUN_COMMAND_LOGCAT_REQ -> LogcatRequest.fromBundle(message.data)
                 RUN_COMMAND_SLEEP_REQ -> SleepRequest.fromBundle(message.data)
                 RUN_COMMAND_PACKAGE_MANAGER_REQ -> PackageManagerRequest.fromBundle(message.data)
-                RUN_COMMAND_CONT -> RunCommandContinue()
+                RUN_COMMAND_CONT -> RunCommandContinue.fromBundle(message.data)
                 RUN_COMMAND_RSP -> RunCommandResponse.fromBundle(message.data)
 
                 SEND_FILE_TO_SERVER_REQ -> ServerSendFileRequest.fromBundle(message.data)
@@ -225,11 +232,32 @@ abstract class RunCommandRequest<C : Command> : ReporterServiceMessage() {
     }
 }
 
+private const val PFD = "PFD"
+
 /**
  * Message that is sent by the ReporterService after the RunCommandRequest command
  * has started executing and Bort can start reading from the read end of the pipe.
  */
-class RunCommandContinue : SimpleReporterServiceMessage(RUN_COMMAND_CONT)
+data class RunCommandContinue(
+    /**
+     * Descriptor to read output from. This is only populated if reporter is running 4.8.0 and above (see
+     * [CommandRunnerMode]).
+     */
+    val pfd: ParcelFileDescriptor?,
+) : ReporterServiceMessage() {
+    override val messageId: Int = RUN_COMMAND_CONT
+    override fun toBundle(): Bundle = Bundle().apply {
+        pfd?.let { putParcelable(PFD, it) }
+    }
+
+    companion object {
+        fun fromBundle(bundle: Bundle) = with(bundle) {
+            RunCommandContinue(
+                getParcelable(PFD)
+            )
+        }
+    }
+}
 
 private const val EXIT_CODE = "EXIT_CODE"
 private const val DID_TIMEOUT = "DID_TIMEOUT"

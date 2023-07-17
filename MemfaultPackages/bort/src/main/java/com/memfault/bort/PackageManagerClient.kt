@@ -39,9 +39,11 @@ class PackageManagerClient @Inject constructor(
                     cmd = PackageManagerCommand(cmdOrAppId = cmdOrAppId),
                     timeout = commandTimeoutConfig()
                 ) { invocation ->
-                    invocation.awaitInputStream().andThen {
+                    invocation.awaitInputStream().andThen { stream ->
                         runCatching {
-                            PackageManagerReportParser(it).parse()
+                            stream.use {
+                                PackageManagerReportParser(stream).parse()
+                            }
                         }
                     }.andThen { packages ->
                         invocation.awaitResponse(commandTimeoutConfig()).toErrorIf({ it.exitCode != 0 }) {

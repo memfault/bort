@@ -1,10 +1,15 @@
 apply plugin: 'com.android.library'
+apply plugin: 'com.squareup.anvil'
+apply plugin: 'dagger.hilt.android.plugin'
 apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
 apply plugin: 'kotlinx-serialization'
 apply from: rootProject.file("properties.gradle")
 apply plugin: 'common-android'
 
 android {
+    namespace 'com.memfault.bort.ota.lib'
+
     defaultConfig {
         manifestPlaceholders = [
                 bortControlPermission: bortProperty("BORT_CONTROL_PERMISSION"),
@@ -16,35 +21,37 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildTypes {
-        release {
-            minifyEnabled false
-        }
-    }
-
     testOptions {
         unitTests.includeAndroidResources = true
     }
 }
 
 dependencies {
-    implementation project(':bort-shared')
-    implementation project(':reporting-lib')
+    api project(':bort-shared')
+    api project(':reporting-lib')
+
     compileOnly files('libs/update_engine.jar')
-    implementation deps.kotlin.stdlib
-    implementation deps.kotlin.coroutines
+
     implementation deps.result
     implementation deps.serialization.json
     implementation deps.serialization.converter
 
     implementation deps.android.appcompat
+    implementation deps.android.hilt.work
     implementation deps.android.work
+    implementation deps.dagger.hilt
     implementation deps.memfault.cloud
 
-    testImplementation deps.test.junit.api
-    testImplementation deps.test.junit.jupiter.engine
-    testImplementation deps.test.junit.vintage.engine
-    testImplementation deps.test.coroutines
-    testImplementation deps.test.mockk
+    kapt deps.android.hilt.compiler
+    kapt deps.dagger.hilt.compiler
+
     testImplementation deps.test.robolectric
+}
+
+kapt {
+    correctErrorTypes true
+    arguments {
+        // This is necessary because of the way we bind Anvil's component to Hilt's.
+        arg("dagger.hilt.disableModulesHaveInstallInCheck", "true")
+    }
 }

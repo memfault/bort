@@ -44,7 +44,7 @@ class MetricReportEntryProcessor @Inject constructor(
             return
         }
 
-        temporaryFileFactory.createTemporaryFile(entry.tag, "txt").useFile { tempFile, preventDeletion ->
+        temporaryFileFactory.createTemporaryFile(entry.tag, "txt").useFile { tempFile, _ ->
             val report = try {
                 tempFile.sink().buffer().use { sink ->
                     val inStream = entry.inputStream ?: return@useFile

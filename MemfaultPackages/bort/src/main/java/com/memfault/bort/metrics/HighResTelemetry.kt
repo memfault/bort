@@ -111,7 +111,7 @@ data class HighResTelemetry(
                 BortJson.decodeFromStream(serializer(), stream)
             }
 
-        fun mergeHrtIntoFile(hrtFile: File, addMetrics: List<HighResTelemetry.Rollup>) {
+        fun mergeHrtIntoFile(hrtFile: File, addMetrics: Set<Rollup>) {
             val hrt = decodeFromStream(hrtFile)
             val mergedHrt = hrt.copy(rollups = hrt.rollups + addMetrics)
             mergedHrt.toFile(hrtFile)

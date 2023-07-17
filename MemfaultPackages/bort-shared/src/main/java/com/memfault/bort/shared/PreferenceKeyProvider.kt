@@ -8,7 +8,8 @@ import android.content.SharedPreferences
 abstract class PreferenceKeyProvider<T>(
     private val sharedPreferences: SharedPreferences,
     private val defaultValue: T,
-    private val preferenceKey: String
+    private val preferenceKey: String,
+    private val commit: Boolean = false,
 ) {
     init {
         when (defaultValue) {
@@ -29,7 +30,7 @@ abstract class PreferenceKeyProvider<T>(
             is Set<*> -> putStringSet(preferenceKey, ensureStringSet(newValue))
             else -> throw IllegalArgumentException("Unsupported type $newValue")
         }
-        apply()
+        if (commit) commit() else apply()
     }
 
     @Suppress("UNCHECKED_CAST")

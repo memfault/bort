@@ -26,7 +26,6 @@ import com.memfault.bort.ota.lib.TAG_OTA_DOWNLOAD_COMPLETED
 import com.memfault.bort.ota.lib.TAG_OTA_DOWNLOAD_ERROR
 import com.memfault.bort.ota.lib.TAG_OTA_DOWNLOAD_STARTED
 import com.memfault.bort.ota.lib.Updater
-import com.memfault.bort.ota.lib.updater
 import com.memfault.bort.shared.InternalMetric
 import com.memfault.bort.shared.InternalMetric.Companion.OTA_DOWNLOAD_START
 import com.memfault.bort.shared.InternalMetric.Companion.OTA_DOWNLOAD_START_RESUMING
@@ -34,14 +33,17 @@ import com.memfault.bort.shared.InternalMetric.Companion.OTA_DOWNLOAD_SUCCESS_ER
 import com.memfault.bort.shared.InternalMetric.Companion.OTA_DOWNLOAD_SUCCESS_SPEED
 import com.memfault.bort.shared.InternalMetric.Companion.sendMetric
 import com.memfault.bort.shared.Logger
+import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
+import javax.inject.Inject
 import kotlin.coroutines.resumeWithException
 import kotlin.math.max
 import kotlin.math.min
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -66,7 +68,10 @@ private const val EXTRA_URL = "extra_url"
  * A foreground service that downloads an OTA update to the expected folder. It shows a progress notification
  * and will issue update actions to the updater when the download succeeds or fails.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
+@AndroidEntryPoint
 class DownloadOtaService : Service() {
+    @Inject lateinit var updater: Updater
     private lateinit var notificationManager: NotificationManagerCompat
     private lateinit var notificationBuilder: NotificationCompat.Builder
     private lateinit var downloadJob: Job
@@ -105,6 +110,7 @@ class DownloadOtaService : Service() {
             }
         }.apply {
             invokeOnCompletion { error ->
+                @Suppress("DEPRECATION")
                 stopForeground(true)
                 // Don't divide-by-zero
                 val durationMs = max(SystemClock.elapsedRealtime() - startMs, 1).toFloat()
@@ -293,7 +299,7 @@ class DownloadOtaService : Service() {
 
     private fun runOnUpdater(block: suspend Updater.() -> Unit) {
         CoroutineScope(Dispatchers.Default).launch {
-            block.invoke(updater())
+            block.invoke(updater)
         }
     }
 

@@ -24,7 +24,9 @@ class TestOverrideSettings @Inject constructor(
     val useTestSettingOverrides = object : PreferenceKeyProvider<Boolean>(
         sharedPreferences = sharedPreferences,
         defaultValue = false,
-        preferenceKey = "test-use-setting-overrides"
+        preferenceKey = "test-use-setting-overrides",
+        // We kill the app right after setting this; use commit so that the write is not lost.
+        commit = true,
     ) {}
 }
 
@@ -62,10 +64,6 @@ class TestSettingsProvider @Inject constructor(
                     LogcatFilterSpec("bort-test", LogcatPriority.VERBOSE),
                 )
             } else settings.logcatSettings.filterSpecs
-
-        override val continuousLogDumpThresholdBytes: Int
-            get() = if (override()) 16 * 1024
-            else settings.logcatSettings.continuousLogDumpThresholdBytes
     }
 
     // Include data scrubbing rules when testing

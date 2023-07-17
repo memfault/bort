@@ -142,12 +142,32 @@ namespace {
           return android::binder::Status::ok();
         }
 
+        void requestContinuousLogDump() {
+          ALOGT("clog: requesting dump");
+          clog->request_dump();
+          ALOGT("clog: requesting dump done");
+        }
+
     private:
         std::unique_ptr<memfault::ContinuousLogcat> clog;
     };
 } // namespace
 
 static void uncaught_handler(int signum __unused) {}
+
+void watch_dump_signal(DumpsterService *service) {
+        sigset_t set;
+        sigemptyset(&set);
+        sigaddset(&set, SIGUSR1);
+
+        int signum;
+        while (service) {
+          if (!sigwait(&set, &signum) && service) {
+            ALOGT("clog: got request_dump");
+            service->requestContinuousLogDump();
+          }
+        }
+}
 
 int main(void) {
     ALOGI("Starting...");
@@ -158,13 +178,17 @@ int main(void) {
     sigaction(SIGPIPE, &sa, NULL);
     sigaction(SIGALRM, &sa, NULL);
 
+    sigset_t blockset;
+    sigemptyset(&blockset);
+    sigaddset(&blockset, SIGUSR1);
+    sigprocmask(SIG_BLOCK, &blockset, NULL);
+
     android::sp<android::ProcessState> ps(android::ProcessState::self());
     ps->setThreadPoolMaxThreadCount(1);
     ps->startThreadPool();
     ps->giveThreadPoolName();
 
-    android::sp<DumpsterService> dumpsterService = new DumpsterService();
-
+    DumpsterService *dumpsterService = new DumpsterService();
     android::sp<android::IServiceManager> sm(android::defaultServiceManager());
     const android::status_t status =
         sm->addService(android::String16(DUMPSTER_SERVICE_NAME), dumpsterService, false /* allowIsolated */);
@@ -173,6 +197,13 @@ int main(void) {
         exit(2);
     }
 
+    std::thread signalWatchThread([dumpsterService] { watch_dump_signal(dumpsterService); });
+
     android::IPCThreadState::self()->joinThreadPool();
+
+    dumpsterService = nullptr;
+    raise(SIGUSR1);
+    signalWatchThread.join();
+
     return EXIT_SUCCESS;
 }

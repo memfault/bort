@@ -64,7 +64,7 @@ TEST (ConfigTest, ConfigDocumentUpdate) {
     ASSERT_EQ(config->getRateLimiterConfig().capacity, 123u);
     ASSERT_EQ(config->getRateLimiterConfig().msPerToken, 321u);
     ASSERT_EQ(config->isMetricReportEnabled(), true); // Testing the default
-    ASSERT_EQ(config->isHighResMetricsEnabled(), false); // Testing the default
+    ASSERT_EQ(config->isHighResMetricsEnabled(), true);  // Testing the default
 }
 
 TEST (ConfigTest, MetricReportEnabledNonDefault) {

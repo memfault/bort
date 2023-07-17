@@ -38,24 +38,19 @@ kapt {
 }
 
 dependencies {
-    implementation project(':bort-shared')
-    implementation project(':reporting-lib')
+    api project(':bort-shared')
+    api project(':reporting-lib')
 
     implementation deps.android.hilt.work
     implementation deps.android.preference
     implementation deps.android.work
     implementation deps.dagger.hilt
-    implementation deps.kotlin.coroutines
-    implementation deps.kotlin.stdlib
     implementation deps.result
 
     kapt deps.android.hilt.compiler
     kapt deps.dagger.hilt.compiler
-
-    testImplementation deps.test.junit.api
-    testImplementation deps.test.junit.jupiter.engine
-    testImplementation deps.test.coroutines
-    testImplementation deps.test.mockk
+    // An explicit reference to this transitive dependency fixes a duplicate class error during build.
+    implementation deps.android.viewmodel
 }
 
 afterEvaluate {

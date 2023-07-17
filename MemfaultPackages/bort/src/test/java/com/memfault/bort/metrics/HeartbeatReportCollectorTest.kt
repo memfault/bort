@@ -4,12 +4,12 @@ import com.memfault.bort.dropbox.MetricReport
 import com.memfault.bort.dropbox.MetricReportWithHighResFile
 import com.memfault.bort.settings.StructuredLogSettings
 import java.io.File
-import junit.framework.Assert.assertFalse
-import junit.framework.Assert.assertNull
-import junit.framework.Assert.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -55,7 +55,7 @@ internal class HeartbeatReportCollectorTest {
     }
 
     @get:Rule
-    private val tempFolder = TemporaryFolder.builder().assureDeletion().build()
+    val tempFolder = TemporaryFolder.builder().assureDeletion().build()
     private lateinit var highResFile: File
 
     @Before

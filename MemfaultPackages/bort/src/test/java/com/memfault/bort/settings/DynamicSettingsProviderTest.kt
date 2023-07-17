@@ -127,7 +127,7 @@ internal val EXPECTED_SETTINGS_DEFAULT = FetchedSettings(
     bugReportFirstBugReportDelayAfterBoot = 5678.milliseconds.boxed(),
     bugReportRequestRateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 3,
-        defaultPeriod = 1800000.milliseconds.boxed(),
+        defaultPeriod = 30.minutes.boxed(),
         maxBuckets = 1,
     ),
     bugReportMaxStorageBytes = 50000000,
@@ -148,29 +148,29 @@ internal val EXPECTED_SETTINGS_DEFAULT = FetchedSettings(
     deviceInfoAndroidHardwareVersionKey = "ro.product.hw",
     dropBoxAnrsRateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 10,
-        defaultPeriod = 900000.milliseconds.boxed(),
+        defaultPeriod = 15.minutes.boxed(),
         maxBuckets = 1,
     ),
     dropBoxExcludedTags = setOf("TAG1", "TAG2"),
     dropBoxDataSourceEnabled = true,
     dropBoxJavaExceptionsRateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 4,
-        defaultPeriod = 900000.milliseconds.boxed(),
+        defaultPeriod = 15.minutes.boxed(),
         maxBuckets = 100,
     ),
     dropBoxKmsgsRateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 10,
-        defaultPeriod = 900000.milliseconds.boxed(),
+        defaultPeriod = 15.minutes.boxed(),
         maxBuckets = 1,
     ),
     dropBoxStructuredLogRateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 10,
-        defaultPeriod = 900000.milliseconds.boxed(),
+        defaultPeriod = 15.minutes.boxed(),
         maxBuckets = 1,
     ),
     dropBoxTombstonesRateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 10,
-        defaultPeriod = 900000.milliseconds.boxed(),
+        defaultPeriod = 15.minutes.boxed(),
         maxBuckets = 1,
     ),
     fileUploadHoldingAreaMaxStoredEventsOfInterest = 50,
@@ -206,7 +206,7 @@ internal val EXPECTED_SETTINGS_DEFAULT = FetchedSettings(
     logcatContinuousDumpThresholdTime = 15.minutes.boxed(),
     metricsCollectionInterval = 91011.milliseconds.boxed(),
     metricsDataSourceEnabled = false,
-    metricsSystemProperties = listOf("ro.build.type"),
+    metricsSystemProperties = listOf("ro.build.type", "persist.sys.timezone"),
     metricsAppVersions = listOf(),
     metricsMaxNumAppVersions = 50,
     metricsReporterCollectionInterval = 10.minutes.boxed(),
@@ -215,8 +215,14 @@ internal val EXPECTED_SETTINGS_DEFAULT = FetchedSettings(
     rebootEventsDataSourceEnabled = true,
     rebootEventsRateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 5,
-        defaultPeriod = 900000.milliseconds.boxed(),
+        defaultPeriod = 15.minutes.boxed(),
         maxBuckets = 1,
+    ),
+    selinuxViolationEventsDataSourceEnabled = false,
+    selinuxViolationEventsRateLimitingSettings = RateLimitingSettings(
+        defaultCapacity = 2,
+        defaultPeriod = 24.hours.boxed(),
+        maxBuckets = 15,
     ),
     structuredLogDataSourceEnabled = true,
     structuredLogDumpPeriod = 60.minutes.boxed(),
@@ -225,7 +231,7 @@ internal val EXPECTED_SETTINGS_DEFAULT = FetchedSettings(
     structuredLogNumEventsBeforeDump = 1500,
     structuredLogRateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 1000,
-        defaultPeriod = 900000.milliseconds.boxed(),
+        defaultPeriod = 15.minutes.boxed(),
         maxBuckets = 1,
     ),
     metricReportRateLimitingSettings = RateLimitingSettings(
@@ -244,11 +250,13 @@ private val EXPECTED_SETTINGS = EXPECTED_SETTINGS_DEFAULT.copy(
     logcatCollectionMode = CONTINUOUS,
     storageUsageReporterTempMaxStorageBytes = 10000001,
     storageBortTempMaxStorageBytes = 250000001,
+    batteryStatsCollectSummary = true,
 )
 
 internal val SETTINGS_FIXTURE = """
             {
               "data": {
+                "battery_stats.collect_summary": true,
                 "battery_stats.data_source_enabled": false,
                 "battery_stats.command_timeout_ms" : 60000,
                 "bort.min_log_level": 5,
@@ -354,7 +362,7 @@ internal val SETTINGS_FIXTURE = """
                 "logcat.continuous_dump_wrapping_timeout_ms": 900000,
                 "metrics.collection_interval_ms": 91011,
                 "metrics.data_source_enabled": false,
-                "metrics.system_properties": ["ro.build.type"],
+                "metrics.system_properties": ["ro.build.type", "persist.sys.timezone"],
                 "metrics.app_versions": [],
                 "metrics.max_num_app_versions": 50,
                 "metrics.reporter_collection_interval_ms": 600000,
@@ -365,6 +373,12 @@ internal val SETTINGS_FIXTURE = """
                     "default_capacity": 5,
                     "default_period_ms": 900000,
                     "max_buckets": 1
+                },
+                "selinux_violation_events.data_source_enabled": false,
+                "selinux_violation_events.rate_limiting_settings": {
+                    "default_capacity": 2,
+                    "default_period_ms": 86400000,
+                    "max_buckets": 15
                 },
                 "structured_log.data_source_enabled": true,
                 "structured_log.dump_period_ms": 3600000,
@@ -469,6 +483,12 @@ internal val SETTINGS_FIXTURE_WITH_MISSING_FIELDS = """
                     "default_capacity": 5,
                     "default_period_ms": 900000,
                     "max_buckets": 1
+                },
+                "selinux_violation_events.data_source_enabled": false,
+                "selinux_violation_events.rate_limiting_settings": {
+                    "default_capacity": 2,
+                    "default_period_ms": 86400000,
+                    "max_buckets": 15
                 },
                 "structured_log.data_source_enabled": true,
                 "structured_log.dump_period_ms": 3600000,

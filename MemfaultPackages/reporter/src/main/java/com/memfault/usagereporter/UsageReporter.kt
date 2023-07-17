@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.memfault.bort.ConfigureStrictMode
+import com.memfault.bort.android.SystemPropertiesProxy
 import com.memfault.bort.shared.BuildConfigSdkVersionInfo
 import com.memfault.bort.shared.ClientServerMode
 import com.memfault.bort.shared.LogLevel
@@ -29,6 +31,7 @@ class UsageReporter : Application(), Configuration.Provider {
     @Inject lateinit var reporterSettingsPreferenceProvider: ReporterSettingsPreferenceProvider
     @Inject lateinit var reporterMetrics: ReporterMetrics
     @Inject lateinit var sharedPreferences: SharedPreferences
+    @Inject lateinit var configureStrictMode: ConfigureStrictMode
 
     override fun onCreate() {
         super.onCreate()
@@ -46,6 +49,7 @@ class UsageReporter : Application(), Configuration.Provider {
                 hrtEnabled = false,
             )
         )
+        configureStrictMode.configure()
 
         if (!isPrimaryUser()) {
             Logger.w("reporter disabled for secondary user")

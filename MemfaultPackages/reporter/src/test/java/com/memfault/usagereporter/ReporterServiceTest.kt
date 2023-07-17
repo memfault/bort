@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.os.DropBoxManager
 import android.os.Message
 import android.os.Messenger
+import android.os.ParcelFileDescriptor
 import android.os.RemoteException
 import com.memfault.bort.shared.Command
 import com.memfault.bort.shared.CommandRunnerOptions
@@ -53,6 +54,8 @@ class ReporterServiceTest {
     lateinit var enqueueCommand: (List<String>, CommandRunnerOptions, CommandRunnerReportResult) -> CommandRunner
     lateinit var reportResultSlot: CapturingSlot<CommandRunnerReportResult>
     lateinit var logLevel: LogLevel
+    private val readFd: ParcelFileDescriptor = mockk(relaxed = true)
+    private val writeFd: ParcelFileDescriptor = mockk()
     var dropBoxManager: DropBoxManager? = null
 
     @BeforeEach
@@ -78,7 +81,8 @@ class ReporterServiceTest {
             enqueueCommand = enqueueCommand,
             b2BClientServer = mockk(),
             reporterMetrics = mockk(),
-            reporterSettings = mockk()
+            reporterSettings = mockk(),
+            createPipe = { arrayOf(readFd, writeFd) },
         )
     }
 
@@ -189,7 +193,7 @@ class ReporterServiceTest {
         message.replyTo = replyToMessenger
         assertEquals(true, messageHandler.handleServiceMessage(TestRunCommandRequest(), message))
 
-        verify(exactly = 1) { replier.sendReply(ofType(RunCommandContinue::class)) }
+        verify(exactly = 1) { replier.sendReply(RunCommandContinue(readFd)) }
 
         // Simulate message getting recycled after returning from handleMessage:
         message.replyTo = null

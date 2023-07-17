@@ -40,7 +40,7 @@ internal class RealSendfileQueueTest {
         // maxRetryCount = 2: first retry allowed
         queue.incrementSendCount(file)
         assertFalse(file.exists())
-        val filesAfter1 = dir.listFiles()
+        val filesAfter1 = dir.listFiles()!!
         assertEquals(1, filesAfter1.size)
         val fileAfter1 = filesAfter1[0]
         assertTrue(fileAfter1.name.endsWith(".memfault_file_upload.1"))
@@ -48,7 +48,7 @@ internal class RealSendfileQueueTest {
         // 2nd retry deleted
         queue.incrementSendCount(fileAfter1)
         assertFalse(fileAfter1.exists())
-        val filesAfter2 = dir.listFiles()
+        val filesAfter2 = dir.listFiles()!!
         assertEquals(1, filesAfter2.size)
         val fileAfter2 = filesAfter2[0]
         assertTrue(fileAfter2.name.endsWith(".memfault_file_upload.2"))
@@ -57,7 +57,7 @@ internal class RealSendfileQueueTest {
         // 3nd retry now allowed: deleted
         queue.incrementSendCount(fileAfter2)
         assertFalse(fileAfter2.exists())
-        val filesAfter3 = dir.listFiles()
+        val filesAfter3 = dir.listFiles()!!
         assertEquals(0, filesAfter3.size)
     }
 
@@ -75,7 +75,7 @@ internal class RealSendfileQueueTest {
         // maxRetryCount = 2: first retry allowed
         queue.incrementSendCount(file)
         assertFalse(file.exists())
-        val filesAfter1 = dir.listFiles()
+        val filesAfter1 = dir.listFiles()!!
         assertEquals(1, filesAfter1.size)
         val fileAfter1 = filesAfter1[0]
         assertTrue(fileAfter1.name.endsWith(".memfault_file_upload.1"))

@@ -7,6 +7,6 @@ val BortJson = Json {
     encodeDefaults = true
     ignoreUnknownKeys = true
     serializersModule = SerializersModule {
-        polymorphicDefault(DataScrubbingRule::class) { UnknownScrubbingRule.serializer() }
+        polymorphicDefaultDeserializer(DataScrubbingRule::class) { UnknownScrubbingRule.serializer() }
     }
 }

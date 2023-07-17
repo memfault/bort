@@ -25,6 +25,9 @@ class SettingsUpdateHandler @Inject constructor(
             settingsUpdateCallback.onSettingsUpdated(settingsProvider, FetchedSettingsUpdate(old = old, new = new))
         }
 
+        // Always do this even if no change, just in case it failed on enable/boot.
+        reloadCustomEventConfigFrom(settingsProvider.structuredLogSettings)
+
         Logger.test("Settings updated successfully (changed=$changed)")
     }
 }

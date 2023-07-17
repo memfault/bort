@@ -2,7 +2,7 @@ package com.memfault.usagereporter.metrics
 
 import android.app.Application
 import android.os.Handler
-import android.os.Looper
+import android.os.HandlerThread
 import com.memfault.bort.shared.Logger
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -16,8 +16,8 @@ class ReporterMetrics @Inject constructor(
     application: Application,
     private val reporterMetricsPreferenceProvider: ReporterMetricsPreferenceProvider,
 ) {
-
-    private val handler: Handler = Handler(Looper.getMainLooper())
+    private val handlerThread = HandlerThread("metrics").also { it.start() }
+    private val handler: Handler = Handler(handlerThread.looper)
 
     private val collectors: Set<MetricCollector> = setOf(
         TemperatureMetricCollector(application),

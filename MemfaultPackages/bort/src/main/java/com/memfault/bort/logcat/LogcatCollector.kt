@@ -56,7 +56,9 @@ class LogcatRunner @Inject constructor(
         reporterServiceConnector.connect { getClient ->
             getClient().logcatRun(command, timeout) { invocation ->
                 invocation.awaitInputStream().map { stream ->
-                    stream.copyTo(outputStream)
+                    stream.use {
+                        stream.copyTo(outputStream)
+                    }
                 }.andThen {
                     invocation.awaitResponse(timeout).toErrorIf({ it.exitCode != 0 }) {
                         Exception("Remote error: $it")
@@ -77,6 +79,7 @@ class LogcatCollector @Inject constructor(
     private val logcatRunner: LogcatRunner,
     private val now: AbsoluteTimeProvider,
     private val kernelOopsDetector: Provider<LogcatLineProcessor>,
+    private val selinuxViolationLogcatDetector: SelinuxViolationLogcatDetector,
     private val packageManagerClient: PackageManagerClient,
     private val packageNameAllowList: PackageNameAllowList,
     private val dataScrubber: DataScrubber,
@@ -89,11 +92,13 @@ class LogcatCollector @Inject constructor(
                 since = nextLogcatStartTimeProvider.nextStart,
                 filterSpecs = logcatSettings.filterSpecs,
             )
+            val packageManagerReport = packageManagerClient.getPackageManagerReport()
+
             val logcatOutput = runLogcat(
                 outputFile = file,
                 command = command,
-                allowedUids = packageManagerClient.getPackageManagerReport()
-                    .toAllowedUids(packageNameAllowList)
+                allowedUids = packageManagerReport.toAllowedUids(packageNameAllowList),
+                packageManagerReport = packageManagerReport,
             )
             nextLogcatStartTimeProvider.nextStart = logcatOutput.lastLogTimeOrFallback
             val (cid, nextCid) = nextLogcatCidProvider.rotate()
@@ -141,6 +146,7 @@ class LogcatCollector @Inject constructor(
         outputFile: File,
         command: LogcatCommand,
         allowedUids: Set<Int>,
+        packageManagerReport: PackageManagerReport,
     ): LogcatOutput = withContext(Dispatchers.IO) {
         val kernelOopsDetector = kernelOopsDetector.get()
 
@@ -155,8 +161,12 @@ class LogcatCollector @Inject constructor(
                 ).useFile { scrubbedFile, preventScrubbedDeletion ->
                     scrubbedFile.outputStream().bufferedWriter().use { scrubbedWriter ->
                         val scrubber = dataScrubber
+
                         lines.toLogcatLines(command)
-                            .onEach { kernelOopsDetector.process(it) }
+                            .onEach {
+                                selinuxViolationLogcatDetector.process(it, packageManagerReport)
+                                kernelOopsDetector.process(it)
+                            }
                             .map { it.scrub(scrubber, allowedUids) }
                             .onEach { it.writeTo(scrubbedWriter) }
                             .asIterable()

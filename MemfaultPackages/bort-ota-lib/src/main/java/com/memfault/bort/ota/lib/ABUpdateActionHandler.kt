@@ -1,26 +1,46 @@
 package com.memfault.bort.ota.lib
 
-import android.content.Context
+import android.app.Application
 import android.content.SharedPreferences
 import android.os.PowerManager
 import android.os.UpdateEngine
 import android.os.UpdateEngineCallback
 import android.util.Log
+import com.memfault.bort.shared.BortSharedJson
+import com.memfault.bort.shared.BuildConfig
+import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
-import com.memfault.bort.shared.SoftwareUpdateSettings
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 
-class ABUpdateActionHandler(
+fun interface RebootDevice : () -> Unit
+
+@ContributesBinding(SingletonComponent::class)
+class RealRebootDevice @Inject constructor(
+    private val application: Application,
+) : RebootDevice {
+    override fun invoke() {
+        application.getSystemService(PowerManager::class.java)
+            .reboot(null)
+    }
+}
+
+@Singleton
+class ABUpdateActionHandler @Inject constructor(
     private val androidUpdateEngine: AndroidUpdateEngine,
-    private val softwareUpdateChecker: SoftwareUpdateChecker,
-    private val setState: suspend (state: State) -> Unit,
-    private val triggerEvent: suspend (event: Event) -> Unit,
-    private val rebootDevice: () -> Unit,
+    private val rebootDevice: RebootDevice,
     private val cachedOtaProvider: CachedOtaProvider,
-    private val currentSoftwareVersion: String,
+    private val updater: Updater,
+    private val scheduleDownload: ScheduleDownload,
+    private val application: Application,
+    private val otaRulesProvider: OtaRulesProvider,
+    private val softwareUpdateChecker: SoftwareUpdateChecker,
+    private val settingsProvider: SoftwareUpdateSettingsProvider,
 ) : UpdateActionHandler {
     init {
         androidUpdateEngine.bind(object : AndroidUpdateEngineCallback {
@@ -30,29 +50,36 @@ class ABUpdateActionHandler(
                         UPDATE_ENGINE_STATUS_DOWNLOADING -> {
                             val cachedOta = cachedOtaProvider.get()
                             if (cachedOta != null) {
-                                setState(State.UpdateDownloading(cachedOta, (percent * 100).toInt()))
+                                updater.setState(State.UpdateDownloading(cachedOta, (percent * 100).toInt()))
                             } else {
-                                setState(State.Idle)
+                                updater.setState(State.Idle)
                             }
                         }
+
                         UPDATE_ENGINE_FINALIZING -> {
                             val cachedOta = cachedOtaProvider.get()
                             if (cachedOta != null) {
-                                setState(State.Finalizing(cachedOta, (percent * 100).toInt()))
+                                updater.setState(State.Finalizing(cachedOta, (percent * 100).toInt()))
                             } else {
-                                setState(State.Idle)
+                                updater.setState(State.Idle)
                             }
                         }
+
                         UPDATE_ENGINE_STATUS_IDLE ->
-                            setState(State.Idle)
+                            updater.setState(State.Idle)
+
                         UPDATE_ENGINE_REPORTING_ERROR_EVENT ->
-                            setState(State.Idle) // errors are reported in the method below
+                            updater.setState(State.Idle) // errors are reported in the method below
                         UPDATE_ENGINE_UPDATED_NEED_REBOOT -> {
                             val cachedOta = cachedOtaProvider.get()
                             if (cachedOta != null) {
-                                setState(State.RebootNeeded(cachedOta))
+                                updater.setState(State.RebootNeeded(cachedOta))
+                                val scheduleAutoInstall = BuildConfig.OTA_AUTO_INSTALL || (cachedOta.isForced == true)
+                                if (scheduleAutoInstall) {
+                                    OtaInstallWorker.schedule(application, otaRulesProvider, cachedOta)
+                                }
                             } else {
-                                setState(State.Idle)
+                                updater.setState(State.Idle)
                             }
                         }
                         // Note: this is not used in Android
@@ -76,9 +103,10 @@ class ABUpdateActionHandler(
                     when (errorCode) {
                         UPDATE_ENGINE_ERROR_SUCCESS -> {}
                         UPDATE_ENGINE_ERROR_DOWNLOAD_TRANSFER_ERROR ->
-                            triggerEvent(Event.DownloadFailed)
+                            updater.triggerEvent(Event.DownloadFailed)
+
                         else ->
-                            triggerEvent(Event.VerificationFailed)
+                            updater.triggerEvent(Event.VerificationFailed)
                     }
                 }
             }
@@ -89,42 +117,60 @@ class ABUpdateActionHandler(
         state: State,
         action: Action,
     ) {
+        fun logActionNotAllowed() = Logger.i("Action $action not allowed in state $state")
+
         when (action) {
             is Action.CheckForUpdate -> {
                 if (state.allowsUpdateCheck()) {
-                    setState(State.CheckingForUpdates)
+                    updater.setState(State.CheckingForUpdates)
                     val ota = softwareUpdateChecker.getLatestRelease()
                     if (ota == null) {
-                        setState(State.Idle)
-                        triggerEvent(Event.NoUpdatesAvailable)
+                        updater.setState(State.Idle)
+                        updater.triggerEvent(Event.NoUpdatesAvailable)
                     } else {
                         cachedOtaProvider.set(ota)
-                        setState(State.UpdateAvailable(ota, background = action.background))
+                        handleUpdateAvailable(
+                            updater = updater,
+                            ota = ota,
+                            action = action,
+                            scheduleDownload = scheduleDownload,
+                        )
                     }
-                }
+                } else logActionNotAllowed()
             }
+
             is Action.DownloadUpdate -> {
                 if (state is State.UpdateAvailable) {
                     androidUpdateEngine.applyPayload(
                         state.ota.url,
-                        state.ota.metadata["_MFLT_PAYLOAD_OFFSET"]?.toLong() ?: 0L,
-                        state.ota.metadata["_MFLT_PAYLOAD_SIZE"]?.toLong() ?: 0L,
-                        state.ota.metadata.map {
+                        state.ota.artifactMetadata["_MFLT_PAYLOAD_OFFSET"]?.toLong() ?: 0L,
+                        state.ota.artifactMetadata["_MFLT_PAYLOAD_SIZE"]?.toLong() ?: 0L,
+                        state.ota.artifactMetadata.map {
                             "${it.key}=${it.value}"
                         }.toTypedArray(),
                     )
-                }
+                } else logActionNotAllowed()
             }
+
             is Action.Reboot -> {
                 val ota = cachedOtaProvider.get()
                 if (state is State.RebootNeeded && ota != null) {
-                    setState(State.RebootedForInstallation(ota, currentSoftwareVersion))
+                    updater.setState(
+                        State.RebootedForInstallation(
+                            ota,
+                            updatingFromVersion = settingsProvider.get().currentVersion,
+                        )
+                    )
                     rebootDevice()
                 } else {
-                    setState(State.Idle)
+                    Logger.i("Action $action not allowed in state $state (ota = $ota)")
+                    updater.setState(State.Idle)
                 }
             }
-            else -> {}
+
+            else -> {
+                Logger.w("Unhandled action: $action")
+            }
         }
     }
 }
@@ -134,17 +180,18 @@ interface CachedOtaProvider {
     fun set(ota: Ota?)
 }
 
-class SharedPreferenceCachedOtaProvider(sharedPreferences: SharedPreferences) :
+@ContributesBinding(SingletonComponent::class, boundType = CachedOtaProvider::class)
+class SharedPreferenceCachedOtaProvider @Inject constructor(sharedPreferences: SharedPreferences) :
     PreferenceKeyProvider<String>(sharedPreferences, EMPTY, CACHED_OTA_KEY), CachedOtaProvider {
     override fun get(): Ota? {
         val stored = getValue()
-        return if (stored != EMPTY) Json { encodeDefaults = true }.decodeFromString(Ota.serializer(), stored)
+        return if (stored != EMPTY) BortSharedJson.decodeFromString(Ota.serializer(), stored)
         else null
     }
 
     override fun set(ota: Ota?) {
         if (ota == null) setValue(EMPTY)
-        else setValue(Json { encodeDefaults = true }.encodeToString(Ota.serializer(), ota))
+        else setValue(BortSharedJson.encodeToString(Ota.serializer(), ota))
     }
 
     companion object {
@@ -178,7 +225,9 @@ interface AndroidUpdateEngineCallback {
     fun onPayloadApplicationComplete(errorCode: Int)
 }
 
-class RealAndroidUpdateEngine : AndroidUpdateEngine {
+@ContributesBinding(SingletonComponent::class)
+@Singleton
+class RealAndroidUpdateEngine @Inject constructor() : AndroidUpdateEngine {
     private val updateEngine = UpdateEngine()
 
     override fun bind(callback: AndroidUpdateEngineCallback) {
@@ -206,28 +255,4 @@ class RealAndroidUpdateEngine : AndroidUpdateEngine {
             metadata,
         )
     }
-}
-
-fun realABUpdateActionHandlerFactory(
-    context: Context,
-    androidUpdateEngine: AndroidUpdateEngine = RealAndroidUpdateEngine(),
-) = object : UpdateActionHandlerFactory {
-    override fun create(
-        setState: suspend (state: State) -> Unit,
-        triggerEvent: suspend (event: Event) -> Unit,
-        settings: () -> SoftwareUpdateSettings,
-    ): UpdateActionHandler = ABUpdateActionHandler(
-        androidUpdateEngine = androidUpdateEngine,
-        softwareUpdateChecker = realSoftwareUpdateChecker(settings, RealMetricLogger(context)),
-        setState = setState,
-        triggerEvent = triggerEvent,
-        rebootDevice = {
-            context.getSystemService(PowerManager::class.java)
-                .reboot(null)
-        },
-        cachedOtaProvider = SharedPreferenceCachedOtaProvider(
-            context.getSharedPreferences(DEFAULT_STATE_PREFERENCE_FILE, Context.MODE_PRIVATE)
-        ),
-        currentSoftwareVersion = settings().currentVersion,
-    )
 }

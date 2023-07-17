@@ -1,17 +1,21 @@
 package com.memfault.bort.ota.lib
 
-import android.content.Context
+import android.app.Application
 import android.os.RecoverySystem
 import com.memfault.bort.ota.lib.download.DownloadOtaService
+import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.InternalMetric
 import com.memfault.bort.shared.InternalMetric.Companion.OTA_INSTALL_RECOVERY
 import com.memfault.bort.shared.InternalMetric.Companion.OTA_INSTALL_RECOVERY_FAILED
 import com.memfault.bort.shared.InternalMetric.Companion.OTA_INSTALL_RECOVERY_VERIFICATION_FAILED
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.shared.SoftwareUpdateSettings
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import java.io.File
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
@@ -24,6 +28,17 @@ interface RecoveryInterface {
     fun install(path: File)
 }
 
+fun interface StartUpdateDownload : (String) -> Unit
+
+@ContributesBinding(SingletonComponent::class)
+class RealStartUpdatedownload @Inject constructor(
+    private val application: Application,
+) : StartUpdateDownload {
+    override fun invoke(url: String) {
+        DownloadOtaService.download(application, url)
+    }
+}
+
 /**
  * An action handler that implements the recovery update flow. A recovery-based flow is a multi-step process that
  * requires:
@@ -32,71 +47,98 @@ interface RecoveryInterface {
  *  3) Verifying the update package
  *  4) Install the update package
  */
-class RecoveryBasedUpdateActionHandler(
-    private val softwareUpdateChecker: SoftwareUpdateChecker,
+@OptIn(ExperimentalCoroutinesApi::class)
+class RecoveryBasedUpdateActionHandler @Inject constructor(
     private val recoveryInterface: RecoveryInterface,
-    private val startUpdateDownload: (url: String) -> Unit,
-    private val setState: suspend (state: State) -> Unit,
-    private val triggerEvent: suspend (event: Event) -> Unit,
-    private val currentSoftwareVersion: String,
+    private val startUpdateDownload: StartUpdateDownload,
     private val metricLogger: MetricLogger,
+    private val updater: Updater,
+    private val scheduleDownload: ScheduleDownload,
+    private val softwareUpdateChecker: SoftwareUpdateChecker,
+    private val application: Application,
+    private val otaRulesProvider: OtaRulesProvider,
+    private val settingsProvider: SoftwareUpdateSettingsProvider,
 ) : UpdateActionHandler {
     override suspend fun handle(
         state: State,
         action: Action,
     ) {
+        fun logActionNotAllowed() = Logger.i("Action $action not allowed in state $state")
+
         when (action) {
             is Action.CheckForUpdate -> {
                 if (state.allowsUpdateCheck()) {
-                    setState(State.CheckingForUpdates)
+                    updater.setState(State.CheckingForUpdates)
                     val ota = softwareUpdateChecker.getLatestRelease()
                     if (ota == null) {
-                        setState(State.Idle)
-                        triggerEvent(Event.NoUpdatesAvailable)
+                        updater.setState(State.Idle)
+                        updater.triggerEvent(Event.NoUpdatesAvailable)
                     } else {
-                        setState(State.UpdateAvailable(ota, background = action.background))
+                        handleUpdateAvailable(
+                            updater = updater,
+                            ota = ota,
+                            action = action,
+                            scheduleDownload = scheduleDownload,
+                        )
                     }
-                }
+                } else logActionNotAllowed()
             }
+
             is Action.DownloadUpdate -> {
                 if (state is State.UpdateAvailable) {
-                    setState(State.UpdateDownloading(state.ota))
+                    updater.setState(State.UpdateDownloading(state.ota))
                     startUpdateDownload(state.ota.url)
-                }
+                } else logActionNotAllowed()
             }
+
             is Action.DownloadProgress -> {
                 if (state is State.UpdateDownloading) {
-                    setState(state.copy(progress = action.progress))
-                }
+                    updater.setState(state.copy(progress = action.progress))
+                } else logActionNotAllowed()
             }
+
             is Action.DownloadCompleted -> {
                 if (state is State.UpdateDownloading) {
                     if (verifyUpdate(File(action.updateFilePath))) {
-                        setState(State.ReadyToInstall(state.ota, action.updateFilePath))
+                        updater.setState(State.ReadyToInstall(state.ota, action.updateFilePath))
+                        val scheduleAutoInstall = BuildConfig.OTA_AUTO_INSTALL || (state.ota.isForced == true)
+                        if (scheduleAutoInstall) {
+                            OtaInstallWorker.schedule(application, otaRulesProvider, state.ota)
+                        }
                     } else {
-                        setState(State.Idle)
-                        triggerEvent(Event.VerificationFailed)
+                        updater.setState(State.Idle)
+                        updater.triggerEvent(Event.VerificationFailed)
                     }
-                }
+                } else logActionNotAllowed()
             }
+
             is Action.DownloadFailed -> {
                 if (state is State.UpdateDownloading) {
-                    setState(State.UpdateAvailable(state.ota))
-                    triggerEvent(Event.DownloadFailed)
-                }
+                    updater.setState(State.UpdateAvailable(state.ota, showNotification = false))
+                    updater.triggerEvent(Event.DownloadFailed)
+                } else logActionNotAllowed()
             }
+
             is Action.InstallUpdate -> {
                 if (state is State.ReadyToInstall && state.path != null) {
-                    setState(State.RebootedForInstallation(state.ota, currentSoftwareVersion))
+                    updater.setState(
+                        State.RebootedForInstallation(
+                            state.ota,
+                            updatingFromVersion = settingsProvider.get().currentVersion,
+                        )
+                    )
                     if (!installUpdate(File(state.path))) {
                         // Back to square one, this should not happen, ever. At this point the update is verified
                         // and calling install will necessarily succeed. But go back to idle just in case.
-                        setState(State.Idle)
+                        updater.setState(State.Idle)
                     }
                     // Do nothing, at this point the device is scheduled to reboot.
-                }
+                } else logActionNotAllowed()
             }
-            else -> {}
+
+            else -> {
+                Logger.w("Unhandled action: $action")
+            }
         }
     }
 
@@ -113,7 +155,6 @@ class RecoveryBasedUpdateActionHandler(
                     Logger.i(TAG_INSTALL_RECOVERY_FAILED, mapOf(), ex)
                     metricLogger.addMetric(InternalMetric(OTA_INSTALL_RECOVERY_FAILED))
                     updatePath.delete()
-                    ex.printStackTrace()
                     continuation.resume(false) {}
                 }
             }
@@ -128,7 +169,6 @@ class RecoveryBasedUpdateActionHandler(
                 recoveryInterface.verifyOrThrow(updateFile)
                 continuation.resume(true) {}
             } catch (ex: Exception) {
-                ex.printStackTrace()
                 Logger.i(TAG_RECOVERY_VERIFICATION_FAILED, mapOf(), ex)
                 metricLogger.addMetric(InternalMetric(OTA_INSTALL_RECOVERY_VERIFICATION_FAILED))
                 // If verification failed, the file is corrupted and there is nothing we can do, delete it
@@ -139,8 +179,9 @@ class RecoveryBasedUpdateActionHandler(
     }
 }
 
-class RealRecoveryInterface(
-    private val context: Context
+@ContributesBinding(SingletonComponent::class)
+class RealRecoveryInterface @Inject constructor(
+    private val context: Application
 ) : RecoveryInterface {
     override fun verifyOrThrow(path: File) {
         RecoverySystem.verifyPackage(path, {}, null)
@@ -148,26 +189,5 @@ class RealRecoveryInterface(
 
     override fun install(path: File) {
         RecoverySystem.installPackage(context, path)
-    }
-}
-
-fun realRecoveryBasedUpdateActionHandlerFactory(
-    context: Context,
-): UpdateActionHandlerFactory = object : UpdateActionHandlerFactory {
-    override fun create(
-        setState: suspend (state: State) -> Unit,
-        triggerEvent: suspend (event: Event) -> Unit,
-        settings: () -> SoftwareUpdateSettings,
-    ): UpdateActionHandler {
-        val metricLogger = RealMetricLogger(context)
-        return RecoveryBasedUpdateActionHandler(
-            softwareUpdateChecker = realSoftwareUpdateChecker(settings, metricLogger),
-            startUpdateDownload = { url -> DownloadOtaService.download(context, url) },
-            recoveryInterface = RealRecoveryInterface(context),
-            setState = setState,
-            triggerEvent = triggerEvent,
-            currentSoftwareVersion = settings().currentVersion,
-            metricLogger = metricLogger,
-        )
     }
 }

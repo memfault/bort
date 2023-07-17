@@ -13,6 +13,12 @@ def keystoreProperties = loadBortKeystoreProperties()
 def keystoreFilePath = getKeystoreFilePath()
 
 android {
+    namespace 'com.memfault.bort'
+
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId bortProperty("BORT_APPLICATION_ID")
         manifestPlaceholders = [
@@ -49,8 +55,6 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
-
-  namespace 'com.memfault.bort'
 }
 
 kapt {
@@ -62,14 +66,13 @@ kapt {
 }
 
 dependencies {
-    implementation project(':bort-shared')
-    implementation project(':reporting-lib')
-
-    implementation deps.kotlin.stdlib
-    implementation deps.kotlin.coroutines
+    api project(':bort-shared')
+    api project(':reporting-lib')
 
     implementation deps.android.work
     implementation deps.android.preference
+    // An explicit reference to this transitive dependency fixes a duplicate class error during build.
+    implementation deps.android.viewmodel
 
     implementation deps.serialization.json
     implementation deps.serialization.converter
@@ -84,13 +87,8 @@ dependencies {
     implementation deps.dagger.hilt
     kapt deps.dagger.hilt.compiler
 
-    testImplementation deps.test.junit.api
-    testRuntimeOnly deps.test.junit.jupiter.engine
-    testRuntimeOnly deps.test.junit.vintage.engine
-    testImplementation deps.test.coroutines
     // Required for unit tests to access JSONObject
     testImplementation deps.test.json
-    testImplementation deps.test.mockk
     testImplementation deps.test.mockWebServer
     testImplementation deps.test.robolectric
     testImplementation deps.test.androidx.test

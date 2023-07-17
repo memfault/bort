@@ -9,14 +9,17 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ConnectivityManagersTest {
 
     private lateinit var connectivityManager: ConnectivityManager
@@ -32,8 +35,8 @@ class ConnectivityManagersTest {
     }
 
     @Test
-    fun registersOnAvailable() = runBlockingTest {
-        val first = async {
+    fun registersOnAvailable() = runTest {
+        val first = async(UnconfinedTestDispatcher(testScheduler)) {
             connectivityManager.registerForDefaultNetworkCallback().first()
         }
 
@@ -44,8 +47,8 @@ class ConnectivityManagersTest {
     }
 
     @Test
-    fun registersOnLost() = runBlockingTest {
-        val first = async {
+    fun registersOnLost() = runTest {
+        val first = async(UnconfinedTestDispatcher(testScheduler)) {
             connectivityManager.registerForDefaultNetworkCallback().firstOrNull()
         }
 
@@ -56,8 +59,8 @@ class ConnectivityManagersTest {
     }
 
     @Test
-    fun registersOnCapabilities() = runBlockingTest {
-        val first = async {
+    fun registersOnCapabilities() = runTest {
+        val first = async(UnconfinedTestDispatcher(testScheduler)) {
             connectivityManager.registerForDefaultNetworkCallback().firstOrNull()
         }
 
@@ -69,8 +72,8 @@ class ConnectivityManagersTest {
     }
 
     @Test
-    fun unregisters() = runBlockingTest {
-        val first = async {
+    fun unregisters() = runTest {
+        val first = async(UnconfinedTestDispatcher(testScheduler)) {
             connectivityManager.registerForDefaultNetworkCallback().firstOrNull()
         }
 

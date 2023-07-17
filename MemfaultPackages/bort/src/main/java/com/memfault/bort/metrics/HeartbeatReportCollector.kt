@@ -16,6 +16,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toKotlinDuration
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
@@ -23,6 +24,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 /**
  * Requests heartbeat report collection, then waits on receiving that report.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class HeartbeatReportCollector @Inject constructor(
     private val settings: StructuredLogSettings,

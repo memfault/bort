@@ -139,21 +139,22 @@ class DumpsterClient @Inject constructor(
      * Gets all system properties by running the 'getprop' program.
      * @return All system properties, or null in case they could not be retrieved.
      */
-    suspend fun getprop(): Map<String, String>? = withService(minimumVersion = IDumpster.VERSION_INITIAL) {
-        return runBasicCommand(IDumpster.CMD_ID_GETPROP)?.let {
-            parseGetpropOutput(it)
+    suspend fun getprop(): Map<String, String>? =
+        withService<Map<String, String>?>(minimumVersion = IDumpster.VERSION_INITIAL) {
+            return runBasicCommand(IDumpster.CMD_ID_GETPROP)?.let {
+                parseGetpropOutput(it)
+            }
         }
-    }
 
     /**
-     * Gets all system property types by running the 'getprop -T' program.
      * @return All system propertiy types, or null in case they could not be retrieved.
      */
-    suspend fun getpropTypes(): Map<String, String>? = withService(minimumVersion = IDumpster.VERSION_GETPROP_TYPES) {
-        return runBasicCommand(IDumpster.CMD_ID_GETPROP_TYPES)?.let {
-            parseGetpropOutput(it)
+    suspend fun getpropTypes(): Map<String, String>? =
+        withService<Map<String, String>?>(minimumVersion = IDumpster.VERSION_GETPROP_TYPES) {
+            return runBasicCommand(IDumpster.CMD_ID_GETPROP_TYPES)?.let {
+                parseGetpropOutput(it)
+            }
         }
-    }
 
     /**
      * Sets a system property (persist.system.memfault.bort.enabled) so that other components may enable / disable

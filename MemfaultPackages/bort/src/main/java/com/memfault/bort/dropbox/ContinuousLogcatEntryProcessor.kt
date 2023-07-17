@@ -7,6 +7,7 @@ import com.memfault.bort.PackageNameAllowList
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.logcat.LogcatLineProcessor
 import com.memfault.bort.logcat.NextLogcatCidProvider
+import com.memfault.bort.logcat.SelinuxViolationLogcatDetector
 import com.memfault.bort.logcat.scrub
 import com.memfault.bort.logcat.toAllowedUids
 import com.memfault.bort.logcat.update
@@ -49,6 +50,7 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
     private val combinedTimeProvider: CombinedTimeProvider,
     private val fileUploadingArea: FileUploadHoldingArea,
     private val kernelOopsDetector: Provider<LogcatLineProcessor>,
+    private val selinuxViolationLogcatDetector: SelinuxViolationLogcatDetector,
     @ContinuousLogFile private val tokenBucketStore: TokenBucketStore,
 ) : EntryProcessor() {
     override val tags: List<String> = listOf(DROPBOX_ENTRY_TAG)
@@ -78,8 +80,8 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
             return
         }
 
-        val allowedUids = packageManagerClient.getPackageManagerReport()
-            .toAllowedUids(packageNameAllowList)
+        val packageManagerReport = packageManagerClient.getPackageManagerReport()
+        val allowedUids = packageManagerReport.toAllowedUids(packageNameAllowList)
 
         val kernelOopsDetector = kernelOopsDetector.get()
 
@@ -92,6 +94,7 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
                     val (timeStart, timeEnd) = lines.toLogcatLines(continuousLogcatCommand)
                         .map { it.scrub(dataScrubber, allowedUids) }
                         .onEach {
+                            selinuxViolationLogcatDetector.process(it, packageManagerReport)
                             kernelOopsDetector.process(it)
                             it.writeTo(outputWriter)
                             it.update(md5)

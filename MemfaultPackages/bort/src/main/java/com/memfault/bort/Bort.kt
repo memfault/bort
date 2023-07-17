@@ -25,11 +25,13 @@ open class Bort : Application(), Configuration.Provider {
     @Inject lateinit var workerFactory: Provider<BortWorkerFactory>
     @Inject lateinit var installationIdProvider: InstallationIdProvider
     @Inject lateinit var appUpgrade: AppUpgrade
+    @Inject lateinit var configureStrictMode: ConfigureStrictMode
 
     override fun onCreate() {
         super.onCreate()
 
         Logger.initTags(tag = "bort", testTag = "bort-test")
+        configureStrictMode.configure()
 
         if (!isPrimaryUser()) {
             Logger.w("bort disabled for secondary user")

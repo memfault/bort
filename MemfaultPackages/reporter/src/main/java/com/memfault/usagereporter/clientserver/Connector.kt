@@ -12,6 +12,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import org.jetbrains.annotations.TestOnly
 
@@ -32,6 +33,7 @@ private val DISCONNECTED_METRIC =
  *
  * Used when vendor.memfault.bort.client.server.mode is set to "client".
  */
+@OptIn(FlowPreview::class)
 class ClientConnector(
     private val port: Int,
     private val host: String,
@@ -76,6 +78,7 @@ class ClientConnector(
  *
  * Used when vendor.memfault.bort.client.server.mode is set to "server".
  */
+@OptIn(FlowPreview::class)
 class ServerConnector(
     private val port: Int,
     private val connectionHandler: ConnectionHandler,

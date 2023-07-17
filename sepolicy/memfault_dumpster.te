@@ -21,4 +21,4 @@ allow dumpstate memfault_dumpster_data_file:dir rw_dir_perms;
 allow dumpstate memfault_dumpster_data_file:file create_file_perms;
 
 # Allow dropbox service to read the log data file
-allow system_server memfault_dumpster_data_file:file read;
+allow system_server memfault_dumpster_data_file:file r_file_perms;

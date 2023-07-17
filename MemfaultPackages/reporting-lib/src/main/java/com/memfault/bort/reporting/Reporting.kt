@@ -4,12 +4,12 @@ import com.memfault.bort.reporting.NumericAgg.COUNT
 import com.memfault.bort.reporting.NumericAgg.SUM
 import com.memfault.bort.reporting.StateAgg.LATEST_VALUE
 
-object Reporting {
+public object Reporting {
     /**
      * Default report. Values are aggregated using the default Bort heartbeat period.
      */
     @JvmStatic
-    fun report() = Report(reportType = HEARTBEAT_REPORT)
+    public fun report(): Report = Report(reportType = HEARTBEAT_REPORT)
 
     /**
      * Finish a report. This is currently private and only used within Bort for heartbeats.
@@ -22,20 +22,20 @@ object Reporting {
     ): Boolean = RemoteMetricsService.finishReport(reportType, timeMs, startNextReport)
 
     // Bort heartbeat will call RemoteMetricsService.finishReport() using this report name.
-    internal const val HEARTBEAT_REPORT = "Heartbeat"
+    private const val HEARTBEAT_REPORT: String = "Heartbeat"
 
-    fun timestamp(): Long = System.currentTimeMillis()
+    private fun timestamp(): Long = System.currentTimeMillis()
 
-    class Report internal constructor(val reportType: String) {
+    public class Report internal constructor(public val reportType: String) {
         /**
          * Aggregates the total count at the end of the period.
          */
         @JvmOverloads
-        fun counter(
+        public fun counter(
             name: String,
             sumInReport: Boolean = true,
             internal: Boolean = false,
-        ) = Counter(name = name, reportType = reportType, internal = internal, sumInReport = sumInReport)
+        ): Counter = Counter(name = name, reportType = reportType, internal = internal, sumInReport = sumInReport)
 
         /**
          * Keeps track of a of the values recorded during the period.
@@ -43,11 +43,11 @@ object Reporting {
          * One metric will be generated for each [aggregations].
          */
         @JvmOverloads
-        fun distribution(
+        public fun distribution(
             name: String,
             aggregations: List<NumericAgg> = listOf(),
             internal: Boolean = false,
-        ) = Distribution(
+        ): Distribution = Distribution(
             name = name,
             reportType = reportType,
             aggregations = aggregations,
@@ -60,11 +60,11 @@ object Reporting {
          * For use with enums.
          */
         @JvmOverloads
-        fun <T : Enum<T>> stateTracker(
+        public fun <T : Enum<T>> stateTracker(
             name: String,
             aggregations: List<StateAgg> = listOf(),
             internal: Boolean = false,
-        ) = StateTracker<T>(
+        ): StateTracker<T> = StateTracker(
             name = name, reportType = reportType, aggregations = aggregations,
             internal = internal,
         )
@@ -75,11 +75,11 @@ object Reporting {
          * For use with string representations of state.
          */
         @JvmOverloads
-        fun stringStateTracker(
+        public fun stringStateTracker(
             name: String,
             aggregations: List<StateAgg> = listOf(),
             internal: Boolean = false,
-        ) = StringStateTracker(
+        ): StringStateTracker = StringStateTracker(
             name = name, reportType = reportType, aggregations = aggregations,
             internal = internal,
         )
@@ -90,11 +90,11 @@ object Reporting {
          * For use with string representations of state.
          */
         @JvmOverloads
-        fun boolStateTracker(
+        public fun boolStateTracker(
             name: String,
             aggregations: List<StateAgg> = listOf(),
             internal: Boolean = false,
-        ) = BoolStateTracker(
+        ): BoolStateTracker = BoolStateTracker(
             name = name, reportType = reportType, aggregations = aggregations,
             internal = internal,
         )
@@ -103,11 +103,11 @@ object Reporting {
          * Keep track of the latest value of a string property.
          */
         @JvmOverloads
-        fun stringProperty(
+        public fun stringProperty(
             name: String,
             addLatestToReport: Boolean = true,
             internal: Boolean = false,
-        ) = StringProperty(
+        ): StringProperty = StringProperty(
             name = name,
             reportType = reportType,
             addLatestToReport = addLatestToReport,
@@ -118,11 +118,11 @@ object Reporting {
          * Keep track of the latest value of a string property.
          */
         @JvmOverloads
-        fun numberProperty(
+        public fun numberProperty(
             name: String,
             addLatestToReport: Boolean = true,
             internal: Boolean = false,
-        ) = NumberProperty(
+        ): NumberProperty = NumberProperty(
             name = name,
             reportType = reportType,
             addLatestToReport = addLatestToReport,
@@ -133,23 +133,23 @@ object Reporting {
          * Track individual events. Replacement for Custom Events.
          */
         @JvmOverloads
-        fun event(
+        public fun event(
             name: String,
             countInReport: Boolean = false,
             internal: Boolean = false,
-        ) = Event(
+        ): Event = Event(
             name = name,
             reportType = reportType,
             countInReport = countInReport,
             internal = internal,
         )
 
-        fun numericAggs(vararg aggregations: NumericAgg): List<NumericAgg> = aggregations.asList()
+        public fun numericAggs(vararg aggregations: NumericAgg): List<NumericAgg> = aggregations.asList()
 
-        fun statsAggs(vararg aggregations: StateAgg): List<StateAgg> = aggregations.asList()
+        public fun statsAggs(vararg aggregations: StateAgg): List<StateAgg> = aggregations.asList()
     }
 
-    abstract class Metric internal constructor() {
+    public abstract class Metric internal constructor() {
         internal abstract val name: String
         internal abstract val reportType: String
         internal abstract val aggregations: List<AggregationType>
@@ -183,7 +183,7 @@ object Reporting {
         }
     }
 
-    data class StringProperty internal constructor(
+    public data class StringProperty internal constructor(
         override val name: String,
         override val reportType: String,
         override val internal: Boolean,
@@ -195,10 +195,11 @@ object Reporting {
         override val carryOverValue = true
 
         @JvmOverloads
-        fun update(value: String?, timestamp: Long = timestamp()) = add(timeMs = timestamp, stringVal = value ?: "")
+        public fun update(value: String?, timestamp: Long = timestamp()): Unit =
+            add(timeMs = timestamp, stringVal = value ?: "")
     }
 
-    data class NumberProperty internal constructor(
+    public data class NumberProperty internal constructor(
         override val name: String,
         override val reportType: String,
         override val internal: Boolean,
@@ -210,24 +211,27 @@ object Reporting {
         override val carryOverValue = true
 
         @JvmOverloads
-        fun update(value: Double?, timestamp: Long = timestamp()) = add(timeMs = timestamp, numberVal = value)
+        public fun update(value: Double?, timestamp: Long = timestamp()): Unit =
+            add(timeMs = timestamp, numberVal = value)
 
         @JvmOverloads
-        fun update(value: Float?, timestamp: Long = timestamp()) =
+        public fun update(value: Float?, timestamp: Long = timestamp()): Unit =
             add(timeMs = timestamp, numberVal = value?.toDouble())
 
         @JvmOverloads
-        fun update(value: Long?, timestamp: Long = timestamp()) = add(timeMs = timestamp, numberVal = value?.toDouble())
+        public fun update(value: Long?, timestamp: Long = timestamp()): Unit =
+            add(timeMs = timestamp, numberVal = value?.toDouble())
 
         @JvmOverloads
-        fun update(value: Int?, timestamp: Long = timestamp()) = add(timeMs = timestamp, numberVal = value?.toDouble())
+        public fun update(value: Int?, timestamp: Long = timestamp()): Unit =
+            add(timeMs = timestamp, numberVal = value?.toDouble())
 
         @JvmOverloads
-        fun update(value: Boolean?, timestamp: Long = timestamp()) =
+        public fun update(value: Boolean?, timestamp: Long = timestamp()): Unit =
             add(timeMs = timestamp, numberVal = value?.asNumber())
     }
 
-    data class Counter internal constructor(
+    public data class Counter internal constructor(
         override val name: String,
         override val reportType: String,
         override val internal: Boolean,
@@ -239,21 +243,21 @@ object Reporting {
         override val carryOverValue = false
 
         @JvmOverloads
-        fun incrementBy(byDouble: Double = 1.0, timestamp: Long = timestamp()) {
+        public fun incrementBy(byDouble: Double = 1.0, timestamp: Long = timestamp()) {
             add(timeMs = timestamp, numberVal = byDouble)
         }
 
         @JvmName("incrementByInt")
         @JvmOverloads
-        fun incrementBy(by: Int = 1, timestamp: Long = timestamp()) {
+        public fun incrementBy(by: Int = 1, timestamp: Long = timestamp()) {
             add(timeMs = timestamp, numberVal = by.toDouble())
         }
 
         @JvmOverloads
-        fun increment(timestamp: Long = timestamp()) = incrementBy(1, timestamp = timestamp)
+        public fun increment(timestamp: Long = timestamp()): Unit = incrementBy(1, timestamp = timestamp)
     }
 
-    data class StateTracker<T : Enum<T>> internal constructor(
+    public data class StateTracker<T : Enum<T>> internal constructor(
         override val name: String,
         override val reportType: String,
         override val aggregations: List<StateAgg>,
@@ -264,12 +268,12 @@ object Reporting {
         override val carryOverValue = true
 
         @JvmOverloads
-        fun state(state: T?, timestamp: Long = timestamp()) {
+        public fun state(state: T?, timestamp: Long = timestamp()) {
             add(timeMs = timestamp, stringVal = state?.name ?: "")
         }
     }
 
-    data class StringStateTracker internal constructor(
+    public data class StringStateTracker internal constructor(
         override val name: String,
         override val reportType: String,
         override val aggregations: List<StateAgg>,
@@ -280,12 +284,12 @@ object Reporting {
         override val carryOverValue = true
 
         @JvmOverloads
-        fun state(state: String?, timestamp: Long = timestamp()) {
+        public fun state(state: String?, timestamp: Long = timestamp()) {
             add(timeMs = timestamp, stringVal = state ?: "")
         }
     }
 
-    data class BoolStateTracker internal constructor(
+    public data class BoolStateTracker internal constructor(
         override val name: String,
         override val reportType: String,
         override val aggregations: List<StateAgg>,
@@ -296,12 +300,12 @@ object Reporting {
         override val carryOverValue = true
 
         @JvmOverloads
-        fun state(state: Boolean, timestamp: Long = timestamp()) {
+        public fun state(state: Boolean, timestamp: Long = timestamp()) {
             add(timeMs = timestamp, boolVal = state)
         }
     }
 
-    data class Distribution internal constructor(
+    public data class Distribution internal constructor(
         override val name: String,
         override val reportType: String,
         override val aggregations: List<NumericAgg>,
@@ -312,17 +316,17 @@ object Reporting {
         override val carryOverValue = false
 
         @JvmOverloads
-        fun record(value: Double, timestamp: Long = timestamp()) {
+        public fun record(value: Double, timestamp: Long = timestamp()) {
             add(timeMs = timestamp, numberVal = value)
         }
 
         @JvmOverloads
-        fun record(value: Long, timestamp: Long = timestamp()) {
+        public fun record(value: Long, timestamp: Long = timestamp()) {
             add(timeMs = timestamp, numberVal = value.toDouble())
         }
     }
 
-    data class Event internal constructor(
+    public data class Event internal constructor(
         override val name: String,
         override val reportType: String,
         private val countInReport: Boolean,
@@ -334,15 +338,15 @@ object Reporting {
         override val aggregations = if (countInReport) listOf(COUNT) else emptyList()
 
         @JvmOverloads
-        fun add(value: String, timestamp: Long = timestamp()) = add(timeMs = timestamp, stringVal = value)
+        public fun add(value: String, timestamp: Long = timestamp()): Unit = add(timeMs = timestamp, stringVal = value)
     }
 }
 
 private fun Boolean.asNumber() = if (this) 1.0 else 0.0
 
-interface AggregationType
+public interface AggregationType
 
-enum class NumericAgg : AggregationType {
+public enum class NumericAgg : AggregationType {
     /**
      * Minimum value seen during the period.
      */
@@ -372,7 +376,7 @@ enum class NumericAgg : AggregationType {
     // Future: more aggregations e.g. Std Dev, Percentile
 }
 
-enum class StateAgg : AggregationType {
+public enum class StateAgg : AggregationType {
     /**
      * Metric per state, reporting time spent in that state during the period.
      */
@@ -389,16 +393,16 @@ enum class StateAgg : AggregationType {
     LATEST_VALUE,
 }
 
-enum class DataType(
-    val value: String,
+public enum class DataType(
+    public val value: String,
 ) {
     DOUBLE("double"),
     STRING("string"),
     BOOLEAN("boolean"),
 }
 
-enum class MetricType(
-    val value: String,
+public enum class MetricType(
+    public val value: String,
 ) {
     COUNTER("counter"),
     GAUGE("gauge"),

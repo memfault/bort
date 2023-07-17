@@ -88,6 +88,7 @@ class FileUploadHoldingAreaTest {
         tempFiles.forEach(File::deleteSilently)
     }
 
+    @Suppress("DEPRECATION")
     private fun makeTempFile() =
         createTempFile().also {
             tempFiles.add(it)

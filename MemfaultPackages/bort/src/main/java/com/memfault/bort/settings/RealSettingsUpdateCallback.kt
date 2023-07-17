@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.memfault.bort.settings
 
 import android.app.Application
@@ -44,9 +46,6 @@ class SettingsUpdateCallback @Inject constructor(
 
         Logger.test("logcat.collection_mode=${settingsProvider.logcatSettings.collectionMode}")
         continuousLoggingController.configureContinuousLogging()
-
-        // Pass the new settings to structured logging (after we enable/disable it)
-        reloadCustomEventConfigFrom(settingsProvider.structuredLogSettings)
 
         // Update periodic tasks that might have changed after a settings update
         periodicWorkManager.maybeRestartTasksAfterSettingsChange(fetchedSettingsUpdate)

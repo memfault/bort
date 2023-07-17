@@ -86,8 +86,10 @@ class ContinuousLogcat {
     void start();
     void stop();
     void join();
+    void request_dump();
 
-  private:
+   private:
+    void interrupt_reader_thread();
     void run();
     void dump_output(bool ignore_thresholds = false);
     void dump_output_to_dropbox();

@@ -59,7 +59,7 @@ class BatteryStatsHistoryParserTest {
         9,h,800000,Bl=90,Bt=250,-Efg=70,-Etp=70,-Elw=70
     """.trimIndent()
 
-    private val EXPECTED_HRT = listOf(
+    private val EXPECTED_HRT = setOf(
         Rollup(
             RollupMetadata(stringKey = CPU_RUNNING, metricType = Property, dataType = StringType, internal = false),
             listOf(Datum(t = 1000001, BOOL_VALUE_TRUE), Datum(t = 1200001, BOOL_VALUE_FALSE)),

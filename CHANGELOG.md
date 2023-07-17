@@ -1,6 +1,54 @@
 # Memfault Bort Changelog
 
-## v4.7.0
+## v4.8.0 - July 17, 2023
+
+#### :rocket: New Features
+
+- Refactored the OTA app to support more granular control over the download and
+  install constraints. Download and installation can now be configured
+  separately from each other. Default network, storage, and battery constraints
+  are now available alongside any custom logic. See
+  [AutoInstallRules.kt](https://mflt.io/android-ota-customization) for more
+  details. The [Memfault CLI](https://mflt.io/memfault-cli) 0.18.0+ supports
+  attaching extra information to OTA payloads using the `--extra-metadata`
+  option, which can be used for further customization of the download and
+  install constraints.
+- Added support for collecting new batterystats summary and per-app usage
+  metrics. We will roll out this feature over the coming weeks - please contact
+  us for more information.
+- Added support for collecting SELinux violations without using Android
+  bugreports by parsing logcat directly - please contact us for more
+  information.
+
+### :chart_with_upwards_trend: Improvements
+
+- Improved file cleanup deletion logic so that one single large file over the
+  size limit doesn't force other smaller files to be deleted.
+- Fixed an issue where UsageReporter couldn't forward data to Bort on Android
+  13+.
+- Fixed an ANR in UsageReporter while collecting temperature metrics.
+- Fixed continuous logging SELinux permissions on Android 12.1+.
+- Fixed continuous logging alarm on Android 11+.
+- Fixed a bug where a state update could be dropped in the OTA app.
+- Fixed several Stream leaks in Bort.
+- Fixed an issue where HRT files were not being uploaded because the Custom
+  Metrics service configuration was stale.
+
+#### :house: Internal
+
+- Updated to AGP 8.0.1, Kotlin 1.8.21, Kotlin Coroutines 1.7.0, JVM 17.
+- Moved package namespaces to the gradle file from the manifest.
+- Turned on Kotlin allWarningsAsErrors.
+- Turned on Kotlin
+  [explicitApi](https://kotlinlang.org/docs/whatsnew14.html#explicit-api-mode-for-library-authors)
+  mode.
+- Enabled more verbose unit test logging output.
+- Added Dagger and Hilt to the OTA app.
+- Enabled
+  [strict mode](https://developer.android.com/reference/android/os/StrictMode)
+  for all debug apps.
+
+## v4.7.0 - May 9, 2023
 
 ### :chart_with_upwards_trend: Improvements
 

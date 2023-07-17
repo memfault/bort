@@ -53,8 +53,10 @@ class SelfTestBatteryStats(
             testCases.map { testCase ->
                 getClient().batteryStatsRun(testCase.cmd, timeout) { invocation ->
                     invocation.awaitInputStream().map { stream ->
-                        withContext(Dispatchers.IO) {
-                            stream.bufferedReader().readText()
+                        stream.use {
+                            withContext(Dispatchers.IO) {
+                                stream.bufferedReader().readText()
+                            }
                         }
                     }.toErrorIf({ !it.contains(testCase.expectation) }) {
                         Exception("\"Battery history text for $testCase:\\n$it\"").also { Logger.e("$it") }

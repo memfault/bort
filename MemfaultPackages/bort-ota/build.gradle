@@ -1,5 +1,8 @@
 apply plugin: 'com.android.application'
+apply plugin: 'com.squareup.anvil'
+apply plugin: 'dagger.hilt.android.plugin'
 apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
 apply plugin: 'kotlinx-serialization'
 apply from: rootProject.file("properties.gradle")
 apply plugin: 'common-android'
@@ -8,6 +11,8 @@ def keystoreProperties = loadBortOtaKeystoreProperties()
 def keystoreFilePath = getKeystoreFilePath()
 
 android {
+    namespace 'com.memfault.bort.ota'
+
     defaultConfig {
         applicationId bortProperty("BORT_OTA_APPLICATION_ID")
         versionCode loadVersionCode() as Integer
@@ -41,31 +46,36 @@ android {
 }
 
 dependencies {
-    implementation project(':bort-ota-lib')
-    implementation project(':bort-shared')
-
-    implementation deps.kotlin.stdlib
-    implementation deps.kotlin.coroutines
-    implementation deps.kotlin.coroutines.android
+    api project(':bort-ota-lib')
+    api project(':bort-shared')
 
     implementation deps.android.activity
     implementation deps.android.appcompat
     implementation deps.android.fragment
     implementation deps.android.material
     implementation deps.android.preference
+    implementation deps.android.hilt.work
+    implementation deps.android.work
+    implementation deps.dagger.hilt
 
     implementation deps.result
     implementation deps.retrofit
     implementation deps.okhttp
     implementation deps.okio
 
-    testImplementation deps.test.junit.api
-    testRuntimeOnly deps.test.junit.jupiter.engine
-    testRuntimeOnly deps.test.junit.vintage.engine
-    testImplementation deps.test.coroutines
-    testImplementation deps.test.mockk
+    kapt deps.android.hilt.compiler
+    kapt deps.dagger.hilt.compiler
+
     testImplementation deps.test.mockWebServer
     testImplementation deps.test.robolectric
+}
+
+kapt {
+    correctErrorTypes true
+    arguments {
+        // This is necessary because of the way we bind Anvil's component to Hilt's.
+        arg("dagger.hilt.disableModulesHaveInstallInCheck", "true")
+    }
 }
 
 import java.nio.file.Paths

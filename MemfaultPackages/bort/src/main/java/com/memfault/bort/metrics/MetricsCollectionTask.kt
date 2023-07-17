@@ -1,6 +1,5 @@
 package com.memfault.bort.metrics
 
-import android.os.RemoteException
 import androidx.work.Data
 import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.DumpsterClient
@@ -30,7 +29,6 @@ import kotlin.time.toKotlinDuration
 import kotlinx.serialization.json.JsonPrimitive
 
 class MetricsCollectionTask @Inject constructor(
-    private val batteryStatsHistoryCollector: BatteryStatsHistoryCollector,
     private val enqueueUpload: EnqueueUpload,
     private val combinedTimeProvider: CombinedTimeProvider,
     private val lastHeartbeatEndTimeProvider: LastHeartbeatEndTimeProvider,
@@ -46,6 +44,7 @@ class MetricsCollectionTask @Inject constructor(
     private val bortSystemCapabilities: BortSystemCapabilities,
     private val integrationChecker: IntegrationChecker,
     private val installationIdProvider: InstallationIdProvider,
+    private val batteryStatsCollector: BatteryStatsCollector,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -89,8 +88,8 @@ class MetricsCollectionTask @Inject constructor(
         )
         // Add batterystats to HRT file.
         heartbeatReport?.highResFile?.let { hrtFile ->
-            batteryStatsResult.batteryStatsHrt?.let { batteryStats ->
-                mergeHrtIntoFile(hrtFile, batteryStats)
+            if (batteryStatsResult.batteryStatsHrt.isNotEmpty()) {
+                mergeHrtIntoFile(hrtFile, batteryStatsResult.batteryStatsHrt)
             }
         }
         uploadHighResMetrics(
@@ -99,7 +98,7 @@ class MetricsCollectionTask @Inject constructor(
         )
     }
 
-    private suspend fun uploadHighResMetrics(
+    private fun uploadHighResMetrics(
         highResFile: File?,
         metricReport: MetricReport?,
     ) {
@@ -172,26 +171,7 @@ class MetricsCollectionTask @Inject constructor(
             return TaskResult.SUCCESS
         }
 
-        // The batteryStatsHistoryCollector will use the NEXT time from the previous run and use that as starting
-        // point for the data to collect. In practice, this roughly matches the start of the current heartbeat period.
-        // But, in case that got screwy for some reason, impose a somewhat arbitrary limit on how much batterystats data
-        // we collect, because the history can grow *very* large. In the backend, any extra data before it, will get
-        // clipped when aggregating, so it doesn't matter if there's more.
-        val batteryStatsLimit = heartbeatInterval * 2
-
-        val batteryStatsResult = try {
-            batteryStatsHistoryCollector.collect(
-                limit = batteryStatsLimit,
-            )
-        } catch (e: RemoteException) {
-            Logger.w("Unable to connect to ReporterService to run batterystats")
-            BatteryStatsResult(batteryStatsFileToUpload = null, batteryStatsHrt = null, aggregatedMetrics = emptyMap())
-        } catch (e: Exception) {
-            Logger.e("Failed to collect batterystats", mapOf(), e)
-            metrics.increment(BATTERYSTATS_FAILED)
-            BatteryStatsResult(batteryStatsFileToUpload = null, batteryStatsHrt = null, aggregatedMetrics = emptyMap())
-        }
-
+        val batteryStatsResult = batteryStatsCollector.collect(heartbeatInterval)
         enqueueHeartbeatUpload(now, heartbeatInterval, batteryStatsResult)
 
         lastHeartbeatEndTimeProvider.lastEnd = now

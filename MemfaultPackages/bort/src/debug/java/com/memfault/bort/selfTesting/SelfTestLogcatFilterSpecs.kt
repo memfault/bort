@@ -143,8 +143,8 @@ private suspend fun ReporterServiceConnector.testLogcatRun(
         getClient().logcatRun(cmd, timeout) { invocation ->
             invocation.awaitInputStream().onFailure {
                 Logger.e("Logcat stream was null")
-            }.andThen {
-                val output = it.readBytes()
+            }.andThen { stream ->
+                val output = stream.use { it.readBytes() }
                 if (block(output)) {
                     Result.success(Unit)
                 } else {

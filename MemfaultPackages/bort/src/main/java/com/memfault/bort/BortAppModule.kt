@@ -2,7 +2,9 @@ package com.memfault.bort
 
 import android.app.Application
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.res.Resources
+import androidx.preference.PreferenceManager
 import com.memfault.bort.logcat.KernelOopsDetector
 import com.memfault.bort.logcat.NoopLogcatLineProcessor
 import com.memfault.bort.metrics.BuiltinMetricsStore
@@ -36,7 +38,6 @@ import com.memfault.bort.tokenbucket.Wtf
 import com.memfault.bort.tokenbucket.WtfTotal
 import com.memfault.bort.uploader.PreparedUploadService
 import com.squareup.anvil.annotations.ContributesTo
-import dagger.Binds
 import dagger.Lazy
 import dagger.Module
 import dagger.Provides
@@ -65,7 +66,7 @@ import vnd.myandroid.bortappid.CustomLogScrubber
  */
 @Module
 @ContributesTo(SingletonComponent::class)
-class ReleaseModule {
+class BortReleaseModule {
     @Provides
     fun applyJitter() = APPLY
 }
@@ -123,6 +124,10 @@ abstract class BortAppModule {
             FILE_UPLOAD_HOLDING_AREA_PREFERENCE_FILE_NAME,
             Context.MODE_PRIVATE
         )
+
+        @Provides
+        fun provideSharedPreferences(application: Application): SharedPreferences =
+            PreferenceManager.getDefaultSharedPreferences(application)
 
         @Provides
         fun bundledConfig(resources: Resources) = BundledConfig {
@@ -570,9 +575,6 @@ abstract class BortAppModule {
         @MarFileUnsampledHoldingDir
         fun marFileUnsampledHoldingDir(application: Application) = File(application.filesDir, "mar-unsampled")
     }
-
-    @Binds
-    abstract fun reporterConnector(real: RealReporterServiceConnector): ReporterServiceConnector
 }
 
 @Qualifier

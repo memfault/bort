@@ -15,7 +15,7 @@
 #define NUM_EVENTS_BEFORE_DUMP 1000
 #define DUMP_PERIOD_MS (2 * 60 * 60 * 1000)
 #define METRIC_REPORTS_ENABLED true
-#define HIGH_RES_METRICS_ENABLED false
+#define HIGH_RES_METRICS_ENABLED true
 
 namespace structured {
 

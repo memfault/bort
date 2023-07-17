@@ -1,5 +1,7 @@
 package com.memfault.bort.ota.lib
 
+import android.app.Application
+import com.memfault.bort.shared.SoftwareUpdateSettings
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -7,7 +9,7 @@ import io.mockk.verify
 import java.io.File
 import java.lang.IllegalStateException
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -15,10 +17,16 @@ import org.junit.jupiter.api.Test
 private const val OLD_SOFTWARE_VERSION = "old"
 
 class RecoveryBasedUpdateActionHandlerTest {
-    private lateinit var softwareUpdateChecker: SoftwareUpdateChecker
+    private lateinit var softwareUpdateCheckerMock: SoftwareUpdateChecker
     private lateinit var recoveryInterface: RecoveryInterface
     private lateinit var startUpdateDownload: (url: String) -> Unit
     private lateinit var handler: RecoveryBasedUpdateActionHandler
+    private lateinit var updater: Updater
+    private lateinit var application: Application
+    private lateinit var settings: SoftwareUpdateSettings
+    private lateinit var scheduleDownload: ScheduleDownload
+    private lateinit var otaRulesProvider: OtaRulesProvider
+    private lateinit var settingsProvider: SoftwareUpdateSettingsProvider
 
     private val collectedStates = mutableListOf<State>()
     private val collectedEvents = mutableListOf<Event>()
@@ -32,7 +40,7 @@ class RecoveryBasedUpdateActionHandlerTest {
 
     @BeforeEach
     fun setup() {
-        softwareUpdateChecker = mockk {
+        softwareUpdateCheckerMock = mockk {
             coEvery { getLatestRelease() } coAnswers { ota }
         }
         recoveryInterface = mockk {
@@ -42,30 +50,83 @@ class RecoveryBasedUpdateActionHandlerTest {
         startUpdateDownload = mockk {
             every { this@mockk.invoke(any()) } answers { }
         }
+        application = mockk()
+        settings = mockk {
+            every { currentVersion } answers { OLD_SOFTWARE_VERSION }
+        }
+        updater = mockk {
+            coEvery { setState(any()) } answers { collectedStates.add(arg(0)) }
+            coEvery { triggerEvent(any()) } answers { collectedEvents.add(arg(0)) }
+        }
+        scheduleDownload = mockk(relaxed = true)
+        otaRulesProvider = mockk()
+        settingsProvider = mockk {
+            every { get() } answers { settings }
+        }
         handler =
             RecoveryBasedUpdateActionHandler(
-                softwareUpdateChecker = softwareUpdateChecker,
                 recoveryInterface = recoveryInterface,
                 startUpdateDownload = startUpdateDownload,
-                setState = ::setState,
-                triggerEvent = ::triggerEvent,
-                currentSoftwareVersion = OLD_SOFTWARE_VERSION,
                 metricLogger = { },
+                updater = updater,
+                scheduleDownload = scheduleDownload,
+                softwareUpdateChecker = softwareUpdateCheckerMock,
+                application = application,
+                otaRulesProvider = otaRulesProvider,
+                settingsProvider = settingsProvider,
             )
     }
 
-    suspend fun setState(state: State) = collectedStates.add(state)
-    suspend fun triggerEvent(event: Event) = collectedEvents.add(event)
-
     @Test
-    fun testCheckForUpdate() = runBlockingTest {
-        handler.handle(State.Idle, Action.CheckForUpdate())
-        assertEquals(listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!)), collectedStates)
+    fun testCheckForUpdate_foreground() = runTest {
+        ota = ota?.copy(isForced = null)
+        handler.handle(State.Idle, Action.CheckForUpdate(background = false))
+        assertEquals(
+            listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = false)),
+            collectedStates,
+        )
         assertEquals(listOf<Event>(), collectedEvents)
+        verify(exactly = 0) { scheduleDownload.scheduleDownload(any()) }
     }
 
     @Test
-    fun testCheckForUpdateAlreadyAtLatest() = runBlockingTest {
+    fun testCheckForUpdate_forcedNotSet() = runTest {
+        ota = ota?.copy(isForced = null)
+        handler.handle(State.Idle, Action.CheckForUpdate(background = true))
+        assertEquals(
+            listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = true)),
+            collectedStates,
+        )
+        assertEquals(listOf<Event>(), collectedEvents)
+        verify(exactly = 0) { scheduleDownload.scheduleDownload(any()) }
+    }
+
+    @Test
+    fun testCheckForUpdate_notForced() = runTest {
+        ota = ota?.copy(isForced = false)
+        handler.handle(State.Idle, Action.CheckForUpdate(background = true))
+        assertEquals(
+            listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = true)),
+            collectedStates,
+        )
+        assertEquals(listOf<Event>(), collectedEvents)
+        verify(exactly = 0) { scheduleDownload.scheduleDownload(any()) }
+    }
+
+    @Test
+    fun testCheckForUpdate_forced_scheduleAutoDownload() = runTest {
+        ota = ota?.copy(isForced = true)
+        handler.handle(State.Idle, Action.CheckForUpdate(background = true))
+        assertEquals(
+            listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = false)),
+            collectedStates,
+        )
+        assertEquals(listOf<Event>(), collectedEvents)
+        verify(exactly = 1) { scheduleDownload.scheduleDownload(ota!!) }
+    }
+
+    @Test
+    fun testCheckForUpdateAlreadyAtLatest() = runTest {
         ota = null
         handler.handle(State.Idle, Action.CheckForUpdate())
         assertEquals(listOf(State.CheckingForUpdates, State.Idle), collectedStates)
@@ -73,7 +134,7 @@ class RecoveryBasedUpdateActionHandlerTest {
     }
 
     @Test
-    fun testDownloadUpdate() = runBlockingTest {
+    fun testDownloadUpdate() = runTest {
         handler.handle(State.UpdateAvailable(ota!!), Action.DownloadUpdate)
         assertEquals(listOf(State.UpdateDownloading(ota!!)), collectedStates)
         assertEquals(listOf<Event>(), collectedEvents)
@@ -81,7 +142,7 @@ class RecoveryBasedUpdateActionHandlerTest {
     }
 
     @Test
-    fun testUpdateDownloadProgress() = runBlockingTest {
+    fun testUpdateDownloadProgress() = runTest {
         handler.handle(State.UpdateDownloading(ota!!), Action.DownloadProgress(50))
         handler.handle(State.UpdateDownloading(ota!!), Action.DownloadProgress(100))
         assertEquals(
@@ -116,7 +177,7 @@ class RecoveryBasedUpdateActionHandlerTest {
     @Test
     fun testDownloadFailed() = runBlocking {
         handler.handle(State.UpdateDownloading(ota!!), Action.DownloadFailed)
-        assertEquals(listOf(State.UpdateAvailable(ota!!)), collectedStates)
+        assertEquals(listOf(State.UpdateAvailable(ota!!, showNotification = false)), collectedStates)
         assertEquals(listOf(Event.DownloadFailed), collectedEvents)
     }
 

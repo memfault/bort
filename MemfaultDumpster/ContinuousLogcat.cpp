@@ -75,6 +75,30 @@ void ContinuousLogcat::start() {
   }
 }
 
+void ContinuousLogcat::interrupt_reader_thread() {
+#if PLATFORM_SDK_VERSION >= 30
+  // On Android 11+, close the LogD filedescriptor associated with the
+  // logger list before interrupting, otherwise logd_reader will be stuck
+  // in a read loop.
+  auto ptr = logger_list.get();
+  if (ptr) {
+    LogdClose(ptr);
+  }
+#endif
+
+  // Send a SIGALRM so that the blocked reader in liblog returns
+  // with -EINTR, we then handle that result in the reader loop.
+  pthread_kill(reader_thread.native_handle(), SIGALRM);
+}
+
+void ContinuousLogcat::request_dump() {
+  std::lock_guard<std::mutex> lock(log_lock);
+  ALOGT("clog: dumping requested by external caller");
+  if (config.started()) {
+    interrupt_reader_thread();
+  }
+}
+
 void ContinuousLogcat::stop() {
   std::lock_guard<std::mutex> lock(log_lock);
   ALOGT("clog: stop (running=%d)", config.started());
@@ -82,19 +106,7 @@ void ContinuousLogcat::stop() {
     config.set_started(false);
     config.persist_config();
 
-#if PLATFORM_SDK_VERSION >= 30
-    // On Android 11+, close the LogD filedescriptor associated with the
-    // logger list before interrupting, otherwise logd_reader will be stuck
-    // in a read loop.
-    auto ptr = logger_list.get();
-    if (ptr) {
-      LogdClose(ptr);
-    }
-#endif
-
-    // Send a SIGALRM so that the blocked reader in liblog returns
-    // with -EINTR, we then handle that result in the reader loop.
-    pthread_kill(reader_thread.native_handle(), SIGALRM);
+    interrupt_reader_thread();
   }
 }
 
@@ -168,7 +180,10 @@ void ContinuousLogcat::run() {
 
         // Send a SIGALRM so that the blocked reader in liblog returns
         // with -EINTR, we then handle that result in the reader loop.
-        pthread_kill(reader_thread.native_handle(), SIGALRM);
+        std::lock_guard<std::mutex> lock(log_lock);
+        if (config.started()) {
+          interrupt_reader_thread();
+        }
       }
   );
 
@@ -224,7 +239,7 @@ void ContinuousLogcat::run() {
       // Read a log entry, this will run once per log line.
       int ret = android_logger_list_read(logger_list.get(), &log_msg);
 
-      if (ret == -EBADF) {
+      if (ret == -EBADF || ret == -EAGAIN) {
         ALOGT("clog: interrupted via stop signal, will dump");
         dump_after_intr = true;
 

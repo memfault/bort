@@ -16,6 +16,9 @@ import kotlinx.serialization.json.Json
 
 @Serializable
 data class FetchedSettings(
+    @SerialName("battery_stats.collect_summary")
+    val batteryStatsCollectSummary: Boolean = false,
+
     @SerialName("battery_stats.command_timeout_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val batteryStatsCommandTimeout: BoxedDuration,
@@ -252,7 +255,7 @@ data class FetchedSettings(
     val metricsDataSourceEnabled: Boolean,
 
     @SerialName("metrics.system_properties")
-    val metricsSystemProperties: List<String> = listOf("ro.build.type"),
+    val metricsSystemProperties: List<String> = listOf("ro.build.type", "persist.sys.timezone"),
 
     @SerialName("metrics.app_versions")
     val metricsAppVersions: List<String> = listOf(),
@@ -280,6 +283,16 @@ data class FetchedSettings(
 
     @SerialName("reboot_events.rate_limiting_settings")
     val rebootEventsRateLimitingSettings: RateLimitingSettings,
+
+    @SerialName("selinux_violation_events.data_source_enabled")
+    val selinuxViolationEventsDataSourceEnabled: Boolean = false,
+
+    @SerialName("selinux_violation_events.rate_limiting_settings")
+    val selinuxViolationEventsRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+        defaultCapacity = 2,
+        defaultPeriod = 24.hours.boxed(),
+        maxBuckets = 15,
+    ),
 
     @SerialName("sampling.logging_active")
     val fleetSamplingLoggingActive: Boolean = false,

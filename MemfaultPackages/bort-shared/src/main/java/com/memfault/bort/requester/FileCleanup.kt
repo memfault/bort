@@ -31,18 +31,25 @@ fun cleanupFiles(
     var deletedForAgeCount = 0
     var deletedForStorageCount = 0
     filesNewestFirst.forEach { file ->
-        bytesUsed += file.file.length()
-        if (bytesUsed > maxDirStorageBytes) {
+        var shouldDelete = false
+        val fileSize = file.file.length()
+        if (bytesUsed + fileSize > maxDirStorageBytes) {
             deleted.add("storage: ${file.file.name}")
             deletedForStorageCount++
-            file.file.deleteSilently()
+            shouldDelete = true
         } else if (maxFileAge != ZERO) {
             val age = (timeNowMs - file.lastModified).toDuration(MILLISECONDS)
             if (age > maxFileAge) {
                 deleted.add("age: ${file.file.name}")
                 deletedForAgeCount++
-                file.file.deleteSilently()
+                shouldDelete = true
             }
+        }
+
+        if (shouldDelete) {
+            file.file.deleteSilently()
+        } else {
+            bytesUsed += fileSize
         }
     }
     if (!deleted.isEmpty()) {

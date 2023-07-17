@@ -148,6 +148,19 @@ sealed class MarMetadata {
     ) : MarMetadata()
 
     @Serializable
+    @SerialName("android-selinux")
+    data class SelinuxViolationMarMetadata(
+        @SerialName("raw_denial")
+        val rawDenial: String,
+        @SerialName("package_name")
+        val packageName: String?,
+        @SerialName("package_version_name")
+        val packageVersionName: String?,
+        @SerialName("package_version_code")
+        val packageVersionCode: Long?,
+    ) : MarMetadata()
+
+    @Serializable
     @SerialName("android-device-config")
     data class DeviceConfigMarMetadata(
         @SerialName("revision")
@@ -231,6 +244,15 @@ sealed class MarMetadata {
                 is RebootMarMetadata -> MarManifest(
                     collectionTime = collectionTime,
                     type = "android-reboot",
+                    device = device,
+                    metadata = metadata,
+                    debuggingResolution = Resolution.NORMAL,
+                    loggingResolution = Resolution.NOT_APPLICABLE,
+                    monitoringResolution = Resolution.NOT_APPLICABLE,
+                )
+                is SelinuxViolationMarMetadata -> MarManifest(
+                    collectionTime = collectionTime,
+                    type = "android-selinux",
                     device = device,
                     metadata = metadata,
                     debuggingResolution = Resolution.NORMAL,

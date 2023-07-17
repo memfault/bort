@@ -51,6 +51,9 @@ annotation class BugReportRequestStore
 annotation class Reboots
 
 @Qualifier
+annotation class SelinuxViolations
+
+@Qualifier
 @Retention(RUNTIME)
 @Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 annotation class BugReportPeriodic

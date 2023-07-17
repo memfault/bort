@@ -55,18 +55,24 @@ import com.memfault.bort.shared.result.StdResult
 import com.memfault.bort.shared.result.failure
 import com.memfault.bort.shared.result.mapCatching
 import com.memfault.bort.shared.result.success
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import java.io.File
 import javax.inject.Inject
 import kotlin.time.Duration
 import okhttp3.internal.closeQuietly
 
 typealias ReporterServiceConnection = ServiceMessageConnection<ReporterServiceMessage>
-typealias ReporterServiceConnector = ServiceConnector<ReporterClient>
 
+interface ReporterServiceConnector {
+    suspend fun <R> connect(block: suspend (getService: ServiceGetter<ReporterClient>) -> R): R
+}
+
+@ContributesBinding(SingletonComponent::class, boundType = ReporterServiceConnector::class)
 class RealReporterServiceConnector @Inject constructor(
     application: Application,
     @Main val inboundLooper: Looper,
-) : ReporterServiceConnector(
+) : ReporterServiceConnector, ServiceConnector<ReporterClient>(
     application,
     ComponentName(
         APPLICATION_ID_MEMFAULT_USAGE_REPORTER,
@@ -114,8 +120,8 @@ class ReporterClient(
         timeout: Duration,
         block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>,
     ): StdResult<R> =
-        withVersion(context = "sleep") {
-            commandRunnerClientFactory.create(timeout = timeout).run(block) { options ->
+        withVersion(context = "sleep") { version ->
+            commandRunnerClientFactory.create(timeout = timeout, reporterVersion = version).run(block) { options ->
                 sendAndGetReplyHandler(SleepRequest(SleepCommand(delaySeconds), options))
             }
         }
@@ -125,8 +131,8 @@ class ReporterClient(
         timeout: Duration,
         block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>,
     ): StdResult<R> =
-        withVersion(context = "battery stats") {
-            commandRunnerClientFactory.create(timeout = timeout).run(block) { options ->
+        withVersion(context = "battery stats") { version ->
+            commandRunnerClientFactory.create(timeout = timeout, reporterVersion = version).run(block) { options ->
                 sendAndGetReplyHandler(BatteryStatsRequest(cmd, options))
             }
         }
@@ -136,8 +142,8 @@ class ReporterClient(
         timeout: Duration,
         block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>,
     ): StdResult<R> =
-        withVersion(context = "logcat") {
-            commandRunnerClientFactory.create(timeout = timeout).run(block) { options ->
+        withVersion(context = "logcat") { version ->
+            commandRunnerClientFactory.create(timeout = timeout, reporterVersion = version).run(block) { options ->
                 sendAndGetReplyHandler(LogcatRequest(cmd, options))
             }
         }
@@ -147,8 +153,8 @@ class ReporterClient(
         timeout: Duration,
         block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>,
     ): StdResult<R> =
-        withVersion(context = "package manager") {
-            commandRunnerClientFactory.create(timeout = timeout).run(block) { options ->
+        withVersion(context = "package manager") { version ->
+            commandRunnerClientFactory.create(timeout = timeout, reporterVersion = version).run(block) { options ->
                 sendAndGetReplyHandler(PackageManagerRequest(cmd, options))
             }
         }
@@ -190,11 +196,12 @@ class ReporterClient(
     private suspend inline fun <R> withVersion(
         context: Any,
         minimumVersion: Int = MINIMUM_VALID_VERSION,
-        block: () -> StdResult<R>,
+        block: (Int) -> StdResult<R>,
     ): StdResult<R> =
         getVersion().let { version ->
-            if (version ?: 0 >= minimumVersion) {
-                block()
+            val v = version ?: 0
+            if (v >= minimumVersion) {
+                block(v)
             } else {
                 Result.failure(
                     UnsupportedOperationException(

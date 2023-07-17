@@ -53,6 +53,7 @@ class LogcatCollectorTest {
     lateinit var mockPackageNameAllowList: PackageNameAllowList
     lateinit var mockPackageManagerClient: PackageManagerClient
     lateinit var kernelOopsDetector: LogcatLineProcessor
+    lateinit var selinuxViolationLogcatDetector: SelinuxViolationLogcatDetector
     lateinit var logcatSettings: LogcatSettings
     lateinit var logcatRunner: LogcatRunner
     var tempFile: File? = null
@@ -97,6 +98,7 @@ class LogcatCollectorTest {
         }
 
         kernelOopsDetector = mockk(relaxed = true)
+        selinuxViolationLogcatDetector = mockk(relaxed = true)
         logcatSettings = object : LogcatSettings {
             override val dataSourceEnabled = true
             override val collectionInterval = ZERO
@@ -120,6 +122,7 @@ class LogcatCollectorTest {
             packageNameAllowList = mockPackageNameAllowList,
             packageManagerClient = mockPackageManagerClient,
             kernelOopsDetector = { kernelOopsDetector },
+            selinuxViolationLogcatDetector = selinuxViolationLogcatDetector,
             logcatSettings = logcatSettings,
             logcatRunner = logcatRunner,
         )
@@ -133,7 +136,7 @@ class LogcatCollectorTest {
     private fun collect() =
         runBlocking {
             collector.collect()
-        }.also { result -> result?.let { tempFile = result.file } }
+        }.also { result -> tempFile = result.file }
 
     @Test
     fun happyPath() {
@@ -149,7 +152,7 @@ class LogcatCollectorTest {
             |--------- switch to main
             |2021-01-18 12:34:02.000000000 +0000  9008  9008 W PackageManager: Installing app
             |""".trimMargin()
-        val result = collect()!!
+        val result = collect()
         assertEquals(
             """2021-01-18 12:34:02.000000000 +0000  9008  9008 I ServiceManager: Waiting...
             |2021-01-18 12:34:02.000000000 +0000  9008  9008 I PII: u: {{USERNAME}} p: {{PASSWORD}}
@@ -215,7 +218,7 @@ class LogcatCollectorTest {
         // Upload even when empty. If it is not uploaded, it causes confusion when there is no log file
         // around an event of interest to be found ("what happened, is it a Bort bug?").
         assertNotNull(result)
-        assertEquals("", result!!.file.readText())
+        assertEquals("", result.file.readText())
         // CID should have been rotated:
         assertEquals(initialCid, result.cid)
         assertNotEquals(initialCid, cidProvider.cid)

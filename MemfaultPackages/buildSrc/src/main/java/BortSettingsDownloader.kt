@@ -95,7 +95,7 @@ private fun generateDevConfig(
                        "default_period_ms": 900000,
                        "max_buckets": 1
                    },
-                   "drop_box.data_source_enabled" : ${getDefaultProperty("DATA_SOURCE_CALIPER_DROP_BOX_TRACES_ENABLED")?.toBoolean() ?: true},
+                   "drop_box.data_source_enabled" : true,
                    "drop_box.excluded_tags": [],
                    "drop_box.java_exceptions.rate_limiting_settings": {
                        "default_capacity": 4,

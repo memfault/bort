@@ -25,7 +25,7 @@ PLACEHOLDER_BORT_AOSP_PATCH_VERSION = "manually_patched"
 PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_BORT_OTA_APP_ID = "vnd.myandroid.bort.otaappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
-RELEASES = range(8, 13 + 1)
+RELEASES = ("8", "9", "10", "11", "12", "12_1", "13")
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 GRADLE_PROPERTIES = os.path.join(SCRIPT_DIR, "MemfaultPackages", "gradle.properties")
 PYTHON_MIN_VERSION = (3, 6, 0)
@@ -139,7 +139,10 @@ class PatchAOSPCommand(Command):
         self._check_patch_command = check_patch_command or self._default_check_patch_command()
         self._apply_patch_command = apply_patch_command or self._default_apply_patch_command()
         self._force = force
-        self._patches_dir = os.path.join(patch_dir, f"android-{android_release}")
+
+        patch_dir_map = "12" if android_release == "12_1" else android_release
+        self._patches_dir = os.path.join(patch_dir, f"android-{patch_dir_map}")
+
         self._exclude_dirs = exclude or []
         self._errors = []
         self._warnings = []
@@ -152,7 +155,7 @@ class PatchAOSPCommand(Command):
         )
         parser.add_argument(
             "--android-release",
-            type=int,
+            type=str,
             choices=RELEASES,
             required=True,
             help="Android platform version",
@@ -241,11 +244,10 @@ class PatchAOSPCommand(Command):
                 cwd=os.path.join(self._aosp_root, repo_subdir),
                 input=content.encode(DEFAULT_ENCODING),
             )
-            logging.info("Skipping patch %r: already applied!", patch_relpath)
-            return True
-
         except (subprocess.CalledProcessError, FileNotFoundError):
             return False
+        logging.info("Skipping patch %r: already applied!", patch_relpath)
+        return True
 
     def _apply_patch(self, repo_subdir, patch_relpath, content):
         apply_cmd = self._apply_patch_command
@@ -340,10 +342,10 @@ def _get_shell_cmd_output_and_errors(
         output = subprocess.check_output(
             _shell_command(), stderr=sys.stderr, encoding="utf-8", universal_newlines=True
         )
-        result: str = output[:-1]  # Trim trailing newline
-        return result, []
     except subprocess.CalledProcessError as error:
         return None, [str(error)]
+    result: str = output[:-1]  # Trim trailing newline
+    return result, []
 
 
 def _create_adb_command(cmd: Tuple, device: Optional[str] = None) -> Tuple:
@@ -950,7 +952,7 @@ class ValidateConnectedDevice(Command):
                 )
             return version_names[0]
 
-        versions = set(_find_version_names(info) for info in package_infos if info)
+        versions = {_find_version_names(info) for info in package_infos if info}
         if len(versions) > 1:
             self._errors.append(
                 _format_error(description, "Different versions found:", *package_infos)
@@ -969,7 +971,7 @@ class ValidateConnectedDevice(Command):
         _check_bort_app_id(self._bort_app_id)
         _check_feature_name(self._vendor_feature_name)
         logging.info(LOG_ENTRY_SEPARATOR)
-        logging.info("validate-sdk-integration %s", datetime.datetime.now())
+        logging.info("validate-sdk-integration %s", datetime.datetime.now())  # noqa: DTZ005
         errors = _verify_device_connected(self._device)
         if errors:
             _log_errors(errors)

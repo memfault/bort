@@ -1,6 +1,6 @@
 package com.memfault.bort
 
-import android.content.Context
+import android.app.Application
 import androidx.work.NetworkType.CONNECTED
 import androidx.work.NetworkType.UNMETERED
 import com.memfault.bort.reporting.Reporting
@@ -11,17 +11,20 @@ import com.memfault.bort.shared.BortSharedJson
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.SoftwareUpdateSettings
+import javax.inject.Inject
+import javax.inject.Singleton
 import kotlinx.coroutines.runBlocking
 
 /**
  * If we fail to read settings from the Bort app, then use the bundled SDK settings as a fallback (the only other option
  * is crashing).
  */
-class FallbackOtaSettings(
-    private val context: Context,
+@Singleton
+class FallbackOtaSettings @Inject constructor(
+    private val application: Application,
     private val dumpsterClient: DumpsterClient,
 ) {
-    private val bundledConfig by lazy { context.resources.readBundledSettings() }
+    private val bundledConfig by lazy { application.resources.readBundledSettings() }
     private val bundledSdkSettings by lazy { FetchedSettings.from(bundledConfig) { BortSharedJson } }
     private val deviceInfoProvider by lazy {
         RealDeviceInfoProvider(
