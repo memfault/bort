@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.memfault.bort.ota.lib.TestOtaModePreferenceProvider
+import com.memfault.bort.ota.lib.TestUpdateEngine
 import com.memfault.bort.ota.lib.testLog
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -17,6 +18,7 @@ private const val INTENT_EXTRA_MODE = "mode"
 @AndroidEntryPoint
 class OtaTestReceiver : BroadcastReceiver() {
     @Inject lateinit var testOtaModePreferenceProvider: TestOtaModePreferenceProvider
+    @Inject lateinit var testUpdateEngine: TestUpdateEngine
 
     override fun onReceive(context: Context, intent: Intent) {
         testLog("TestReceiver action=${intent.action}")
@@ -29,6 +31,10 @@ class OtaTestReceiver : BroadcastReceiver() {
 
             "com.memfault.intent.action.TEST_BORT_OTA_ECHO" -> {
                 testLog("bort-ota echo ${intent.getStringExtra(INTENT_EXTRA_ECHO_STRING)}")
+            }
+
+            "com.memfault.intent.action.TEST_BORT_OTA_NEED_REBOOT" -> {
+                testUpdateEngine.needsReboot()
             }
 
             else -> {

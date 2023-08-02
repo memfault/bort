@@ -68,6 +68,20 @@ data class DownloadOtaRules(
      * task?
      */
     val requiresChargingConstraint: Boolean,
+    /**
+     * Optionally, the download worker for A/B updates can use a foreground service. This aims to keep the Bort OTA app
+     * running for the duration of the download (past the 10 minutes which the WorkMamager job allows).
+     *
+     * If the Bort OTA app is killed while the download is in-progress, the download (managed by UpdateEngine) will
+     * continue, but Bort won't be able to immediately reboot the device on completion. If Bort OTA is killed, it
+     * will recover when restarted within 15 minutes by a periodic job, and continue the install process.
+     *
+     * If this is desired, return true here, otherwise false (in which case the job will run for up to 10 minutes).
+     *
+     * This is only used for A/B updates (Recovery-based updates always use a foreground service while the Bort OTA app
+     * is downloading).
+     */
+    val useForegroundServiceForAbDownloads: Boolean,
 )
 
 data class InstallOtaRules(

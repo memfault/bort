@@ -1,5 +1,17 @@
 # Memfault Bort Changelog
 
+## v4.8.1 - July 26, 2023
+
+### :chart_with_upwards_trend: Improvements
+
+- OTA app will now try to stay running (using a JobScheduler job, and optionally
+  a foreground service) while downloading A/B updates. Set
+  `useForegroundServiceForAbDownloads = true` in `AutoInstallRules.kt` to use a
+  foreground service.
+- OTA app will now recover if killed while `UpdateEngine` is downloading an A/B
+  update (using a periodic job which runs every 15 minutes).
+- Made libmflt-structuredlog a Soong module.
+
 ## v4.8.0 - July 17, 2023
 
 #### :rocket: New Features

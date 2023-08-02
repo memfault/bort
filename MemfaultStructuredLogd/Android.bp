@@ -1,0 +1,18 @@
+subdirs = [
+    "clients",
+]
+
+cc_library_shared {
+    name: "libstructuredaidl",
+    aidl: {
+        export_aidl_headers: true,
+        local_include_dirs: ["."],
+    },
+    srcs: ["com/memfault/bort/internal/ILogger.aidl"],
+    clang: true,
+    shared_libs: [
+        "libbase",
+        "libbinder",
+        "libutils",
+    ],
+}

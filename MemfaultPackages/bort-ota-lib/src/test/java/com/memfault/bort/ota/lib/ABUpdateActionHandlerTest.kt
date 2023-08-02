@@ -94,6 +94,7 @@ class ABUpdateActionHandlerTest {
                 otaRulesProvider = otaRulesProvider,
                 settingsProvider = settingsProvider,
             )
+        handler.initialize()
     }
 
     private suspend fun forEachCallback(block: AndroidUpdateEngineCallback.() -> Unit) {

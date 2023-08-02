@@ -1,0 +1,20 @@
+cc_library_shared {
+    name: "libmflt-structuredlog",
+    srcs: ["structuredlog.cpp"],
+
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wextra",
+        "-Wno-unused-parameter",
+        "-fexceptions",
+    ],
+    clang: true,
+    shared_libs: [
+        "libstructuredaidl",
+        "libbase",
+        "libbinder",
+        "libutils",
+    ],
+    export_include_dirs: ["."],
+}

@@ -14,6 +14,7 @@ import com.memfault.bort.ota.lib.Event
 import com.memfault.bort.ota.lib.IsAbDevice
 import com.memfault.bort.ota.lib.Ota
 import com.memfault.bort.ota.lib.State
+import com.memfault.bort.ota.lib.UpdateActionHandler
 import com.memfault.bort.ota.lib.Updater
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.Logger
@@ -31,6 +32,7 @@ import kotlinx.coroutines.launch
 open class OtaApp : Application(), Configuration.Provider {
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var updater: Updater
+    @Inject lateinit var actionHandler: UpdateActionHandler
     @Inject lateinit var otaMode: IsAbDevice
     @Inject lateinit var configureStrictMode: ConfigureStrictMode
     private lateinit var appStateListenerJob: Job
@@ -81,6 +83,8 @@ open class OtaApp : Application(), Configuration.Provider {
                     }
                 }
         }
+
+        actionHandler.initialize()
     }
 
     private fun Boolean?.ifNull(ifNull: Boolean) = this ?: ifNull

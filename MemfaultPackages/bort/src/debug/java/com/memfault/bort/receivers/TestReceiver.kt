@@ -1,5 +1,6 @@
 package com.memfault.bort.receivers
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
@@ -7,6 +8,7 @@ import androidx.preference.PreferenceManager
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.memfault.bort.INTENT_EXTRA_PROJECT_KEY
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.TestOverrideSettings
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
@@ -53,7 +55,6 @@ private const val WORK_UNIQUE_NAME_SELF_TEST = "com.memfault.bort.work.SELF_TEST
 class TestReceiver : FilteringReceiver(
     setOf(
         "com.memfault.intent.action.TEST_BORT_ECHO",
-        "com.memfault.intent.action.TEST_SETTING_USE_OVERRIDES",
         "com.memfault.intent.action.TEST_SELF_TEST",
         "com.memfault.intent.action.TEST_ADD_EVENT_OF_INTEREST",
         "com.memfault.intent.action.TEST_REQUEST_LOGCAT_COLLECTION",
@@ -79,21 +80,6 @@ class TestReceiver : FilteringReceiver(
 
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {
         when (action) {
-            "com.memfault.intent.action.TEST_SETTING_USE_OVERRIDES" -> {
-                val useTestOverrides = intent.getBooleanExtra(
-                    "use_test_overrides", false
-                )
-                Logger.test("use_test_overrides: $useTestOverrides")
-                TestOverrideSettings(
-                    PreferenceManager.getDefaultSharedPreferences(context),
-                ).also {
-                    Logger.test("use_test_overrides was: ${it.useTestSettingOverrides.getValue()}")
-                    it.useTestSettingOverrides.setValue(useTestOverrides)
-                    // Logger.test() needs to start working immediately.
-                    Logger.initSettings(settingsProvider.asLoggerSettings())
-                    Logger.test("Updated to use_test_overrides: ${it.useTestSettingOverrides.getValue()}")
-                }
-            }
             "com.memfault.intent.action.TEST_BORT_ECHO" -> {
                 Logger.test("bort echo ${intent.getStringExtra(INTENT_EXTRA_ECHO_STRING)}")
             }
@@ -165,14 +151,42 @@ class TestReceiver : FilteringReceiver(
             }
             // Sent before each E2E test:
             "com.memfault.intent.action.TEST_SETUP" -> {
+                useTestOverrides(true, context)
+                context.sendBroadcast(
+                    Intent("com.memfault.intent.action.UPDATE_PROJECT_KEY").apply {
+                        component = ComponentName(context, ShellControlReceiver::class.java)
+                        putExtra(INTENT_EXTRA_PROJECT_KEY, intent.getStringExtra(INTENT_EXTRA_PROJECT_KEY))
+                    }
+                )
                 resetDynamicSettings()
                 resetRateLimits()
                 resetDropboxCursor()
+            }
+            "com.memfault.intent.action.TEST_TEARDOWN" -> {
+                useTestOverrides(false, context)
+                context.sendBroadcast(
+                    Intent("com.memfault.intent.action.UPDATE_PROJECT_KEY").apply {
+                        component = ComponentName(context, ShellControlReceiver::class.java)
+                    }
+                )
             }
             "com.memfault.intent.action.TEST_UPLOAD_MAR" -> enqueueOneTimeBatchMarFiles(
                 context = context,
             )
             "com.memfault.intent.action.TEST_CDR" -> testUploadCdr()
+        }
+    }
+
+    private fun useTestOverrides(useTestOverrides: Boolean, context: Context) {
+        Logger.test("use_test_overrides: $useTestOverrides")
+        TestOverrideSettings(
+            PreferenceManager.getDefaultSharedPreferences(context),
+        ).also {
+            Logger.test("use_test_overrides was: ${it.useTestSettingOverrides.getValue()}")
+            it.useTestSettingOverrides.setValue(useTestOverrides)
+            // Logger.test() needs to start working immediately.
+            Logger.initSettings(settingsProvider.asLoggerSettings())
+            Logger.test("Updated to use_test_overrides: ${it.useTestSettingOverrides.getValue()}")
         }
     }
 

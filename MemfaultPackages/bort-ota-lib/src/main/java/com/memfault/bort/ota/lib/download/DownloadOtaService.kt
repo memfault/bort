@@ -61,7 +61,7 @@ import okio.appendingSink
 import okio.buffer
 
 private const val NOTIFICATION_CHANNEL_ID = "download_ota_notification"
-private const val NOTIFICATION_ID = 9001
+const val NOTIFICATION_ID = 9001
 private const val EXTRA_URL = "extra_url"
 
 /**
@@ -90,7 +90,7 @@ class DownloadOtaService : Service() {
 
         // Show a user-facing notification and start in the foreground so that the system does not kill us
         notificationManager = NotificationManagerCompat.from(this)
-        notificationBuilder = setupForegroundNotification()
+        notificationBuilder = setupForegroundNotification(this)
         startForeground(NOTIFICATION_ID, notificationBuilder.build())
 
         downloadProgressStore = DownloadProgressStore(
@@ -239,16 +239,6 @@ class DownloadOtaService : Service() {
         }
     }
 
-    private fun setupForegroundNotification(): NotificationCompat.Builder {
-        ensureNotificationChannel()
-        return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID).apply {
-            setContentTitle(getString(R.string.download_notification_title))
-            setSmallIcon(R.drawable.ic_baseline_cloud_download_24)
-            setProgress(100, 0, true)
-            priority = NotificationCompat.PRIORITY_LOW
-        }
-    }
-
     @SuppressLint("MissingPermission")
     private fun setProgress(progress: Int, max: Int = 100) {
         notificationManager.notify(
@@ -257,19 +247,6 @@ class DownloadOtaService : Service() {
                 setProgress(max, progress, false)
             }.build()
         )
-    }
-
-    private fun ensureNotificationChannel() {
-        NotificationChannelCompat.Builder(
-            NOTIFICATION_CHANNEL_ID,
-            NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            setName(getString(R.string.software_update_download))
-            setDescription(getString(R.string.software_update_download_description))
-        }.also {
-            NotificationManagerCompat.from(this)
-                .createNotificationChannel(it.build())
-        }
     }
 
     @SuppressLint("MissingPermission")
@@ -310,6 +287,29 @@ class DownloadOtaService : Service() {
                     putExtra(EXTRA_URL, url)
                 }
             )
+        }
+
+        private fun ensureNotificationChannel(context: Context) {
+            NotificationChannelCompat.Builder(
+                NOTIFICATION_CHANNEL_ID,
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                setName(context.getString(R.string.software_update_download))
+                setDescription(context.getString(R.string.software_update_download_description))
+            }.also {
+                NotificationManagerCompat.from(context)
+                    .createNotificationChannel(it.build())
+            }
+        }
+
+        fun setupForegroundNotification(context: Context): NotificationCompat.Builder {
+            ensureNotificationChannel(context)
+            return NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID).apply {
+                setContentTitle(context.getString(R.string.download_notification_title))
+                setSmallIcon(R.drawable.ic_baseline_cloud_download_24)
+                setProgress(100, 0, true)
+                priority = NotificationCompat.PRIORITY_LOW
+            }
         }
     }
 }

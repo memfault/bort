@@ -27,7 +27,7 @@ open class ProjectKeyProvider @Inject constructor(
         }
         set(newKey) {
             if (!BuildConfig.ALLOW_PROJECT_KEY_CHANGE) {
-                Logger.w("Changing Bort project ")
+                Logger.w("Changing Bort project not permitted")
                 return
             }
             if (newKey == projectKey) return

@@ -42,9 +42,10 @@ class ABUpdateActionHandler @Inject constructor(
     private val softwareUpdateChecker: SoftwareUpdateChecker,
     private val settingsProvider: SoftwareUpdateSettingsProvider,
 ) : UpdateActionHandler {
-    init {
+    override fun initialize() {
         androidUpdateEngine.bind(object : AndroidUpdateEngineCallback {
             override fun onStatusUpdate(status: Int, percent: Float) {
+                Logger.d("onStatusUpdate: status=$status percent=$percent")
                 CoroutineScope(Dispatchers.Default).launch {
                     when (status) {
                         UPDATE_ENGINE_STATUS_DOWNLOADING -> {
@@ -99,6 +100,7 @@ class ABUpdateActionHandler @Inject constructor(
             }
 
             override fun onPayloadApplicationComplete(errorCode: Int) {
+                Logger.d("onPayloadApplicationComplete: errorCode=$errorCode")
                 CoroutineScope(Dispatchers.Default).launch {
                     when (errorCode) {
                         UPDATE_ENGINE_ERROR_SUCCESS -> {}

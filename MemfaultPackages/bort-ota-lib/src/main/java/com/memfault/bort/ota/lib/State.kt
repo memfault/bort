@@ -81,3 +81,15 @@ fun State.allowsUpdateCheck() = when (this) {
     State.Idle, is State.UpdateAvailable, is State.UpdateFailed -> true
     else -> false
 }
+
+fun State.ota(): Ota? = when (this) {
+    State.CheckingForUpdates -> null
+    is State.Finalizing -> ota
+    State.Idle -> null
+    is State.ReadyToInstall -> ota
+    is State.RebootNeeded -> ota
+    is State.RebootedForInstallation -> ota
+    is State.UpdateAvailable -> ota
+    is State.UpdateDownloading -> ota
+    is State.UpdateFailed -> ota
+}

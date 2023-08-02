@@ -1,0 +1,4 @@
+subdirs = [
+    "example-c",
+    "libmflt-structuredlog",
+]

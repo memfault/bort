@@ -46,6 +46,7 @@ class AutoInstallRules @Inject constructor(
             requiresStorageNotLowConstraint = true,
             requiresBatteryNotLowConstraint = false,
             requiresChargingConstraint = false,
+            useForegroundServiceForAbDownloads = false,
         )
     }
 

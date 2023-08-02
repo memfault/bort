@@ -59,6 +59,8 @@ class RecoveryBasedUpdateActionHandler @Inject constructor(
     private val otaRulesProvider: OtaRulesProvider,
     private val settingsProvider: SoftwareUpdateSettingsProvider,
 ) : UpdateActionHandler {
+    override fun initialize() = Unit
+
     override suspend fun handle(
         state: State,
         action: Action,

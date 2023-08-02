@@ -89,7 +89,7 @@ class BatterystatsSummaryCollector @Inject constructor(
             }
 
             // Screen off drain
-            if (diff.screenOffRealtimeMs > 0) {
+            if (diff.screenOffRealtimeMs > 0 && diff.screenOffDrainPercent != null) {
                 val screenOffBatteryDrainPerHour =
                     JsonPrimitive(diff.screenOffDrainPercent.proRataValuePerHour(diff.screenOffRealtimeMs.milliseconds))
                 addHrtRollup(name = SCREEN_OFF_BATTERY_DRAIN_PER_HOUR, value = screenOffBatteryDrainPerHour)
@@ -98,7 +98,7 @@ class BatterystatsSummaryCollector @Inject constructor(
 
             // Screen on drain
             val screenOnRealtimeMs = diff.batteryRealtimeMs - diff.screenOffRealtimeMs
-            if (screenOnRealtimeMs > 0) {
+            if (screenOnRealtimeMs > 0 && diff.screenOnDrainPercent != null) {
                 val screenOnBatteryDrainPerHour =
                     JsonPrimitive(diff.screenOnDrainPercent.proRataValuePerHour(screenOnRealtimeMs.milliseconds))
                 addHrtRollup(name = SCREEN_ON_BATTERY_DRAIN_PER_HOUR, value = screenOnBatteryDrainPerHour)
@@ -149,8 +149,8 @@ data class ComponentPowerUse(
 data class BatteryStatsSummaryResult(
     val batteryRealtimeMs: Long,
     val screenOffRealtimeMs: Long,
-    val screenOnDrainPercent: Double,
-    val screenOffDrainPercent: Double,
+    val screenOnDrainPercent: Double?,
+    val screenOffDrainPercent: Double?,
     val componentPowerUse: Set<ComponentPowerUse>,
 )
 
@@ -173,9 +173,16 @@ fun BatteryStatsSummary.diffFromPrevious(previous: BatteryStatsSummary?): Batter
         )
     }
     val screenOnMah = diff.dischargeData.totalMaH.toDouble() - diff.dischargeData.totalMaHScreenOff.toDouble()
-    val screenOnDrainPercent = (screenOnMah / batteryState.estimatedBatteryCapacity) * 100
-    val screenOffDrainPercent =
+    val screenOnDrainPercent = if (batteryState.estimatedBatteryCapacity > 0) {
+        (screenOnMah / batteryState.estimatedBatteryCapacity) * 100
+    } else {
+        null
+    }
+    val screenOffDrainPercent = if (batteryState.estimatedBatteryCapacity > 0) {
         (diff.dischargeData.totalMaHScreenOff.toDouble() / batteryState.estimatedBatteryCapacity) * 100
+    } else {
+        null
+    }
     return BatteryStatsSummaryResult(
         batteryRealtimeMs = diff.batteryState.batteryRealtimeMs,
         screenOffRealtimeMs = diff.batteryState.screenOffRealtimeMs,

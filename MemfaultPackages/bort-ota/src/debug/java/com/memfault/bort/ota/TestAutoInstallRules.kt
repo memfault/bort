@@ -14,6 +14,9 @@ class TestAutoInstallRules @Inject constructor(
 ) : OtaRulesProvider by mainRules {
     // Emulator doesn't have network, according to JobScheduler.
     override fun downloadRules(ota: Ota): DownloadOtaRules {
-        return mainRules.downloadRules(ota).copy(overrideNetworkConstraint = NetworkType.NOT_REQUIRED)
+        return mainRules.downloadRules(ota).copy(
+            overrideNetworkConstraint = NetworkType.NOT_REQUIRED,
+            useForegroundServiceForAbDownloads = true,
+        )
     }
 }

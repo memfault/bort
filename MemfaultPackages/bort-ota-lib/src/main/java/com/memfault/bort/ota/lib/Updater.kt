@@ -1,5 +1,6 @@
 package com.memfault.bort.ota.lib
 
+import com.memfault.bort.shared.Logger
 import javax.inject.Inject
 import javax.inject.Provider
 import javax.inject.Singleton
@@ -25,7 +26,9 @@ class Updater @Inject constructor(
         extraBufferCapacity = 0,
         onBufferOverflow = SUSPEND,
     ).also {
-        it.tryEmit(stateStore.read() ?: State.Idle)
+        val initialState = stateStore.read()
+        Logger.d("initialState from store: $initialState")
+        it.tryEmit(initialState ?: State.Idle)
     }
     val updateState: Flow<State> = _updateState.distinctUntilChanged()
 
@@ -36,8 +39,10 @@ class Updater @Inject constructor(
 
     // Do all state machine operations on main thread, avoiding race conditions between threads causing bugs.
     suspend fun perform(action: Action) = withContext(Dispatchers.Main) {
+        val currentState = badCurrentUpdateState()
+        Logger.d("perform: $action (in state: $currentState)")
         actionHandler.get().handle(
-            state = badCurrentUpdateState(),
+            state = currentState,
             action = action,
         )
     }

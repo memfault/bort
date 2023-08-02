@@ -1,5 +1,6 @@
 package com.memfault.bort.ota.lib
 
+import android.content.Context
 import androidx.work.ListenableWorker.Result
 import io.mockk.coVerify
 import io.mockk.confirmVerified
@@ -26,6 +27,7 @@ internal class OtaDownloadWorkerTest {
             requiresStorageNotLowConstraint = false,
             requiresBatteryNotLowConstraint = false,
             requiresChargingConstraint = false,
+            useForegroundServiceForAbDownloads = false,
         )
         override fun installRules(ota: Ota) = TODO("not used")
     }
@@ -33,6 +35,7 @@ internal class OtaDownloadWorkerTest {
         every { badCurrentUpdateState() } answers { state }
     }
     private val ota = Ota(url = "https://", version = "1.2.3", releaseNotes = "notes")
+    private val context: Context = mockk(relaxed = true)
 
     @Before
     fun setup() = runTest {
@@ -43,7 +46,7 @@ internal class OtaDownloadWorkerTest {
     @Test
     fun failsWhenNotInExpectedState() = runTest {
         state = State.Idle
-        val result = OtaDownloadWorker.downloadWorkerRun(updater, otaRulesProvider)
+        val result = OtaDownloadWorker.downloadWorkerRun(updater, otaRulesProvider, { false }, context, {})
         assertEquals(Result.failure(), result)
         coVerify(exactly = 0) { updater.perform(any()) }
     }
@@ -51,7 +54,7 @@ internal class OtaDownloadWorkerTest {
     @Test
     fun downloadsUpdate() = runTest {
         state = State.UpdateAvailable(ota)
-        val result = OtaDownloadWorker.downloadWorkerRun(updater, otaRulesProvider)
+        val result = OtaDownloadWorker.downloadWorkerRun(updater, otaRulesProvider, { false }, context, {})
         assertEquals(Result.success(), result)
         coVerify(exactly = 1) { updater.badCurrentUpdateState() }
         coVerify(exactly = 1) { updater.perform(Action.DownloadUpdate) }
@@ -62,7 +65,7 @@ internal class OtaDownloadWorkerTest {
     fun doesNotDownloadUpdate() = runTest {
         state = State.UpdateAvailable(ota)
         rule = { _ -> false }
-        val result = OtaDownloadWorker.downloadWorkerRun(updater, otaRulesProvider)
+        val result = OtaDownloadWorker.downloadWorkerRun(updater, otaRulesProvider, { false }, context, {})
         assertEquals(Result.retry(), result)
         coVerify(exactly = 0) { updater.perform(any()) }
     }

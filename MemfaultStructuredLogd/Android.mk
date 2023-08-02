@@ -5,7 +5,7 @@ LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := libstructured
-LOCAL_SRC_FILES := $(call all-cpp-files-under, src)  aidl/com/memfault/bort/internal/ILogger.aidl
+LOCAL_SRC_FILES := $(call all-cpp-files-under, src)  com/memfault/bort/internal/ILogger.aidl
 LOCAL_CFLAGS := -Wall -Werror -Wextra -Wno-unused-parameter -fexceptions
 ifeq ($(TARGET_BUILD_BORT_UNDER_TEST),1)
 LOCAL_CFLAGS += -DBORT_UNDER_TEST
@@ -22,7 +22,7 @@ include $(BUILD_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := MemfaultStructuredLogd
-LOCAL_SRC_FILES := main.cpp aidl/com/memfault/bort/internal/ILogger.aidl
+LOCAL_SRC_FILES := main.cpp com/memfault/bort/internal/ILogger.aidl
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/deps/rapidjson-1.1.0/include $(LOCAL_PATH)/deps/sqlite_modern_cpp-3.2/hdr/
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS := -Wall -Werror -Wextra -Wno-unused-parameter -fexceptions
@@ -48,12 +48,5 @@ LOCAL_CLANG := true
 LOCAL_SHARED_LIBRARIES := libbase libbinder liblog libservices libsqlite libutils
 LOCAL_STATIC_LIBRARIES := libgmock_main libgmock libgtest libstructured
 include $(BUILD_EXECUTABLE)
-
-include $(CLEAR_VARS)
-LOCAL_MODULE := libstructuredaidl
-LOCAL_SRC_FILES := aidl/com/memfault/bort/internal/ILogger.aidl
-LOCAL_CLANG := true
-LOCAL_SHARED_LIBRARIES := libbase libbinder libutils
-include $(BUILD_SHARED_LIBRARY)
 
 include $(call all-makefiles-under,$(LOCAL_PATH))

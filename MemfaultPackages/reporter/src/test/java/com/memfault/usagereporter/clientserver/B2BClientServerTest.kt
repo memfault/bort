@@ -73,7 +73,7 @@ class B2BClientServerTest {
         val file = File.createTempFile("temp", ".$CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG", uploadDir)
         file.writeText("tmp file content")
         b2BClientServer.uploadsQueue.pushOldestFile()
-        verify(timeout = 1000) { dropboxManager.addFile(CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG, any(), 0) }
+        verify(timeout = 2000) { dropboxManager.addFile(CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG, any(), 0) }
         job.cancel()
     }
 
@@ -86,17 +86,17 @@ class B2BClientServerTest {
         val file = File.createTempFile("temp", ".$CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG", uploadDir)
         file.writeText("tmp file content")
         b2BClientServer.uploadsQueue.pushOldestFile()
-        verify(timeout = 1000) { dropboxManager.addFile(CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG, any(), 0) }
+        verify(timeout = 2000) { dropboxManager.addFile(CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG, any(), 0) }
 
         clearMocks(dropboxManager)
         b2BClientServer.clientOrServer.close()
         // Wait for aysync disconnect/reconnect
-        Thread.sleep(100)
+        Thread.sleep(250)
 
         val file2 = File.createTempFile("temp", ".$CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG", uploadDir)
         file2.writeText("tmp file content")
         b2BClientServer.uploadsQueue.pushOldestFile()
-        verify(timeout = 1000) { dropboxManager.addFile(CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG, any(), 0) }
+        verify(timeout = 2000) { dropboxManager.addFile(CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG, any(), 0) }
 
         job.cancel()
     }

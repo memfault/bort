@@ -44,4 +44,6 @@ interface UpdateActionHandler {
             scheduleDownload.scheduleDownload(ota)
         }
     }
+
+    fun initialize()
 }

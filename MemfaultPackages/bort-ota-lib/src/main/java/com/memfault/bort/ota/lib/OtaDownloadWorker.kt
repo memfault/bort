@@ -7,15 +7,20 @@ import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ForegroundInfo
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.memfault.bort.ota.lib.download.DownloadOtaService.Companion.setupForegroundNotification
+import com.memfault.bort.ota.lib.download.NOTIFICATION_ID
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.runAndTrackExceptions
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
 
 /**
  * A periodic worker that triggers an OTA download.
@@ -26,9 +31,38 @@ class OtaDownloadWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val updater: Updater,
     private val otaRulesProvider: OtaRulesProvider,
+    private val isAbDevice: IsAbDevice,
 ) : CoroutineWorker(appContext, params) {
+    private var lastReportedPercentage = -1
+
     override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "OtaDownloadWorker") {
-        downloadWorkerRun(updater, otaRulesProvider)
+        downloadWorkerRun(updater, otaRulesProvider, isAbDevice, applicationContext, ::maybeSetForeground)
+    }
+
+    /**
+     * Create (or update with progress) foreground notification for this job.
+     */
+    private suspend fun maybeSetForeground(state: State) {
+        val ota = state.ota() ?: return
+        if (!otaRulesProvider.downloadRules(ota).useForegroundServiceForAbDownloads) {
+            return
+        }
+        val progressPercentage = when (state) {
+            is State.Finalizing -> 100
+            is State.ReadyToInstall -> 100
+            is State.RebootNeeded -> 100
+            is State.UpdateDownloading -> state.progress
+            else -> 0
+        }
+
+        // Avoid flooding with state updates unless the integer percentage changed
+        if (progressPercentage != lastReportedPercentage) {
+            val builder = setupForegroundNotification(applicationContext)
+            builder.setProgress(100, progressPercentage, false)
+            val foregroundInfo = ForegroundInfo(NOTIFICATION_ID, builder.build())
+            setForeground(foregroundInfo)
+            lastReportedPercentage = progressPercentage
+        }
     }
 
     companion object {
@@ -37,6 +71,9 @@ class OtaDownloadWorker @AssistedInject constructor(
         internal suspend fun downloadWorkerRun(
             updater: Updater,
             otaRulesProvider: OtaRulesProvider,
+            isAbDevice: IsAbDevice,
+            appContext: Context,
+            maybeSetForeground: suspend (State) -> Unit,
         ): Result {
             Logger.d("OtaDownloadWorker")
             val state = updater.badCurrentUpdateState()
@@ -53,6 +90,28 @@ class OtaDownloadWorker @AssistedInject constructor(
 
             if (doDownload) {
                 updater.perform(Action.DownloadUpdate)
+                if (isAbDevice()) {
+                    // AB downloads are done by UpdateEngine in its own process (not by bort in a foreground service).
+                    // Keep Bort running until the download is complete (by keeping this job running). This isn't
+                    // foolproof, so we also schedule a task to wake bort up in-case it dies.
+                    PeriodicDownloadCompletionWorker.schedule(appContext)
+
+                    // If customer configured a foreground service, use it to keep this job running until the download
+                    // completes.
+                    maybeSetForeground(state)
+
+                    updater.updateState.onEach { newState ->
+                        // Update progress in notification.
+                        maybeSetForeground(newState)
+                    }.first { newState ->
+                        // Block until not downloading (also add UpdateAvailable, as this can be the state when the task
+                        // starts).
+                        // This will keep the job running while the download is in-progress (either for the JobScheduler
+                        // limit of 10 minutes, or for longer if a foreground service was configured above).
+                        newState !is State.UpdateDownloading && newState !is State.UpdateAvailable
+                    }
+                    PeriodicDownloadCompletionWorker.cancel(appContext)
+                }
                 return Result.success()
             } else {
                 return Result.retry()
