@@ -32,7 +32,10 @@ class PeriodicSoftwareUpdateWorker @AssistedInject constructor(
     }
 
     companion object {
-        fun schedule(context: Context, settings: SoftwareUpdateSettingsProvider) {
+        fun schedule(
+            context: Context,
+            settings: SoftwareUpdateSettingsProvider,
+        ) {
             Logger.d("schedulePeriodicUpdateCheck: ${settings.get().updateCheckIntervalMs}")
 
             val constraints = Constraints.Builder()
@@ -46,7 +49,7 @@ class PeriodicSoftwareUpdateWorker @AssistedInject constructor(
                 setConstraints(constraints)
                 setInitialDelay(
                     JitterDelayProvider(
-                        applyJitter = JitterDelayProvider.ApplyJitter.APPLY,
+                        jitterDelayConfiguration = { JitterDelayProvider.ApplyJitter.APPLY },
                         devMode = DEV_MODE_DISABLED
                     ).randomJitterDelay()
                 )

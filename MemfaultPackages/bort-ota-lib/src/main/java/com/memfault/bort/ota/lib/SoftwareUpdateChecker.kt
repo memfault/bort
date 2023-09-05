@@ -4,6 +4,7 @@ import com.memfault.bort.shared.InternalMetric
 import com.memfault.bort.shared.InternalMetric.Companion.OTA_CHECK_ERROR
 import com.memfault.bort.shared.InternalMetric.Companion.OTA_CHECK_FOUND_UPDATE
 import com.memfault.bort.shared.InternalMetric.Companion.OTA_CHECK_NO_UPDATE_AVAILABLE
+import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.SoftwareUpdateSettings
 import com.memfault.cloud.sdk.GetLatestReleaseCallback
 import com.memfault.cloud.sdk.MemfaultCloud
@@ -55,6 +56,7 @@ class MemfaultSoftwareUpdateChecker @Inject constructor(
                 object : GetLatestReleaseCallback {
                     override fun onError(e: Exception) {
                         metricLogger.addMetric(InternalMetric(OTA_CHECK_ERROR))
+                        Logger.w("Request failed!", e)
                         cont.resume(null) {}
                     }
 

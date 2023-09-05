@@ -153,7 +153,7 @@ void createService(const char* storagePath) {
 
     reporter->addValue(2, "Heartbeat", getTimeInMsSinceEpoch(), "structuredlogd_version", true,
                        STATE_LATEST_VALUE, kStructuredLogdVersion, MetricValueType::String,
-                       "string", "property", true);
+                       "string", "property", false);
 
     IPCThreadState::self()->joinThreadPool();
 

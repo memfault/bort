@@ -1,0 +1,29 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'common-android'
+
+android {
+  namespace = "com.memfault.structuredlogd.aidl"
+
+  buildFeatures {
+    buildConfig = true
+    aidl = true
+  }
+
+  sourceSets {
+    main {
+      aidl.srcDirs += '../../MemfaultStructuredLogd'
+    }
+  }
+
+  defaultConfig {
+    // Used by BuildConfigSdkVersionInfo:
+    buildConfigField "String", "APP_VERSION_NAME", "\"${loadVersionName()}\""
+    buildConfigField "int", "APP_VERSION_CODE", "${loadVersionCode()}"
+    buildConfigField "String", "UPSTREAM_VERSION_NAME", "\"${upstreamVersionName()}\""
+    buildConfigField "int", "UPSTREAM_VERSION_CODE", "${upstreamVersionCode()}"
+    buildConfigField "String", "UPSTREAM_GIT_SHA", "\"${upstreamGitSha()}\""
+    buildConfigField "String", "CURRENT_GIT_SHA", "\"${currentGitSha()}\""
+  }
+
+}

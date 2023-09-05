@@ -59,6 +59,7 @@ interface MetricsSettings {
     val appVersions: List<String>
     val maxNumAppVersions: Int
     val reporterCollectionInterval: Duration
+    val propertiesUseMetricService: Boolean
 }
 
 interface LogcatSettings {

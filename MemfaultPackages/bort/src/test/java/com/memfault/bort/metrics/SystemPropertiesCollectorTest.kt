@@ -18,9 +18,9 @@ class SystemPropertiesCollectorTest {
             override val appVersions = emptyList<String>()
             override val maxNumAppVersions: Int = 50
             override val reporterCollectionInterval = Duration.ZERO
+            override val propertiesUseMetricService: Boolean = true
         }
         val collector = SystemPropertiesCollector(
-            devicePropertiesStore = store,
             settings = settings,
             dumpsterClient = mockk(relaxed = true)
         )
@@ -53,6 +53,7 @@ class SystemPropertiesCollectorTest {
                     "sysprop.vendor.memfault.bort.version.sdk" to "string",
                     "sysprop.vendor.memfault.bort.version.patch" to "string",
                 ),
+                store,
             )
         }
         coVerify(exactly = 1) {

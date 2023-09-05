@@ -39,13 +39,13 @@ kapt {
 
 dependencies {
     api project(':bort-shared')
-    api project(':reporting-lib')
 
     implementation deps.android.hilt.work
     implementation deps.android.preference
     implementation deps.android.work
     implementation deps.dagger.hilt
     implementation deps.result
+    implementation project(path: ':reporting-libs:reporting-lib-common')
 
     kapt deps.android.hilt.compiler
     kapt deps.dagger.hilt.compiler

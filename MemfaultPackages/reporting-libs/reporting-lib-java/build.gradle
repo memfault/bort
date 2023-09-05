@@ -1,0 +1,22 @@
+apply plugin: 'com.android.library'
+apply plugin: 'common-android-java'
+
+android {
+    defaultConfig {
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+  namespace 'com.memfault.bort.structured'
+}
+
+dependencies {
+    api project(':structured-logd-aidl')
+    api project(':reporting-libs:reporting-lib-common')
+
+    testImplementation deps.test.json
+}
+
+tasks.register("androidSourcesJar", Jar) {
+    archiveClassifier.set('sources')
+    from android.sourceSets.main.java.srcDirs
+}

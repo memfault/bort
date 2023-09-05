@@ -24,7 +24,6 @@ class AppVersionsCollectorTest {
     }
     var maxNumberAppVersions = 50
     val collector = AppVersionsCollector(
-        devicePropertiesStore = store,
         metricsSettings = object : MetricsSettings {
             override val dataSourceEnabled: Boolean = false
             override val collectionInterval: Duration = ZERO
@@ -34,6 +33,8 @@ class AppVersionsCollectorTest {
             override val maxNumAppVersions: Int
                 get() = maxNumberAppVersions
             override val reporterCollectionInterval: Duration = ZERO
+            override val propertiesUseMetricService: Boolean
+                get() = true
         },
         packageManagerClient = pmClient,
     )
@@ -49,7 +50,7 @@ class AppVersionsCollectorTest {
             )
         )
         runBlocking {
-            collector.updateAppVersions()
+            collector.updateAppVersions(store)
             coVerifyAll {
                 store.upsert(
                     name = "version.$ABC_ID",
@@ -73,7 +74,7 @@ class AppVersionsCollectorTest {
     @Test fun packageManagerNotCalledIfNoRegexes() {
         packages = emptyList()
         runBlocking {
-            collector.updateAppVersions()
+            collector.updateAppVersions(store)
             verify { pmClient wasNot Called }
             verify { store wasNot Called }
         }
@@ -91,7 +92,7 @@ class AppVersionsCollectorTest {
             )
         )
         runBlocking {
-            collector.updateAppVersions()
+            collector.updateAppVersions(store)
             coVerify(exactly = 3) { store.upsert(any(), any<String>(), false) }
         }
     }

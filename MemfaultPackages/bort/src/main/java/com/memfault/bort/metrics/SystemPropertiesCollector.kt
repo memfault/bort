@@ -14,20 +14,24 @@ import javax.inject.Inject
  * Collects system properties of interest, and passes them on to the device properties database.
  */
 class SystemPropertiesCollector @Inject constructor(
-    private val devicePropertiesStore: DevicePropertiesStore,
     private val settings: MetricsSettings,
     private val dumpsterClient: DumpsterClient,
 ) {
-    suspend fun updateSystemProperties() {
+    suspend fun updateSystemProperties(devicePropertiesStore: DevicePropertiesStore) {
         val systemProperties = dumpsterClient.getprop() ?: return
         val systemPropertyTypes = dumpsterClient.getpropTypes() ?: return
-        updateSystemPropertiesWith(systemProperties = systemProperties, systemPropertyTypes = systemPropertyTypes)
+        updateSystemPropertiesWith(
+            systemProperties = systemProperties,
+            systemPropertyTypes = systemPropertyTypes,
+            devicePropertiesStore = devicePropertiesStore,
+        )
     }
 
     @VisibleForTesting
     internal fun updateSystemPropertiesWith(
         systemProperties: Map<String, String>,
         systemPropertyTypes: Map<String, String>,
+        devicePropertiesStore: DevicePropertiesStore,
     ) {
         val properties = settings.systemProperties.toSet()
         systemProperties.forEach { (key, value) ->

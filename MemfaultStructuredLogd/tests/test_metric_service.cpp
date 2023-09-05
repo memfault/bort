@@ -66,8 +66,9 @@ TEST_F (MetricTest, HappyPathVersion1) {
     std::ifstream t(hdReportTempPath);
     std::string str((std::istreambuf_iterator<char>(t)),
                     std::istreambuf_iterator<char>());
-    ASSERT_EQ(str, R"j({"schema_version":1,"start_time":123456789,"duration_ms":0,"report_type":"heartbeat","producer":{"version":"1","id":"structured_logd"},"rollups":[{"metadata":{"string_key":"CPU Usage","metric_type":"gauge","data_type":"double","internal":false},"data":[{"t":123456789,"value":6.34}]},{"metadata":{"string_key":"Screen State","metric_type":"property","data_type":"string","internal":false},"data":[{"t":123456789,"value":"On"}]}]})j");
-
+    ASSERT_EQ(
+      str,
+      R"j({"schema_version":1,"start_time":123456789,"duration_ms":0,"report_type":"heartbeat","producer":{"version":"2","id":"structured_logd"},"rollups":[{"metadata":{"string_key":"CPU Usage","metric_type":"gauge","data_type":"double","internal":false},"data":[{"t":123456789,"value":6.34}]},{"metadata":{"string_key":"Screen State","metric_type":"property","data_type":"string","internal":false},"data":[{"t":123456789,"value":"On"}]}]})j");
 }
 
 TEST_F (MetricTest, TypeConsistency) {
@@ -226,7 +227,9 @@ TEST_F (MetricTest, BasicRollupTest) {
     std::ifstream t(hdReportTempPath);
     std::string str((std::istreambuf_iterator<char>(t)),
                     std::istreambuf_iterator<char>());
-    ASSERT_EQ(str, R"j({"schema_version":1,"start_time":123456789,"duration_ms":11,"report_type":"heartbeat","producer":{"version":"1","id":"structured_logd"},"rollups":[{"metadata":{"string_key":"cpu_spiked","metric_type":"counter","data_type":"double","internal":false},"data":[{"t":123456789,"value":1.0},{"t":123456790,"value":1.0},{"t":123456791,"value":1.0}]}]})j");
+    ASSERT_EQ(
+      str,
+      R"j({"schema_version":1,"start_time":123456789,"duration_ms":11,"report_type":"heartbeat","producer":{"version":"2","id":"structured_logd"},"rollups":[{"metadata":{"string_key":"cpu_spiked","metric_type":"counter","data_type":"double","internal":false},"data":[{"t":123456789,"value":1.0},{"t":123456790,"value":1.0},{"t":123456791,"value":1.0}]}]})j");
 }
 
 TEST_F (MetricTest, HappyPathVersion2WithHd) {
@@ -286,8 +289,9 @@ TEST_F (MetricTest, HappyPathVersion2WithHd) {
     std::ifstream t(hdReportTempPath);
     std::string str((std::istreambuf_iterator<char>(t)),
                     std::istreambuf_iterator<char>());
-    ASSERT_EQ(str, R"j({"schema_version":1,"start_time":123456789,"duration_ms":2,"report_type":"heartbeat","producer":{"version":"1","id":"structured_logd"},"rollups":[{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456789,"value":false},{"t":123456790,"value":true}]}]})j");
-
+    ASSERT_EQ(
+      str,
+      R"j({"schema_version":1,"start_time":123456789,"duration_ms":2,"report_type":"heartbeat","producer":{"version":"2","id":"structured_logd"},"rollups":[{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456789,"value":false},{"t":123456790,"value":true}]}]})j");
 }
 
 TEST_F (MetricTest, Version2CarryOver) {
@@ -403,8 +407,9 @@ TEST_F (MetricTest, Version2CarryOver) {
     std::ifstream t(hdReportTempPath);
     std::string str((std::istreambuf_iterator<char>(t)),
                     std::istreambuf_iterator<char>());
-    ASSERT_EQ(str, R"j({"schema_version":1,"start_time":123456791,"duration_ms":1,"report_type":"heartbeat","producer":{"version":"1","id":"structured_logd"},"rollups":[{"metadata":{"string_key":"screen_off","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456791,"value":true}]},{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456791,"value":true}]}]})j");
-
+    ASSERT_EQ(
+      str,
+      R"j({"schema_version":1,"start_time":123456791,"duration_ms":1,"report_type":"heartbeat","producer":{"version":"2","id":"structured_logd"},"rollups":[{"metadata":{"string_key":"screen_off","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456791,"value":true}]},{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456791,"value":true}]}]})j");
 }
 
 TEST_F (MetricTest, Version2Types) {
@@ -478,7 +483,9 @@ TEST_F (MetricTest, Version2Types) {
     std::ifstream t(hdReportTempPath);
     std::string str((std::istreambuf_iterator<char>(t)),
                     std::istreambuf_iterator<char>());
-    ASSERT_EQ(str, R"j({"schema_version":1,"start_time":123456789,"duration_ms":2,"report_type":"heartbeat","producer":{"version":"1","id":"structured_logd"},"rollups":[{"metadata":{"string_key":"screen_brightness","metric_type":"counter","data_type":"double","internal":false},"data":[{"t":123456790,"value":2.0}]},{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456789,"value":false}]},{"metadata":{"string_key":"screen_type","metric_type":"counter","data_type":"string","internal":false},"data":[{"t":123456789,"value":"1"}]}]})j");
+    ASSERT_EQ(
+      str,
+      R"j({"schema_version":1,"start_time":123456789,"duration_ms":2,"report_type":"heartbeat","producer":{"version":"2","id":"structured_logd"},"rollups":[{"metadata":{"string_key":"screen_brightness","metric_type":"counter","data_type":"double","internal":false},"data":[{"t":123456790,"value":2.0}]},{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456789,"value":false}]},{"metadata":{"string_key":"screen_type","metric_type":"counter","data_type":"string","internal":false},"data":[{"t":123456789,"value":"1"}]}]})j");
 }
 
 TEST_F (MetricTest, TestAddMulti) {

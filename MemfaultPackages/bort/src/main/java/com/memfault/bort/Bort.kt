@@ -7,6 +7,7 @@ import com.memfault.bort.metrics.BORT_STARTED
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.WorkManagerConfiguration
 import com.memfault.bort.settings.asLoggerSettings
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.disableAppComponents
@@ -26,6 +27,7 @@ open class Bort : Application(), Configuration.Provider {
     @Inject lateinit var installationIdProvider: InstallationIdProvider
     @Inject lateinit var appUpgrade: AppUpgrade
     @Inject lateinit var configureStrictMode: ConfigureStrictMode
+    @Inject lateinit var workManagerConfiguration: WorkManagerConfiguration
 
     override fun onCreate() {
         super.onCreate()
@@ -92,5 +94,7 @@ open class Bort : Application(), Configuration.Provider {
                 // Create a WorkerFactory provider that provides a fresh WorkerFactory. This
                 // ensures the WorkerFactory is always using fresh app components.
                 workerFactory.get()
-            ).build()
+            )
+            .setMinimumLoggingLevel(workManagerConfiguration.logLevel)
+            .build()
 }

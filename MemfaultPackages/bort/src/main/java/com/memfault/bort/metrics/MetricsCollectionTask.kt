@@ -13,6 +13,7 @@ import com.memfault.bort.clientserver.MarMetadata.CustomDataRecordingMarMetadata
 import com.memfault.bort.clientserver.MarMetadata.HeartbeatMarMetadata
 import com.memfault.bort.dropbox.MetricReport
 import com.memfault.bort.metrics.HighResTelemetry.Companion.mergeHrtIntoFile
+import com.memfault.bort.settings.MetricsSettings
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
@@ -36,7 +37,6 @@ class MetricsCollectionTask @Inject constructor(
     @MetricsCollection private val tokenBucketStore: TokenBucketStore,
     private val packageManagerClient: PackageManagerClient,
     private val systemPropertiesCollector: SystemPropertiesCollector,
-    private val devicePropertiesStore: DevicePropertiesStore,
     private val heartbeatReportCollector: HeartbeatReportCollector,
     private val storageStatsCollector: StorageStatsCollector,
     private val appVersionsCollector: AppVersionsCollector,
@@ -45,6 +45,7 @@ class MetricsCollectionTask @Inject constructor(
     private val integrationChecker: IntegrationChecker,
     private val installationIdProvider: InstallationIdProvider,
     private val batteryStatsCollector: BatteryStatsCollector,
+    private val metricsSettings: MetricsSettings,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -53,15 +54,17 @@ class MetricsCollectionTask @Inject constructor(
         collectionTime: CombinedTime,
         heartbeatInterval: Duration,
         batteryStatsResult: BatteryStatsResult,
+        propertiesStore: DevicePropertiesStore,
     ) {
+        Logger.test("Metrics: properties_use_service = ${metricsSettings.propertiesUseMetricService}")
         // These write to Custom Metrics - do before finishing the heartbeat report.
         storageStatsCollector.collectStorageStats()
-        systemPropertiesCollector.updateSystemProperties()
-        appVersionsCollector.updateAppVersions()
+        systemPropertiesCollector.updateSystemProperties(propertiesStore)
+        appVersionsCollector.updateAppVersions(propertiesStore)
         val fallbackInternalMetrics =
             updateBuiltinProperties(
                 packageManagerClient,
-                devicePropertiesStore,
+                propertiesStore,
                 dumpsterClient,
                 integrationChecker,
                 installationIdProvider,
@@ -77,18 +80,26 @@ class MetricsCollectionTask @Inject constructor(
             internal = true,
         )
 
+        val propertiesStoreMetrics =
+            AggregateMetricFilter.filterAndRenameMetrics(propertiesStore.metrics(), internal = false)
+        val propertiesStoreInternalMetrics =
+            AggregateMetricFilter.filterAndRenameMetrics(propertiesStore.internalMetrics(), internal = true)
+
         // If there were no heartbeat internal metrics, then fallback to include some core values.
         val internalMetrics = heartbeatReportInternalMetrics.ifEmpty { fallbackInternalMetrics }
         uploadHeartbeat(
             batteryStatsFile = batteryStatsResult.batteryStatsFileToUpload,
             collectionTime = collectionTime,
             heartbeatInterval = heartbeatInterval,
-            heartbeatReportMetrics = heartbeatReportMetrics + batteryStatsResult.aggregatedMetrics,
-            heartbeatReportInternalMetrics = internalMetrics,
+            heartbeatReportMetrics = heartbeatReportMetrics + batteryStatsResult.aggregatedMetrics +
+                propertiesStoreMetrics,
+            heartbeatReportInternalMetrics = internalMetrics + propertiesStoreInternalMetrics,
         )
         // Add batterystats to HRT file.
         heartbeatReport?.highResFile?.let { hrtFile ->
-            if (batteryStatsResult.batteryStatsHrt.isNotEmpty()) {
+            val hrtMetricsToAdd = batteryStatsResult.batteryStatsHrt +
+                propertiesStore.hrtRollups(timestampMs = collectionTime.timestamp.toEpochMilli())
+            if (hrtMetricsToAdd.isNotEmpty()) {
                 mergeHrtIntoFile(hrtFile, batteryStatsResult.batteryStatsHrt)
             }
         }
@@ -147,8 +158,12 @@ class MetricsCollectionTask @Inject constructor(
         val heartbeatInterval =
             (now.elapsedRealtime.duration - lastHeartbeatEndTimeProvider.lastEnd.elapsedRealtime.duration)
 
+        // Create a properties store, which will collect properties in-memory if that setting is enabled (instead of
+        // writing them to the metrics service).
+        val propertiesStore = DevicePropertiesStore(metricsSettings)
+
         val supportsCaliperMetrics = bortSystemCapabilities.supportsCaliperMetrics()
-        devicePropertiesStore.upsert(
+        propertiesStore.upsert(
             name = SUPPORTS_CALIPER_METRICS_KEY,
             value = supportsCaliperMetrics,
             internal = true
@@ -172,7 +187,7 @@ class MetricsCollectionTask @Inject constructor(
         }
 
         val batteryStatsResult = batteryStatsCollector.collect(heartbeatInterval)
-        enqueueHeartbeatUpload(now, heartbeatInterval, batteryStatsResult)
+        enqueueHeartbeatUpload(now, heartbeatInterval, batteryStatsResult, propertiesStore)
 
         lastHeartbeatEndTimeProvider.lastEnd = now
         return TaskResult.SUCCESS

@@ -8,11 +8,12 @@ interface IDumpster {
     const int VERSION_BORT_ENABLED_PROPERTY = 2;
     const int VERSION_GETPROP_TYPES = 3;
     const int VERSION_BORT_CONTINUOUS_LOGGING = 4;
+    const int VERSION_BORT_CONTINUOUS_FIXES = 5;
 
     /**
      * Current version of the service.
      */
-    const int VERSION = 4;
+    const int VERSION = 5;
 
     /**
     * Gets the version of the MemfaultDumpster service.

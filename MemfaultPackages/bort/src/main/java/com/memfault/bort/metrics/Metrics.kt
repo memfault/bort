@@ -154,5 +154,5 @@ suspend fun updateBuiltinProperties(
     metrics[BORT_PACKAGE_NAME] = JsonPrimitive(BuildConfig.APPLICATION_ID)
     devicePropertiesStore.upsert(name = BORT_PACKAGE_NAME, value = BuildConfig.APPLICATION_ID, internal = true)
 
-    return metrics + integrationChecker.checkIntegrationAndReport()
+    return metrics + integrationChecker.checkIntegrationAndReport(devicePropertiesStore)
 }

@@ -28,7 +28,6 @@ android {
 
 dependencies {
     api project(':bort-shared')
-    api project(':reporting-lib')
 
     compileOnly files('libs/update_engine.jar')
 

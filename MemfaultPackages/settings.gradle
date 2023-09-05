@@ -9,9 +9,12 @@ pluginManagement {
 rootProject.name='Bort'
 include ':bort-shared'
 include ':bort'
-include ':reporting-lib'
+include ':reporting-libs:reporting-lib-kotlin'
+include ':reporting-libs:reporting-lib-java'
+include ':reporting-libs:reporting-lib-common'
 include ':reporter'
 include ':buildSrcTest'
+include ':structured-logd-aidl'
 
 // Don't build the OTA app unless required (i.e. don't force configuring its application ID,
 // keystore, etc if not being used). This checks the same environment variable as the AOSP build

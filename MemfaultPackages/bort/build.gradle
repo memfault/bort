@@ -67,7 +67,9 @@ kapt {
 
 dependencies {
     api project(':bort-shared')
-    api project(':reporting-lib')
+
+    // bort-shared exposes the kotlin lib and we only use the java lib in TestReceiver.kt
+    debugApi project(':reporting-libs:reporting-lib-java')
 
     implementation deps.android.work
     implementation deps.android.preference

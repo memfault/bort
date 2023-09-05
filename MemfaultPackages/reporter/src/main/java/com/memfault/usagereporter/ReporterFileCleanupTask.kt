@@ -7,6 +7,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.memfault.bort.reporting.NumericAgg
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.cleanupFiles
 import com.memfault.bort.requester.directorySize
@@ -35,7 +36,7 @@ class ReporterFileCleanupTask
 
     private fun cleanupCacheDir() {
         val tempDir = appContext.cacheDir
-        reporterTempStorageUsedMetric.update(tempDir.directorySize())
+        reporterTempStorageUsedMetric.record(tempDir.directorySize())
         val result = cleanupFiles(
             dir = tempDir,
             maxDirStorageBytes = reporterSettings.maxReporterTempStorageBytes,
@@ -55,8 +56,9 @@ class ReporterFileCleanupTask
             name = "reporter_temp_deleted",
             internal = true,
         )
-        private val reporterTempStorageUsedMetric = Reporting.report().numberProperty(
+        private val reporterTempStorageUsedMetric = Reporting.report().distribution(
             name = "reporter_temp_storage_bytes",
+            aggregations = listOf(NumericAgg.LATEST_VALUE),
             internal = true,
         )
 

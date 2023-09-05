@@ -9,11 +9,10 @@ import javax.inject.Inject
  * Collects system properties of interest, and passes them on to the device properties database.
  */
 class AppVersionsCollector @Inject constructor(
-    private val devicePropertiesStore: DevicePropertiesStore,
     private val metricsSettings: MetricsSettings,
     private val packageManagerClient: PackageManagerClient,
 ) {
-    suspend fun updateAppVersions() {
+    suspend fun updateAppVersions(devicePropertiesStore: DevicePropertiesStore) {
         val packages = metricsSettings.appVersions
         if (packages.isEmpty()) return
         val appVersions = packageManagerClient.getPackageManagerReport()

@@ -70,10 +70,10 @@ class SettingsUpdateRequester @Inject constructor(
     private val cachedClientServerMode: CachedClientServerMode,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
-        restartSetttingsUpdate(delayAfterSettingsUpdate = settingsChanged)
+        restartSettingsUpdate(delayAfterSettingsUpdate = settingsChanged)
     }
 
-    suspend fun restartSetttingsUpdate(delayAfterSettingsUpdate: Boolean) {
+    suspend fun restartSettingsUpdate(delayAfterSettingsUpdate: Boolean) {
         restartPeriodicSettingsUpdate(
             context = application,
             httpApiSettings = settings.httpApiSettings,

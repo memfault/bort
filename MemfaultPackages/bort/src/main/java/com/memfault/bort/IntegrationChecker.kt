@@ -8,9 +8,8 @@ import kotlinx.serialization.json.JsonPrimitive
 
 class IntegrationChecker @Inject constructor(
     private val application: Application,
-    private val devicePropertiesStore: DevicePropertiesStore,
 ) {
-    fun checkIntegrationAndReport(): Map<String, JsonPrimitive> {
+    fun checkIntegrationAndReport(devicePropertiesStore: DevicePropertiesStore): Map<String, JsonPrimitive> {
         val valid = isSeContextValid()
         devicePropertiesStore.upsert(name = METRIC_NAME, value = valid, internal = true)
         return mapOf(METRIC_NAME to JsonPrimitive(valid))

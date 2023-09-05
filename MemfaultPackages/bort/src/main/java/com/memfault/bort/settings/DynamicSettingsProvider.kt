@@ -172,6 +172,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.metricsMaxNumAppVersions
         override val reporterCollectionInterval: Duration
             get() = settings.metricsReporterCollectionInterval.duration
+        override val propertiesUseMetricService: Boolean
+            get() = settings.metricsPropertiesUseService
     }
 
     override val batteryStatsSettings = object : BatteryStatsSettings {

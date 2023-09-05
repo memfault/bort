@@ -214,6 +214,7 @@ class Sqlite3StorageBackend: public StorageBackend {
     SqliteDatabase _db;
     sqlite::database_binder _insertStmt;
     sqlite::database_binder _metricLastValueStmt;
+    sqlite::database_binder _metricFindMetadataStmt;
     sqlite::database_binder _metricUpsertMetadataStmt;
     sqlite::database_binder _metricInsertStmt;
     sqlite::database_binder _metricSelectAllStmt;

@@ -127,32 +127,37 @@ void SqliteDatabase::migrate() {
     }
 }
 
-Sqlite3StorageBackend::Sqlite3StorageBackend(
-        const std::string &path,
-        const std::string &bootId
-)
-        : _db(path),
-          _insertStmt(_db << "INSERT INTO log (timestamp, type, blob, bootRowId, internal) VALUES(?, ?, ?, ?, ?)"),
-          _metricLastValueStmt(_db << "SELECT value "
-                                      "FROM report_metric "
-                                      "WHERE eventName = ? AND type = ?"
-                                      "ORDER BY timestamp DESC "
-                                      "LIMIT 1"),
-          _metricUpsertMetadataStmt(_db << "INSERT OR REPLACE INTO metric_metadata"
-                                           "(reportType, eventName, metricType, dataType, carryOver, aggregations, internal, valueType) "
-                                           "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
-          _metricInsertStmt(_db << "INSERT INTO report_metric"
-                                   "(eventName, type, version, timestamp, value) "
-                                   "VALUES(?, ?, ?, ?, ?)"),
-          _metricSelectAllStmt(_db << "SELECT timestamp, value "
-                                      "FROM report_metric "
-                                      "WHERE eventName = ? AND type = ? "
-                                      "ORDER BY timestamp ASC"),
-          _reportInsertMetadata(_db << "INSERT OR IGNORE INTO report"
-                                       "(type, startTimestamp) "
-                                       "VALUES(?,?)"),
-          _path(path),
-          _inMemory(path == ":memory:") {
+Sqlite3StorageBackend::Sqlite3StorageBackend(const std::string &path, const std::string &bootId)
+    : _db(path),
+      _insertStmt(
+        _db
+        << "INSERT INTO log (timestamp, type, blob, bootRowId, internal) VALUES(?, ?, ?, ?, ?)"),
+      _metricLastValueStmt(_db << "SELECT value "
+                                  "FROM report_metric "
+                                  "WHERE eventName = ? AND type = ?"
+                                  "ORDER BY timestamp DESC "
+                                  "LIMIT 1"),
+      _metricFindMetadataStmt(
+        _db << "SELECT count(*) "
+               "FROM metric_metadata "
+               "WHERE reportType = ? AND eventName = ? AND metricType = ? AND dataType = ? "
+               "AND carryOver = ? AND aggregations = ? AND internal = ? AND valueType = ?"),
+      _metricUpsertMetadataStmt(_db << "INSERT OR REPLACE INTO metric_metadata"
+                                       "(reportType, eventName, metricType, dataType, carryOver, "
+                                       "aggregations, internal, valueType) "
+                                       "VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
+      _metricInsertStmt(_db << "INSERT INTO report_metric"
+                               "(eventName, type, version, timestamp, value) "
+                               "VALUES(?, ?, ?, ?, ?)"),
+      _metricSelectAllStmt(_db << "SELECT timestamp, value "
+                                  "FROM report_metric "
+                                  "WHERE eventName = ? AND type = ? "
+                                  "ORDER BY timestamp ASC"),
+      _reportInsertMetadata(_db << "INSERT OR IGNORE INTO report"
+                                   "(type, startTimestamp) "
+                                   "VALUES(?,?)"),
+      _path(path),
+      _inMemory(path == ":memory:") {
     registerBoot(bootId);
     ensureCids();
     ensureConfig();
@@ -224,6 +229,9 @@ void Sqlite3StorageBackend::registerBoot(const std::string &bootId) {
     if (lastId == -1 || lastUuid != bootId) {
         _db << "INSERT INTO boot_ids (uuid) VALUES (?)" << bootId;
         lastId = _db.last_insert_rowid();
+
+        ALOGD("Resetting carryover after reboot");
+        _db << "UPDATE metric_metadata SET carryOver = 0";
     }
     bootIdRow = lastId;
 }
@@ -364,11 +372,19 @@ void Sqlite3StorageBackend::storeMetricValue(uint8_t version,
 
     ensureReportMetadataLocked(type, timestamp);
 
-    _metricUpsertMetadataStmt.reset();
-    _metricUpsertMetadataStmt << type << eventName << metricType
-        << dataType << carryOver << aggregationTypes << (internal ? 1 : 0)
-        << valueType;
-    _metricUpsertMetadataStmt.execute();
+    _metricFindMetadataStmt.reset();
+    // Optimisation: only do INSERT OR REPLACE if we need to insert or update (if no exact match
+    // already)
+    _metricFindMetadataStmt << type << eventName << metricType << dataType << carryOver
+                            << aggregationTypes << (internal ? 1 : 0) << valueType >>
+      [&](int found) {
+        if (found == 0) {
+          _metricUpsertMetadataStmt.reset();
+          _metricUpsertMetadataStmt << type << eventName << metricType << dataType << carryOver
+                                    << aggregationTypes << (internal ? 1 : 0) << valueType;
+          _metricUpsertMetadataStmt.execute();
+        }
+      };
 
     _metricInsertStmt.reset();
     _metricInsertStmt << eventName << type << version << timestamp << value;
@@ -498,25 +514,27 @@ Sqlite3StorageBackend::collectMetricsLocked(uint8_t version, const std::string &
     _db << "DROP TABLE IF EXISTS temp.report_metric_carryovers";
     _db << "CREATE TABLE temp.metric_metadata_carryovers AS"
            " SELECT * FROM metric_metadata WHERE reportType = ? AND carryOver = 1"
-           << type;
+        << type;
     _db << "CREATE TABLE temp.report_metric_carryovers AS "
            "SELECT "
            " metric.* "
            "FROM metric_metadata meta, report_metric metric "
-           "LEFT JOIN report_metric metric2 ON (metric.eventName = metric2.eventName AND metric.type = metric2.type AND metric.rowid < metric2.rowid) "
+           "LEFT JOIN report_metric metric2 ON (metric.eventName = metric2.eventName AND "
+           "metric.type = metric2.type AND metric.rowid < metric2.rowid) "
            "WHERE meta.eventName = metric.eventName "
            "  AND metric2.rowid IS NULL "
-           "  AND reportType = ? AND carryOver = 1" << type;
+           "  AND reportType = ? AND carryOver = 1"
+        << type;
 
     removeReportData(type);
 
     // restore carryover metrics
     _db << "SELECT COUNT(rowId) FROM temp.metric_metadata_carryovers" >> [&](int count) {
-        if (count > 0) {
-            _reportInsertMetadata.reset();
-            _reportInsertMetadata << type << endTimestamp;
-            _reportInsertMetadata.execute();
-        }
+      if (count > 0) {
+        _reportInsertMetadata.reset();
+        _reportInsertMetadata << type << endTimestamp;
+        _reportInsertMetadata.execute();
+      }
     };
     _db << "UPDATE temp.report_metric_carryovers set timestamp = ?" << endTimestamp;
     _db << "INSERT INTO metric_metadata SELECT * FROM temp.metric_metadata_carryovers";

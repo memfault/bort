@@ -1,5 +1,19 @@
 # Memfault Bort Changelog
 
+## v4.9.0 - September 5, 2023
+
+### :rocket: New Features
+
+- Introduced a new pure java based reporting library. This is easier to use in
+  apps and services built by Android.mk and Soong build systems.
+
+### :chart_with_upwards_trend: Improvements
+
+- Minimize disk writes by StructuredLogd.
+  - Property metrics are now kept in memory instead of being sent to
+    StructuredLogd
+  - Don't re-write metric metadata if it is already correct.
+
 ## v4.8.1 - July 26, 2023
 
 ### :chart_with_upwards_trend: Improvements

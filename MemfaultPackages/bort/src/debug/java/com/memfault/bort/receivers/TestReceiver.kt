@@ -14,8 +14,9 @@ import com.memfault.bort.TestOverrideSettings
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
 import com.memfault.bort.clientserver.MarMetadata
 import com.memfault.bort.dropbox.DropBoxLastProcessedEntryProvider
+import com.memfault.bort.java.reporting.Reporting as Java_Reporting
 import com.memfault.bort.logcat.RealNextLogcatCidProvider
-import com.memfault.bort.reporting.Reporting
+import com.memfault.bort.reporting.Reporting as Kotlin_Reporting
 import com.memfault.bort.requester.restartPeriodicLogcatCollection
 import com.memfault.bort.requester.restartPeriodicMetricsCollection
 import com.memfault.bort.selfTesting.SelfTestWorker
@@ -136,11 +137,19 @@ class TestReceiver : FilteringReceiver(
                     lastHeartbeatEnd = bootRelativeTimeProvider.now() - 1.hours,
                     collectImmediately = true,
                 )
-                Reporting.report()
-                    .counter("report_test_metric")
+
+                // Kotlin based reporting library
+                Kotlin_Reporting.report()
+                    .counter("reporting_kotlin_test_metric")
                     .increment()
-                Reporting.report()
-                    .counter("report_test_metric_internal", internal = true)
+
+                Kotlin_Reporting.report()
+                    .counter("reporting_kotlin_test_metric_internal", sumInReport = true, internal = true)
+                    .increment()
+
+                // Java based reporting library
+                Java_Reporting.report()
+                    .counter("reporting_java_test_metric")
                     .increment()
             }
             "com.memfault.intent.action.TEST_RESET_RATE_LIMITS" -> {

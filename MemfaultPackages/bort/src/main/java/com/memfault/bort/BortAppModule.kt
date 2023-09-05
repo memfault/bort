@@ -14,7 +14,6 @@ import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.SettingsUpdateService
 import com.memfault.bort.settings.readBundledSettings
 import com.memfault.bort.shared.BASIC_COMMAND_TIMEOUT_MS
-import com.memfault.bort.shared.JitterDelayProvider.ApplyJitter.APPLY
 import com.memfault.bort.tokenbucket.Anr
 import com.memfault.bort.tokenbucket.BugReportPeriodic
 import com.memfault.bort.tokenbucket.BugReportRequestStore
@@ -37,7 +36,6 @@ import com.memfault.bort.tokenbucket.Tombstone
 import com.memfault.bort.tokenbucket.Wtf
 import com.memfault.bort.tokenbucket.WtfTotal
 import com.memfault.bort.uploader.PreparedUploadService
-import com.squareup.anvil.annotations.ContributesTo
 import dagger.Lazy
 import dagger.Module
 import dagger.Provides
@@ -59,17 +57,6 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import vnd.myandroid.bortappid.CustomLogScrubber
-
-/**
- * Bindings which are applicable only to the "release" build. These are replaced by DebugModule in the
- * debug build
- */
-@Module
-@ContributesTo(SingletonComponent::class)
-class BortReleaseModule {
-    @Provides
-    fun applyJitter() = APPLY
-}
 
 /**
  * Anything that:

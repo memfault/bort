@@ -27,7 +27,7 @@ data class FetchedSettings(
     val batteryStatsDataSourceEnabled: Boolean,
 
     @SerialName("battery_stats.use_hrt")
-    val batteryStatsUseHrt: Boolean = false,
+    val batteryStatsUseHrt: Boolean = true,
 
     @SerialName("bort.min_log_level")
     val bortMinLogcatLevel: Int,
@@ -253,6 +253,9 @@ data class FetchedSettings(
 
     @SerialName("metrics.data_source_enabled")
     val metricsDataSourceEnabled: Boolean,
+
+    @SerialName("metrics.properties_use_service")
+    val metricsPropertiesUseService: Boolean = true,
 
     @SerialName("metrics.system_properties")
     val metricsSystemProperties: List<String> = listOf("ro.build.type", "persist.sys.timezone"),
