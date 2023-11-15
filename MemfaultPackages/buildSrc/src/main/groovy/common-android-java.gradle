@@ -10,6 +10,10 @@
 
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 
+plugins {
+    id 'checkstyle'
+}
+
 android {
     compileSdkVersion versions.compileSdk
 
@@ -56,4 +60,23 @@ dependencies {
 
     testImplementation deps.test.coroutines
     testImplementation deps.test.mockk
+}
+
+checkstyle {
+    toolVersion '10.12.3'
+}
+
+
+tasks.register('checkstyle', Checkstyle.class) {
+    ignoreFailures = false
+    maxWarnings = 0
+    source 'src'
+    include '**/*.java'
+    exclude '**/gen/**'
+    exclude '**/R.java'
+    classpath = files()
+}
+
+tasks.named('check').configure {
+    dependsOn('checkstyle')
 }

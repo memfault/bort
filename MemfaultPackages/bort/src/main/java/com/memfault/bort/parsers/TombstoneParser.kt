@@ -15,7 +15,12 @@ class TombstoneParser(val inputStream: InputStream) {
         }
     }
 
-    private data class ThreadHeader(val pid: Int, val tid: Int, val threadName: String, val processName: String)
+    private data class ThreadHeader(
+        val pid: Int,
+        val tid: Int,
+        val threadName: String,
+        val processName: String,
+    )
 
     private fun parseThreadHeader(lines: Lines): ThreadHeader {
         for (line in lines) {

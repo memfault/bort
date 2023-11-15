@@ -11,8 +11,6 @@ import com.memfault.bort.http.gzip
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
-import java.io.File
-import javax.inject.Inject
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okhttp3.MediaType.Companion.toMediaType
@@ -24,6 +22,8 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Url
+import java.io.File
+import javax.inject.Inject
 
 enum class PrepareFileKind(val value: String) {
     MAR("mar"),
@@ -106,7 +106,7 @@ class PreparedUploader @Inject constructor(
                 device = deviceInfoProvider.getDeviceInfo().asDevice(),
                 kind = kind,
                 size = file.length(),
-            )
+            ),
         ).also {
             eventLogger.log("prepare")
         }

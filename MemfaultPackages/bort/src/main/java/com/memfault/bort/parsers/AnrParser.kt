@@ -8,7 +8,7 @@ class AnrParser(val inputStream: InputStream) {
     fun parse(): Anr {
         val lines = Lines(inputStream.bufferedReader().lineSequence().asIterable())
         return Anr(
-            ActivityManagerHeaderParser.dropUntilAndGetPackageName(lines)
+            ActivityManagerHeaderParser.dropUntilAndGetPackageName(lines),
         )
     }
 }

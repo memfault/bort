@@ -3,9 +3,9 @@ package com.memfault.bort.parsers
 import com.memfault.bort.BortJson
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTimeProvider
+import kotlinx.serialization.Serializable
 import java.io.File
 import javax.inject.Inject
-import kotlinx.serialization.Serializable
 
 /**
  * Parses `batterystats --checkin` output.
@@ -18,6 +18,7 @@ class BatteryStatsSummaryParser @Inject constructor(
         var batteryState: BatteryState? = null,
         var dischargeData: DischargeData? = null,
         val powerUseItemData: MutableMap<String, PowerUseItemData> = mutableMapOf(),
+        var powerUseSummary: PowerUseSummary? = null,
     )
 
     fun parse(file: File): BatteryStatsSummary? {
@@ -46,12 +47,14 @@ class BatteryStatsSummaryParser @Inject constructor(
 
             val state = batteryState
             val discharge = dischargeData
+            val powerUseSummary = powerUseSummary
             if (state != null && discharge != null) {
                 return BatteryStatsSummary(
                     batteryState = state,
                     dischargeData = discharge,
                     powerUseItemData = powerUseItemData.values.toSet(),
-                    timestampMs = timeProvider().timestamp.toEpochMilli()
+                    powerUseSummary = powerUseSummary ?: PowerUseSummary(),
+                    timestampMs = timeProvider().timestamp.toEpochMilli(),
                 )
             }
             Logger.w("failed to parse batterystats summary: state=$state discharge=$discharge")
@@ -75,6 +78,7 @@ class BatteryStatsSummaryParser @Inject constructor(
             "bt" -> parseBt(content)
             "dc" -> parseDischarge(content)
             "pwi" -> parsePowerUseItemData(uid, content)
+            "pws" -> parsePowerUseSummaryData(content)
         }
     }
 
@@ -93,6 +97,14 @@ class BatteryStatsSummaryParser @Inject constructor(
         val startClockTimeMs: Long,
         val screenOffRealtimeMs: Long,
         val estimatedBatteryCapacity: Long,
+    )
+
+    @Serializable
+    data class PowerUseSummary(
+        val originalBatteryCapacity: Long = 0,
+        val computedCapacityMah: Long = 0,
+        val minCapacityMah: Long = 0,
+        val maxCapacityMah: Long = 0,
     )
 
     private fun ParserContext.parseDischarge(entries: List<String>) {
@@ -132,6 +144,16 @@ class BatteryStatsSummaryParser @Inject constructor(
         }
     }
 
+    // https://github.com/google/battery-historian/blob/d2356ba4fd5f69a631fdf766b2f23494b50f6744/pb/batterystats_proto/batterystats.proto#L844C5-L852
+    private fun ParserContext.parsePowerUseSummaryData(entries: List<String>) {
+        powerUseSummary = PowerUseSummary(
+            originalBatteryCapacity = entries[PWS_INDEX_ORIGINAL_BATTERY_CAPACITY_MAH].toLong(),
+            computedCapacityMah = entries[PWS_INDEX_COMPUTED_CAPACITY_MAH].toLong(),
+            minCapacityMah = entries[PWS_INDEX_MIN_DRAINED_POWER_MAH].toLong(),
+            maxCapacityMah = entries[PWS_INDEX_MAX_DRAINED_POWER_MAH].toLong(),
+        )
+    }
+
     @Serializable
     data class PowerUseItemData(
         val name: String,
@@ -149,6 +171,7 @@ class BatteryStatsSummaryParser @Inject constructor(
         val batteryState: BatteryState,
         val dischargeData: DischargeData,
         val powerUseItemData: Set<PowerUseItemData>,
+        val powerUseSummary: PowerUseSummary = PowerUseSummary(),
         val timestampMs: Long,
     ) {
         companion object {
@@ -189,11 +212,13 @@ class BatteryStatsSummaryParser @Inject constructor(
 
 //        private const val BATTERY_STATS_INDEX_START_COUNT = 0
         private const val BATTERY_STATS_INDEX_BATTERY_REALTIME = 1
+
 //        private const val BATTERY_STATS_INDEX_BATTERY_UPTIME = 2
 //        private const val BATTERY_STATS_INDEX_TOTAL_REALTIME = 3
 //        private const val BATTERY_STATS_INDEX_TOTAL_UPTIME = 4
         private const val BATTERY_STATS_INDEX_START_CLOCK_TIME = 5
         private const val BATTERY_STATS_INDEX_SCREEN_OFF_REALTIME = 6
+
 //        private const val BATTERY_STATS_INDEX_SCREEN_OFF_UPTIME = 7
         private const val BATTERY_STATS_INDEX_ESTIMATED_BATTERY_CAPACITY = 8
 //        private const val BATTERY_STATS_INDEX_LEARNED_MIN_BATTERY_CAPACITY = 9
@@ -202,6 +227,13 @@ class BatteryStatsSummaryParser @Inject constructor(
 
         private const val PUI_INDEX_DRAIN_TYPE = 0
         private const val PUI_INDEX_TOTAL_POWER_MAH = 1
+
+        // Values decoded based off of:
+        // https://github.com/google/battery-historian/blob/d2356ba4fd5f69a631fdf766b2f23494b50f6744/pb/batterystats_proto/batterystats.proto#L844C5-L852
+        private const val PWS_INDEX_ORIGINAL_BATTERY_CAPACITY_MAH = 0
+        private const val PWS_INDEX_COMPUTED_CAPACITY_MAH = 1
+        private const val PWS_INDEX_MIN_DRAINED_POWER_MAH = 2
+        private const val PWS_INDEX_MAX_DRAINED_POWER_MAH = 3
 
         operator fun PowerUseItemData.plus(other: PowerUseItemData?) = PowerUseItemData(
             name = name,

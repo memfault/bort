@@ -20,7 +20,7 @@ data class CommandRunnerOptions(
     val outFd: ParcelFileDescriptor?,
     val redirectErr: Boolean = false,
     val timeout: Duration = DEFAULT_TIMEOUT,
-    val id: UUID = UUID.randomUUID()
+    val id: UUID = UUID.randomUUID(),
 ) {
     fun toBundle(): Bundle =
         Bundle().apply {
@@ -38,7 +38,7 @@ data class CommandRunnerOptions(
             bundle.getParcelable(OUT_FD),
             bundle.getBoolean(REDIRECT_ERR),
             bundle.getLong(TIMEOUT_MILLIS).milliseconds,
-            bundle.getParcelable<ParcelUuid>(ID)?.uuid ?: UUID_NULL
+            bundle.getParcelable<ParcelUuid>(ID)?.uuid ?: UUID_NULL,
         )
     }
 }

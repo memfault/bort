@@ -15,12 +15,12 @@ android {
         freeCompilerArgs += '-Xexplicit-api=warning'
     }
 
-    namespace 'com.memfault.bort.structured'
+    namespace 'com.memfault.bort.reporting'
 }
 
 dependencies {
     api project(':reporting-libs:reporting-lib-common')
-    api project(':structured-logd-aidl')
+    implementation project(':structured-logd-aidl')
 
     implementation deps.serialization.json
 }

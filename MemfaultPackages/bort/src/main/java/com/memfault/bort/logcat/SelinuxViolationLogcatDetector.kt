@@ -3,6 +3,7 @@ package com.memfault.bort.logcat
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.clientserver.MarMetadata
 import com.memfault.bort.dropbox.allowedByRateLimit
+import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.parsers.LogcatLine
 import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.settings.SettingsProvider
@@ -13,9 +14,9 @@ import com.memfault.bort.tokenbucket.SelinuxViolations
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueUpload
 import com.memfault.bort.uploader.HandleEventOfInterest
+import okio.Buffer
 import java.time.Instant
 import javax.inject.Inject
-import okio.Buffer
 
 data class SelinuxViolation(
     val rawDenial: String,
@@ -42,6 +43,7 @@ class SelinuxViolationLogcatDetector
     private val handleEventOfInterest: HandleEventOfInterest,
     private val settingsProvider: SettingsProvider,
     @SelinuxViolations private val tokenBucketStore: TokenBucketStore,
+    private val crashHandler: CrashHandler,
 ) {
     fun process(
         line: LogcatLine,
@@ -73,7 +75,6 @@ class SelinuxViolationLogcatDetector
         timestamp: Instant?,
         packageManagerReport: PackageManagerReport,
     ): SelinuxViolation? {
-
         // Bail early if line doesn't start with "type=". Technically we're just checking for 't' because the regex
         // should operate quickly too.
         if (message?.getOrNull(0) != 't') return null
@@ -137,6 +138,7 @@ class SelinuxViolationLogcatDetector
         selinuxViolation.timestamp?.let {
             handleEventOfInterest.handleEventOfInterest(AbsoluteTime(it))
         }
+        crashHandler.onCrash()
 
         val actor = scrubObjectString(selinuxViolation.app ?: selinuxViolation.sourceContext).orEmpty()
         val actorHint = scrubObjectString(selinuxViolation.name ?: selinuxViolation.comm)
@@ -145,7 +147,7 @@ class SelinuxViolationLogcatDetector
 
         Logger.test(
             "Recorded SELinux violation: " +
-                "Denied ${selinuxViolation.action} for $actorTitle"
+                "Denied ${selinuxViolation.action} for $actorTitle",
         )
     }
 

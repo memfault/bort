@@ -8,8 +8,8 @@ import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Inject
 import kotlinx.serialization.SerializationException
+import javax.inject.Inject
 
 interface ClientDeviceInfoPreferenceProvider {
     fun set(config: DeviceInfo)
@@ -32,11 +32,13 @@ class RealClientDeviceInfoPreferenceProvider @Inject constructor(
         val content = super.getValue()
         return if (content == INVALID_MARKER) {
             null
-        } else try {
-            DeviceInfo.from(content)
-        } catch (e: SerializationException) {
-            Logger.w("Unable to deserialize sampling config: $content", e)
-            null
+        } else {
+            try {
+                DeviceInfo.from(content)
+            } catch (e: SerializationException) {
+                Logger.w("Unable to deserialize sampling config: $content", e)
+                null
+            }
         }
     }
 

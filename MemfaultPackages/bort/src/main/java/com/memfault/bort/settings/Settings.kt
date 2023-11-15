@@ -11,10 +11,10 @@ import com.memfault.bort.shared.SdkVersionInfo
 import kotlin.time.Duration
 
 enum class NetworkConstraint(
-    val networkType: NetworkType
+    val networkType: NetworkType,
 ) {
     CONNECTED(NetworkType.CONNECTED),
-    UNMETERED(NetworkType.UNMETERED)
+    UNMETERED(NetworkType.UNMETERED),
 }
 
 interface BugReportSettings {
@@ -43,6 +43,8 @@ interface DropBoxSettings {
     val continuousLogFileRateLimitingSettings: RateLimitingSettings
     val excludedTags: Set<String>
     val scrubTombstones: Boolean
+    val processImmediately: Boolean
+    val pollingInterval: Duration
 }
 
 interface BatteryStatsSettings {
@@ -85,7 +87,6 @@ interface HttpApiSettings {
     val projectKey: String
     val filesBaseUrl: String
     val deviceBaseUrl: String
-    val ingressBaseUrl: String
     val uploadNetworkConstraint: NetworkConstraint
     val uploadCompressionEnabled: Boolean
 
@@ -107,6 +108,12 @@ interface HttpApiSettings {
     val maxMarStorageBytes: Long
     val maxMarUnsampledStoredAge: Duration
     val maxMarUnsampledStoredBytes: Long
+}
+
+interface NetworkUsageSettings {
+    val dataSourceEnabled: Boolean
+    val collectionReceiveThresholdKb: Long
+    val collectionTransmitThresholdKb: Long
 }
 
 interface RebootEventsSettings {
@@ -155,8 +162,10 @@ interface StorageSettings {
 interface FleetSamplingSettings {
     /** Is this aspect enabled for the project? (does not determine what the resolution should be) */
     val loggingActive: Boolean
+
     /** Is this aspect enabled for the project? (does not determine what the resolution should be) */
     val debuggingActive: Boolean
+
     /** Is this aspect enabled for the project? (does not determine what the resolution should be) */
     val monitoringActive: Boolean
 }
@@ -178,6 +187,7 @@ interface SettingsProvider {
     val batteryStatsSettings: BatteryStatsSettings
     val logcatSettings: LogcatSettings
     val fileUploadHoldingAreaSettings: FileUploadHoldingAreaSettings
+    val networkUsageSettings: NetworkUsageSettings
     val rebootEventsSettings: RebootEventsSettings
     val selinuxViolationSettings: SelinuxViolationSettings
     val dataScrubbingSettings: DataScrubbingSettings
@@ -200,7 +210,6 @@ fun SettingsProvider.selectSettingsToMap(): Map<String, Any> = mapOf(
     "Http Api Settings" to mapOf(
         "deviceBaseUrl" to httpApiSettings.deviceBaseUrl,
         "filesBaseUrl" to httpApiSettings.filesBaseUrl,
-        "ingressBaseUrl" to httpApiSettings.ingressBaseUrl,
         "uploadNetworkConstraint" to httpApiSettings.uploadNetworkConstraint,
         "connectTimeout" to httpApiSettings.connectTimeout,
         "writeTimeout" to httpApiSettings.writeTimeout,

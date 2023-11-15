@@ -7,8 +7,8 @@ import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
-import javax.inject.Inject
 import kotlinx.coroutines.runBlocking
+import javax.inject.Inject
 
 /**
  * Handles any migration actions required between Bort versions.
@@ -49,7 +49,7 @@ class BortMigrationVersionPrefProvider @Inject constructor(
 ) : PreferenceKeyProvider<Int>(
     sharedPreferences = sharedPreferences,
     defaultValue = V0_PRE_VERSIONING,
-    preferenceKey = PREFERENCE_BORT_MIGRATOR_VERSION
+    preferenceKey = PREFERENCE_BORT_MIGRATOR_VERSION,
 ) {
     companion object {
         private const val PREFERENCE_BORT_MIGRATOR_VERSION = "bort_migrator_version"

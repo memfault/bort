@@ -11,9 +11,9 @@ import com.memfault.bort.shared.BortSharedJson
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.SoftwareUpdateSettings
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.runBlocking
 
 /**
  * If we fail to read settings from the Bort app, then use the bundled SDK settings as a fallback (the only other option
@@ -46,8 +46,11 @@ class FallbackOtaSettings @Inject constructor(
             updateCheckIntervalMs = bundledSdkSettings.otaUpdateCheckInterval.duration.inWholeMilliseconds,
             baseUrl = bundledSdkSettings.httpApiDeviceBaseUrl,
             projectApiKey = BuildConfig.MEMFAULT_PROJECT_API_KEY,
-            downloadNetworkTypeConstraint = if (bundledSdkSettings.otaDownloadNetworkConstraintAllowMeteredConnection)
-                CONNECTED else UNMETERED,
+            downloadNetworkTypeConstraint = if (bundledSdkSettings.otaDownloadNetworkConstraintAllowMeteredConnection) {
+                CONNECTED
+            } else {
+                UNMETERED
+            },
         )
     }
 }

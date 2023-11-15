@@ -20,11 +20,11 @@ interface LastTrackedBootCountProvider {
 }
 
 class RealLastTrackedBootCountProvider(
-    sharedPreferences: SharedPreferences
+    sharedPreferences: SharedPreferences,
 ) : LastTrackedBootCountProvider, PreferenceKeyProvider<Int>(
     sharedPreferences = sharedPreferences,
     defaultValue = 0,
-    preferenceKey = PREFERENCE_LAST_TRACKED_BOOT_COUNT
+    preferenceKey = PREFERENCE_LAST_TRACKED_BOOT_COUNT,
 ) {
     override var bootCount
         get() = super.getValue()
@@ -33,7 +33,7 @@ class RealLastTrackedBootCountProvider(
 
 internal class BootCountTracker(
     val lastTrackedBootCountProvider: LastTrackedBootCountProvider,
-    val untrackedBootCountHandler: (bootCount: Int) -> Unit
+    val untrackedBootCountHandler: (bootCount: Int) -> Unit,
 ) {
     fun trackIfNeeded(bootCount: Int) {
         if (bootCount <= lastTrackedBootCountProvider.bootCount) {
@@ -53,7 +53,7 @@ internal fun getBootInstant() =
 data class AndroidBootReason(
     val reason: String,
     val subreason: String? = null,
-    val details: List<String>? = null
+    val details: List<String>? = null,
 ) {
     companion object {
         /**
@@ -65,7 +65,7 @@ data class AndroidBootReason(
                 AndroidBootReason(
                     reason = it[0],
                     subreason = it.getOrNull(1),
-                    details = if (it.size > 2) it.drop(2) else null
+                    details = if (it.size > 2) it.drop(2) else null,
                 )
             }
 
@@ -95,7 +95,7 @@ internal class RebootEventUploader(
         val rebootEvent = RebootEventInfo.fromAndroidBootReason(
             bootCount = bootCount,
             linuxBootId = getLinuxBootId(),
-            androidBootReason = AndroidBootReason.parse(androidSysBootReason)
+            androidBootReason = AndroidBootReason.parse(androidSysBootReason),
         )
         val rebootTime = CombinedTime(
             uptime = 0.milliseconds.boxed(),

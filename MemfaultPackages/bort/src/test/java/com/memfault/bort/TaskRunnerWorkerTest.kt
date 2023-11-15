@@ -49,20 +49,20 @@ class BaseTaskTest {
     fun limitAttempts() {
         val runs = listOf(
             Triple(1, TaskResult.RETRY, false),
-            Triple(2, TaskResult.FAILURE, true)
+            Triple(2, TaskResult.FAILURE, true),
         )
 
         for ((runAttemptCount, expectedResult, expectedFinallyCalled) in runs) {
             mockTaskRunnerWorker(
                 inputData = workDataOf(SAMPLE_TASK_INPUT_DATA_KEY to "foo"),
-                runAttemptCount = runAttemptCount
+                runAttemptCount = runAttemptCount,
             ).let { worker ->
                 SampleTask(getMaxAttempts = { 1 }, result = TaskResult.RETRY).let { task ->
                     assertEquals(
                         expectedResult,
                         runBlocking {
                             task.doWork(worker)
-                        }
+                        },
                     )
                     assertEquals(expectedFinallyCalled, task.finallyCalled)
                 }

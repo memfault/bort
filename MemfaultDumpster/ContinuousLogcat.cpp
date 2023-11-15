@@ -22,7 +22,6 @@
 
 namespace memfault {
 
-static constexpr char kMetricReportName[] = "Heartbeat";
 static constexpr char kLogBufferExpiredCounterName[] = "log_buffer_expired_counter";
 
 ContinuousLogcat::ContinuousLogcat() :
@@ -30,8 +29,7 @@ ContinuousLogcat::ContinuousLogcat() :
     log_format(nullptr, android_log_format_free),
     total_bytes_written(0),
     last_collection_uptime_ms(android::uptimeMillis()) {
-
-  report_ = std::make_unique<Report>(kMetricReportName);
+  report_ = std::make_unique<Report>();
   log_buffer_expired_counter_ = report_->counter(kLogBufferExpiredCounterName);
   // Compute the list of buffers we want to read from. Buffers
   // may vary between platform versions we use the liblog API

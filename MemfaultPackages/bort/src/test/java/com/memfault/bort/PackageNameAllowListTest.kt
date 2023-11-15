@@ -10,7 +10,7 @@ class PackageNameAllowListTest {
     private val FIXTURE = listOf(
         AndroidAppIdScrubbingRule("com.*"),
         AndroidAppIdScrubbingRule("net.something.*"),
-        AndroidAppIdScrubbingRule("org.*.midmatcher")
+        AndroidAppIdScrubbingRule("org.*.midmatcher"),
     )
 
     @Test
@@ -30,7 +30,7 @@ class PackageNameAllowListTest {
                 "org.willnotmatch",
                 "comd.should.not.match",
                 "org.anything.goes.midmatcher",
-            ).filter { it in allowList }
+            ).filter { it in allowList },
         )
     }
 
@@ -48,7 +48,7 @@ class PackageNameAllowListTest {
                 "/one",
                 "SystemServer",
                 "netd",
-            ).filter { it in allowList }
+            ).filter { it in allowList },
         )
     }
 
@@ -68,7 +68,7 @@ class PackageNameAllowListTest {
                 "SystemServer",
                 "netd",
                 "com.memfault.usagereporter",
-            ).filter { it in allowList }
+            ).filter { it in allowList },
         )
     }
 
@@ -80,14 +80,14 @@ class PackageNameAllowListTest {
                 "com.memfault.smartchair.bort",
                 "net.something.test",
                 "net.anotherthing.test",
-                "org.willnotmatch"
+                "org.willnotmatch",
             ),
             listOf(
                 "com.memfault.smartchair.bort",
                 "net.something.test",
                 "net.anotherthing.test",
-                "org.willnotmatch"
-            ).filter { it in allowList }
+                "org.willnotmatch",
+            ).filter { it in allowList },
         )
     }
 
@@ -106,8 +106,8 @@ class PackageNameAllowListTest {
                 "com.memfault.smartchair.bort",
                 "net.something.test",
                 "net.anotherthing.test",
-                "org.willnotmatch"
-            ).filter { it in allowList }
+                "org.willnotmatch",
+            ).filter { it in allowList },
         )
 
         every { rules() } returns listOf()
@@ -116,14 +116,14 @@ class PackageNameAllowListTest {
                 "com.memfault.smartchair.bort",
                 "net.something.test",
                 "net.anotherthing.test",
-                "org.willnotmatch"
+                "org.willnotmatch",
             ),
             listOf(
                 "com.memfault.smartchair.bort",
                 "net.something.test",
                 "net.anotherthing.test",
-                "org.willnotmatch"
-            ).filter { it in allowList }
+                "org.willnotmatch",
+            ).filter { it in allowList },
         )
     }
 }

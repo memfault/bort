@@ -3,11 +3,11 @@ package com.memfault.bort.http
 import com.memfault.bort.settings.ProjectKey
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Inject
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 import retrofit2.Invocation
+import javax.inject.Inject
 
 internal const val PROJECT_KEY_HEADER = "Memfault-Project-Key"
 
@@ -27,13 +27,13 @@ class ProjectKeyInjectingInterceptor @Inject constructor(val getProjectKey: Proj
 
     fun transformRequest(originalRequest: Request): Request {
         val annotation = originalRequest.tag(Invocation::class.java)?.method()?.getAnnotation(
-            ProjectKeyAuthenticated::class.java
+            ProjectKeyAuthenticated::class.java,
         )
         return when (annotation) {
             null -> originalRequest
             else -> originalRequest.newBuilder().header(
                 PROJECT_KEY_HEADER,
-                getProjectKey()
+                getProjectKey(),
             ).build()
         }
     }

@@ -3,11 +3,13 @@ package com.memfault.bort
 import android.content.Context
 import android.content.SharedPreferences
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
+import com.memfault.bort.receivers.DropBoxEntryAddedReceiver
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.reporting.StateAgg
 import com.memfault.bort.shared.CachedPreferenceKeyProvider
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
+import dagger.Lazy
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -23,6 +25,7 @@ import javax.inject.Singleton
 @ContributesBinding(SingletonComponent::class)
 class RealDevMode @Inject constructor(
     private val devModePreferenceProvider: DevModePreferenceProvider,
+    private val dropBoxEntryAddedReceiver: Lazy<DropBoxEntryAddedReceiver>,
 ) : DevMode {
     fun setEnabled(newEnabled: Boolean, context: Context) {
         Logger.d("Dev mode = $newEnabled")
@@ -33,6 +36,7 @@ class RealDevMode @Inject constructor(
             // mode is enabled).
             enqueueOneTimeBatchMarFiles(context = context)
         }
+        dropBoxEntryAddedReceiver.get().initialize()
     }
 
     override fun updateMetric() {

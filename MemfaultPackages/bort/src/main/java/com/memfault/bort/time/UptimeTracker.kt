@@ -6,13 +6,13 @@ import android.os.Looper
 import com.memfault.bort.LinuxBootId
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.tokenbucket.realElapsedRealtime
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.DurationUnit.MILLISECONDS
 import kotlin.time.toDuration
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
 /**
  * Continuously tracks device uptime (every [UPDATE_PERIOD]), while the bort process is running.
@@ -48,8 +48,8 @@ class UptimeTracker @Inject constructor(
         currentUptimePrefMillis.setValue(
             UptimeWithBootId(
                 bootId = linuxBootId,
-                uptimeMillis = realElapsedRealtime().inWholeMilliseconds
-            )
+                uptimeMillis = realElapsedRealtime().inWholeMilliseconds,
+            ),
         )
         // Run again, after UPDATE_PERIOD.
         handler.postDelayed(::trackCurrentUptime, UPDATE_PERIOD.inWholeMilliseconds)
@@ -67,7 +67,7 @@ private class CurrentUptimePreference(
 ) : PreferenceKeyProvider<String>(
     sharedPreferences = prefs,
     defaultValue = DEFAULT_PREVIOUS_BOOT_UPTIME,
-    preferenceKey = CURRENT_UPTIME_KEY
+    preferenceKey = CURRENT_UPTIME_KEY,
 ) {
     fun setValue(uptime: UptimeWithBootId) = setValue(Json.encodeToString(UptimeWithBootId.serializer(), uptime))
     fun get(): UptimeWithBootId = Json.decodeFromString(UptimeWithBootId.serializer(), getValue())

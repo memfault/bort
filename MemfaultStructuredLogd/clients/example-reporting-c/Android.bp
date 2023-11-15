@@ -1,0 +1,14 @@
+cc_binary {
+    name: "reporting-client-example-c",
+    srcs: ["main.c"],
+
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wextra",
+        "-Wno-unused-parameter",
+        "-fexceptions",
+    ],
+    clang: true,
+    shared_libs: ["libmflt-reporting"],
+}

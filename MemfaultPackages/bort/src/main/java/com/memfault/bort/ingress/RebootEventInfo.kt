@@ -22,7 +22,7 @@ data class RebootEventInfo(
                 linuxBootId,
                 androidBootReason.reason,
                 androidBootReason.subreason,
-                androidBootReason.details
+                androidBootReason.details,
             )
     }
 }

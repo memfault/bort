@@ -1,9 +1,9 @@
 package com.memfault.bort
 
-import java.lang.StringBuilder
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.kocakosm.jblake2.Blake2b
+import java.lang.StringBuilder
 
 interface LineScrubbingCleaner {
     fun clean(line: String): String
@@ -39,10 +39,11 @@ sealed class DataScrubbingRule
 @SerialName("android_app_id")
 data class AndroidAppIdScrubbingRule(
     @SerialName("app_id_pattern")
-    val appIdPattern: String
+    val appIdPattern: String,
 ) : DataScrubbingRule()
 
 private const val EMAIL_REGEX_GROUP = 1
+
 @Serializable
 @SerialName("text_email")
 object EmailScrubbingRule :
@@ -67,6 +68,7 @@ object EmailScrubbingRule :
 
 private const val USERNAME_REGEX_GROUP = 2
 private const val PASSWORD_REGEX_GROUP = 4
+
 @Serializable
 @SerialName("text_credential")
 object CredentialScrubbingRule :
@@ -90,7 +92,7 @@ object CredentialScrubbingRule :
  */
 class RegexLineCleaner(
     private val regex: String,
-    private val groups: List<Pair<String, Int>>
+    private val groups: List<Pair<String, Int>>,
 ) : LineScrubbingCleaner {
     private val matcher: Regex by lazy { regex.toRegex() }
     override fun clean(line: String): String {
@@ -102,7 +104,7 @@ class RegexLineCleaner(
                     transformed.replace(
                         match.range.first + adjustedPos,
                         match.range.last + adjustedPos + 1,
-                        replacement
+                        replacement,
                     )
                     adjustedPos - (match.range.last - match.range.first + 1) + replacement.length
                 } ?: adjustedPos

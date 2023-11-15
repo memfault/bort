@@ -3,9 +3,9 @@ package com.memfault.bort.parsers
 import com.memfault.bort.shared.LogcatCommand
 import com.memfault.bort.shared.LogcatFormat
 import com.memfault.bort.shared.LogcatFormatModifier
-import java.time.Instant
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import java.time.Instant
 
 class LogcatParserTest {
     @Test
@@ -23,8 +23,8 @@ class LogcatParserTest {
                     "2021-01-18 12:34:02.168273087 +0000  9008  9009 I ServiceManager: Waiting for service AtCmdFwd...",
                 ),
                 COMMAND,
-                ::dummyUidParser
-            ).parse().asIterable().last()
+                ::dummyUidParser,
+            ).parse().asIterable().last(),
         )
     }
 
@@ -40,8 +40,8 @@ class LogcatParserTest {
                     "2021-01-18 12:34:02.168273087 +0000  radio  9009 I ServiceManager: Waiting ...",
                 ),
                 COMMAND,
-                ::dummyUidParser
-            ).parse().map { it.uid }.toList()
+                ::dummyUidParser,
+            ).parse().map { it.uid }.toList(),
         )
     }
 
@@ -53,7 +53,7 @@ class LogcatParserTest {
                     Instant.ofEpochSecond(1610973197, 718860224),
                     0,
                     "2021-01-18 12:33:17.718860224 +0000  root     0 I chatty  : ",
-                    "uid=0(root) logd identical 11 lines"
+                    "uid=0(root) logd identical 11 lines",
                 ),
                 LogcatLine(null, null, null, "--------- beginning of kernel", "kernel"),
                 LogcatLine(
@@ -61,7 +61,7 @@ class LogcatParserTest {
                     9008,
                     "2021-01-18 12:34:02.168273087 +0000  9008  9009 I ServiceManager: ",
                     "Waiting for service AtCmdFwd...",
-                    "kernel"
+                    "kernel",
                 ),
                 LogcatLine(null, null, null, "--------- switch to main", "main"),
                 LogcatLine(
@@ -69,7 +69,7 @@ class LogcatParserTest {
                     0,
                     "2021-01-18 12:35:13.022471886 +0000  root     0 E foo  : ",
                     "bar",
-                    "main"
+                    "main",
                 ),
             ),
             LogcatParser(
@@ -81,8 +81,8 @@ class LogcatParserTest {
                     "2021-01-18 12:35:13.022471886 +0000  root     0 E foo  : bar",
                 ),
                 COMMAND,
-                ::dummyUidParser
-            ).parse().toList()
+                ::dummyUidParser,
+            ).parse().toList(),
         )
     }
 
@@ -102,8 +102,8 @@ class LogcatParserTest {
                     "2021-01-18 12:34:02.168273087 +0000 shell 9008  9009 I ServiceManager: Waiting...",
                 ),
                 COMMAND,
-                ::dummyUidParser
-            ).parse().toList()
+                ::dummyUidParser,
+            ).parse().toList(),
         )
     }
 
@@ -114,8 +114,8 @@ class LogcatParserTest {
             LogcatParser(
                 sequenceOf("01-18 12:34:02.168273087  9008  9008 I ServiceManager: Waiting..."),
                 COMMAND,
-                ::dummyUidParser
-            ).parse().toList()
+                ::dummyUidParser,
+            ).parse().toList(),
         )
     }
 
@@ -123,7 +123,7 @@ class LogcatParserTest {
     fun emptyInput() {
         assertEquals(
             listOf<LogcatLine>(),
-            LogcatParser(sequenceOf(), COMMAND, ::dummyUidParser).parse().toList()
+            LogcatParser(sequenceOf(), COMMAND, ::dummyUidParser).parse().toList(),
         )
     }
 }

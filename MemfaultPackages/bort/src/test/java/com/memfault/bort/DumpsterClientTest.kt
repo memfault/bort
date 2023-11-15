@@ -73,7 +73,7 @@ class DumpsterClientTest {
             serviceProvider = object : DumpsterServiceProvider {
                 override fun get(logIfMissing: Boolean): IDumpster? = service
             },
-            basicCommandTimeout = 1
+            basicCommandTimeout = 1,
         )
         runBlocking {
             assertNull(client.getprop())

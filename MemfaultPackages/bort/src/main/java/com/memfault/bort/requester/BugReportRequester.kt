@@ -118,12 +118,12 @@ class StartRealBugReport @Inject constructor() : StartBugReport {
 
         Logger.v(
             "Sending $INTENT_ACTION_BUG_REPORT_START to " +
-                "$APPLICATION_ID_MEMFAULT_USAGE_REPORTER (requestId=${request.requestId}"
+                "$APPLICATION_ID_MEMFAULT_USAGE_REPORTER (requestId=${request.requestId}",
         )
         Intent(INTENT_ACTION_BUG_REPORT_START).apply {
             component = ComponentName(
                 APPLICATION_ID_MEMFAULT_USAGE_REPORTER,
-                "$APPLICATION_ID_MEMFAULT_USAGE_REPORTER.BugReportStartReceiver"
+                "$APPLICATION_ID_MEMFAULT_USAGE_REPORTER.BugReportStartReceiver",
             )
             request.applyToIntent(this)
         }.also {
@@ -144,7 +144,7 @@ class BugReportRequester @Inject constructor(
 
         PeriodicWorkRequestBuilder<BugReportRequestWorker>(
             requestInterval.toDouble(DurationUnit.HOURS).toLong(),
-            TimeUnit.HOURS
+            TimeUnit.HOURS,
         ).also { builder ->
             builder.addTag(WORK_TAG)
             builder.setInputData(
@@ -152,7 +152,7 @@ class BugReportRequester @Inject constructor(
                     options = bugReportSettings.defaultOptions,
                     requestId = null,
                     replyReceiver = null,
-                ).toInputData()
+                ).toInputData(),
             )
             initialDelay?.let { delay ->
                 builder.setInitialDelay(delay.toDouble(DurationUnit.MINUTES).toLong(), TimeUnit.MINUTES)
@@ -160,14 +160,17 @@ class BugReportRequester @Inject constructor(
             Logger.test("Requesting bug report every ${requestInterval.toDouble(DurationUnit.HOURS)} hours")
         }.build().also {
             val existingWorkPolicy =
-                if (settingsChanged) ExistingPeriodicWorkPolicy.UPDATE
-                else ExistingPeriodicWorkPolicy.KEEP
+                if (settingsChanged) {
+                    ExistingPeriodicWorkPolicy.UPDATE
+                } else {
+                    ExistingPeriodicWorkPolicy.KEEP
+                }
 
             WorkManager.getInstance(application)
                 .enqueueUniquePeriodicWork(
                     WORK_UNIQUE_NAME_PERIODIC,
                     existingWorkPolicy,
-                    it
+                    it,
                 )
         }
     }
@@ -210,7 +213,11 @@ class BugReportRequestWorker @AssistedInject constructor(
     override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "BugReportRequestWorker") {
         if (bortEnabledProvider.isEnabled() &&
             tokenBucketStore.takeSimple(tag = BUGREPORT_RATE_LIMITING_TAG) && captureBugReport()
-        ) Result.success() else Result.failure()
+        ) {
+            Result.success()
+        } else {
+            Result.failure()
+        }
     }
 
     private suspend fun captureBugReport(): Boolean = startBugReport.requestBugReport(

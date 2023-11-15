@@ -23,7 +23,7 @@ class DataScrubbingTest {
                 "Should mail something to {{EMAIL}} tomorrow",
                 "not_a_mail",
                 "two@@example.com",
-                "nobody@notld"
+                "nobody@notld",
             ),
         )
     }
@@ -38,7 +38,7 @@ class DataScrubbingTest {
             listOf(
                 "username: {{USERNAME}} password: {{PASSWORD}}",
                 "short u: {{USERNAME}} p: {{PASSWORD}}",
-            )
+            ),
         )
     }
 
@@ -55,7 +55,7 @@ class DataScrubbingTest {
                 "regular line",
                 "something something secret@mflt.com",
                 "u: root password: hunter2",
-            ).scrubbedWith(scrubber).toList()
+            ).scrubbedWith(scrubber).toList(),
         )
     }
 

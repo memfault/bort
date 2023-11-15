@@ -3,10 +3,10 @@ package com.memfault.bort
 import android.os.RemoteException
 import com.memfault.bort.shared.MINIMUM_VALID_VERSION
 import com.memfault.dumpster.IDumpster
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Helper class to determine whether certain features are supported

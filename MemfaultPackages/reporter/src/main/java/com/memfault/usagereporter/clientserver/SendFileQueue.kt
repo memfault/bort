@@ -5,11 +5,11 @@ import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.cleanupFiles
 import com.memfault.bort.shared.Logger
 import com.memfault.usagereporter.ReporterSettings
-import java.io.File
-import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
+import java.util.UUID
 
 /**
  * Exposes the next file to be uploaded, via [nextFile].

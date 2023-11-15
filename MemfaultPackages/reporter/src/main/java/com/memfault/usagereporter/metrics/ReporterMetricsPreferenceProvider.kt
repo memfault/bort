@@ -10,11 +10,11 @@ import kotlin.time.toDuration
 
 class ReporterMetricsPreferenceProvider
 @Inject constructor(
-    sharedPreferences: SharedPreferences
+    sharedPreferences: SharedPreferences,
 ) : PreferenceKeyProvider<Long>(
     sharedPreferences = sharedPreferences,
     defaultValue = 0,
-    preferenceKey = PREFERENCE_METRICS_COLLECTION_PERIOD_MS
+    preferenceKey = PREFERENCE_METRICS_COLLECTION_PERIOD_MS,
 ) {
     fun setValue(duration: Duration) {
         setValue(duration.inWholeMilliseconds)

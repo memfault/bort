@@ -29,5 +29,6 @@ ifeq ($(TARGET_BUILD_BORT_UNDER_TEST),1)
                         structured-client-example-cpp \
                         reporting-client-example-cpp \
                         reporting-client-example-c \
-                        MemfaultStructuredLogdTests
+                        MemfaultStructuredLogdTests \
+                        ReportingJavaTestApp
 endif

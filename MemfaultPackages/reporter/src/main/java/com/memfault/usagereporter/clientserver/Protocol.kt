@@ -4,17 +4,17 @@ import androidx.annotation.VisibleForTesting
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.shared.Logger
 import com.memfault.usagereporter.clientserver.BortMessage.SendFileMessage.Companion.readSendFileMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder.BIG_ENDIAN
 import java.nio.channels.AsynchronousByteChannel
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
 
 /**
  * Simple protocol for stream variable-length data (files) over a socket connection.
@@ -100,7 +100,10 @@ sealed class BortMessage {
         /**
          * Read a single message from the channel.
          */
-        suspend fun AsynchronousByteChannel.readMessage(directory: File, timeout: Duration = TIMEOUT): BortMessage {
+        suspend fun AsynchronousByteChannel.readMessage(
+            directory: File,
+            timeout: Duration = TIMEOUT,
+        ): BortMessage {
             val headerBuffer = readBuffer(HEADER_SIZE)
             val version = headerBuffer.getInt()
             check(version == VERSION)

@@ -22,10 +22,10 @@ import com.memfault.bort.ota.lib.Event
 import com.memfault.bort.ota.lib.State
 import com.memfault.bort.shared.Logger
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class UpdateActivity : AppCompatActivity() {
@@ -59,19 +59,19 @@ class UpdateActivity : AppCompatActivity() {
                 Snackbar.make(
                     findViewById(R.id.coordinator),
                     com.memfault.bort.ota.lib.R.string.download_failed,
-                    Snackbar.LENGTH_SHORT
+                    Snackbar.LENGTH_SHORT,
                 ).show()
             is Event.VerificationFailed ->
                 Snackbar.make(
                     findViewById(R.id.coordinator),
                     R.string.verification_failed,
-                    Snackbar.LENGTH_LONG
+                    Snackbar.LENGTH_LONG,
                 ).show()
             is Event.NoUpdatesAvailable ->
                 Snackbar.make(
                     findViewById(R.id.coordinator),
                     R.string.latest_version_already_installed,
-                    Snackbar.LENGTH_SHORT
+                    Snackbar.LENGTH_SHORT,
                 ).show()
             else -> {}
         }
@@ -132,7 +132,9 @@ class UpdateActivity : AppCompatActivity() {
                 .replace(R.id.settings_container, newFragment, tag)
                 .commitNow()
             newFragment
-        } else fragment
+        } else {
+            fragment
+        }
     }
 }
 
@@ -155,7 +157,11 @@ class MainPreferenceFragment : PreferenceFragmentCompat() {
 }
 
 class UpdateFailedFragment : Fragment() {
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View? {
         return inflater.inflate(R.layout.update_failed_fragment, container, false)
     }
 }
@@ -163,7 +169,11 @@ class UpdateFailedFragment : Fragment() {
 class CheckingForUpdatesFragment : Fragment() {
     lateinit var progressBar: ProgressBar
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View? {
         val layout = inflater.inflate(R.layout.checking_for_updates_layout, container, false)
         progressBar = layout.findViewById(R.id.progress_bar)
         return layout
@@ -182,7 +192,11 @@ class CheckingForUpdatesFragment : Fragment() {
 class UpdateAvailableFragment : Fragment() {
     private val updateViewModel by activityViewModels<UpdateViewModel>()
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View? {
         val state = updateViewModel.badCurrentState() as? State.UpdateAvailable
         if (state == null) {
             Logger.d("UpdateAvailableFragment: unexpected state = ${updateViewModel.badCurrentState()}")
@@ -208,7 +222,11 @@ class UpdateAvailableFragment : Fragment() {
 class UpdateReadyFragment : Fragment() {
     private val updateViewModel by activityViewModels<UpdateViewModel>()
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View? {
         val state = updateViewModel.badCurrentState() as? State.ReadyToInstall
         if (state == null) {
             Logger.d("UpdateReadyFragment: unexpected state = ${updateViewModel.badCurrentState()}")
@@ -233,7 +251,11 @@ class UpdateReadyFragment : Fragment() {
 class FinalizingUpdateFragment : Fragment() {
     lateinit var progressBar: ProgressBar
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View? {
         val layout = inflater.inflate(R.layout.finalizing_update_layout, container, false)
         progressBar = layout.findViewById(R.id.progress_bar)
         return layout
@@ -252,7 +274,11 @@ class FinalizingUpdateFragment : Fragment() {
 class RebootNeededFragment : Fragment() {
     private val updateViewModel by activityViewModels<UpdateViewModel>()
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View? {
         val state = updateViewModel.badCurrentState() as? State.RebootNeeded
         if (state == null) {
             Logger.d("RebootNeededFragment: unexpected state = ${updateViewModel.badCurrentState()}")

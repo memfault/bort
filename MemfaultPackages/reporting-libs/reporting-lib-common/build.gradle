@@ -1,0 +1,16 @@
+apply plugin: 'com.android.library'
+apply plugin: 'common-android-java'
+
+android {
+    defaultConfig {
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    namespace 'com.memfault.bort.reporting.common'
+}
+
+dependencies {
+    implementation project(':structured-logd-aidl')
+
+    testImplementation deps.test.json
+}

@@ -10,13 +10,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
-import java.io.File
-import java.io.IOException
-import java.nio.channels.AsynchronousSocketChannel
-import java.nio.file.Files
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.days
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,6 +21,13 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
+import java.io.File
+import java.io.IOException
+import java.nio.channels.AsynchronousSocketChannel
+import java.nio.file.Files
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class B2BClientServerTest {
@@ -60,7 +60,7 @@ class B2BClientServerTest {
             port = 1234,
             host = "127.0.0.1",
             retryDelay = 500.milliseconds,
-            reporterSettings = reporterSettings
+            reporterSettings = reporterSettings,
         )
     }
 

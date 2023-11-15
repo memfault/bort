@@ -19,4 +19,6 @@ class KmsgUploadingEntryProcessorDelegate @Inject constructor(
         tokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
 
     override fun isTraceEntry(entry: DropBoxManager.Entry): Boolean = false
+
+    override fun isCrash(tag: String): Boolean = false
 }

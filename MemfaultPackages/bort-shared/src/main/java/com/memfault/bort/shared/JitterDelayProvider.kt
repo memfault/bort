@@ -19,7 +19,9 @@ class JitterDelayProvider @Inject constructor(
     fun randomJitterDelay(maxDelay: Duration = MAX_JITTER_DELAY): Duration =
         if (!devMode.isEnabled() && jitterDelayConfiguration.applyJitter() == APPLY) {
             Duration.ofMillis(Random.nextLong(0, maxDelay.toMillis()))
-        } else ZERO
+        } else {
+            ZERO
+        }
 
     enum class ApplyJitter {
         APPLY,

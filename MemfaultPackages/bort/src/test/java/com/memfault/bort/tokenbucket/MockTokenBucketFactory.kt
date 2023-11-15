@@ -20,7 +20,7 @@ class MockTokenBucketFactory(
         count: Int,
         capacity: Int,
         period: Duration,
-        periodStartElapsedRealtime: Duration?
+        periodStartElapsedRealtime: Duration?,
     ): TokenBucket =
         TokenBucket(
             capacity = capacity,

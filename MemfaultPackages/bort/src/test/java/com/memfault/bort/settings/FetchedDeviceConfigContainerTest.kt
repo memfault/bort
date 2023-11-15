@@ -75,7 +75,6 @@ class FetchedDeviceConfigContainerTest {
                             "http_api.connect_timeout_ms": 30000,
                             "http_api.device_base_url": "http://localhost:8000",
                             "http_api.files_base_url": "http://localhost:8000",
-                            "http_api.ingress_base_url": "http://localhost:8000",
                             "http_api.read_timeout_ms": 0,
                             "http_api.upload_compression_enabled": True,
                             "http_api.upload_network_constraint_allow_metered_connection": True,
@@ -210,7 +209,6 @@ class FetchedDeviceConfigContainerTest {
                             "http_api.connect_timeout_ms": 30000,
                             "http_api.device_base_url": "http://localhost:8000",
                             "http_api.files_base_url": "http://localhost:8000",
-                            "http_api.ingress_base_url": "http://localhost:8000",
                             "http_api.read_timeout_ms": 0,
                             "http_api.upload_compression_enabled": True,
                             "http_api.upload_network_constraint_allow_metered_connection": True,
@@ -301,10 +299,10 @@ class FetchedDeviceConfigContainerTest {
         assertEquals("normal", result.memfault!!.sampling.debuggingResolution)
         assertEquals(1, result.others.size)
         val square = JsonObject(
-            mapOf("prop1" to JsonPrimitive("val1"))
+            mapOf("prop1" to JsonPrimitive("val1")),
         )
         val others = JsonObject(
-            mapOf("square" to square)
+            mapOf("square" to square),
         )
         assertEquals(others, result.others)
 

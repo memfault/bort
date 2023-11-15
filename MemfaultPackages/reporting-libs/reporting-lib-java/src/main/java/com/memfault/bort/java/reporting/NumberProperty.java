@@ -2,10 +2,12 @@ package com.memfault.bort.java.reporting;
 
 import com.memfault.bort.reporting.DataType;
 import com.memfault.bort.reporting.MetricType;
+import java.util.Collections;
 
 import static com.memfault.bort.reporting.DataType.DOUBLE;
 import static com.memfault.bort.reporting.MetricType.PROPERTY;
 import static com.memfault.bort.reporting.NumericAgg.LATEST_VALUE;
+import static java.util.Collections.singletonList;
 
 public class NumberProperty extends Metric {
 
@@ -13,16 +15,13 @@ public class NumberProperty extends Metric {
   private static final DataType DATA_TYPE = DOUBLE;
   private static final Boolean CARRY_OVER_VALUE = true;
 
-  NumberProperty(String eventName, String reportType, Boolean addLatestToReport,
-      boolean internal) {
-    super(eventName, reportType, internal, METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
-    if (addLatestToReport) {
-      aggregations.add(LATEST_VALUE);
-    }
+  NumberProperty(String eventName, String reportType, Boolean addLatestToReport) {
+    super(eventName, reportType, addLatestToReport ? singletonList(LATEST_VALUE) :
+        Collections.EMPTY_LIST, METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
   }
 
   public void update(Float value) {
-    update(value.doubleValue(), this.timestamp());
+    update(value.doubleValue(), timestamp());
   }
 
   public void update(Float value, Long timestampMs) {
@@ -30,7 +29,7 @@ public class NumberProperty extends Metric {
   }
 
   public void update(Long value) {
-    update(value.doubleValue(), this.timestamp());
+    update(value.doubleValue(), timestamp());
   }
 
   public void update(Long value, Long timestampMs) {
@@ -38,7 +37,7 @@ public class NumberProperty extends Metric {
   }
 
   public void update(Integer value) {
-    update(value.doubleValue(), this.timestamp());
+    update(value.doubleValue(), timestamp());
   }
 
   public void update(Integer value, Long timestampMs) {
@@ -46,7 +45,7 @@ public class NumberProperty extends Metric {
   }
 
   public void update(Double value) {
-    update(value, this.timestamp());
+    update(value, timestamp());
   }
 
   public void update(Double value, Long timestampMs) {

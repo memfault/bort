@@ -1,30 +1,39 @@
 package com.memfault.bort.dropbox
 
+import android.app.Application
 import android.content.Context
 import android.os.DropBoxManager
 import android.os.RemoteException
 import androidx.work.Data
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import com.memfault.bort.ReporterClient
-import com.memfault.bort.ReporterServiceConnector
-import com.memfault.bort.ServiceGetter
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.oneTimeWorkRequest
-import com.memfault.bort.settings.BortEnabledProvider
+import com.memfault.bort.periodicWorkRequest
+import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.settings.DropBoxSettings
+import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.Lazy
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Inject
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import javax.inject.Inject
+import javax.inject.Singleton
 
-private const val WORK_TAG = "DROPBOX_QUERY"
-private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.DROPBOX_QUERY"
+private const val WORK_TAG_PERIODIC = "DROPBOX_QUERY"
+private const val WORK_TAG_ONE_OFF = "DROPBOX_POLL"
+private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.DROPBOX_QUERY_PERIODIC"
+private const val WORK_UNIQUE_NAME_ONE_OFF = "com.memfault.bort.work.DROPBOX_QUERY_ONE_OFF"
 private const val DEFAULT_RETRY_DELAY_MILLIS: Long = 5000
 
 fun interface DropBoxRetryDelay {
@@ -36,66 +45,64 @@ class DefaultDropBoxDelay @Inject constructor() : DropBoxRetryDelay {
     override suspend fun delay() = delay(DEFAULT_RETRY_DELAY_MILLIS)
 }
 
-class DropBoxFilterSettings @Inject constructor(
-    private val entryProcessors: DropBoxEntryProcessors,
-    private val settings: DropBoxSettings,
-    private val bortEnabledProvider: BortEnabledProvider,
-) {
-    fun tagFilter(): List<String> = if (bortEnabledProvider.isEnabled()) {
-        entryProcessors.map.keys.subtract(settings.excludedTags).toList()
-    } else {
-        emptyList()
-    }
-}
-
 class DropBoxGetEntriesTask @Inject constructor(
-    private val reporterServiceConnector: ReporterServiceConnector,
     private val cursorProvider: ProcessedEntryCursorProvider,
     private val entryProcessors: DropBoxEntryProcessors,
     private val settings: DropBoxSettings,
     private val retryDelay: DropBoxRetryDelay,
     override val metrics: BuiltinMetricsStore,
+    private val dropBoxFilters: DropBoxFilters,
+    private val processingMutex: DropboxProcessingMutex,
+    private val dropBoxManager: Lazy<DropBoxManager>,
+    private val crashHandler: CrashHandler,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data): Unit = Unit
     override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult = doWork()
 
-    suspend fun doWork() =
-        if (!settings.dataSourceEnabled or entryProcessors.map.isEmpty()) TaskResult.SUCCESS
-        else try {
-            reporterServiceConnector.connect { getConnection ->
-                if (process(getConnection)) TaskResult.SUCCESS else TaskResult.FAILURE
-            }
-        } catch (e: RemoteException) {
-            Logger.w("Error getting dropbox entry", e)
-            TaskResult.FAILURE
-        }
+    suspend fun doWork(): TaskResult {
+        if (!settings.dataSourceEnabled or entryProcessors.map.isEmpty()) return TaskResult.SUCCESS
 
-    private suspend fun process(getConnection: ServiceGetter<ReporterClient>): Boolean {
-        var previousWasNull = false
-        var cursor = cursorProvider.makeCursor()
-        while (true) {
-            val (entry, error) = getConnection().dropBoxGetNextEntry(cursor.timeMillis)
-            if (error != null) return false
+        // Use this periodic task to poke the crash-free-hours processor.
+        crashHandler.process()
 
-            // In case entries are added in quick succession, we'd end up with one worker
-            // task and one service create/destroy for *each* DropBox entry. To avoid the
-            // overhead this incurs, lets' poll once more after a delay to see if there's
-            // more coming before finishing this task:
-            if (entry == null) {
-                if (previousWasNull) {
-                    return true
+        // Use a lock, in case the periodic/one-off processing tasks overlap.
+        processingMutex.processingMutex.withLock {
+            val dropbox = dropBoxManager.get() ?: return TaskResult.FAILURE
+            var previousWasNull = false
+            var cursor = cursorProvider.makeCursor()
+            while (true) {
+                val entry = try {
+                    dropbox.getNextEntry(null, cursor.timeMillis)
+                } catch (e: RemoteException) {
+                    Logger.w("Error getting dropbox entries", e)
+                    return TaskResult.FAILURE
+                } catch (e: SecurityException) {
+                    Logger.w("Error getting dropbox entries", e)
+                    return TaskResult.FAILURE
                 }
-                previousWasNull = true
-                retryDelay.delay()
-                cursor = cursor.refresh()
-                continue
-            }
-            previousWasNull = false
 
-            entry.use {
-                processEntry(entry)
-                cursor = cursor.next(entry.timeMillis)
+                // In case entries are added in quick succession, we'd end up with one worker
+                // task and one service create/destroy for *each* DropBox entry. To avoid the
+                // overhead this incurs, let's poll once more after a delay to see if there's
+                // more coming before finishing this task:
+                if (entry == null) {
+                    if (previousWasNull) {
+                        return TaskResult.SUCCESS
+                    }
+                    previousWasNull = true
+                    retryDelay.delay()
+                    cursor = cursor.refresh()
+                    continue
+                }
+                previousWasNull = false
+
+                entry.use {
+                    if (entry.tag in dropBoxFilters.tagFilter()) {
+                        processEntry(entry)
+                    }
+                    cursor = cursor.next(entry.timeMillis)
+                }
             }
         }
     }
@@ -111,19 +118,59 @@ class DropBoxGetEntriesTask @Inject constructor(
     }
 }
 
-fun enqueueDropBoxQueryTask(context: Context) {
+@Singleton
+class DropboxProcessingMutex @Inject constructor() {
+    val processingMutex = Mutex()
+}
+
+fun enqueueOneTimeDropBoxQueryTask(context: Context) {
     oneTimeWorkRequest<DropBoxGetEntriesTask>(
-        workDataOf()
+        workDataOf(),
     ) {
-        addTag(WORK_TAG)
+        addTag(WORK_TAG_ONE_OFF)
     }.also { workRequest ->
         WorkManager.getInstance(context)
             .enqueueUniqueWork(
-                WORK_UNIQUE_NAME_PERIODIC,
+                WORK_UNIQUE_NAME_ONE_OFF,
                 // During tests, KEEP will fail to process files in quick succession, and REPLACE will cancel any jobs
                 // in progress (losing that file) - so use APPEND_OR_REPLACE.
                 ExistingWorkPolicy.APPEND_OR_REPLACE,
-                workRequest
+                workRequest,
             )
+    }
+}
+
+@ContributesMultibinding(SingletonComponent::class)
+class DropboxRequester @Inject constructor(
+    private val dropBoxSettings: DropBoxSettings,
+    private val application: Application,
+) : PeriodicWorkRequester() {
+    override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
+        periodicWorkRequest<DropBoxGetEntriesTask>(
+            dropBoxSettings.pollingInterval,
+            workDataOf(),
+        ) {
+            addTag(WORK_TAG_PERIODIC)
+        }.also { workRequest ->
+            WorkManager.getInstance(application)
+                .enqueueUniquePeriodicWork(
+                    WORK_UNIQUE_NAME_PERIODIC,
+                    ExistingPeriodicWorkPolicy.UPDATE,
+                    workRequest,
+                )
+        }
+    }
+
+    override fun cancelPeriodic() {
+        WorkManager.getInstance(application)
+            .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
+    }
+
+    override suspend fun enabled(settings: SettingsProvider): Boolean {
+        return dropBoxSettings.dataSourceEnabled
+    }
+
+    override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean {
+        return old.dropBoxSettings.pollingInterval != new.dropBoxSettings.pollingInterval
     }
 }

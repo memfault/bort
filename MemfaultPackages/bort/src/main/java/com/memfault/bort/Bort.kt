@@ -5,6 +5,7 @@ import androidx.work.Configuration
 import com.memfault.bort.metrics.BORT_CRASH
 import com.memfault.bort.metrics.BORT_STARTED
 import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.receivers.DropBoxEntryAddedReceiver
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.WorkManagerConfiguration
@@ -20,14 +21,24 @@ import javax.inject.Provider
 @HiltAndroidApp
 open class Bort : Application(), Configuration.Provider {
     @Inject lateinit var metrics: BuiltinMetricsStore
+
     @Inject lateinit var bortEnabledProvider: BortEnabledProvider
+
     @Inject lateinit var uptimeTracker: UptimeTracker
+
     @Inject lateinit var settingsProvider: SettingsProvider
+
     @Inject lateinit var workerFactory: Provider<BortWorkerFactory>
+
     @Inject lateinit var installationIdProvider: InstallationIdProvider
+
     @Inject lateinit var appUpgrade: AppUpgrade
+
     @Inject lateinit var configureStrictMode: ConfigureStrictMode
+
     @Inject lateinit var workManagerConfiguration: WorkManagerConfiguration
+
+    @Inject lateinit var dropBoxEntryAddedReceiver: DropBoxEntryAddedReceiver
 
     override fun onCreate() {
         super.onCreate()
@@ -58,9 +69,13 @@ open class Bort : Application(), Configuration.Provider {
         }
 
         appUpgrade.handleUpgrade(this)
+        dropBoxEntryAddedReceiver.initialize()
     }
 
-    private fun logDebugInfo(bortEnabledProvider: BortEnabledProvider, settingsProvider: SettingsProvider) {
+    private fun logDebugInfo(
+        bortEnabledProvider: BortEnabledProvider,
+        settingsProvider: SettingsProvider,
+    ) {
         Logger.logEventBortSdkEnabled(bortEnabledProvider.isEnabled())
 
         with(settingsProvider) {
@@ -72,7 +87,7 @@ open class Bort : Application(), Configuration.Provider {
                 "appVersionName=${sdkVersionInfo.appVersionName}",
                 "appVersionCode=${sdkVersionInfo.appVersionCode}",
                 "currentGitSha=${sdkVersionInfo.currentGitSha}",
-                "upstreamGitSha${sdkVersionInfo.upstreamGitSha}",
+                "upstreamGitSha=${sdkVersionInfo.upstreamGitSha}",
                 "upstreamVersionName=${sdkVersionInfo.upstreamVersionName}",
                 "upstreamVersionCode=${sdkVersionInfo.upstreamVersionCode}",
                 "bugreport.enabled=${bugReportSettings.dataSourceEnabled}",
@@ -83,7 +98,7 @@ open class Bort : Application(), Configuration.Provider {
                 "bort.oncreate",
                 mapOf(
                     "appVersionName" to sdkVersionInfo.appVersionName,
-                )
+                ),
             )
         }
     }
@@ -93,7 +108,7 @@ open class Bort : Application(), Configuration.Provider {
             .setWorkerFactory(
                 // Create a WorkerFactory provider that provides a fresh WorkerFactory. This
                 // ensures the WorkerFactory is always using fresh app components.
-                workerFactory.get()
+                workerFactory.get(),
             )
             .setMinimumLoggingLevel(workManagerConfiguration.logLevel)
             .build()

@@ -49,7 +49,7 @@ data class BatteryStatsCommand(
     val settings: Boolean = false,
     val cpu: Boolean = false,
     val optionEnablement: BatteryStatsOptionEnablement? = null,
-    val help: Boolean = false
+    val help: Boolean = false,
 ) : Command {
     private val booleanFlagMap
         get() = mapOf(
@@ -65,14 +65,14 @@ data class BatteryStatsCommand(
             READ_DAILY to readDaily,
             SETTINGS to settings,
             CPU to cpu,
-            HELP to help
+            HELP to help,
         )
 
     override fun toList(): List<String> =
         listOf("dumpsys", "batterystats") + if (optionEnablement != null) {
             listOf(
                 if (optionEnablement.enabled) "enable" else "disable",
-                optionEnablement.option.cliValue
+                optionEnablement.option.cliValue,
             )
         } else {
             booleanFlagMap
@@ -119,7 +119,7 @@ data class BatteryStatsCommand(
                         BatteryStatsOptionEnablement(enabled, option)
                     }
                 },
-                help = getBoolean(HELP)
+                help = getBoolean(HELP),
             )
         }
     }
@@ -130,7 +130,8 @@ data class BatteryStatsOptionEnablement(val enabled: Boolean, val option: Batter
 enum class BatteryStatsOption(val id: Byte, val cliValue: String) {
     FULL_HISTORY(0, "full-history"),
     NO_AUTO_RESET(1, "no-auto-reset"),
-    PRETEND_SCREEN_OFF(2, "pretend-screen-off");
+    PRETEND_SCREEN_OFF(2, "pretend-screen-off"),
+    ;
 
     companion object {
         fun getById(id: Byte) = values().firstOrNull { it.id == id }

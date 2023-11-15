@@ -4,9 +4,9 @@ import android.os.Environment
 import com.memfault.bort.reporting.NumericAgg
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.Logger
-import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 /**
  * Collects internal storage usage stats, and records them as metrics.
@@ -30,7 +30,7 @@ class StorageStatsCollector
         val percentageUsed = usedBytes.toDouble() / totalBytes.toDouble()
         Logger.v(
             "collectStorageStats: freeBytes=$freeBytes / totalBytes=$totalBytes / " +
-                "usedBytes=$usedBytes / percentageUsed=$percentageUsed"
+                "usedBytes=$usedBytes / percentageUsed=$percentageUsed",
         )
         freeBytesMetric.record(freeBytes)
         totalBytesMetric.record(totalBytes)

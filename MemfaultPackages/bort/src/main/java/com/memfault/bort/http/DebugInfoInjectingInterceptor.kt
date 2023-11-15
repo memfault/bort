@@ -6,12 +6,12 @@ import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.shared.SdkVersionInfo
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
-import java.util.UUID
-import javax.inject.Inject
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
+import java.util.UUID
+import javax.inject.Inject
 
 internal const val QUERY_PARAM_UPSTREAM_VERSION_NAME = "upstreamVersionName"
 internal const val QUERY_PARAM_UPSTREAM_VERSION_CODE = "upstreamVersionCode"
@@ -44,8 +44,11 @@ class DebugInfoInjectingInterceptor @Inject constructor(
         }
         val xRequestId = UUID.randomUUID().toString()
         val deviceSerial =
-            if (bortEnabledProvider.isEnabled()) runBlocking { deviceInfoProvider.getDeviceInfo().deviceSerial }
-            else ""
+            if (bortEnabledProvider.isEnabled()) {
+                runBlocking { deviceInfoProvider.getDeviceInfo().deviceSerial }
+            } else {
+                ""
+            }
         val transformedUrl = url.newBuilder().apply {
             linkedMapOf(
                 QUERY_PARAM_DEVICE_SERIAL to deviceSerial,
@@ -56,7 +59,7 @@ class DebugInfoInjectingInterceptor @Inject constructor(
                 QUERY_PARAM_VERSION_NAME to sdkVersionInfo.appVersionName,
                 QUERY_PARAM_VERSION_CODE to sdkVersionInfo.appVersionCode.toString(),
                 QUERY_PARAM_DEVICE_ID to installationIdProvider.id(),
-                X_REQUEST_ID to xRequestId
+                X_REQUEST_ID to xRequestId,
             ).forEach { key, value -> addQueryParameter(key, value) }
         }.build()
         return request.newBuilder()
@@ -67,6 +70,6 @@ class DebugInfoInjectingInterceptor @Inject constructor(
 
     override fun intercept(chain: Interceptor.Chain): Response =
         chain.proceed(
-            transformRequest(chain.request())
+            transformRequest(chain.request()),
         )
 }

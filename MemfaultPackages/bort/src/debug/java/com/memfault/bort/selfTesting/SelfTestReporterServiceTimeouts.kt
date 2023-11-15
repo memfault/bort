@@ -11,7 +11,7 @@ import com.memfault.bort.shared.result.isSuccess
 import kotlin.time.Duration.Companion.seconds
 
 class SelfTestReporterServiceTimeouts(
-    val reporterServiceConnector: ReporterServiceConnector
+    val reporterServiceConnector: ReporterServiceConnector,
 ) : SelfTester.Case {
     override suspend fun test(): Boolean {
         data class TimeoutTestCase(val delaySeconds: Int, val expectedResponse: RunCommandResponse)
@@ -19,11 +19,11 @@ class SelfTestReporterServiceTimeouts(
         val testCases = listOf(
             TimeoutTestCase(
                 delaySeconds = 0,
-                expectedResponse = RunCommandResponse(exitCode = 0, didTimeout = false)
+                expectedResponse = RunCommandResponse(exitCode = 0, didTimeout = false),
             ),
             TimeoutTestCase(
                 delaySeconds = 2,
-                expectedResponse = RunCommandResponse(exitCode = 143, didTimeout = true)
+                expectedResponse = RunCommandResponse(exitCode = 143, didTimeout = true),
             ),
         )
         return reporterServiceConnector.connect { getClient ->

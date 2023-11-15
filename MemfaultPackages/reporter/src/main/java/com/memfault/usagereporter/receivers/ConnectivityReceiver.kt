@@ -19,12 +19,12 @@ import com.memfault.usagereporter.receivers.ConnectivityState.ETHERNET
 import com.memfault.usagereporter.receivers.ConnectivityState.NONE
 import com.memfault.usagereporter.receivers.ConnectivityState.UNKNOWN
 import com.memfault.usagereporter.receivers.ConnectivityState.WIFI
-import javax.inject.Inject
-import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 
 class ConnectivityReceiver
 @Inject constructor(

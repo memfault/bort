@@ -9,11 +9,11 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertEquals
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 class SettingsUpdateHandlerTest {
     private val structuredLogSettingsMock = object : StructuredLogSettings {

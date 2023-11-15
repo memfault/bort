@@ -14,11 +14,11 @@ import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.MaxUploadAttempts
 import com.memfault.bort.settings.UploadCompressionEnabled
 import com.memfault.bort.shared.Logger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.minutes
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 val BACKOFF_DURATION = 5.minutes
 
@@ -76,7 +76,9 @@ class FileUploadTask @Inject constructor(
 
         when (
             val result = delegate.upload(
-                file, payload, shouldCompress && getUploadCompressionEnabled()
+                file,
+                payload,
+                shouldCompress && getUploadCompressionEnabled(),
             )
         ) {
             TaskResult.RETRY -> return result

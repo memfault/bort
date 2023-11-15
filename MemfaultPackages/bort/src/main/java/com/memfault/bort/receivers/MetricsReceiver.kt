@@ -11,7 +11,7 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class MetricsReceiver : BortEnabledFilteringReceiver(
-    setOf(INTENT_ACTION_INTERNAL_METRIC)
+    setOf(INTENT_ACTION_INTERNAL_METRIC),
 ) {
     @Inject lateinit var metrics: BuiltinMetricsStore
 

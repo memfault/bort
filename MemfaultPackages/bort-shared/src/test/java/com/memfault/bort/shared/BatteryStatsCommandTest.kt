@@ -8,7 +8,7 @@ class BatteryStatsCommandTest {
     fun c() {
         assertEquals(
             listOf("dumpsys", "batterystats", "-c"),
-            BatteryStatsCommand(c = true).toList()
+            BatteryStatsCommand(c = true).toList(),
         )
     }
 
@@ -16,7 +16,7 @@ class BatteryStatsCommandTest {
     fun checkin() {
         assertEquals(
             listOf("dumpsys", "batterystats", "--checkin"),
-            BatteryStatsCommand(checkin = true).toList()
+            BatteryStatsCommand(checkin = true).toList(),
         )
     }
 
@@ -24,7 +24,7 @@ class BatteryStatsCommandTest {
     fun proto() {
         assertEquals(
             listOf("dumpsys", "batterystats", "--proto"),
-            BatteryStatsCommand(proto = true).toList()
+            BatteryStatsCommand(proto = true).toList(),
         )
     }
 
@@ -32,7 +32,7 @@ class BatteryStatsCommandTest {
     fun history() {
         assertEquals(
             listOf("dumpsys", "batterystats", "--history"),
-            BatteryStatsCommand(history = true).toList()
+            BatteryStatsCommand(history = true).toList(),
         )
     }
 
@@ -40,7 +40,7 @@ class BatteryStatsCommandTest {
     fun historyStart() {
         assertEquals(
             listOf("dumpsys", "batterystats", "--history-start", "1234"),
-            BatteryStatsCommand(historyStart = 1234).toList()
+            BatteryStatsCommand(historyStart = 1234).toList(),
         )
     }
 
@@ -48,7 +48,7 @@ class BatteryStatsCommandTest {
     fun charged() {
         assertEquals(
             listOf("dumpsys", "batterystats", "--charged"),
-            BatteryStatsCommand(charged = true).toList()
+            BatteryStatsCommand(charged = true).toList(),
         )
     }
 
@@ -56,7 +56,7 @@ class BatteryStatsCommandTest {
     fun daily() {
         assertEquals(
             listOf("dumpsys", "batterystats", "--daily"),
-            BatteryStatsCommand(daily = true).toList()
+            BatteryStatsCommand(daily = true).toList(),
         )
     }
 
@@ -64,7 +64,7 @@ class BatteryStatsCommandTest {
     fun reset() {
         assertEquals(
             listOf("dumpsys", "batterystats", "--reset"),
-            BatteryStatsCommand(reset = true).toList()
+            BatteryStatsCommand(reset = true).toList(),
         )
     }
 
@@ -72,7 +72,7 @@ class BatteryStatsCommandTest {
     fun write() {
         assertEquals(
             listOf("dumpsys", "batterystats", "--write"),
-            BatteryStatsCommand(write = true).toList()
+            BatteryStatsCommand(write = true).toList(),
         )
     }
 
@@ -80,7 +80,7 @@ class BatteryStatsCommandTest {
     fun newDaily() {
         assertEquals(
             listOf("dumpsys", "batterystats", "--new-daily"),
-            BatteryStatsCommand(newDaily = true).toList()
+            BatteryStatsCommand(newDaily = true).toList(),
         )
     }
 
@@ -88,7 +88,7 @@ class BatteryStatsCommandTest {
     fun readDaily() {
         assertEquals(
             listOf("dumpsys", "batterystats", "--read-daily"),
-            BatteryStatsCommand(readDaily = true).toList()
+            BatteryStatsCommand(readDaily = true).toList(),
         )
     }
 
@@ -96,7 +96,7 @@ class BatteryStatsCommandTest {
     fun settings() {
         assertEquals(
             listOf("dumpsys", "batterystats", "--settings"),
-            BatteryStatsCommand(settings = true).toList()
+            BatteryStatsCommand(settings = true).toList(),
         )
     }
 
@@ -104,7 +104,7 @@ class BatteryStatsCommandTest {
     fun cpu() {
         assertEquals(
             listOf("dumpsys", "batterystats", "--cpu"),
-            BatteryStatsCommand(cpu = true).toList()
+            BatteryStatsCommand(cpu = true).toList(),
         )
     }
 
@@ -112,7 +112,7 @@ class BatteryStatsCommandTest {
     fun help() {
         assertEquals(
             listOf("dumpsys", "batterystats", "-h"),
-            BatteryStatsCommand(help = true).toList()
+            BatteryStatsCommand(help = true).toList(),
         )
     }
 
@@ -122,14 +122,14 @@ class BatteryStatsCommandTest {
         assertEquals(
             listOf("dumpsys", "batterystats", "enable", "full-history"),
             BatteryStatsCommand(
-                optionEnablement = BatteryStatsOptionEnablement(true, option)
-            ).toList()
+                optionEnablement = BatteryStatsOptionEnablement(true, option),
+            ).toList(),
         )
         assertEquals(
             listOf("dumpsys", "batterystats", "disable", "full-history"),
             BatteryStatsCommand(
-                optionEnablement = BatteryStatsOptionEnablement(false, option)
-            ).toList()
+                optionEnablement = BatteryStatsOptionEnablement(false, option),
+            ).toList(),
         )
     }
 
@@ -139,14 +139,14 @@ class BatteryStatsCommandTest {
         assertEquals(
             listOf("dumpsys", "batterystats", "enable", "no-auto-reset"),
             BatteryStatsCommand(
-                optionEnablement = BatteryStatsOptionEnablement(true, option)
-            ).toList()
+                optionEnablement = BatteryStatsOptionEnablement(true, option),
+            ).toList(),
         )
         assertEquals(
             listOf("dumpsys", "batterystats", "disable", "no-auto-reset"),
             BatteryStatsCommand(
-                optionEnablement = BatteryStatsOptionEnablement(false, option)
-            ).toList()
+                optionEnablement = BatteryStatsOptionEnablement(false, option),
+            ).toList(),
         )
     }
 
@@ -156,14 +156,14 @@ class BatteryStatsCommandTest {
         assertEquals(
             listOf("dumpsys", "batterystats", "enable", "pretend-screen-off"),
             BatteryStatsCommand(
-                optionEnablement = BatteryStatsOptionEnablement(true, option)
-            ).toList()
+                optionEnablement = BatteryStatsOptionEnablement(true, option),
+            ).toList(),
         )
         assertEquals(
             listOf("dumpsys", "batterystats", "disable", "pretend-screen-off"),
             BatteryStatsCommand(
-                optionEnablement = BatteryStatsOptionEnablement(false, option)
-            ).toList()
+                optionEnablement = BatteryStatsOptionEnablement(false, option),
+            ).toList(),
         )
     }
 }

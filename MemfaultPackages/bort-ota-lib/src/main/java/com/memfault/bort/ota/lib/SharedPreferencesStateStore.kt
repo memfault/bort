@@ -5,10 +5,10 @@ import com.memfault.bort.shared.BortSharedJson
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Inject
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import javax.inject.Inject
 
 /**
  * An interface for persisting state. Android applications may be killed at any point by the system but ideally

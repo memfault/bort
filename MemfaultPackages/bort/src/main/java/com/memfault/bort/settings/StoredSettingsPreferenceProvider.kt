@@ -7,8 +7,8 @@ import com.memfault.bort.PREFERENCE_FETCHED_SDK_SETTINGS
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Inject
 import kotlinx.serialization.SerializationException
+import javax.inject.Inject
 
 private const val INVALID_MARKER = "__NA__"
 
@@ -37,12 +37,14 @@ class RealStoredSettingsPreferenceProvider @Inject constructor(
         val content = super.getValue()
         return if (content == INVALID_MARKER) {
             FetchedSettings.from(getBundledConfig()) { BortJson }
-        } else try {
-            FetchedSettings.from(content) { BortJson }
-        } catch (ex: SerializationException) {
-            // Don't use Logger here - that could cause a stackoverflow.
-            Log.d("bort", "Unable to deserialize settings, falling back to bundled config", ex)
-            FetchedSettings.from(getBundledConfig()) { BortJson }
+        } else {
+            try {
+                FetchedSettings.from(content) { BortJson }
+            } catch (ex: SerializationException) {
+                // Don't use Logger here - that could cause a stackoverflow.
+                Log.d("bort", "Unable to deserialize settings, falling back to bundled config", ex)
+                FetchedSettings.from(getBundledConfig()) { BortJson }
+            }
         }
     }
 
@@ -57,5 +59,5 @@ class RealStoredSettingsPreferenceProvider @Inject constructor(
 
 fun FetchedSettings.toJson() = BortJson.encodeToString(
     FetchedSettings.FetchedSettingsContainer.serializer(),
-    FetchedSettings.FetchedSettingsContainer(this)
+    FetchedSettings.FetchedSettingsContainer(this),
 )

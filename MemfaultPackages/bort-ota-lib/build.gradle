@@ -36,6 +36,7 @@ dependencies {
     implementation deps.serialization.converter
 
     implementation deps.android.appcompat
+    implementation deps.android.lifecycle.service
     implementation deps.android.hilt.work
     implementation deps.android.work
     implementation deps.dagger.hilt

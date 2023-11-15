@@ -1,10 +1,10 @@
 package com.memfault.bort.tokenbucket
 
 import io.mockk.mockk
-import kotlin.time.Duration.Companion.milliseconds
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.milliseconds
 
 class TokenBucketMapTest {
     lateinit var bucketA: TokenBucket
@@ -89,7 +89,7 @@ class TokenBucketMapTest {
         val bucketMap = TokenBucketMap(
             emptyMap(),
             maxBuckets = 1,
-            tokenBucketFactory = tokenBucketFactory
+            tokenBucketFactory = tokenBucketFactory,
         )
         val expectedBucket = tokenBucketFactory.create(count = capacity, capacity = capacity, period = period)
         assertEquals(expectedBucket, bucketMap.upsertBucket("x", capacity, period))
@@ -130,7 +130,8 @@ class TokenBucketMapTest {
             mapOf(
                 "x" to expectedBucket,
             ),
-            maxBuckets = 1, tokenBucketFactory = tokenBucketFactory
+            maxBuckets = 1,
+            tokenBucketFactory = tokenBucketFactory,
         )
         assertEquals(expectedBucket, bucketMap.upsertBucket("x"))
     }
@@ -154,7 +155,7 @@ class TokenBucketMapTest {
             mapOf(
                 "notFull" to notFull,
             ),
-            bucketMap.toMap()
+            bucketMap.toMap(),
         )
     }
 }

@@ -12,8 +12,8 @@ class BatteryStatsParserTest {
                 """
                    9,h,123:TIME:123456
                    NEXT: 1234567890
-                """.trimIndent().byteInputStream()
-            ).parse()
+                """.trimIndent().byteInputStream(),
+            ).parse(),
         )
     }
 
@@ -25,8 +25,8 @@ class BatteryStatsParserTest {
                 """
                    9,h,123:RESET:TIME:123456
                    NEXT: 1234567890
-                """.trimIndent().byteInputStream()
-            ).parse()
+                """.trimIndent().byteInputStream(),
+            ).parse(),
         )
     }
 
@@ -35,8 +35,8 @@ class BatteryStatsParserTest {
         assertEquals(
             BatteryStatsReport(next = 1234567890, hasTime = false),
             BatteryStatsParser(
-                "NEXT: 1234567890".byteInputStream()
-            ).parse()
+                "NEXT: 1234567890".byteInputStream(),
+            ).parse(),
         )
     }
 
@@ -45,8 +45,8 @@ class BatteryStatsParserTest {
         assertEquals(
             BatteryStatsReport(next = null, hasTime = false),
             BatteryStatsParser(
-                "".byteInputStream()
-            ).parse()
+                "".byteInputStream(),
+            ).parse(),
         )
     }
 
@@ -55,8 +55,8 @@ class BatteryStatsParserTest {
         assertEquals(
             BatteryStatsReport(next = null, hasTime = false),
             BatteryStatsParser(
-                "NEXT: NEXT: ".byteInputStream()
-            ).parse()
+                "NEXT: NEXT: ".byteInputStream(),
+            ).parse(),
         )
     }
 }

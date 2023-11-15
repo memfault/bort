@@ -7,7 +7,7 @@ import java.lang.IllegalStateException
 import javax.inject.Inject
 
 class UpdateViewModelFactory @Inject constructor(
-    private val updater: Updater
+    private val updater: Updater,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T = when (modelClass) {

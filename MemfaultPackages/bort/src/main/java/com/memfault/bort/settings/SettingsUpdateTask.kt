@@ -14,9 +14,9 @@ import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.settings.FetchedDeviceConfigContainer.Companion.asSamplingConfig
 import com.memfault.bort.shared.CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG
 import com.memfault.bort.shared.Logger
-import javax.inject.Inject
 import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
+import javax.inject.Inject
 
 class SettingsUpdateTask @Inject constructor(
     private val deviceInfoProvider: DeviceInfoProvider,
@@ -38,7 +38,7 @@ class SettingsUpdateTask @Inject constructor(
             val deviceInfo = deviceInfoProvider.getDeviceInfo()
             if (useDeviceConfig()) {
                 val deviceConfig = deviceConfigUpdateService.deviceConfig(
-                    DeviceConfigUpdateService.DeviceConfigArgs(deviceInfo.asDeviceConfigInfo())
+                    DeviceConfigUpdateService.DeviceConfigArgs(deviceInfo.asDeviceConfigInfo()),
                 )
                 deviceConfig.handleUpdate(settingsUpdateHandler, samplingConfig)
 
@@ -73,7 +73,7 @@ class SettingsUpdateTask @Inject constructor(
 
         Logger.d("Additionally fetching for client: $clientDeviceInfo")
         val clientDeviceConfig = deviceConfigUpdateService.deviceConfig(
-            DeviceConfigUpdateService.DeviceConfigArgs(clientDeviceInfo)
+            DeviceConfigUpdateService.DeviceConfigArgs(clientDeviceInfo),
         )
 
         // Forward settings to client device.

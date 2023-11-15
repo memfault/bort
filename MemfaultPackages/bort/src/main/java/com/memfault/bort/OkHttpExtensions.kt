@@ -1,12 +1,12 @@
 package com.memfault.bort
 
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Response
 import java.io.IOException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.Response
 
 suspend fun Call.await(): Response =
     suspendCoroutine { continuation ->

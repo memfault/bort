@@ -19,11 +19,11 @@ interface InstallationIdProvider {
 
 @ContributesBinding(SingletonComponent::class, boundType = InstallationIdProvider::class)
 class RandomUuidInstallationIdProvider @Inject constructor(
-    sharedPreferences: SharedPreferences
+    sharedPreferences: SharedPreferences,
 ) : InstallationIdProvider, PreferenceKeyProvider<String>(
     sharedPreferences = sharedPreferences,
     defaultValue = UNSET,
-    preferenceKey = PREFERENCE_DEVICE_ID
+    preferenceKey = PREFERENCE_DEVICE_ID,
 ) {
     init {
         if (id() == UNSET) {

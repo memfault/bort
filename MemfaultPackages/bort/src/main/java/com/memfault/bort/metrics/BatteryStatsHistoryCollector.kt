@@ -12,14 +12,14 @@ import com.memfault.bort.parsers.BatteryStatsReport
 import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.shared.BatteryStatsCommand
 import com.memfault.bort.shared.Logger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import java.io.OutputStream
 import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonPrimitive
 
 class RunBatteryStats @Inject constructor(
     private val reporterServiceConnector: ReporterServiceConnector,
@@ -32,7 +32,7 @@ class RunBatteryStats @Inject constructor(
         reporterServiceConnector.connect { getClient ->
             getClient().batteryStatsRun(
                 batteryStatsCommand,
-                timeout
+                timeout,
             ) { invocation ->
                 invocation.awaitInputStream().map { stream ->
                     stream.use {
@@ -68,7 +68,8 @@ class BatteryStatsHistoryCollector @Inject constructor(
 ) {
     suspend fun collect(limit: Duration): BatteryStatsResult {
         temporaryFileFactory.createTemporaryFile(
-            "batterystats", suffix = ".txt"
+            "batterystats",
+            suffix = ".txt",
         ).useFile { batteryStatsFile, preventDeletion ->
             nextBatteryStatsHistoryStartProvider.historyStart = runBatteryStatsWithLimit(
                 initialHistoryStart = nextBatteryStatsHistoryStartProvider.historyStart,
@@ -101,7 +102,7 @@ class BatteryStatsHistoryCollector @Inject constructor(
         for (attempts in 1..3) {
             val (hasTime: Boolean, nextHistoryStart: Long?) = runAndParseBatteryStats(
                 batteryStatsFile,
-                historyStart
+                historyStart,
             )
             checkNotNull(nextHistoryStart) { "No history NEXT found!" }
 
@@ -126,7 +127,7 @@ class BatteryStatsHistoryCollector @Inject constructor(
                 historyStart = historyStartLimit
                 Logger.i(
                     "batterystats historyStart < historyStartComparisonLimit: " +
-                        "nextHistoryStart=$nextHistoryStart historyStartComparisonLimit=$historyStartComparisonLimit"
+                        "nextHistoryStart=$nextHistoryStart historyStartComparisonLimit=$historyStartComparisonLimit",
                 )
                 Logger.logEvent("batterystats", "limit")
                 continue
@@ -145,7 +146,9 @@ class BatteryStatsHistoryCollector @Inject constructor(
         withContext(Dispatchers.IO) {
             batteryStatsFile.outputStream().use {
                 runBatteryStats.runBatteryStats(
-                    it, BatteryStatsCommand(c = true, historyStart = historyStart), settings.commandTimeout
+                    it,
+                    BatteryStatsCommand(c = true, historyStart = historyStart),
+                    settings.commandTimeout,
                 )
             }
             batteryStatsFile.inputStream().use {

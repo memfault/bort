@@ -16,10 +16,10 @@ import com.memfault.bort.RealLastTrackedLinuxBootIdProvider
 import com.memfault.bort.RebootEventUploader
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.clientserver.ClientDeviceInfoSender
-import com.memfault.bort.dropbox.DropBoxFilterSettings
 import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
 import com.memfault.bort.logcat.handleTimeChanged
+import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
 import com.memfault.bort.settings.ContinuousLoggingController
 import com.memfault.bort.settings.SettingsProvider
@@ -41,39 +41,53 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         Intent.ACTION_BOOT_COMPLETED,
         Intent.ACTION_MY_PACKAGE_REPLACED,
         Intent.ACTION_TIME_CHANGED,
-    )
+    ),
 ) {
     @Inject
     lateinit var periodicWorkManager: PeriodicWorkManager
+
     @Inject
     lateinit var dumpsterClient: DumpsterClient
+
     @Inject
     lateinit var settingsProvider: SettingsProvider
+
     @Inject
     lateinit var deviceInfoProvider: DeviceInfoProvider
+
     @Inject
     lateinit var enqueueUpload: EnqueueUpload
+
     @Inject
     lateinit var reporterServiceConnector: ReporterServiceConnector
+
     @Inject
     lateinit var fileUploadHoldingArea: FileUploadHoldingArea
+
     @Inject
     lateinit var tokenBucketStoreRegistry: TokenBucketStoreRegistry
+
     @Reboots
     @Inject
     lateinit var tokenBucketStore: TokenBucketStore
+
     @Inject
     lateinit var bortSystemCapabilities: BortSystemCapabilities
+
     @Inject
     lateinit var readLinuxBootId: LinuxBootId
+
     @Inject
     lateinit var dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider
+
     @Inject
     lateinit var continuousLoggingController: ContinuousLoggingController
-    @Inject
-    lateinit var dropBoxFilterSettings: DropBoxFilterSettings
+
     @Inject
     lateinit var clientDeviceInfoSender: ClientDeviceInfoSender
+
+    @Inject
+    lateinit var crashHandler: CrashHandler
 
     private fun onPackageReplaced() {
         goAsync {
@@ -90,12 +104,13 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
 
         if (LinuxRebootTracker(
                 readLinuxBootId,
-                RealLastTrackedLinuxBootIdProvider(sharedPreferences)
+                RealLastTrackedLinuxBootIdProvider(sharedPreferences),
             ).checkAndUnset()
         ) {
             tokenBucketStoreRegistry.handleLinuxReboot()
             fileUploadHoldingArea.handleLinuxReboot()
         }
+        crashHandler.onBoot()
 
         goAsync {
             val bortEnabled = bortEnabledProvider.isEnabled()
@@ -110,7 +125,6 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
                 reporterServiceConnector = reporterServiceConnector,
                 settingsProvider = settingsProvider,
                 bortEnabledProvider = bortEnabledProvider,
-                dropBoxFilterSettings = dropBoxFilterSettings,
             )
 
             continuousLoggingController.configureContinuousLogging()
@@ -130,9 +144,9 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
                     val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
                     BootCountTracker(
                         lastTrackedBootCountProvider = RealLastTrackedBootCountProvider(
-                            sharedPreferences = sharedPreferences
+                            sharedPreferences = sharedPreferences,
                         ),
-                        untrackedBootCountHandler = rebootEventUploader::handleUntrackedBootCount
+                        untrackedBootCountHandler = rebootEventUploader::handleUntrackedBootCount,
                     ).trackIfNeeded(bootCount)
                 }
             }
@@ -146,7 +160,7 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
 
     private fun onTimeChanged(context: Context) {
         RealNextLogcatStartTimeProvider(
-            PreferenceManager.getDefaultSharedPreferences(context)
+            PreferenceManager.getDefaultSharedPreferences(context),
         ).handleTimeChanged()
         dropBoxProcessedEntryCursorProvider.handleTimeChange()
     }

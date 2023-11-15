@@ -7,10 +7,10 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Test
+import java.io.File
 
 class ClientServerFileUploadProcessorTest {
     private val marHoldingArea: MarFileHoldingArea = mockk(relaxed = true)

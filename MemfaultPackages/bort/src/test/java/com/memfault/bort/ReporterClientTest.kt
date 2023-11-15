@@ -2,6 +2,7 @@ package com.memfault.bort
 
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getError
+import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.VersionRequest
 import com.memfault.bort.shared.VersionResponse
 import com.memfault.bort.shared.result.success
@@ -47,10 +48,10 @@ class ReporterClientTest {
             } coAnswers {
                 Result.success(VersionResponse(0))
             }
-            val result = client.dropBoxSetTagFilter(emptyList())
+            val result = client.setLogLevel(LogLevel.TEST)
             assertEquals(
-                "Unsupported request for DropBoxSetTagFilterRequest(includedTags=[]) (0 < 3)",
-                result.getError()?.message
+                "Unsupported request for loglevel (0 < 4)",
+                result.getError()?.message,
             )
         }
     }

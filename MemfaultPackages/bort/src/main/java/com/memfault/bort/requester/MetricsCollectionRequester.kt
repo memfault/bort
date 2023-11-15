@@ -34,13 +34,13 @@ internal fun restartPeriodicMetricsCollection(
 ) {
     lastHeartbeatEnd?.let {
         RealLastHeartbeatEndTimeProvider(
-            PreferenceManager.getDefaultSharedPreferences(context)
+            PreferenceManager.getDefaultSharedPreferences(context),
         ).lastEnd = lastHeartbeatEnd
     }
 
     periodicWorkRequest<MetricsCollectionTask>(
         collectionInterval,
-        workDataOf()
+        workDataOf(),
     ) {
         addTag(WORK_TAG)
         if (!collectImmediately) {
@@ -51,7 +51,7 @@ internal fun restartPeriodicMetricsCollection(
             .enqueueUniquePeriodicWork(
                 WORK_UNIQUE_NAME_PERIODIC,
                 ExistingPeriodicWorkPolicy.UPDATE,
-                workRequest
+                workRequest,
             )
     }
 }

@@ -31,12 +31,12 @@ class SelinuxViolationTokenBucketStore
     metrics: BuiltinMetricsStore,
     devMode: DevMode,
 ) : TokenBucketStore by RealTokenBucketStore(
-        storage = RealTokenBucketStorage.createFor(application, "selinux_violation_events"),
-        getMaxBuckets = {
-            settingsProvider.selinuxViolationSettings.rateLimitingSettings.maxBuckets
-        },
-        getTokenBucketFactory = {
-            RealTokenBucketFactory.from(settingsProvider.selinuxViolationSettings.rateLimitingSettings, metrics)
-        },
-        devMode = devMode,
-    )
+    storage = RealTokenBucketStorage.createFor(application, "selinux_violation_events"),
+    getMaxBuckets = {
+        settingsProvider.selinuxViolationSettings.rateLimitingSettings.maxBuckets
+    },
+    getTokenBucketFactory = {
+        RealTokenBucketFactory.from(settingsProvider.selinuxViolationSettings.rateLimitingSettings, metrics)
+    },
+    devMode = devMode,
+)

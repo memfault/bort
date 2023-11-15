@@ -17,10 +17,10 @@ import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.runAndTrackExceptions
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import kotlin.time.Duration.Companion.minutes
-import kotlin.time.toJavaDuration
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.toJavaDuration
 
 /**
  * A periodic worker that triggers an OTA download.
@@ -122,7 +122,7 @@ class OtaDownloadWorker @AssistedInject constructor(
             context: Context,
             settings: SoftwareUpdateSettingsProvider,
             rulesProvider: OtaRulesProvider,
-            ota: Ota
+            ota: Ota,
         ) {
             Logger.d("schedule OtaDownloadWorker")
 

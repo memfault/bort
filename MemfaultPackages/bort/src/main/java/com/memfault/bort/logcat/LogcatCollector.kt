@@ -25,6 +25,8 @@ import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.AbsoluteTimeProvider
 import com.memfault.bort.time.BaseAbsoluteTime
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.BufferedWriter
 import java.io.File
 import java.io.OutputStream
@@ -34,8 +36,6 @@ import java.time.ZoneOffset
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlin.time.Duration
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 data class LogcatCollectorResult(
     val command: LogcatCommand,
@@ -86,7 +86,8 @@ class LogcatCollector @Inject constructor(
 ) {
     suspend fun collect(): LogcatCollectorResult {
         temporaryFileFactory.createTemporaryFile(
-            "logcat", suffix = ".txt"
+            "logcat",
+            suffix = ".txt",
         ).useFile { file, preventDeletion ->
             val command = logcatCommand(
                 since = nextLogcatStartTimeProvider.nextStart,
@@ -122,7 +123,7 @@ class LogcatCollector @Inject constructor(
             recentSince = LocalDateTime.ofEpochSecond(
                 since.timestamp.epochSecond,
                 since.timestamp.nano,
-                ZoneOffset.UTC
+                ZoneOffset.UTC,
             ),
             format = LogcatFormat.THREADTIME,
             formatModifiers = listOf(
@@ -157,7 +158,8 @@ class LogcatCollector @Inject constructor(
 
             outputFile.bufferedReader().useLines { lines ->
                 temporaryFileFactory.createTemporaryFile(
-                    prefix = "logcat-scrubbed", suffix = ".txt"
+                    prefix = "logcat-scrubbed",
+                    suffix = ".txt",
                 ).useFile { scrubbedFile, preventScrubbedDeletion ->
                     scrubbedFile.outputStream().bufferedWriter().use { scrubbedWriter ->
                         val scrubber = dataScrubber
@@ -212,7 +214,7 @@ internal fun LogcatLine.scrub(scrubber: DataScrubber, allowedUids: Set<Int>) = c
                 scrubber.scrubEntirely(msg)
             else -> scrubber(msg)
         }
-    }
+    },
 )
 
 internal fun LogcatLine.writeTo(writer: BufferedWriter) {

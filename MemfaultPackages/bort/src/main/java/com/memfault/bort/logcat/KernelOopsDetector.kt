@@ -1,6 +1,7 @@
 package com.memfault.bort.logcat
 
 import androidx.annotation.VisibleForTesting
+import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.parsers.LogcatLine
 import com.memfault.bort.time.BaseAbsoluteTime
 import com.memfault.bort.tokenbucket.KernelOops
@@ -23,6 +24,7 @@ object NoopLogcatLineProcessor : LogcatLineProcessor {
 class KernelOopsDetector @Inject constructor(
     @KernelOops private val tokenBucketStore: TokenBucketStore,
     private val handleEventOfInterest: HandleEventOfInterest,
+    private val crashHandler: CrashHandler,
 ) : LogcatLineProcessor {
     @VisibleForTesting var foundOops: Boolean = false
 
@@ -43,6 +45,7 @@ class KernelOopsDetector @Inject constructor(
         if (!foundOops) return false
         if (!tokenBucketStore.takeSimple(tag = "oops")) return false
         handleEventOfInterest.handleEventOfInterest(lastLogTime)
+        crashHandler.onCrash()
         return true
     }
 }

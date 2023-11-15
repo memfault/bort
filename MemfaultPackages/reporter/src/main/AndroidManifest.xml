@@ -13,17 +13,12 @@
     <uses-permission
         android:name="android.permission.READ_LOGS"
         tools:ignore="ProtectedPermissions" />
-    <uses-permission
-        android:name="android.permission.PACKAGE_USAGE_STATS"
-        tools:ignore="ProtectedPermissions" />
 
     <!-- UserHandle.CURRENT and battery stats require this:-->
     <uses-permission
         android:name="android.permission.INTERACT_ACROSS_USERS"
         tools:ignore="ProtectedPermissions" />
 
-    <!-- Persistence is required to ensure all implicit system intents
-         (i.e. DROPBOX_ENTRY_ADDED) are received -->
     <application
         android:name=".UsageReporter"
         android:allowBackup="false"

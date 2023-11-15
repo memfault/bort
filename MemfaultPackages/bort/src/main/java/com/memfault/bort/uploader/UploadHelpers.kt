@@ -10,7 +10,7 @@ inline fun <W : CoroutineWorker> W.limitAttempts(
     maxAttempts: Int = 3,
     metrics: BuiltinMetricsStore,
     finallyBlock: W.() -> Unit = {},
-    block: W.() -> TaskResult
+    block: W.() -> TaskResult,
 ): TaskResult =
     if (runAttemptCount > maxAttempts) {
         Logger.e("Reached max attempts ($maxAttempts) for job $id with tags $tags")

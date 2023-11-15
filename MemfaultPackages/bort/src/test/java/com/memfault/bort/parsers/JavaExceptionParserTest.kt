@@ -18,7 +18,7 @@ class JavaExceptionParserTest {
                     "android.app.ActivityThread.handleReceiver(ActivityThread.java:3187)",
                 ),
             ),
-            JavaExceptionParser(FIXTURE.byteInputStream()).parse()
+            JavaExceptionParser(FIXTURE.byteInputStream()).parse(),
         )
     }
 }

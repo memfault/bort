@@ -18,6 +18,7 @@ abstract class PeriodicWorkRequester {
 
     /** Is the task enabled, based on the supplied settings? */
     protected abstract suspend fun enabled(settings: SettingsProvider): Boolean
+
     /** Did task scheduling parameters change? (Excluding anything covered by [enabled]) */
     protected abstract suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean
 

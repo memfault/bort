@@ -8,10 +8,11 @@ import io.mockk.MockKAnnotations
 import io.mockk.every
 import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
-import kotlin.time.Duration.Companion.minutes
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 
 class DropBoxFilterSettingsTest {
 
@@ -48,6 +49,8 @@ class DropBoxFilterSettingsTest {
         override val continuousLogFileRateLimitingSettings = mockRateLimitingSettings
         override val excludedTags get() = mockGetExcludedTags
         override val scrubTombstones: Boolean = false
+        override val processImmediately: Boolean = true
+        override val pollingInterval: Duration = 15.minutes
     }
 
     @BeforeEach
@@ -62,7 +65,7 @@ class DropBoxFilterSettingsTest {
     @Test
     fun ignoredTagsArePassed() {
         mockGetExcludedTags = setOf(TEST_TAG_TO_IGNORE)
-        val configureFilterSettings = DropBoxFilterSettings(
+        val configureFilterSettings = RealDropBoxFilters(
             entryProcessors = entryProcessors,
             settings = mockDropboxSettings,
             bortEnabledProvider = bortEnabledProvider,
@@ -78,7 +81,7 @@ class DropBoxFilterSettingsTest {
     fun noTagsPassedWhenBortDisabled() {
         mockGetExcludedTags = setOf(TEST_TAG_TO_IGNORE)
         bortEnabled = false
-        val configureFilterSettings = DropBoxFilterSettings(
+        val configureFilterSettings = RealDropBoxFilters(
             entryProcessors = entryProcessors,
             settings = mockDropboxSettings,
             bortEnabledProvider = bortEnabledProvider,

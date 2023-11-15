@@ -7,11 +7,11 @@ import android.os.Messenger
 import com.github.michaelbull.result.Result
 import com.memfault.bort.shared.result.failure
 import com.memfault.bort.shared.result.success
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Cannot instantiate Message / Messenger in a unit test environment,
@@ -36,7 +36,7 @@ abstract class ServiceMessageConnection<SM : ServiceMessage> {
         Result.success(
             withTimeout(timeout) {
                 sendAndGetReplyHandler(message).replyChannel.receive()
-            }
+            },
         )
     } catch (e: TimeoutCancellationException) {
         Result.failure(e)
@@ -73,7 +73,7 @@ class RealServiceMessageConnection<SM : ServiceMessage>(
         outboundMessenger.send(
             message.toMessage().apply {
                 replyTo = inboundMessenger
-            }
+            },
         )
         return replyHandler
     }

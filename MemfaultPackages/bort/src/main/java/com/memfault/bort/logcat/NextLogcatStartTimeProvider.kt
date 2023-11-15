@@ -9,9 +9,9 @@ import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BaseAbsoluteTime
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
+import kotlinx.serialization.SerializationException
 import java.time.Instant
 import javax.inject.Inject
-import kotlinx.serialization.SerializationException
 
 /**
  * Provides the start time of the block of logcat logs to be collected next.
@@ -22,7 +22,7 @@ interface NextLogcatStartTimeProvider {
 
 @ContributesBinding(SingletonComponent::class, boundType = NextLogcatStartTimeProvider::class)
 class RealNextLogcatStartTimeProvider @Inject constructor(
-    sharedPreferences: SharedPreferences
+    sharedPreferences: SharedPreferences,
 ) : NextLogcatStartTimeProvider, PreferenceKeyProvider<String>(
     sharedPreferences = sharedPreferences,
     defaultValue = BortJson.encodeToString(AbsoluteTime.serializer(), DEFAULT_LAST_END),
@@ -31,7 +31,8 @@ class RealNextLogcatStartTimeProvider @Inject constructor(
     override var nextStart: BaseAbsoluteTime
         get() = try {
             BortJson.decodeFromString(
-                AbsoluteTime.serializer(), super.getValue()
+                AbsoluteTime.serializer(),
+                super.getValue(),
             )
         } catch (e: SerializationException) {
             AbsoluteTime.now().also {
@@ -39,11 +40,13 @@ class RealNextLogcatStartTimeProvider @Inject constructor(
             }
         }
         set(value) = super.setValue(
-            BortJson.encodeToString(AbsoluteTime.serializer(), AbsoluteTime(value))
+            BortJson.encodeToString(AbsoluteTime.serializer(), AbsoluteTime(value)),
         )
 }
 
-fun NextLogcatStartTimeProvider.handleTimeChanged(getNow: () -> BaseAbsoluteTime = AbsoluteTime.Companion::now) {
+fun NextLogcatStartTimeProvider.handleTimeChanged(
+    getNow: () -> BaseAbsoluteTime = AbsoluteTime.Companion::now,
+) {
     val now = getNow()
     if (nextStart > now) {
         Logger.w("Detected backwards time change! $nextStart < $now")

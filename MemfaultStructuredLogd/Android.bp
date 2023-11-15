@@ -16,3 +16,28 @@ cc_library_shared {
         "libutils",
     ],
 }
+
+cc_library_shared {
+    name: "libmflt-reporting",
+    srcs: ["clients/libmflt-reporting/reporting.cpp", "clients/libmflt-reporting/structuredlog.cpp"],
+
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wextra",
+        "-Wno-unused-parameter",
+        "-fexceptions",
+        "-Wno-unused-private-field",
+        "-DIN_LIB_DEV",
+    ],
+    clang: true,
+    shared_libs: [
+        "liblog",
+        "libstructuredaidl",
+        "libbase",
+        "libbinder",
+        "libutils",
+    ],
+    local_include_dirs: ["deps/rapidjson-1.1.0/include"],
+    export_include_dirs: ["clients/libmflt-reporting/"],
+}

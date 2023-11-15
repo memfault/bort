@@ -19,10 +19,6 @@ import io.mockk.coEvery
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import io.mockk.verify
-import java.io.FileInputStream
-import java.io.InputStream
-import java.lang.IllegalArgumentException
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
@@ -33,6 +29,10 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.io.FileInputStream
+import java.io.InputStream
+import java.lang.IllegalArgumentException
+import kotlin.time.Duration.Companion.milliseconds
 
 @ExperimentalCoroutinesApi
 class CommandRunnerClientTest {
@@ -110,7 +110,7 @@ class CommandRunnerClientTest {
         runTest {
             assertEquals(
                 Result.success(true),
-                client.run(block, sendRequest)
+                client.run(block, sendRequest),
             )
         }
     }
@@ -122,7 +122,7 @@ class CommandRunnerClientTest {
         runTest {
             assertEquals(
                 Result.success(true),
-                client.run(block, sendRequest)
+                client.run(block, sendRequest),
             )
         }
         assertTrue(response?.isFailure ?: false)
@@ -138,7 +138,7 @@ class CommandRunnerClientTest {
         runTest {
             assertEquals(
                 Result.success(true),
-                client.run(block, sendRequest)
+                client.run(block, sendRequest),
             )
         }
         assertTrue(response?.isFailure ?: false)
@@ -154,7 +154,7 @@ class CommandRunnerClientTest {
         runTest {
             assertEquals(
                 Result.success(true),
-                client.run(block, sendRequest)
+                client.run(block, sendRequest),
             )
         }
         verify { gotInputStream(Result.success(mockInputStream)) }
@@ -170,7 +170,7 @@ class CommandRunnerClientTest {
         runTest {
             assertEquals(
                 Result.success(true),
-                client.run(block, sendRequest)
+                client.run(block, sendRequest),
             )
         }
         assertEquals(Result.success(RunCommandResponse(exitCode = 123, didTimeout = false)), response)

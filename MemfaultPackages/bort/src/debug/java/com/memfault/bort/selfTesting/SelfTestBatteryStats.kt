@@ -10,9 +10,9 @@ import com.memfault.bort.shared.BatteryStatsOption
 import com.memfault.bort.shared.BatteryStatsOptionEnablement
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.result.isSuccess
-import kotlin.time.Duration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration
 
 class SelfTestBatteryStats(
     val reporterServiceConnector: ReporterServiceConnector,
@@ -26,28 +26,28 @@ class SelfTestBatteryStats(
             BatteryStatsTestCase(
                 BatteryStatsCommand(c = true, historyStart = 0),
                 // MFLT-2307: Should work, but fails in Android 8 E2E testing:
-                if (android9OrUp) "NEXT" else ","
+                if (android9OrUp) "NEXT" else ",",
             ),
             BatteryStatsTestCase(
                 BatteryStatsCommand(proto = true),
-                if (android9OrUp) "com.android" else "Unknown option: --proto"
+                if (android9OrUp) "com.android" else "Unknown option: --proto",
             ),
             BatteryStatsTestCase(
                 BatteryStatsCommand(cpu = true),
-                if (android9OrUp) "Per UID CPU" else "Unknown option: --cpu"
+                if (android9OrUp) "Per UID CPU" else "Unknown option: --cpu",
             ),
             BatteryStatsTestCase(
                 BatteryStatsCommand(
-                    optionEnablement = BatteryStatsOptionEnablement(true, BatteryStatsOption.FULL_HISTORY)
+                    optionEnablement = BatteryStatsOptionEnablement(true, BatteryStatsOption.FULL_HISTORY),
                 ),
-                "Enabled: full-history"
+                "Enabled: full-history",
             ),
             BatteryStatsTestCase(
                 BatteryStatsCommand(
-                    optionEnablement = BatteryStatsOptionEnablement(false, BatteryStatsOption.FULL_HISTORY)
+                    optionEnablement = BatteryStatsOptionEnablement(false, BatteryStatsOption.FULL_HISTORY),
                 ),
-                "Disabled: full-history"
-            )
+                "Disabled: full-history",
+            ),
         ).toList()
         return reporterServiceConnector.connect { getClient ->
             testCases.map { testCase ->

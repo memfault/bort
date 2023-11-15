@@ -52,4 +52,4 @@ private:
     uint64_t elapsedTimeAdjustment;
 };
 
-}
+}  // namespace structured

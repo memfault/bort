@@ -6,17 +6,11 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
-  namespace 'com.memfault.bort.structured'
+  namespace 'com.memfault.bort.reporting.java'
 }
 
 dependencies {
-    api project(':structured-logd-aidl')
     api project(':reporting-libs:reporting-lib-common')
 
-    testImplementation deps.test.json
-}
-
-tasks.register("androidSourcesJar", Jar) {
-    archiveClassifier.set('sources')
-    from android.sourceSets.main.java.srcDirs
+    testImplementation deps.test.mockito.java
 }

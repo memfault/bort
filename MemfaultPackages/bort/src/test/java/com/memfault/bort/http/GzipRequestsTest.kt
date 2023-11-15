@@ -1,6 +1,5 @@
 package com.memfault.bort.http
 
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -21,6 +20,7 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.http.Body
 import retrofit2.http.POST
+import java.util.concurrent.TimeUnit
 
 class GzipRequestBodyTest {
     @Test
@@ -37,12 +37,12 @@ private interface TestService {
     @POST("/gzip")
     @GzipRequest
     suspend fun gzipSupportedApi(
-        @Body body: RequestBody
+        @Body body: RequestBody,
     ): Response<Unit>
 
     @POST("/plain")
     suspend fun plainApi(
-        @Body body: RequestBody
+        @Body body: RequestBody,
     ): Response<Unit>
 }
 
@@ -57,7 +57,7 @@ class GzipInterceptorTest {
             .client(
                 OkHttpClient.Builder()
                     .addInterceptor(GzipRequestInterceptor())
-                    .build()
+                    .build(),
             )
             .baseUrl(server.url("/"))
             .build()

@@ -9,14 +9,14 @@ import com.memfault.bort.TaskResult
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.spyk
-import java.io.File
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
-import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.util.UUID
 
 class FileUploadTaskTest {
 
@@ -30,7 +30,7 @@ class FileUploadTaskTest {
             Files.copy(
                 loadTestFileFromResources().toPath(),
                 it.toPath(),
-                StandardCopyOption.REPLACE_EXISTING
+                StandardCopyOption.REPLACE_EXISTING,
             )
         }
     }
@@ -45,7 +45,7 @@ class FileUploadTaskTest {
             deviceSerial = "",
             softwareVersion = "",
             softwareType = "",
-        )
+        ),
     )
 
     @Test
@@ -67,7 +67,7 @@ class FileUploadTaskTest {
     fun maxUploadAttemptFails() {
         val worker = mockTaskRunnerWorker(
             FileUploadTaskInput(file, fileUploadPayload(), shouldCompress = true).toWorkerInputData(),
-            runAttemptCount = 4
+            runAttemptCount = 4,
         )
         val result = runBlocking {
             FileUploadTask(
@@ -88,8 +88,8 @@ class FileUploadTaskTest {
             FileUploadTaskInput(
                 File("abcd"),
                 fileUploadPayload(),
-                shouldCompress = true
-            ).toWorkerInputData()
+                shouldCompress = true,
+            ).toWorkerInputData(),
         )
         val result = runBlocking {
             FileUploadTask(
@@ -109,7 +109,7 @@ class FileUploadTaskTest {
             workDataOf(
                 "PATH" to file.path,
                 "METADATA" to "{}",
-            )
+            ),
         )
         val result = runBlocking {
             FileUploadTask(
@@ -127,7 +127,7 @@ class FileUploadTaskTest {
     fun fileDeletedOnSuccess() {
         val mockUploader = spyk(fakeFileUploader())
         val worker = mockTaskRunnerWorker(
-            FileUploadTaskInput(file, fileUploadPayload(), shouldCompress = true).toWorkerInputData()
+            FileUploadTaskInput(file, fileUploadPayload(), shouldCompress = true).toWorkerInputData(),
         )
         val result = runBlocking {
             FileUploadTask(
@@ -146,7 +146,7 @@ class FileUploadTaskTest {
     @Test
     fun fileDeletedWhenBortDisabled() {
         val worker = mockTaskRunnerWorker(
-            FileUploadTaskInput(file, fileUploadPayload(), shouldCompress = true).toWorkerInputData()
+            FileUploadTaskInput(file, fileUploadPayload(), shouldCompress = true).toWorkerInputData(),
         )
         val result = runBlocking {
             FileUploadTask(

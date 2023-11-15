@@ -2,7 +2,7 @@ package com.memfault.bort.java.reporting;
 
 import com.memfault.bort.reporting.DataType;
 import com.memfault.bort.reporting.MetricType;
-import com.memfault.bort.reporting.NumericAgg;
+import java.util.Collections;
 
 import static com.memfault.bort.reporting.DataType.STRING;
 import static com.memfault.bort.reporting.MetricType.EVENT;
@@ -14,15 +14,13 @@ public class Event extends Metric {
   private static final DataType DATA_TYPE = STRING;
   private static final Boolean CARRY_OVER_VALUE = false;
 
-  Event(String eventName, String reportType, Boolean countInReport, boolean internal) {
-    super(eventName, reportType, internal, METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
-    if (countInReport) {
-      aggregations.add(COUNT);
-    }
+  Event(String eventName, String reportType, Boolean countInReport) {
+    super(eventName, reportType, countInReport ? Collections.singletonList(COUNT) :
+        Collections.EMPTY_LIST, METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
   }
 
   public void add(String value) {
-    add(value, this.timestamp());
+    add(value, timestamp());
   }
 
   public void add(String value, Long timestampMs) {

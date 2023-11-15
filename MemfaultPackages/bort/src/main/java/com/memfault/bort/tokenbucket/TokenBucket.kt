@@ -55,8 +55,10 @@ class TokenBucket(
             metrics.increment("${RATE_LIMIT_APPLIED}_$tag")
             Logger.test("Rate-limit applied: $tag")
             false
-        } else true.also {
-            _count -= n
+        } else {
+            true.also {
+                _count -= n
+            }
         }
     }
 
@@ -70,11 +72,11 @@ class TokenBucket(
         if (tag in DEBUG_TAGS) {
             Logger.d(
                 "feeding $tag: prevCount=$count now=$now " +
-                    "_periodStartElapsedRealtime=$_periodStartElapsedRealtime periods=$periods"
+                    "_periodStartElapsedRealtime=$_periodStartElapsedRealtime periods=$periods",
             )
             Logger.logEvent(
                 "feeding $tag: prevCount=$count now=$now " +
-                    "_periodStartElapsedRealtime=$_periodStartElapsedRealtime periods=$periods"
+                    "_periodStartElapsedRealtime=$_periodStartElapsedRealtime periods=$periods",
             )
         }
         if (periods < 1.0) {

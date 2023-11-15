@@ -10,10 +10,10 @@ import com.memfault.bort.settings.DropboxScrubTombstones
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.Tombstone
+import okhttp3.internal.indexOfNonWhitespace
 import java.io.File
 import java.io.InputStream
 import javax.inject.Inject
-import okhttp3.internal.indexOfNonWhitespace
 
 class TombstoneUploadingEntryProcessorDelegate @Inject constructor(
     private val packageManagerClient: PackageManagerClient,
@@ -57,10 +57,12 @@ class TombstoneUploadingEntryProcessorDelegate @Inject constructor(
         }
     }
 
+    override fun isCrash(tag: String): Boolean = true
+
     private fun findProcessName(tempFile: File) =
         listOf(
             { it: InputStream -> TombstoneParser(it).parse().processName },
-            { it: InputStream -> NativeBacktraceParser(it).parse().processes[0].cmdLine }
+            { it: InputStream -> NativeBacktraceParser(it).parse().processes[0].cmdLine },
         ).asSequence().map { parse ->
             try {
                 tempFile.inputStream().use {

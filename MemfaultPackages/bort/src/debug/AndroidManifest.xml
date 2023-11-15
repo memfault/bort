@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
     <application>
         <receiver
-            android:name=".receivers.TestReceiver"
+            android:name=".receivers.BortTestReceiver"
             tools:ignore="ExportedReceiver">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.TEST_SETTING_SET_PROJECT_KEY" />

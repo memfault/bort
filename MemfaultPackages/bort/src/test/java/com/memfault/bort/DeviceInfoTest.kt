@@ -32,7 +32,7 @@ class DeviceInfoFromSettingsAndProperties {
     fun happyPathSoftwareVersionSystemPropertyOnly() {
         settings = deviceInfoParams(AndroidBuildFormat.SYSTEM_PROPERTY_ONLY)
         val props = mapOf(
-            "ro.build.version.incremental" to "123"
+            "ro.build.version.incremental" to "123",
         )
         val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(settings, props)
         assertEquals("123", deviceInfo.softwareVersion)
@@ -42,7 +42,9 @@ class DeviceInfoFromSettingsAndProperties {
     fun happyPathSoftwareVersionBuildFingerPrintOnly() {
         settings = deviceInfoParams(AndroidBuildFormat.BUILD_FINGERPRINT_ONLY)
         val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(
-            settings, mapOf(), getBuildFingerprint = fakeGetBuildFingerprint
+            settings,
+            mapOf(),
+            getBuildFingerprint = fakeGetBuildFingerprint,
         )
         assertEquals(TEST_BUILD_FINGERPRINT, deviceInfo.softwareVersion)
     }
@@ -51,14 +53,16 @@ class DeviceInfoFromSettingsAndProperties {
     fun happyPathSoftwareVersionBuildFingerPrintAndSystemProperty() {
         settings = deviceInfoParams(AndroidBuildFormat.BUILD_FINGERPRINT_AND_SYSTEM_PROPERTY)
         val props = mapOf(
-            "ro.build.version.incremental" to "123"
+            "ro.build.version.incremental" to "123",
         )
         val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(
-            settings, props, getBuildFingerprint = fakeGetBuildFingerprint
+            settings,
+            props,
+            getBuildFingerprint = fakeGetBuildFingerprint,
         )
         assertEquals(
             "$TEST_BUILD_FINGERPRINT::123",
-            deviceInfo.softwareVersion
+            deviceInfo.softwareVersion,
         )
     }
 
@@ -89,8 +93,8 @@ class DeviceInfoLegacy {
             mapOf(
                 "ro.product.brand" to "brand",
                 "ro.product.name" to "product",
-                "ro.product.device" to "device"
-            )
+                "ro.product.device" to "device",
+            ),
         )
         assertEquals("brand-product-device", hardwareVersion)
     }
@@ -103,9 +107,9 @@ class DeviceInfoLegacy {
                 mapOf(
                     "ro.product.brand" to "brand",
                     "ro.product.name" to "product",
-                    "ro.product.device" to "device"
-                )
-            )
+                    "ro.product.device" to "device",
+                ),
+            ),
         )
     }
 
@@ -115,9 +119,9 @@ class DeviceInfoLegacy {
             "device",
             DeviceInfo.getLegacyHardwareVersion(
                 mapOf(
-                    "ro.product.device" to "device"
-                )
-            )
+                    "ro.product.device" to "device",
+                ),
+            ),
         )
     }
 }

@@ -10,10 +10,10 @@ import com.memfault.bort.parsers.Package
 import com.memfault.bort.reporting.NumericAgg
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
-import com.memfault.bort.shared.BuildConfig as SharedBuildConfig
+import kotlinx.serialization.json.JsonPrimitive
 import java.util.Locale
 import javax.inject.Inject
-import kotlinx.serialization.json.JsonPrimitive
+import com.memfault.bort.shared.BuildConfig as SharedBuildConfig
 
 const val BORT_CRASH = "bort_crash"
 const val BORT_STARTED = "bort_started"
@@ -58,7 +58,7 @@ class BuiltinMetricsStore @Inject constructor() {
         Reporting.report().distribution(
             name = name,
             aggregations = listOf(NumericAgg.COUNT, NumericAgg.MIN, NumericAgg.MAX, NumericAgg.SUM),
-            internal = true
+            internal = true,
         ).record(value)
     }
 
@@ -66,7 +66,7 @@ class BuiltinMetricsStore @Inject constructor() {
         Reporting.report().distribution(
             name = name,
             aggregations = listOf(NumericAgg.COUNT, NumericAgg.MIN, NumericAgg.MAX, NumericAgg.SUM),
-            internal = true
+            internal = true,
         ).record(value)
     }
 }

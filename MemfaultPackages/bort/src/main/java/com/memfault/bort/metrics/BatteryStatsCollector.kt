@@ -41,7 +41,9 @@ class BatteryStatsCollector @Inject constructor(
                 Logger.w("Unable to connect to ReporterService to run batterystats")
                 BatteryStatsResult.EMPTY
             }
-        } else BatteryStatsResult.EMPTY
+        } else {
+            BatteryStatsResult.EMPTY
+        }
 
         return BatteryStatsResult(
             batteryStatsFileToUpload = historyResult.batteryStatsFileToUpload,

@@ -2,9 +2,6 @@ package com.memfault.bort.shared
 
 import android.os.Build
 import android.os.Bundle
-import java.time.LocalDateTime
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -13,6 +10,9 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 /**
  * Usage: logcat [options] [filterspecs]
@@ -157,7 +157,7 @@ data class LogcatCommand(
     val getPrune: Boolean = false,
     val wrap: Boolean = false,
     val help: Boolean = false,
-    val getSdkVersion: () -> Int = { Build.VERSION.SDK_INT }
+    val getSdkVersion: () -> Int = { Build.VERSION.SDK_INT },
 ) : Command {
     private fun booleanFlagMap() = mapOf(
         DIVIDERS to dividers,
@@ -169,7 +169,7 @@ data class LogcatCommand(
         STATISTICS to statistics,
         GET_PRUNE to getPrune,
         WRAP to wrap,
-        HELP to help
+        HELP to help,
     )
 
     private fun booleanFlags() = booleanFlagMap()
@@ -213,9 +213,9 @@ data class LogcatCommand(
                     // recentSince is in local time:
                     "%d.%09d".format(
                         recentSince.toEpochSecond(ZoneOffset.ofTotalSeconds(0)),
-                        recentSince.nano
+                        recentSince.nano,
                     )
-                }
+                },
             )
         }
         options.toList()
@@ -279,8 +279,9 @@ data class LogcatCommand(
                 recentSince = getLongOrNull(RECENT_SINCE_SECS)?.let { secs ->
                     // recentSince is in local time:
                     LocalDateTime.ofEpochSecond(
-                        secs, getInt(RECENT_SINCE_NANOS),
-                        ZoneOffset.ofTotalSeconds(0)
+                        secs,
+                        getInt(RECENT_SINCE_NANOS),
+                        ZoneOffset.ofTotalSeconds(0),
                     )
                 },
                 getBufferSize = getBoolean(GET_BUFFER_SIZE),
@@ -292,7 +293,7 @@ data class LogcatCommand(
                 statistics = getBoolean(STATISTICS),
                 getPrune = getBoolean(GET_PRUNE),
                 wrap = getBoolean(WRAP),
-                help = getBoolean(HELP)
+                help = getBoolean(HELP),
             )
         }
     }
@@ -306,7 +307,8 @@ enum class LogcatFormat(val id: Byte, val cliValue: String) {
     TAG(4, "tag"),
     THREAD(5, "thread"),
     THREADTIME(6, "threadtime"),
-    TIME(7, "time");
+    TIME(7, "time"),
+    ;
 
     companion object {
         fun getById(id: Byte) = values().firstOrNull { it.id == id }
@@ -326,7 +328,8 @@ enum class LogcatFormatModifier(val id: Byte, val cliValue: String) {
     ZONE(9, "zone"),
 
     // Undocumented, but present since Android 8.0:
-    NSEC(10, "nsec");
+    NSEC(10, "nsec"),
+    ;
 
     companion object {
         fun getById(id: Byte) = values().firstOrNull { it.id == id }
@@ -347,7 +350,8 @@ enum class LogcatBufferId(val id: Byte, val cliValue: String) {
     STATS(5, "stats"),
     SECURITY(6, "security"),
     KERNEL(7, "kernel"),
-    ALL(-1, "all");
+    ALL(-1, "all"),
+    ;
 
     companion object {
         fun getById(id: Byte) = values().firstOrNull { it.id == id }
@@ -368,7 +372,8 @@ enum class LogcatPriority(val id: Byte, val cliValue: String) {
     WARN(5, "W"),
     ERROR(6, "E"),
     FATAL(7, "F"),
-    SILENT(8, "S");
+    SILENT(8, "S"),
+    ;
 
     companion object {
         fun getById(id: Byte) = values().firstOrNull { it.id == id }
@@ -379,7 +384,7 @@ enum class LogcatPriority(val id: Byte, val cliValue: String) {
 object LogcatPrioritySerializer : KSerializer<LogcatPriority> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor(
         serialName = "com.memfault.bort.shared.LogcatPriority",
-        PrimitiveKind.STRING
+        PrimitiveKind.STRING,
     )
 
     override fun deserialize(decoder: Decoder): LogcatPriority =
@@ -412,7 +417,7 @@ data class LogcatFilterSpec(val tag: String = "*", val priority: LogcatPriority?
                 getString(TAG) ?: "*".also {
                     Logger.e("Missing tag, defaulting to *")
                 },
-                LogcatPriority.getById(getByte(PRIORITY))
+                LogcatPriority.getById(getByte(PRIORITY)),
             )
         }
     }

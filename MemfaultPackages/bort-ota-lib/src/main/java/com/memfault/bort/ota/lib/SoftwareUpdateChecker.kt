@@ -12,11 +12,11 @@ import com.memfault.cloud.sdk.MemfaultDeviceInfo
 import com.memfault.cloud.sdk.MemfaultOtaPackage
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import javax.inject.Inject
 
 /**
  * Note when changing this: consider that it is serialized + persisted. Only add new fields if they have default values.
@@ -69,7 +69,7 @@ class MemfaultSoftwareUpdateChecker @Inject constructor(
                         metricLogger.addMetric(InternalMetric(OTA_CHECK_FOUND_UPDATE))
                         cont.resume(otaPackage) {}
                     }
-                }
+                },
             )
         }
 }
@@ -79,7 +79,7 @@ private fun SoftwareUpdateSettings.toDeviceInfo(): MemfaultDeviceInfo =
         deviceSerial = deviceSerial,
         currentVersion = currentVersion,
         hardwareVersion = hardwareVersion,
-        softwareType = softwareType
+        softwareType = softwareType,
     )
 
 private fun MemfaultOtaPackage.toGenericOta(): Ota = Ota(

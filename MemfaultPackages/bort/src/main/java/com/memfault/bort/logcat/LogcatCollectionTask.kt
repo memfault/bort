@@ -54,7 +54,7 @@ class LogcatCollectionTask @Inject constructor(
                     collectionMode = PERIODIC,
                 ),
                 file = result.file,
-            )
+            ),
         )
         return TaskResult.SUCCESS
     }

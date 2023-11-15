@@ -1,5 +1,7 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
+import com.memfault.bort.metrics.HighResTelemetry.MetricType.Gauge
 import com.memfault.bort.metrics.HighResTelemetry.Rollup
 import com.memfault.bort.metrics.HighResTelemetry.RollupMetadata
 import com.memfault.bort.parsers.BatteryStatsSummaryParser
@@ -7,16 +9,17 @@ import com.memfault.bort.parsers.BatteryStatsSummaryParser.BatteryState
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.BatteryStatsSummary
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.DischargeData
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.PowerUseItemData
+import com.memfault.bort.parsers.BatteryStatsSummaryParser.PowerUseSummary
 import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import io.mockk.every
 import io.mockk.mockk
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertEquals
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 internal class BatterystatsSummaryCollectorTest {
     private val timeMs: Long = 123456789
@@ -63,6 +66,12 @@ internal class BatterystatsSummaryCollectorTest {
             PowerUseItemData(name = "com.google.android.apps.maps", totalPowerMaH = 114.0),
         ),
         timestampMs = timeMs,
+        powerUseSummary = PowerUseSummary(
+            originalBatteryCapacity = 3900,
+            computedCapacityMah = 3700,
+            minCapacityMah = 3600,
+            maxCapacityMah = 3800,
+        ),
     )
 
     private val CHECKIN_2_DISCHARGING = BatteryStatsSummary(
@@ -79,6 +88,12 @@ internal class BatterystatsSummaryCollectorTest {
             PowerUseItemData(name = "com.google.android.youtube", totalPowerMaH = 58.5),
         ),
         timestampMs = timeMs,
+        powerUseSummary = PowerUseSummary(
+            originalBatteryCapacity = 3900,
+            computedCapacityMah = 3300,
+            minCapacityMah = 3200,
+            maxCapacityMah = 3700,
+        ),
     )
 
     @Test
@@ -100,20 +115,33 @@ internal class BatterystatsSummaryCollectorTest {
                         // (1128-611=517)/3777*100 / 7.713471111111111 / 0.5 = 3.5491446227597
                         createRollup(name = "screen_on_battery_drain_%/hour", value = 3.55),
                         // (217.059 / 3777 * 100) / 7.713471111111111 = 0.745042343009282
+                        createRollup(name = "estimated_battery_capacity_mah", value = 3777),
+                        createRollup(name = "original_battery_capacity_mah", value = 3900),
+                        createRollup(
+                            name = "computed_battery_capacity_mah",
+                            value = 3700,
+                            internal = true,
+                        ),
+                        createRollup(name = "min_battery_capacity_mah", value = 3600),
+                        createRollup(name = "max_battery_capacity_mah", value = 3800),
+                        createRollup(name = "battery_state_of_health_%", value = 96.84615),
                         createRollup(name = "battery_use_%/hour_android", value = 0.75),
-                        // (114 / 3777 * 100) / 7.713471111111111 = 0.391298343321669
-                        createRollup(name = "battery_use_%/hour_com.google.android.apps.maps", value = 0.39),
                         // (33 / 3777 * 100) / 7.713471111111111 = 0.113270573066799
                         createRollup(name = "battery_use_%/hour_unknown", value = 0.11),
-                        createRollup(name = "estimated_battery_capacity_mah", value = 3777),
+                        // (114 / 3777 * 100) / 7.713471111111111 = 0.391298343321669
+                        createRollup(name = "battery_use_%/hour_com.google.android.apps.maps", value = 0.39),
                     ),
                     aggregatedMetrics = mapOf(
                         "screen_off_battery_drain_%/hour" to JsonPrimitive(4.19),
                         "screen_on_battery_drain_%/hour" to JsonPrimitive(3.55),
                         "estimated_battery_capacity_mah" to JsonPrimitive(3777),
+                        "original_battery_capacity_mah" to JsonPrimitive(3900),
+                        "min_battery_capacity_mah" to JsonPrimitive(3600),
+                        "max_battery_capacity_mah" to JsonPrimitive(3800),
+                        "battery_state_of_health_%" to JsonPrimitive(96.84615),
                     ),
                 ),
-                result
+                result,
             )
         }
     }
@@ -135,21 +163,40 @@ internal class BatterystatsSummaryCollectorTest {
                     createRollup(name = "screen_off_battery_drain_%/hour", value = 12.03),
                     // (1233-1128-(686-611)=30)/3777*100 / 0.66015 / 0.75 = 1.604243834555055
                     createRollup(name = "screen_on_battery_drain_%/hour", value = 1.60),
-                    // ((58.5 - 0) / 3777 * 100) / 0.66015 = 2.346206608036768
-                    createRollup(name = "battery_use_%/hour_com.google.android.youtube", value = 2.35),
+
+                    createRollup(name = "estimated_battery_capacity_mah", value = 3777),
+                    createRollup(name = "original_battery_capacity_mah", value = 3900),
+                    createRollup(
+                        value = 3300,
+                        RollupMetadata(
+                            stringKey = "computed_battery_capacity_mah",
+                            metricType = Gauge,
+                            dataType = DoubleType,
+                            internal = true,
+                        ),
+                    ),
+                    createRollup(name = "min_battery_capacity_mah", value = 3200),
+                    createRollup(name = "max_battery_capacity_mah", value = 3700),
+                    createRollup(name = "battery_state_of_health_%", value = 96.84615),
+                    createRollup(name = "estimated_battery_capacity_mah", value = 3777),
                     // ((247.08 - 217.05899999999997=30.021) / 3777 * 100) / 0.66015 = 1.204025103929433
                     createRollup(name = "battery_use_%/hour_android", value = 1.20),
+                    // ((58.5 - 0) / 3777 * 100) / 0.66015 = 2.346206608036768
+                    createRollup(name = "battery_use_%/hour_com.google.android.youtube", value = 2.35),
                     // ((202 - 0) / 3777 * 100) / 0.66015 = 8.101431364503029
                     createRollup(name = "battery_use_%/hour_screen", value = 8.10),
-                    createRollup(name = "estimated_battery_capacity_mah", value = 3777),
                 ),
                 aggregatedMetrics = mapOf(
                     "screen_off_battery_drain_%/hour" to JsonPrimitive(12.03),
                     "screen_on_battery_drain_%/hour" to JsonPrimitive(1.60),
                     "estimated_battery_capacity_mah" to JsonPrimitive(3777),
+                    "original_battery_capacity_mah" to JsonPrimitive(3900),
+                    "min_battery_capacity_mah" to JsonPrimitive(3200),
+                    "max_battery_capacity_mah" to JsonPrimitive(3700),
+                    "battery_state_of_health_%" to JsonPrimitive(96.84615),
                 ),
             ),
-            result
+            result,
         )
     }
 
@@ -163,6 +210,12 @@ internal class BatterystatsSummaryCollectorTest {
         dischargeData = DischargeData(totalMaH = 0, totalMaHScreenOff = 0),
         powerUseItemData = setOf(),
         timestampMs = timeMs,
+        powerUseSummary = PowerUseSummary(
+            originalBatteryCapacity = 3900,
+            computedCapacityMah = 3700,
+            minCapacityMah = 3600,
+            maxCapacityMah = 3800,
+        ),
     )
 
     @Test
@@ -191,6 +244,12 @@ internal class BatterystatsSummaryCollectorTest {
         dischargeData = DischargeData(totalMaH = 0, totalMaHScreenOff = 0),
         powerUseItemData = setOf(),
         timestampMs = timeMs,
+        powerUseSummary = PowerUseSummary(
+            originalBatteryCapacity = 0,
+            computedCapacityMah = 0,
+            minCapacityMah = 0,
+            maxCapacityMah = 0,
+        ),
     )
 
     @Test
@@ -222,6 +281,12 @@ internal class BatterystatsSummaryCollectorTest {
         dischargeData = DischargeData(totalMaH = 100, totalMaHScreenOff = 60),
         powerUseItemData = setOf(),
         timestampMs = timeMs,
+        powerUseSummary = PowerUseSummary(
+            originalBatteryCapacity = 0,
+            computedCapacityMah = 0,
+            minCapacityMah = 0,
+            maxCapacityMah = 0,
+        ),
     )
 
     @Test
@@ -241,7 +306,7 @@ internal class BatterystatsSummaryCollectorTest {
                     "estimated_battery_capacity_mah" to JsonPrimitive(1000),
                 ),
             ),
-            result
+            result,
         )
     }
 
@@ -257,6 +322,12 @@ internal class BatterystatsSummaryCollectorTest {
             PowerUseItemData(name = "android", totalPowerMaH = 0.04),
         ),
         timestampMs = timeMs,
+        powerUseSummary = PowerUseSummary(
+            originalBatteryCapacity = 3900,
+            computedCapacityMah = 3700,
+            minCapacityMah = 3600,
+            maxCapacityMah = 3800,
+        ),
     )
 
     @Test
@@ -273,30 +344,57 @@ internal class BatterystatsSummaryCollectorTest {
                         createRollup(name = "screen_off_battery_drain_%/hour", value = 10.0),
                         createRollup(name = "screen_on_battery_drain_%/hour", value = 10.0),
                         createRollup(name = "estimated_battery_capacity_mah", value = 1000),
+                        createRollup(name = "original_battery_capacity_mah", value = 3900),
+                        createRollup(
+                            value = 3700,
+                            RollupMetadata(
+                                stringKey = "computed_battery_capacity_mah",
+                                metricType = Gauge,
+                                dataType = DoubleType,
+                                internal = true,
+                            ),
+                        ),
+                        createRollup(name = "min_battery_capacity_mah", value = 3600),
+                        createRollup(name = "max_battery_capacity_mah", value = 3800),
+                        createRollup(name = "battery_state_of_health_%", value = 25.641027),
                     ),
                     aggregatedMetrics = mapOf(
                         "screen_off_battery_drain_%/hour" to JsonPrimitive(10.0),
                         "screen_on_battery_drain_%/hour" to JsonPrimitive(10.0),
                         "estimated_battery_capacity_mah" to JsonPrimitive(1000),
+                        "original_battery_capacity_mah" to JsonPrimitive(3900),
+                        "min_battery_capacity_mah" to JsonPrimitive(3600),
+                        "max_battery_capacity_mah" to JsonPrimitive(3800),
+                        "battery_state_of_health_%" to JsonPrimitive(25.641027),
                     ),
                 ),
-                result
+                result,
             )
         }
     }
 
-    private fun createRollup(name: String, value: Number) = Rollup(
+    private fun createRollup(name: String, value: Number, internal: Boolean = false) = Rollup(
         metadata = RollupMetadata(
             stringKey = name,
             metricType = HighResTelemetry.MetricType.Gauge,
             dataType = HighResTelemetry.DataType.DoubleType,
-            internal = false,
+            internal = internal,
         ),
         data = listOf(
             HighResTelemetry.Datum(
                 t = timeMs,
                 value = JsonPrimitive(value),
-            )
+            ),
+        ),
+    )
+
+    private fun createRollup(value: Number, metadata: RollupMetadata) = Rollup(
+        metadata = metadata,
+        data = listOf(
+            HighResTelemetry.Datum(
+                t = timeMs,
+                value = JsonPrimitive(value),
+            ),
         ),
     )
 }

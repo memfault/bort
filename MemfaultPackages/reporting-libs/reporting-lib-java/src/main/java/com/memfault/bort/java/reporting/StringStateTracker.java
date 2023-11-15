@@ -14,13 +14,12 @@ public class StringStateTracker extends Metric {
   private static final DataType DATA_TYPE = STRING;
   private static final Boolean CARRY_OVER_VALUE = true;
 
-  StringStateTracker(String eventName, String reportType, ArrayList<StateAgg> aggregations,
-      boolean internal) {
-    super(eventName, reportType, aggregations, internal, METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
+  StringStateTracker(String eventName, String reportType, ArrayList<StateAgg> aggregations) {
+    super(eventName, reportType, aggregations, METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
   }
 
   public void state(String state) {
-    state(state, this.timestamp());
+    state(state, timestamp());
   }
 
   public void state(String state, Long timestampMs) {

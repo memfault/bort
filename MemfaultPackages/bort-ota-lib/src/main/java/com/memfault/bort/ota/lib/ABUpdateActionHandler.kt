@@ -12,11 +12,11 @@ import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Inject
-import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import javax.inject.Inject
+import javax.inject.Singleton
 
 fun interface RebootDevice : () -> Unit
 
@@ -138,7 +138,9 @@ class ABUpdateActionHandler @Inject constructor(
                             scheduleDownload = scheduleDownload,
                         )
                     }
-                } else logActionNotAllowed()
+                } else {
+                    logActionNotAllowed()
+                }
             }
 
             is Action.DownloadUpdate -> {
@@ -151,7 +153,9 @@ class ABUpdateActionHandler @Inject constructor(
                             "${it.key}=${it.value}"
                         }.toTypedArray(),
                     )
-                } else logActionNotAllowed()
+                } else {
+                    logActionNotAllowed()
+                }
             }
 
             is Action.Reboot -> {
@@ -161,7 +165,7 @@ class ABUpdateActionHandler @Inject constructor(
                         State.RebootedForInstallation(
                             ota,
                             updatingFromVersion = settingsProvider.get().currentVersion,
-                        )
+                        ),
                     )
                     rebootDevice()
                 } else {
@@ -187,13 +191,19 @@ class SharedPreferenceCachedOtaProvider @Inject constructor(sharedPreferences: S
     PreferenceKeyProvider<String>(sharedPreferences, EMPTY, CACHED_OTA_KEY), CachedOtaProvider {
     override fun get(): Ota? {
         val stored = getValue()
-        return if (stored != EMPTY) BortSharedJson.decodeFromString(Ota.serializer(), stored)
-        else null
+        return if (stored != EMPTY) {
+            BortSharedJson.decodeFromString(Ota.serializer(), stored)
+        } else {
+            null
+        }
     }
 
     override fun set(ota: Ota?) {
-        if (ota == null) setValue(EMPTY)
-        else setValue(BortSharedJson.encodeToString(Ota.serializer(), ota))
+        if (ota == null) {
+            setValue(EMPTY)
+        } else {
+            setValue(BortSharedJson.encodeToString(Ota.serializer(), ota))
+        }
     }
 
     companion object {

@@ -33,7 +33,8 @@ import kotlin.time.DurationUnit
 enum class TaskResult {
     SUCCESS,
     FAILURE,
-    RETRY;
+    RETRY,
+    ;
 
     fun toWorkerResult() =
         when (this) {
@@ -73,7 +74,7 @@ abstract class Task<I> {
 inline fun <reified K : Task<*>> enqueueWorkOnce(
     context: Context,
     inputData: Data = Data.EMPTY,
-    block: OneTimeWorkRequest.Builder.() -> Unit = {}
+    block: OneTimeWorkRequest.Builder.() -> Unit = {},
 ): WorkRequest =
     oneTimeWorkRequest<K>(inputData, block).also {
         WorkManager.getInstance(context)
@@ -82,13 +83,14 @@ inline fun <reified K : Task<*>> enqueueWorkOnce(
 
 inline fun <reified K : Task<*>> oneTimeWorkRequest(
     inputData: Data,
-    block: OneTimeWorkRequest.Builder.() -> Unit = {}
+    block: OneTimeWorkRequest.Builder.() -> Unit = {},
 ): OneTimeWorkRequest =
     OneTimeWorkRequestBuilder<TaskRunnerWorker>()
         .setInputData(
             addWorkDelegateClass(
-                checkNotNull(K::class.qualifiedName), inputData
-            )
+                checkNotNull(K::class.qualifiedName),
+                inputData,
+            ),
         )
         .apply(block)
         .build()
@@ -96,7 +98,7 @@ inline fun <reified K : Task<*>> oneTimeWorkRequest(
 inline fun <reified K : Task<*>> periodicWorkRequest(
     repeatInterval: Duration,
     inputData: Data,
-    block: PeriodicWorkRequest.Builder.() -> Unit = {}
+    block: PeriodicWorkRequest.Builder.() -> Unit = {},
 ): PeriodicWorkRequest =
     PeriodicWorkRequestBuilder<TaskRunnerWorker>(
         repeatInterval.toDouble(DurationUnit.MILLISECONDS).toLong(),
@@ -104,8 +106,9 @@ inline fun <reified K : Task<*>> periodicWorkRequest(
     )
         .setInputData(
             addWorkDelegateClass(
-                checkNotNull(K::class.qualifiedName), inputData
-            )
+                checkNotNull(K::class.qualifiedName),
+                inputData,
+            ),
         )
         .apply(block)
         .build()
@@ -124,7 +127,7 @@ interface TaskRunnerWorkerFactory : IndividualWorkerFactory {
 class TaskRunnerWorker @AssistedInject constructor(
     appContext: Application,
     @Assisted workerParameters: WorkerParameters,
-    private val taskFactory: BortTaskFactory
+    private val taskFactory: BortTaskFactory,
 ) : CoroutineWorker(appContext, workerParameters) {
 
     override suspend fun doWork(): Result = runAndTrackExceptions(jobName = inputData.workDelegateClass) {

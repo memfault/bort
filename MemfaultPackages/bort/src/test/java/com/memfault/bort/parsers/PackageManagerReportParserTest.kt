@@ -15,9 +15,9 @@ class PackageManagerReportParserTest {
                     codePath = "/data/app/com.memfault.usagereporter-NxicUQwHlkqAfOu61ATYIQ==",
                     versionCode = 2070100,
                     versionName = "2.7.1+0-DEV-144c8b06b",
-                )
+                ),
             ),
-            report.packages
+            report.packages,
         )
     }
 
@@ -34,7 +34,7 @@ class PackageManagerReportParserTest {
                 Package(id = "com.a"),
                 Package(id = "com.b"),
             ),
-            report.packages
+            report.packages,
         )
     }
 }
@@ -177,4 +177,5 @@ private val PACKAGE_MANAGER_REPORT =
       |Compiler stats:
       |  [com.memfault.usagereporter]
       |     base.apk - 694
-      |""".trimMargin()
+      |
+    """.trimMargin()

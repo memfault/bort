@@ -3,9 +3,9 @@ package com.memfault.bort.metrics
 import com.memfault.bort.settings.MetricsSettings
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlin.time.Duration
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
+import kotlin.time.Duration
 
 class SystemPropertiesCollectorTest {
     @Test
@@ -22,7 +22,7 @@ class SystemPropertiesCollectorTest {
         }
         val collector = SystemPropertiesCollector(
             settings = settings,
-            dumpsterClient = mockk(relaxed = true)
+            dumpsterClient = mockk(relaxed = true),
         )
         runBlocking {
             collector.updateSystemPropertiesWith(
@@ -66,12 +66,12 @@ class SystemPropertiesCollectorTest {
             store.upsert(
                 name = "sysprop.vendor.memfault.bort.version.sdk",
                 value = "4.0",
-                internal = true
+                internal = true,
             )
             store.upsert(
                 name = "sysprop.vendor.memfault.bort.version.patch",
                 value = "4.1",
-                internal = true
+                internal = true,
             )
             store.upsert(name = "sysprop.notypelisted", value = "notype", internal = false)
         }

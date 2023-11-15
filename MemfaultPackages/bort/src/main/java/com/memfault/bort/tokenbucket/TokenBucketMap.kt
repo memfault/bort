@@ -8,8 +8,8 @@ class TokenBucketMap(
     private val tokenBucketFactory: TokenBucketFactory,
 ) {
     private var map = initialMap.mapValues {
-        // TokenBucket is mutable -- make copies of our own:
-        (_, bucket) ->
+            // TokenBucket is mutable -- make copies of our own:
+            (_, bucket) ->
         bucket.copy()
     }.toMutableMap()
 
@@ -50,5 +50,8 @@ class TokenBucketMap(
  *  (had been persisted) before the change:
  */
 fun TokenBucket.reconfigure(newCapacity: Int, newPeriod: Duration): TokenBucket =
-    if (capacity == newCapacity && period == newPeriod) this
-    else copy(capacity = newCapacity, period = newPeriod, _count = minOf(newCapacity, count))
+    if (capacity == newCapacity && period == newPeriod) {
+        this
+    } else {
+        copy(capacity = newCapacity, period = newPeriod, _count = minOf(newCapacity, count))
+    }

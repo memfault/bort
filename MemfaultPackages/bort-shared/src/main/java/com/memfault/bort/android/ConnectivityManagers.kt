@@ -32,7 +32,10 @@ suspend fun ConnectivityManager.registerForDefaultNetworkCallback(): Flow<Networ
             trySend(NetworkCallbackEvent.OnLost(network))
         }
 
-        override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+        override fun onCapabilitiesChanged(
+            network: Network,
+            networkCapabilities: NetworkCapabilities,
+        ) {
             trySend(NetworkCallbackEvent.OnCapabilitiesChanged(network, networkCapabilities))
         }
     }

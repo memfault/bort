@@ -120,4 +120,4 @@ TEST(RateLimiterTest, TestReconfigure) {
     ASSERT_EQ(2u, bucket.getTokens());
 }
 
-}
+}  // namespace

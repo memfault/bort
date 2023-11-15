@@ -1,8 +1,8 @@
 package com.memfault.bort.tokenbucket
 
 import com.memfault.bort.parsers.JavaException
-import java.security.MessageDigest
 import okio.ByteString.Companion.toByteString
+import java.security.MessageDigest
 
 fun JavaException.tokenBucketKey() =
     MessageDigest.getInstance("MD5").let { digest ->

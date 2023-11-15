@@ -27,4 +27,4 @@ uint64_t getTimeInMsSinceEpoch();
  */
 void detectTimeChanges(std::function<void(uint64_t)> onRtcChanged);
 
-}
+}  // namespace structured

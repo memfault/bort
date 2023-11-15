@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
     injectIntoHeartbeat = true;
   }
 
-  auto report = std::make_unique<Report>(injectIntoHeartbeat ? "Heartbeat" : "testing");
+  auto report = std::make_unique<Report>();
 
   auto counter = report->counter("native_counter_cpp");
   counter->increment();
@@ -30,14 +30,20 @@ int main(int argc, char *argv[]) {
   numericProp->update(0.0);
   numericProp->update(1.0);
 
-  auto stateTracker = report->stateTracker("native_states_cpp", {TIME_TOTALS});
-  stateTracker->state("on");
-  stateTracker->state("off");
-  stateTracker->state("initializing");
+  auto stringStateTracker = report->stringStateTracker("native_states_cpp", {TIME_TOTALS});
+  stringStateTracker->state("on");
+  stringStateTracker->state("off");
+  stringStateTracker->state("initializing");
 
-  if (!injectIntoHeartbeat) {
-    report->finish();
-  }
+  auto boolStateTracker =
+    report->boolStateTracker("native_states_bool_cpp", {TIME_PER_HOUR, LATEST_VALUE});
+  boolStateTracker->state(true);
+  boolStateTracker->state(false);
+  boolStateTracker->state(true);
+
+  auto event = report->event("native_event_cpp", true);
+  event->add("Hello");
+  event->add("world!");
 
   return 0;
 }

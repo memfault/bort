@@ -1,5 +1,38 @@
 # Memfault Bort Changelog
 
+## v4.10.0 - November 15, 2023
+
+### :rocket: New Features
+
+- Added network stats metrics. This tracks the total and per app usages of the Wi-Fi, Ethernet, and cellular interfaces. Please see [documentation](https://docs.memfault.com/docs/android/android-builtin-metrics#network-usage-metrics) for more information.
+- Added new Crash-Free hours metric. Please see [documentation](https://docs.memfault.com/docs/best-practices/fleet-reliability-metrics-crash-free-hours/#enable-crash-free-hours-on-your-devices) for more information.
+- Added new battery charge rate first 80% metric. This measures the rate at which the battery is charging before Android begins trickle charging the battery at a slower rate. This allows for a more accurate understanding of the health of the battery.
+- Added new Battery SOC percentage drop metric which will be used to estimate expected battery runtime of the device.
+- Added a new Battery State of Health (SoH) metric. This metric measures the current full charge capacity of the battery against the original full charge capacity and reports the value as a percentage of health remaining.
+
+### :chart_with_upwards_trend: Improvements
+
+- Fixed a typo in TemperatureMetricCollector. Thank you [satur9nine](https://github.com/satur9nine) for bringing this to our attention and fixing. [PR #4](https://github.com/memfault/bort/pull/4)
+- Improved detection of battery state (charging or discharging) when gathering battery related metrics.
+- Improved the reliability of OTA downloads by refactoring to more modern coroutine best practices.
+- Improved Custom Metrics API for native code (C/C++).
+  - Missing `Event` type added.
+  - Missing metadata added.
+  - Removed finishReport method and report name parameters as they were meant for internal use only.
+  - Support Soong (Blueprint files) build system.
+  - Removed deprecated Custom Event API.
+  - Fixed native Reporting API timestamp generation.
+- Fixed .gitignore to remove build files that were incorrectly being included.
+- Updated AGP, Kotlin, and 3rd party libraries to newer versions.
+- Refactor the Kotlin Reporting Library to use the Java lib internally to keep a single source of truth for implementation.
+- Moved DropBoxManager entry processing from UsageReporter to Bort. This stops waking Bort for every new entry, if Bort already isn't running, and significantly simplifies DropBoxManager entry processing.
+
+### :house: Internal
+
+- Improved Kotlin formatting by updating ktlint.
+- Removed unused ingress URL.
+- Added exemplary Java app compiled using Android Make to demonstrate usage of the Java based Reporting lib.
+
 ## v4.9.0 - September 5, 2023
 
 ### :rocket: New Features
@@ -28,7 +61,7 @@
 
 ## v4.8.0 - July 17, 2023
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - Refactored the OTA app to support more granular control over the download and
   install constraints. Download and installation can now be configured
@@ -60,7 +93,7 @@
 - Fixed an issue where HRT files were not being uploaded because the Custom
   Metrics service configuration was stale.
 
-#### :house: Internal
+### :house: Internal
 
 - Updated to AGP 8.0.1, Kotlin 1.8.21, Kotlin Coroutines 1.7.0, JVM 17.
 - Moved package namespaces to the gradle file from the manifest.
@@ -81,19 +114,19 @@
 - Disable the UsageReporter -Receiver classes when Bort is disabled.
 - Add missing deprecation annotations to CustomEvent API.
 
-#### :house: Internal
+### :house: Internal
 
 - Report a Bort installation id to track new app install vs existing app where
   data was cleared.
 
 ## v4.6.0 - April 26th, 2023
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - Removed (previously deprecated) individual file upload support:
   [MAR](https://mflt.io/android-mar) is the only supported upload mechanism.
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Bort will resend Config State when not synced with backend.
 - Fixed an issue where if SDK settings change, they are not applied immediately,
@@ -110,14 +143,14 @@
 - Fixed a UsageReporter crash when a message is received during service
   shutdown.
 
-#### :house: Internal
+### :house: Internal
 
 - Added an internal metric for the Bort package name.
 - Track any task worker failures.
 
 ## v4.5.1 - April 5th, 2023
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Fixed an issue where files could be leaked in UsageReporter, when using
   Client-Server mode.
@@ -126,13 +159,13 @@
 - Added more granular storage limits for fleet sampling devices with disabled
   aspects.
 
-#### :house: Internal
+### :house: Internal
 
 - Added internal metrics for storage usage/file cleanup.
 
 ## v4.5.0 - March 27th, 2023
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - Added metric for [Fleet Sampling](https://mflt.io/android-fleet-sampling)
   resolutions.
@@ -146,7 +179,7 @@
 - Allow the project key to be changed at runtime via intent broadcast.
   [See Documentation](https://mflt.io/android-setting-project-key-at-runtime).
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Removed cuttlefish related AOSP patches as they were for internal use only.
 - Improved MAR file bundling.
@@ -160,14 +193,14 @@
 - Fix SELinux violation caused by dumpstate calling `dump()` on the
   memfault_structured service.
 
-#### :house: Internal
+### :house: Internal
 
 - Fixed incorrect HRT typing on internal metrics.
 - Added metric for tracking deleted MAR files.
 
 ## v4.4.0 - January 11th, 2023
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - High-Res Telemetry. Custom Metrics are now shown on timeline in high
   resolution, in addition to aggregated values.
@@ -181,7 +214,7 @@
 - Support Fleet Sampling when using
   [client/server mode](https://docs.memfault.com/docs/android/android-multi-device-support).
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Fixed the `bort_cli.py` python version check (was using a bad string-basd
   check).
@@ -199,20 +232,20 @@
 - Add collection mode metadata to log uploads.
 - Adjust `mar` file upload jitter to match batching period.
 
-#### :house: Internal
+### :house: Internal
 
 - Migrates Bort internal metrics to use High-Res Telemetry.
 
 ## v4.3.2 - November 22nd, 2022
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Fixed an issue where bugreports may fail to be processed by Bort if the Bort
   OTA app is installed on the device.
 
 ## v4.3.1 - November 7th, 2022
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Fixed an issue which could cause batterystats collection to fail after some
   time-change events.
@@ -220,7 +253,7 @@
 
 ## v4.3.0 - October 18th, 2022
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - Continuous Logging Mode is in preview. When enabled, logs will be continuously
   collected by the `MemfaultDumpster` service. This is designed to avoid missing
@@ -230,7 +263,7 @@
 - On-device scrubbing of tombstone files.
   [See documentation](https://mflt.io/android-data-scrubbing).
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Built-in metrics for Storage have been changed. Bort does not collect
   `storage.primary.` metrics any more - instead collecting `storage.data.`
@@ -243,13 +276,13 @@
 - Fixed a race condition in the OTA app, which could cause a crash when opening
   the UI.
 
-#### :house: Internal
+### :house: Internal
 
 - Improved how settings are overridden during CI tests.
 
 ## v4.2.0 - September 14th, 2022
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - Fleet Sampling, including new Memfault Log Collection.
 - Support for Android 12L.
@@ -266,7 +299,7 @@
 - Custom log scrubbing rules can be defined in `CustomLogScrubber.kt`.
   [See documentation](https://mflt.io/android-custom-scrubbing).
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - OTA will now automatically reboot after applying an A/B update.
 - Adds configurable limits to `mar` file size. Multiple bundled `mar` files may
@@ -296,7 +329,7 @@
 - The OTA app will now continue to check for updates while waiting to
   download/install.
 
-#### :house: Internal
+### :house: Internal
 
 - Added internal metrics around `mar` storage/usage.
 - Changed the default API endpoint from `api.memfault.com` to
@@ -307,7 +340,7 @@
 
 ## v4.1.0 - April 18, 2022
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Enhanced the
   [SDK validation tool](https://docs.memfault.com/docs/android/android-getting-started-guide#validating-the-sdk-integration)
@@ -332,7 +365,7 @@ See documentation for new
 and
 [Custom Metrics APIs](https://docs.memfault.com/docs/android/android-custom-metrics).
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Note: The Bort gradle build now requires JDK 11 (this is a requirement for the
   latest version of the Android Gradle Plugin).
@@ -345,7 +378,7 @@ and
 This preview release contains several features which do not yet have full
 documentation.
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - Custom Metrics SDK. See the `Reporting` APIs in `reporting-lib`, which is also
   published as an artifact to Maven Central as
@@ -360,7 +393,7 @@ documentation.
 - Bort can capture selected system properties as Device Attributes. This is
   configurable in the dashboard, on the Data Sources tab.
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Bort will now only run as the primary user, on devices with multiple users.
 - Bort is updated to use the latest version of several tools & libraries
@@ -372,7 +405,7 @@ documentation.
 - Fixed an edge-case in DropBoxManager processing, which could cause an entry to
   be missed.
 
-#### :boom: Breaking Changes
+### :boom: Breaking Changes
 
 - `BUILD_ID_CODE` in `bort.properties` is replaced by `BUILD_ID_CODE_OVERRIDE`.
   This is now an override, which is disabled by default - and should only be
@@ -382,7 +415,7 @@ documentation.
   located in the `reporting-lib` library, which is also now published as an
   artifact to Maven Central as `com.memfault.bort:reporting-lib:1.0`.
 
-#### :house: Internal
+### :house: Internal
 
 - Bort now uses Maven Central instead of JCenter for dependencies.
 - Added support for the `mar` (Memfault Archive) file format - this enables
@@ -392,7 +425,7 @@ documentation.
 
 ## v3.7.3 - October 26, 2021
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Fix a potential crash after requesting a bugreport via Intent.
 - Sepolicy changes to allow Bort+OTA to run on the latest build of Android 11,
@@ -400,14 +433,14 @@ documentation.
 - Enable requesting an OTA update check via Intent
   (`com.memfault.intent.action.OTA_CHECK_FOR_UPDATES`).
 
-#### :house: Internal
+### :house: Internal
 
 - Added ability for bort to log to disk, to aid debugging. This is disabled by
   default.
 
 ## v3.7.2 - October 18, 2021
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Fix a crash when using A/B OTA updates.
 - Disable debug variant.
@@ -417,7 +450,7 @@ documentation.
 
 ## v3.7.1 - September 30, 2021
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Fix a rate-limiting issue which sometimes caused regular data collection to be
   missed.
@@ -425,13 +458,13 @@ documentation.
 
 ## v3.7.0 - September 15, 2021
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - OTA Update Client: Bort now includes a full OTA Update client.
   [See documentation](https://mflt.io/android-ota-update-client) for more
   information.
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Enable Bort to collect internal logs when custom log scrubbing rules are in
   place.
@@ -442,7 +475,7 @@ documentation.
 
 ## v3.6.2 - August 17, 2021
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Fix "Bort enabled" log (previously included incorrect "enabled" value).
 - Improve Bort internal logging and metrics.
@@ -451,7 +484,7 @@ documentation.
 
 ## v3.6.1 - July 21, 2021
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - In 3.6.0, the OTA app had ot be configured with an application ID and
   certificate (even though not being included in the build). This is fixed - OTA
@@ -459,14 +492,14 @@ documentation.
 
 ## v3.6.0 - July 9, 2021
 
-#### :boom: Breaking Changes
+### :boom: Breaking Changes
 
 - Structured Logging (introduced in 3.5.0) has been renamed to Custom Events.
   Any code using the `StructuredLog` API from the `structured-log-lib` library
   (now removed) must be changed to call the equivalent methods in the
   `CustomEvent` API from the `custom-event-lib` library.
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Fixed Custom Events (formerly: Structured Logs) on devices where
   `RUNTIME_ENABLE_REQUIRED=false`. These devices would fail to upload events.
@@ -478,7 +511,7 @@ documentation.
 - The SDK patch script now works correctly when cuttlefish emulator directories
   are missing.
 
-#### :house: Internal
+### :house: Internal
 
 - OTA update client: a new OTA update client is included in this release. This
   is not yet ready for use (and is not yet documented), and is not included when
@@ -487,7 +520,7 @@ documentation.
 
 ## v3.5.0 - June 2, 2021
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - Structured logging: this new API enables logging structured events, which
   appear directly on the device timeline
@@ -495,7 +528,7 @@ documentation.
   for more information.
 - Android 11 support for the Bort SDK.
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Fixed a problem where BatteryStat-based system metrics stop being collected if
   the battery was fully charged and still plugged. To resolve this, patches for
@@ -513,19 +546,19 @@ documentation.
 
 ## v3.4.3 - April 27, 2021
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Fix a rare issue in the on-device rate limiting system.
 - Make HTTP request timeout a configurable parameter.
 - Add randomized delay to uploads to distribute fleet-wide requests over time.
 
-#### :house: Internal
+### :house: Internal
 
 - Structured logging: this is an experimental new feature still in development.
 
 ## v3.4.2 - March 17, 2021
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Capture log files, even when empty, to make it clear the SDK is working as
   expected.
@@ -544,14 +577,14 @@ documentation.
 
 ## v3.4.1 - March 11, 2021
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Added a `dontaudit` sepolicy line to avoid failing a CTS test. See
   `memfault_dumpster.te` for more information.
 
 ## v3.4.0 - March 8, 2021
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - On-device data scrubbing: Caliper traces pertinent to allowed application IDs
   are uploaded and others are filtered out, on-device. Similarly,
@@ -562,7 +595,7 @@ documentation.
   [data scrubbing documentation](https://mflt.io/android-data-scrubbing) for
   more information.
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Hard-coded, 5-second command (i.e. logcat) timeouts have been removed and
   replaced with remotely configurable timeouts.
@@ -573,7 +606,7 @@ documentation.
 
 ## v3.3.1 - February 19, 2021
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Improved the gradle build scripting to prevent accidentally replacing the
   `MemfaultPackages/settings/settings.json` with different settings. In case the
@@ -584,7 +617,7 @@ documentation.
 
 ## v3.3.0 - February 17, 2021
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - Dynamic SDK Settings: at run-time, Bort will now periodically fetch the SDK
   settings from the Memfault web service, making it possible to change the
@@ -601,13 +634,13 @@ documentation.
   can be found through the timeline of a device, or under the "Logs" tab of an
   Issue detail page.
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - File uploads are now gzip-compressed prior to uploading to save bandwidth.
 - A built-in metric `MemfaultSdkMetric_bort_version_code` has been added that
   contains Bort's version code.
 
-#### :house: Internal
+### :house: Internal
 
 - Fixed a bug that caused overly aggressive rate limiting under certain
   conditions.
@@ -617,7 +650,7 @@ documentation.
 
 ## v3.2.0 - February 4, 2021
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - New built-in metrics have been added that count the number of traces by tag.
   The naming format is `drop_box_trace_%s_count` where `%s` is filled with the
@@ -625,7 +658,7 @@ documentation.
 - A new built-in metric called `drop_box_traces_drop_count` has been added that
   counts the number of dropped traces due to rate-limiting.
 
-#### :house: Internal
+### :house: Internal
 
 - Rate limiting: Bort will now also rate limit reboot event uploads.
 - A bug has been fixed that caused project keys for newly created projects to
@@ -633,7 +666,7 @@ documentation.
 
 ## v3.1.0 - January 29, 2021
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - A new option is available to label a bug report that is manually triggered via
   the intent-based API (the action
@@ -651,7 +684,7 @@ documentation.
 - Improved `bort_cli.py`'s SDK validation by also printing more details about
   the reason of a failed validation.
 
-#### :house: Internal
+### :house: Internal
 
 - Rate limiting: Bort will now rate limit uploads to the Memfault web service,
   to avoid faulty devices from uploading too much data.
@@ -659,7 +692,7 @@ documentation.
 
 ## v3.0.1 - January 4, 2021
 
-#### :house: Internal
+### :house: Internal
 
 - Fixed a bug that caused `BUG_REPORT_MINIMAL_MODE=true` to only enable minimal
   mode bug reports to get captured after rebooting but not after enabling the
@@ -668,7 +701,7 @@ documentation.
 
 ## v3.0.0 - December 17, 2020
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Have you ever wondered how the metrics in your device timelines are trending
   across your whole fleet? With the 3.0.0 version of Bort, now you can view
@@ -683,14 +716,14 @@ documentation.
 
 ## v2.9.1 - December 3, 2020
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - The `bort_src_gen.py` tool used to require Python 3.6 to run, but it is now
   compatible down to Python 3.4.
 
 ## v2.9.0 - November 26, 2020
 
-#### :house: Internal
+### :house: Internal
 
 - Experimental DropBoxManager API based data source:
   - Added uploading of DropBox-sourced ANRs, Java exceptions, WTFs, last kmsg
@@ -700,7 +733,7 @@ documentation.
 
 ## v2.8.0 - November 13, 2020
 
-#### :house: Internal
+### :house: Internal
 
 - Experimental DropBoxManager API based data source:
   - Refactored parts of the infrastructure in UsageReporter and Bort apps to
@@ -712,19 +745,19 @@ documentation.
 
 ## v2.7.1 - November 5, 2020
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - The `bort_cli.py` tool now only writes to a validation log file when running
   the validation command.
 
-#### :house: Internal
+### :house: Internal
 
 - Add a backtrace when sending an error response in IPC between the
   UsageReporter and Bort apps.
 
 ## v2.7.0 - October 28, 2020
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Any custom configuration of Hardware and Software Versions as well as Device
   Serial sources is now automatically retrieved by the SDK from the Memfault
@@ -737,7 +770,7 @@ documentation.
 
 ## v2.6.0 - October 27, 2020
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Added the option to capture "minimal" bug reports. These collect the data
   required for Memfault diagnostics while being roughly 5x smaller and requiring
@@ -761,7 +794,7 @@ documentation.
   additional checks to ensure the bort SDK integrated into the system image is
   consistent with the APKs installed.
 
-#### :house: Internal
+### :house: Internal
 
 - `ktlint` was applied to the codebase, resulting in reformatting of many files.
 - Logcat log fetching has been added to the experimental
@@ -769,7 +802,7 @@ documentation.
 
 ## v2.5.0 - October 20, 2020
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Remove reliance on `BOARD_PLAT_PRIVATE_SEPOLICY_DIR` for Android 8.1 or older
   platforms. This makefile variable is supposed to be set to only a single
@@ -782,13 +815,13 @@ documentation.
 
 ## v2.4.1 - October 9, 2020
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Additional HTTP logging
 
 ## v2.4.0 - September 29, 2020
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Before this release, the Bort application ID and feature name had to be
   patched in various files, using the `bort_cli.py` tool. With this release,
@@ -800,14 +833,14 @@ documentation.
   `bort.properties`' `BORT_APPLICATION_ID` and `BORT_FEATURE_NAME` properties if
   they have not already been set.
 
-#### :house: Internal
+### :house: Internal
 
 - The target SDK is now a configurable SDK property (via `bort.properties`)
 - The default target SDK has been lowered 26 from 29 for more consistent
   behaviour across the supported platforms.
 - The min SDK version has been lowered to 26 to support Android 8.
 
-#### :boom: Breaking Changes
+### :boom: Breaking Changes
 
 - The folder structure of the SDK has been changed: the `MemfaultBort` and
   `MemfaultUsageReporter` folders have been merged into a single
@@ -824,7 +857,7 @@ documentation.
 
 ## v2.3.0 - August 20, 2020
 
-#### :boom: Breaking Changes
+### :boom: Breaking Changes
 
 - Controlling the Bort SDK, either enabling it or requesting a bug report, now
   requires the `com.memfault.bort.permission.CONTROL` permission. This
@@ -838,11 +871,11 @@ documentation.
   have been consolidated into a single, new receiver
   (`com.memfault.bort.receivers.ControlReceiver`).
 
-#### :house: Internal
+### :house: Internal
 
 - Log events when the SDK is enabled and disabled.
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - There is a new `bort.property` called `BORT_CONTROL_PERMISSION`, used to
   specify which permission should be used to control the SDK. By default, this
@@ -852,23 +885,23 @@ documentation.
 
 ## v2.2.4 - July 14, 2020
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - Adds `enable-bort` and `request-bug-report` commands to `bort_cli.py`.
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Adds fixes for the `validate-sdk-integration` command in `bort_cli.py` when
   being run on Windows.
 
 ## v2.2.3 - July 8, 2020
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - Validate your SDK integration with the `validate-sdk-integration` command in
   `bort_cli.py`.
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - The SDK will now work if
   [UserManager.DISALLOW_DEBUGGING_FEATURES](https://developer.android.com/reference/android/os/UserManager#DISALLOW_DEBUGGING_FEATURES)
@@ -876,30 +909,30 @@ documentation.
 
 ## v2.2.2 - June 29, 2020
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Easily specify V1 and/or V2 APK signing configurations for the MemfaultBort
   app using `bort.properties`.
 
-#### :house: Internal
+### :house: Internal
 
 - The `bort_cli.py` script now requires Python 3.6+
 
 ## v2.2.1 - June 24, 2020
 
-#### :boom: Breaking Changes
+### :boom: Breaking Changes
 
 - The `versionCode` and `versionName` are now set by default by the SDK. If you
   need to override them or increase the `versionCode` for an OTA update, see
   `bort.properties`.
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Fixed `bort_cli.py` to patch the custom application ID into the permissions
   XML. This fixes an issue where the MemfaultBort application was not being
   granted the expected permissions.
 
-#### :house: Internal
+### :house: Internal
 
 - More debug info in requests to track and debug different SDK behaviour.
 - Use the `EventLog` API to log SDK events.
@@ -907,7 +940,7 @@ documentation.
 
 ## v2.2.0 - June 15, 2020
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - This release adds an intent-based API to enable or disable the SDK at runtime.
 - Additionally, there is new requirement that the SDK be explicitly enabled
@@ -916,11 +949,11 @@ documentation.
 
 ## v2.1.0 - June 2, 2020
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - Adds the ability to upload bug reports to a user-specified endpoint
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - The `storeFile` property in a `keystore.properties` file is now expected to be
   relative to the `keystore.properties` file itself, no longer relative to
@@ -931,7 +964,7 @@ documentation.
 
 ## v2.0.1 - May 18, 2020
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - `bort_cli.py` tool improvements:
   - For the `patch-aosp` command, the `--bort-app-id` option has been removed
@@ -941,7 +974,7 @@ documentation.
 
 ## v2.0.0 - May 14, 2020
 
-#### :rocket: New Features
+### :rocket: New Features
 
 - Added the ability to update the Bort app independent of the OS by changing it
   from a system app to a privileged app.
@@ -949,13 +982,13 @@ documentation.
   uploading reports in builds where PII may be present (`user` builds by
   default).
 
-#### :chart_with_upwards_trend: Improvements
+### :chart_with_upwards_trend: Improvements
 
 - Simplified SDK/OS integration by including `BoardConfig.mk` and `product.mk`.
 - Simplified SDK setup with improvements to the python setup tool.
 - New SE policy preserves system `neverallow` rules.
 
-#### :house: Internal
+### :house: Internal
 
 - Adds a new system app `MemfaultUsageReporter`. This provides an intent-based
   API for starting the `MemfaultDumpstateRunner`. While the API is available to
@@ -972,7 +1005,7 @@ documentation.
 </intent-filter>
 ```
 
-#### :boom: Breaking Changes
+### :boom: Breaking Changes
 
 - This SDK update has several breaking changes.
 - You must remove the previous required modifications to:

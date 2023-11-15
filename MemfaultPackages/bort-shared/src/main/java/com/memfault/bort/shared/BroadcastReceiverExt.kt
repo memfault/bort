@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 
 fun BroadcastReceiver.goAsync(
     coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Default),
-    block: suspend () -> Unit
+    block: suspend () -> Unit,
 ) {
     val result = goAsync()
     coroutineScope.launch {

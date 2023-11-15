@@ -44,8 +44,8 @@ class SelfTestLogcatFilterSpecs(
                     // Allow logs of DEBUG or higher from Logger.TAG:
                     LogcatFilterSpec(tag = Logger.getTag(), priority = LogcatPriority.DEBUG),
                     // Allow logs of ERROR or higher from any other tag:
-                    LogcatFilterSpec(priority = LogcatPriority.ERROR)
-                )
+                    LogcatFilterSpec(priority = LogcatPriority.ERROR),
+                ),
             ),
             timeout,
         ) { output ->
@@ -72,8 +72,8 @@ class SelfTestLogcatFormat(
                 formatModifiers = listOf(
                     LogcatFormatModifier.UTC,
                     LogcatFormatModifier.USEC,
-                    LogcatFormatModifier.UID
-                )
+                    LogcatFormatModifier.UID,
+                ),
             ),
             timeout,
         ) { output ->
@@ -81,7 +81,7 @@ class SelfTestLogcatFormat(
             // Example:
             // 10-20 12:20:28.940622 +0000 10014  2518  2615 V bort-test: b78df7d1-42ba-4387-9056-975c4081ceb6
             val pattern = Regex(
-                """\d+-\d+\s\d+:\d+:\d+\.\d+\s+\+0000\s+[0-9_au]+\s+\d+\s+\d+\s+V\s+bort-test:\s+$testLog"""
+                """\d+-\d+\s\d+:\d+:\d+\.\d+\s+\+0000\s+[0-9_au]+\s+\d+\s+\d+\s+V\s+bort-test:\s+$testLog""",
             )
             pattern.containsMatchIn(text)
         }
@@ -95,16 +95,16 @@ class SelfTestLogcatCommandSerialization : SelfTester.Case {
         listOf(
             LogcatCommand(
                 filterSpecs = listOf(
-                    LogcatFilterSpec(tag = "test", priority = LogcatPriority.DEBUG)
-                )
+                    LogcatFilterSpec(tag = "test", priority = LogcatPriority.DEBUG),
+                ),
             ),
             LogcatCommand(
-                format = LogcatFormat.BRIEF
+                format = LogcatFormat.BRIEF,
             ),
             LogcatCommand(
                 formatModifiers = listOf(
-                    LogcatFormatModifier.UID
-                )
+                    LogcatFormatModifier.UID,
+                ),
             ),
             LogcatCommand(dividers = true),
             LogcatCommand(clear = true),
@@ -113,8 +113,10 @@ class SelfTestLogcatCommandSerialization : SelfTester.Case {
             LogcatCommand(recentCount = 123),
             LogcatCommand(
                 recentSince = LocalDateTime.ofEpochSecond(
-                    1234, 1234, ZoneOffset.UTC
-                )
+                    1234,
+                    1234,
+                    ZoneOffset.UTC,
+                ),
             ),
             LogcatCommand(getBufferSize = true),
             LogcatCommand(buffers = listOf(LogcatBufferId.CRASH, LogcatBufferId.EVENTS)),
@@ -123,7 +125,7 @@ class SelfTestLogcatCommandSerialization : SelfTester.Case {
             LogcatCommand(statistics = true),
             LogcatCommand(getPrune = true),
             LogcatCommand(wrap = true),
-            LogcatCommand(help = true)
+            LogcatCommand(help = true),
         ).map { input ->
             val output = LogcatCommand.fromBundle(input.toBundle())
             (output == input).also { equal ->

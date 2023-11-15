@@ -22,7 +22,7 @@ class RealTemporaryFileFactory @Inject constructor(application: Application) : T
 class TemporaryFile(
     val prefix: String = "tmp",
     val suffix: String? = null,
-    val directory: File? = null
+    val directory: File? = null,
 ) {
     inline fun <R> useFile(block: (file: File, preventDeletion: () -> Unit) -> R): R {
         @Suppress("DEPRECATION")

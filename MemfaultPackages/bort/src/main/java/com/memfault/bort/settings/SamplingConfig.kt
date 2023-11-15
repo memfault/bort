@@ -37,7 +37,8 @@ enum class Resolution(
      * For use in mar manifest, for files which are not applicable to the given aspect (i.e. should never be uploaded
      * because of this aspect). Never expected in the [SamplingConfig] for any aspect.
      */
-    NOT_APPLICABLE("na")
+    NOT_APPLICABLE("na"),
+
     ;
 
     companion object {

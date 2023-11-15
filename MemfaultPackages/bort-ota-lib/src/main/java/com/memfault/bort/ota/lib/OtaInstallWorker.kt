@@ -101,7 +101,8 @@ class OtaInstallWorker @AssistedInject constructor(
             WorkManager.getInstance(context)
                 .enqueueUniqueWork(
                     SCHEDULED_INSTALL_WORK,
-                    ExistingWorkPolicy.APPEND_OR_REPLACE, request
+                    ExistingWorkPolicy.APPEND_OR_REPLACE,
+                    request,
                 )
         }
     }

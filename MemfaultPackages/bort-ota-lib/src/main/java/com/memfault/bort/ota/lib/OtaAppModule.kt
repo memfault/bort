@@ -35,8 +35,11 @@ class OtaAppModule {
         recoveryBasedUpdateActionHandler: Lazy<RecoveryBasedUpdateActionHandler>,
         abUpdateActionHandler: Lazy<ABUpdateActionHandler>,
     ): UpdateActionHandler =
-        if (isAbDevice()) abUpdateActionHandler.get()
-        else recoveryBasedUpdateActionHandler.get()
+        if (isAbDevice()) {
+            abUpdateActionHandler.get()
+        } else {
+            recoveryBasedUpdateActionHandler.get()
+        }
 
     @Provides
     fun memfaultCloud(settings: SoftwareUpdateSettingsProvider) = MemfaultCloud.Builder().apply {

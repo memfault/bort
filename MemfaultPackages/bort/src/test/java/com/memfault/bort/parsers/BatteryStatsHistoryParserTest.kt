@@ -12,6 +12,7 @@ import com.memfault.bort.parsers.BatteryStatsConstants.ALARM
 import com.memfault.bort.parsers.BatteryStatsConstants.AUDIO
 import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_HEALTH
 import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_LEVEL
+import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_STATUS
 import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_TEMP
 import com.memfault.bort.parsers.BatteryStatsConstants.BLUETOOTH_LE_SCANNING
 import com.memfault.bort.parsers.BatteryStatsConstants.BOOL_VALUE_FALSE
@@ -32,11 +33,12 @@ import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_RADIO
 import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_RUNNING
 import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_SCAN
 import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_SIGNAL_STRENGTH
-import java.io.File
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
+import java.io.File
 
 class BatteryStatsHistoryParserTest {
     private fun createFile(content: String): File {
@@ -51,7 +53,7 @@ class BatteryStatsHistoryParserTest {
         9,hsp,71,10104,"com.memfault.bort"
         9,h,123:TIME:1000000
         9,h,1:START
-        9,h,0,+r,wr=1,Bl=100,+S,Sb=0,+W,+Wr,+Ws,+Ww,Wss=0,-g,+bles,+Pr,+Psc,+a,Bh=g,di=light,Bt=213,+Efg=71,+Elw=70
+        9,h,0,+r,wr=1,Bl=100,Bs=d,+S,Sb=0,+W,+Wr,+Ws,+Ww,Wss=0,-g,+bles,+Pr,+Psc,+a,Bh=g,di=light,Bt=213,+Efg=71,+Elw=70
         9,h,200000,-r,-S,Sb=3,-W,-Wr,-Ws,-Ww,Wss=2,+g,-bles,-Pr,-Psc,-a,Bh=f,di=full,Bt=263,+Etp=70,+Efg=70,+Eal=70
         9,h,3,-Efg=71,-Etp=71,wr=,Bl=x,+W
         9,h,0:SHUTDOWN
@@ -69,11 +71,15 @@ class BatteryStatsHistoryParserTest {
             listOf(Datum(t = 1000001, JsonPrimitive(100)), Datum(t = 2800000, JsonPrimitive(90))),
         ),
         Rollup(
+            RollupMetadata(stringKey = BATTERY_STATUS, metricType = Property, dataType = StringType, internal = false),
+            listOf(Datum(t = 1000001, JsonPrimitive("Discharging"))),
+        ),
+        Rollup(
             RollupMetadata(stringKey = BATTERY_TEMP, metricType = Gauge, dataType = DoubleType, internal = false),
             listOf(
                 Datum(t = 1000001, JsonPrimitive(213)),
                 Datum(t = 1200001, JsonPrimitive(263)),
-                Datum(t = 2800000, JsonPrimitive(250))
+                Datum(t = 2800000, JsonPrimitive(250)),
             ),
         ),
         Rollup(
@@ -81,7 +87,7 @@ class BatteryStatsHistoryParserTest {
                 stringKey = BATTERY_HEALTH,
                 metricType = Property,
                 dataType = StringType,
-                internal = false
+                internal = false,
             ),
             listOf(Datum(t = 1000001, JsonPrimitive("Good")), Datum(t = 1200001, JsonPrimitive("Failure"))),
         ),
@@ -131,7 +137,7 @@ class BatteryStatsHistoryParserTest {
                 stringKey = WIFI_SIGNAL_STRENGTH,
                 metricType = Property,
                 dataType = StringType,
-                internal = false
+                internal = false,
             ),
             listOf(Datum(t = 1000001, JsonPrimitive("VeryPoor")), Datum(t = 1200001, JsonPrimitive("Moderate"))),
         ),
@@ -144,7 +150,7 @@ class BatteryStatsHistoryParserTest {
                 stringKey = BLUETOOTH_LE_SCANNING,
                 metricType = Property,
                 dataType = StringType,
-                internal = false
+                internal = false,
             ),
             listOf(Datum(t = 1000001, BOOL_VALUE_TRUE), Datum(t = 1200001, BOOL_VALUE_FALSE)),
         ),
@@ -157,7 +163,7 @@ class BatteryStatsHistoryParserTest {
                 stringKey = PHONE_SCANNING,
                 metricType = Property,
                 dataType = StringType,
-                internal = false
+                internal = false,
             ),
             listOf(Datum(t = 1000001, BOOL_VALUE_TRUE), Datum(t = 1200001, BOOL_VALUE_FALSE)),
         ),
@@ -166,7 +172,7 @@ class BatteryStatsHistoryParserTest {
             RollupMetadata(stringKey = TOP_APP, metricType = Property, dataType = StringType, internal = false),
             listOf(
                 Datum(t = 1200001, JsonPrimitive("com.android.launcher3")),
-                Datum(t = 2800000, JsonPrimitive(null as String?))
+                Datum(t = 2800000, JsonPrimitive(null as String?)),
             ),
         ),
         // -Efg=71 ignored, because 71 was not foreground
@@ -175,14 +181,14 @@ class BatteryStatsHistoryParserTest {
             listOf(
                 Datum(t = 1000001, JsonPrimitive("com.memfault.bort")),
                 Datum(t = 1200001, JsonPrimitive("com.android.launcher3")),
-                Datum(t = 2800000, JsonPrimitive(null as String?))
+                Datum(t = 2800000, JsonPrimitive(null as String?)),
             ),
         ),
         Rollup(
             RollupMetadata(stringKey = LONGWAKE, metricType = Property, dataType = StringType, internal = false),
             listOf(
                 Datum(t = 1000001, JsonPrimitive("com.android.launcher3")),
-                Datum(t = 2800000, JsonPrimitive(null as String?))
+                Datum(t = 2800000, JsonPrimitive(null as String?)),
             ),
         ),
         Rollup(
@@ -192,6 +198,24 @@ class BatteryStatsHistoryParserTest {
         Rollup(
             RollupMetadata(stringKey = START, metricType = Event, dataType = StringType, internal = false),
             listOf(Datum(t = 1000001, JsonPrimitive("Start")), Datum(t = 1200004, JsonPrimitive("Shutdown"))),
+        ),
+        Rollup(
+            RollupMetadata(
+                stringKey = "battery_discharge_duration_ms",
+                metricType = Gauge,
+                dataType = DoubleType,
+                internal = false,
+            ),
+            listOf(Datum(t = 2800000, JsonPrimitive(1000126.0))),
+        ),
+        Rollup(
+            RollupMetadata(
+                stringKey = "battery_soc_pct_drop",
+                metricType = Gauge,
+                dataType = DoubleType,
+                internal = false,
+            ),
+            listOf(Datum(t = 2800000, JsonPrimitive(10.0))),
         ),
     )
 
@@ -208,7 +232,7 @@ class BatteryStatsHistoryParserTest {
     private val AGGREGATE_FILE = """
         9,hsp,1,0,"Abort:Pending Wakeup Sources: 200f000.qcom,spmi:qcom,pm660@0:qpnp,fg battery qcom-step-chg "
         9,h,123:TIME:1000000
-        9,h,0,+r,wr=1,Bl=100,+S,Sb=0,+W,+Wr,+Ws,+Ww,Wss=0,+g,+bles,+Pr,+Psc,+a,Bh=g,di=light,Bt=213
+        9,h,0,+r,wr=1,Bl=100,Bs=d,+S,Sb=0,+W,+Wr,+Ws,+Ww,Wss=0,+g,+bles,+Pr,+Psc,+a,Bh=g,di=light,Bt=213
         9,h,200000,-r,-S,Sb=3,-W,-Wr,-Ws,-Ww,Wss=2,-g,-bles,-Pr,-Psc,-a,Bh=f,di=full,Bt=263
         9,h,800000,Bl=90,Bt=250
     """.trimIndent()
@@ -216,6 +240,7 @@ class BatteryStatsHistoryParserTest {
     private val EXPECTED_AGGREGATES = mapOf(
         "audio_on_ratio" to JsonPrimitive(0.2),
 //        "battery_charge_rate_pct_per_hour_avg" to JsonPrimitive(null as Double?), // Absent = correct
+//        "battery_charge_rate_first_80_percent_pct_per_hour_avg" to JsonPrimitive(null as Double?), // Absent = correct
         "battery_discharge_rate_pct_per_hour_avg" to JsonPrimitive(-36.0),
         "battery_health_not_good_ratio" to JsonPrimitive(0.8),
         "battery_level_pct_avg" to JsonPrimitive(95.0),
@@ -238,6 +263,8 @@ class BatteryStatsHistoryParserTest {
         "wifi_running_ratio" to JsonPrimitive(0.2),
         "wifi_scan_ratio" to JsonPrimitive(0.2),
         "wifi_signal_strength_poor_or_very_poor_ratio" to JsonPrimitive(0.2),
+        "battery_discharge_duration_ms" to JsonPrimitive(1000000.0),
+        "battery_soc_pct_drop" to JsonPrimitive(10.0),
     )
 
     @Test
@@ -246,6 +273,60 @@ class BatteryStatsHistoryParserTest {
         runTest {
             val result = parser.parseToCustomMetrics()
             assertEquals(EXPECTED_AGGREGATES, result.aggregatedMetrics)
+        }
+    }
+
+    private val SOC_FILE = """
+        9,hsp,1,0,"Abort:Pending Wakeup Sources: 200f000.qcom,spmi:qcom,pm660@0:qpnp,fg battery qcom-step-chg "
+        9,h,123:TIME:1000000
+        9,h,0,Bl=100,Bs=d
+        9,h,10000,-r
+        9,h,20000,Bl=90,Bs=c
+        9,h,25000,Bl=97,Bs=d
+        9,h,50000,Bl=65
+    """.trimIndent()
+
+    @Test
+    fun testSocAggregates() {
+        val parser = BatteryStatsHistoryParser(createFile(SOC_FILE))
+        runTest {
+            val result = parser.parseToCustomMetrics()
+            assertEquals(JsonPrimitive(80000.0), result.aggregatedMetrics["battery_discharge_duration_ms"])
+            assertEquals(JsonPrimitive(42.0), result.aggregatedMetrics["battery_soc_pct_drop"])
+        }
+    }
+
+    private val SOC_FILE_NO_DISCHARGE = """
+        9,hsp,1,0,"Abort:Pending Wakeup Sources: 200f000.qcom,spmi:qcom,pm660@0:qpnp,fg battery qcom-step-chg "
+        9,h,123:TIME:1000000
+        9,h,0,Bl=60,Bs=c
+        9,h,50000,Bl=75
+    """.trimIndent()
+
+    @Test
+    fun testNoSocAggregates() {
+        val parser = BatteryStatsHistoryParser(createFile(SOC_FILE_NO_DISCHARGE))
+        runTest {
+            val result = parser.parseToCustomMetrics()
+            assertEquals(JsonPrimitive(0.0), result.aggregatedMetrics["battery_discharge_duration_ms"])
+            assertFalse(result.aggregatedMetrics.containsKey("battery_soc_pct_drop"))
+        }
+    }
+
+    private val SOC_FILE_DISCHARGE_NO_DROP = """
+        9,hsp,1,0,"Abort:Pending Wakeup Sources: 200f000.qcom,spmi:qcom,pm660@0:qpnp,fg battery qcom-step-chg "
+        9,h,123:TIME:1000000
+        9,h,0,Bl=60,Bs=d
+        9,h,50000,-W
+    """.trimIndent()
+
+    @Test
+    fun testDischargeNoDrop() {
+        val parser = BatteryStatsHistoryParser(createFile(SOC_FILE_DISCHARGE_NO_DROP))
+        runTest {
+            val result = parser.parseToCustomMetrics()
+            assertEquals(JsonPrimitive(50000.0), result.aggregatedMetrics["battery_discharge_duration_ms"])
+            assertFalse(result.aggregatedMetrics.containsKey("battery_soc_pct_drop"))
         }
     }
 }

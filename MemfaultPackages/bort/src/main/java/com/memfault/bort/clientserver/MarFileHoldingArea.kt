@@ -23,13 +23,13 @@ import com.memfault.bort.shared.ClientServerMode
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.uploader.EnqueuePreparedUploadTask
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 /**
  * We keep all mar files waiting for upload in [sampledHoldingDirectory], then whenever [MarBatchingTask] runs (either
@@ -225,7 +225,7 @@ class MarFileHoldingArea @Inject constructor(
         sampledStorageUsedBytes: Long,
         limitBytes: Long,
         maxUnsampledAge: Duration,
-        maxUnsampledBytes: Long
+        maxUnsampledBytes: Long,
     ) {
         // Only cleanup the sampled area if it is over limit.
         if (sampledStorageUsedBytes > limitBytes) {

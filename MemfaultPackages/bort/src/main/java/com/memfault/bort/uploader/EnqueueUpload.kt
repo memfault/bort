@@ -16,13 +16,13 @@ import com.memfault.bort.settings.UploadConstraints
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.CombinedTime
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.toJavaDuration
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 /**
  * Enqueue a file or event for upload.
@@ -84,7 +84,7 @@ class EnqueuePreparedUploadTask @Inject constructor(
     ) {
         enqueueWorkOnce<FileUploadTask>(
             application,
-            FileUploadTaskInput(file, metadata, shouldCompress).toWorkerInputData()
+            FileUploadTaskInput(file, metadata, shouldCompress).toWorkerInputData(),
         ) {
             if (applyJitter) {
                 setInitialDelay(jitterDelayProvider.randomJitterDelay())

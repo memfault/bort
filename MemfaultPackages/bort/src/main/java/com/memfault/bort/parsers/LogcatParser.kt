@@ -23,7 +23,7 @@ data class LogcatLine(
 class LogcatParser(
     val lines: Sequence<String>,
     val command: LogcatCommand,
-    val uidDecoder: (String) -> Int = android.os.Process::getUidForName
+    val uidDecoder: (String) -> Int = android.os.Process::getUidForName,
 ) {
     private var buffer: String? = null
 
@@ -37,8 +37,8 @@ class LogcatParser(
                     LogcatFormatModifier.UTC,
                     LogcatFormatModifier.YEAR,
                     LogcatFormatModifier.UID,
-                )
-            )
+                ),
+            ),
         ) {
             "Unsupported logcat command: $command"
         }
@@ -93,7 +93,7 @@ private val LINE_REGEX = Regex(
     """^(([0-9]+-[0-9]+-[0-9]+ [0-9]+:[0-9]+:[0-9]+\.[0-9]+ \+[0-9]+)""" +
         """\s+([a-zA-Z_\-0-9]+)""" +
         """\s+[^:]+:""" + // everything up to tag:
-        """\s+)(.*)$"""
+        """\s+)(.*)$""",
 )
 
 private const val UP_TO_TAG_GROUP = 1

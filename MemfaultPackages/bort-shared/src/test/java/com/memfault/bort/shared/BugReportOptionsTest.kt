@@ -10,8 +10,9 @@ class BugReportOptionsTest {
         assertEquals(
             "pkg/cls",
             BugReportRequest.Component(
-                "pkg", "cls"
-            ).toString()
+                "pkg",
+                "cls",
+            ).toString(),
         )
     }
 

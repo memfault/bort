@@ -7,15 +7,15 @@ import com.memfault.bort.metrics.REQUEST_TIMING
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
+import okhttp3.HttpUrl
+import okhttp3.Interceptor
+import okhttp3.Request
+import okhttp3.Response
 import java.io.InterruptedIOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.text.DecimalFormat
 import javax.inject.Inject
-import okhttp3.HttpUrl
-import okhttp3.Interceptor
-import okhttp3.Request
-import okhttp3.Response
 
 private fun obfuscateProjectKey(projectKey: String) =
     "${projectKey.subSequence(0, 2)}...${projectKey.last()}"
@@ -46,7 +46,7 @@ Sending request
 > $scrubbedUrl
 > ID=$xRequestId
 > key=$obfuscatedProjectKey
-""".trimEnd()
+            """.trimEnd(),
         )
         val response: Response = chain.proceed(request)
         val t2: Long = System.nanoTime()
@@ -55,7 +55,7 @@ Sending request
         Logger.v(
             """
 Received response for $scrubbedUrl in ${decimalFormat.format(delta)} ms
-        """.trimEnd()
+            """.trimEnd(),
         )
 
         if (!response.isSuccessful) {
@@ -66,7 +66,7 @@ Request failed
 > code=${response.code}
 > ID=$xRequestId
 > message=${response.message}
-""".trimEnd()
+                """.trimEnd(),
             )
         }
         response

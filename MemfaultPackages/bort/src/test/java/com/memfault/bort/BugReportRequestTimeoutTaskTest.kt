@@ -19,7 +19,7 @@ class BugReportRequestTimeoutTaskTest {
         application = mockk(relaxed = true)
         mockStorage = MockPendingBugReportRequestStorage(null)
         pendingBugReportRequestAccessor = PendingBugReportRequestAccessor(
-            storage = mockStorage
+            storage = mockStorage,
         )
     }
 
@@ -35,7 +35,7 @@ class BugReportRequestTimeoutTaskTest {
                     pkg = "com.myapp",
                     cls = "receivers.replyreceiver",
                 ),
-            )
+            ),
         )
         BugReportRequestTimeoutTask(application, pendingBugReportRequestAccessor, mockk(relaxed = true))
             .doWork(requestId)
@@ -54,7 +54,7 @@ class BugReportRequestTimeoutTaskTest {
         pendingBugReportRequestAccessor.set(
             BugReportRequest(
                 requestId = requestId,
-            )
+            ),
         )
         BugReportRequestTimeoutTask(application, pendingBugReportRequestAccessor, mockk(relaxed = true))
             .doWork("bar")

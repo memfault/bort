@@ -14,7 +14,7 @@ class AnrUploadingEntryProcessorDelegate @Inject constructor(
     override val tags = listOf(
         "data_app_anr",
         "system_app_anr",
-        "system_server_anr"
+        "system_server_anr",
     )
     override val debugTag: String
         get() = "UPLOAD_ANR"
@@ -30,4 +30,6 @@ class AnrUploadingEntryProcessorDelegate @Inject constructor(
         Logger.w("Unable to parse ANR", ex)
         EntryInfo(entry.tag)
     }
+
+    override fun isCrash(tag: String): Boolean = true
 }

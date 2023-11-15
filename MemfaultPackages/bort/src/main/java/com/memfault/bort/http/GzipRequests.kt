@@ -2,7 +2,6 @@ package com.memfault.bort.http
 
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Inject
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -12,6 +11,7 @@ import okio.GzipSink
 import okio.Sink
 import okio.buffer
 import retrofit2.Invocation
+import javax.inject.Inject
 
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.RUNTIME)
@@ -25,7 +25,7 @@ class GzipRequestInterceptor @Inject constructor() : Interceptor {
 
     fun transformRequest(originalRequest: Request): Request {
         val annotation = originalRequest.tag(Invocation::class.java)?.method()?.getAnnotation(
-            GzipRequest::class.java
+            GzipRequest::class.java,
         )
         val body = originalRequest.body
         if (annotation == null ||

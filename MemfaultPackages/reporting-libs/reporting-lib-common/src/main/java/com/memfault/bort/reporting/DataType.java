@@ -1,5 +1,8 @@
 package com.memfault.bort.reporting;
 
+/**
+ * Used to validate the metric type.
+ */
 public enum DataType {
   DOUBLE("double"), STRING("string"), BOOLEAN("boolean"),
   ;
@@ -10,8 +13,12 @@ public enum DataType {
     this.value = s;
   }
 
+  /**
+   * Checks that the value to encode matches the type specified.
+   */
   public void verifyValueType(Object val) throws
       DataTypeMismatchException {
+
     switch (this) {
       case DOUBLE:
         if (!(val instanceof Double)) {
@@ -27,6 +34,8 @@ public enum DataType {
         if (!(val instanceof Boolean)) {
           throw new DataTypeMismatchException(val);
         }
+        break;
+      default:
         break;
     }
   }

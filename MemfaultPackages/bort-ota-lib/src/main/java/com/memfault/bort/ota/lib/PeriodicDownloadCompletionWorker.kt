@@ -35,7 +35,7 @@ class PeriodicDownloadCompletionWorker @AssistedInject constructor(
     companion object {
         fun schedule(context: Context) {
             val request = PeriodicWorkRequestBuilder<PeriodicDownloadCompletionWorker>(
-                15.minutes.toJavaDuration()
+                15.minutes.toJavaDuration(),
             ).apply {
                 addTag(PERIODIC_DOWNLOAD_CHECK)
             }.build()

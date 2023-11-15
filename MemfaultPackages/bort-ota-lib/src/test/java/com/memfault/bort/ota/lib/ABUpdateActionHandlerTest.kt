@@ -194,9 +194,9 @@ class ABUpdateActionHandlerTest {
         assertEquals(
             listOf(
                 State.UpdateDownloading(ota!!, progress = 50),
-                State.UpdateDownloading(ota!!, progress = 100)
+                State.UpdateDownloading(ota!!, progress = 100),
             ),
-            collectedStates
+            collectedStates,
         )
         assertEquals(listOf<Event>(), collectedEvents)
         verify(exactly = 1) {
@@ -216,7 +216,7 @@ class ABUpdateActionHandlerTest {
             listOf<State>(
                 State.RebootedForInstallation(ota!!, OLD_SOFTWARE_VERSION),
             ),
-            collectedStates
+            collectedStates,
         )
         assertEquals(listOf<Event>(), collectedEvents)
 
@@ -235,9 +235,9 @@ class ABUpdateActionHandlerTest {
         assertEquals(
             listOf(
                 State.Finalizing(ota!!, progress = 50),
-                State.Finalizing(ota!!, progress = 100)
+                State.Finalizing(ota!!, progress = 100),
             ),
-            collectedStates
+            collectedStates,
         )
         assertEquals(listOf<Event>(), collectedEvents)
     }
@@ -251,7 +251,7 @@ class ABUpdateActionHandlerTest {
             listOf(
                 State.Idle,
             ),
-            collectedStates
+            collectedStates,
         )
         assertEquals(listOf<Event>(), collectedEvents)
     }
@@ -265,7 +265,7 @@ class ABUpdateActionHandlerTest {
             listOf(
                 State.RebootNeeded(ota!!),
             ),
-            collectedStates
+            collectedStates,
         )
         assertEquals(listOf<Event>(), collectedEvents)
     }
@@ -280,7 +280,7 @@ class ABUpdateActionHandlerTest {
             listOf<Event>(
                 Event.DownloadFailed,
             ),
-            collectedEvents
+            collectedEvents,
         )
     }
 
@@ -294,7 +294,7 @@ class ABUpdateActionHandlerTest {
             listOf<Event>(
                 Event.VerificationFailed,
             ),
-            collectedEvents
+            collectedEvents,
         )
     }
 

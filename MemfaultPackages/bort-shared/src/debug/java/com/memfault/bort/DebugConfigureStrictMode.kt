@@ -23,7 +23,7 @@ class DebugConfigureStrictMode @Inject constructor() : ConfigureStrictMode {
                 } else {
                     penaltyDeath()
                 }
-            }.build()
+            }.build(),
         )
         StrictMode.setThreadPolicy(
             StrictMode.ThreadPolicy.Builder().apply {
@@ -37,7 +37,7 @@ class DebugConfigureStrictMode @Inject constructor() : ConfigureStrictMode {
                 } else {
                     penaltyDeath()
                 }
-            }.build()
+            }.build(),
         )
     }
 }

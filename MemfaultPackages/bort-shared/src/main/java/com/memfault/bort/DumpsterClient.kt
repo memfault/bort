@@ -14,6 +14,8 @@ import com.memfault.dumpster.IDumpster
 import com.memfault.dumpster.IDumpsterBasicCommandListener
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Qualifier
 import javax.inject.Singleton
@@ -26,8 +28,6 @@ import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
 import kotlin.coroutines.resume
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeoutOrNull
 
 interface DumpsterServiceProvider {
     fun get(logIfMissing: Boolean = true): IDumpster?
@@ -37,7 +37,7 @@ interface DumpsterServiceProvider {
 class DefaultDumpsterServiceProvider @Inject constructor() : DumpsterServiceProvider {
     override fun get(logIfMissing: Boolean): IDumpster? {
         val dumpster: IDumpster? = IDumpster.Stub.asInterface(
-            ServiceManagerProxy.getService(DUMPSTER_SERVICE_NAME)
+            ServiceManagerProxy.getService(DUMPSTER_SERVICE_NAME),
         )
         if (dumpster == null) {
             if (logIfMissing) {
@@ -72,7 +72,7 @@ private class WrappedService(val service: IDumpster, val basicCommandTimeout: Lo
                             Logger.e("runBasicCommand $cmdId is not supported")
                             cont.resume(null)
                         }
-                    }
+                    },
                 )
             } catch (e: RemoteException) {
                 cont.resume(null)
@@ -126,13 +126,17 @@ class DumpsterClient @Inject constructor(
         block: WrappedService.() -> R,
     ): R? =
         serviceProvider.get()?.let {
-            if (it.getVersion() >= minimumVersion) with(
-                WrappedService(
-                    service = it,
-                    basicCommandTimeout = basicCommandTimeout
-                ),
-                block
-            ) else null
+            if (it.getVersion() >= minimumVersion) {
+                with(
+                    WrappedService(
+                        service = it,
+                        basicCommandTimeout = basicCommandTimeout,
+                    ),
+                    block,
+                )
+            } else {
+                null
+            }
         }
 
     /**
@@ -163,8 +167,11 @@ class DumpsterClient @Inject constructor(
     suspend fun setBortEnabled(enabled: Boolean) {
         withService(minimumVersion = IDumpster.VERSION_BORT_ENABLED_PROPERTY) {
             runBasicCommand(
-                if (enabled) IDumpster.CMD_ID_SET_BORT_ENABLED_PROPERTY_ENABLED
-                else IDumpster.CMD_ID_SET_BORT_ENABLED_PROPERTY_DISABLED
+                if (enabled) {
+                    IDumpster.CMD_ID_SET_BORT_ENABLED_PROPERTY_ENABLED
+                } else {
+                    IDumpster.CMD_ID_SET_BORT_ENABLED_PROPERTY_DISABLED
+                },
             )
         }
     }
@@ -176,8 +183,11 @@ class DumpsterClient @Inject constructor(
     suspend fun setStructuredLogEnabled(enabled: Boolean) {
         withService(minimumVersion = IDumpster.VERSION_BORT_ENABLED_PROPERTY) {
             runBasicCommand(
-                if (enabled) IDumpster.CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_ENABLED
-                else IDumpster.CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_DISABLED
+                if (enabled) {
+                    IDumpster.CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_ENABLED
+                } else {
+                    IDumpster.CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_DISABLED
+                },
             )
         }
     }
@@ -196,7 +206,8 @@ class DumpsterClient @Inject constructor(
             bundle.putInt(CONTINUOUS_LOG_DUMP_THRESHOLD_BYTES, continuousLogDumpThresholdBytes)
             bundle.putLong(
                 CONTINUOUS_LOG_DUMP_THRESHOLD_TIME_MS,
-                continuousLogDumpThresholdTime.inWholeMilliseconds - CONTINUOUS_LOG_THRESHOLD_MARGIN.inWholeMilliseconds
+                continuousLogDumpThresholdTime.inWholeMilliseconds -
+                    CONTINUOUS_LOG_THRESHOLD_MARGIN.inWholeMilliseconds,
             )
             bundle.putLong(
                 CONTINUOUS_LOG_DUMP_WRAPPING_TIMEOUT_MS,

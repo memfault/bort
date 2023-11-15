@@ -50,7 +50,7 @@ class MetricReportEntryProcessorTest {
                     "string_metric" to JsonPrimitive("some value"),
                     "double_metric" to JsonPrimitive(3.0),
                 ),
-                heartbeat.captured.metrics
+                heartbeat.captured.metrics,
             )
 
             assertEquals(
@@ -58,7 +58,7 @@ class MetricReportEntryProcessorTest {
                     "internal_string_metric" to JsonPrimitive("some value"),
                     "internal_double_metric" to JsonPrimitive(3.0),
                 ),
-                heartbeat.captured.internalMetrics
+                heartbeat.captured.internalMetrics,
             )
         }
     }
@@ -73,11 +73,11 @@ class MetricReportEntryProcessorTest {
                     "string_metric" to JsonPrimitive("some value"),
                     "double_metric" to JsonPrimitive(3.0),
                 ),
-                heartbeat.captured.metrics
+                heartbeat.captured.metrics,
             )
             assertEquals(
                 emptyMap<String, JsonPrimitive>(),
-                heartbeat.captured.internalMetrics
+                heartbeat.captured.internalMetrics,
             )
         }
     }

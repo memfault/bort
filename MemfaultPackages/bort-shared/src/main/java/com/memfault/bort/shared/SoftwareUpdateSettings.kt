@@ -41,7 +41,7 @@ data class SoftwareUpdateSettings(
                     // settings format. See LegacyOtaSettings.
                     config.asLegacyOtaSettings().serialize(),
                     config.serialize(),
-                )
+                ),
             )
         }
     }

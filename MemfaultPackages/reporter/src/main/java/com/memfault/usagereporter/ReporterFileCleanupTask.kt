@@ -40,7 +40,7 @@ class ReporterFileCleanupTask
         val result = cleanupFiles(
             dir = tempDir,
             maxDirStorageBytes = reporterSettings.maxReporterTempStorageBytes,
-            maxFileAge = reporterSettings.maxReporterTempStorageAge
+            maxFileAge = reporterSettings.maxReporterTempStorageAge,
         )
         val deleted = result.deletedForStorageCount + result.deletedForAgeCount
         if (deleted > 0) {

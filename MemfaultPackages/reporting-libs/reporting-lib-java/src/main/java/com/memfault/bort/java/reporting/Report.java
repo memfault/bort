@@ -5,122 +5,91 @@ import com.memfault.bort.reporting.StateAgg;
 import java.util.ArrayList;
 
 public class Report {
-  private final String REPORT_TYPE;
+  private final String reportType;
 
   Report(String reportType) {
-    REPORT_TYPE = reportType;
+    this.reportType = reportType;
   }
 
   /**
    * Aggregates the total count at the end of the period.
    */
   public Counter counter(String name) {
-    return counter(name, true, false);
+    return counter(name, true);
   }
 
   /**
    * Aggregates the total count at the end of the period.
    */
   public Counter counter(String name, boolean sumInReport) {
-    return counter(name, sumInReport, false);
-  }
-
-  private Counter counter(String name, boolean sumInReport, boolean internal) {
-    return new Counter(name, REPORT_TYPE, sumInReport, internal);
+    return new Counter(name, reportType, sumInReport);
   }
 
   /**
    * Keeps track of a distribution of the values recorded during the period.
-   *
+   * <p>
    * One metric will be generated for each aggregation.
+   * </p>
    */
   public Distribution distribution(String name, ArrayList<NumericAgg> aggregations) {
-    return distribution(name, aggregations, false);
-  }
-
-  private Distribution distribution(String name, ArrayList<NumericAgg> aggregations,
-      boolean internal) {
-    return new Distribution(name, REPORT_TYPE, aggregations, internal);
+    return new Distribution(name, reportType, aggregations);
   }
 
   /**
    * Tracks total time spent in each state during the report period.
-   *
+   * <p>
    * For use with enums.
+   * </p>
    */
-  public StateTracker stateTracker(String name, ArrayList<StateAgg> aggregations) {
-    return stateTracker(name, aggregations, false);
-  }
-
-  private StateTracker stateTracker(String name, ArrayList<StateAgg> aggregations,
-      boolean internal) {
-    return new StateTracker(name, REPORT_TYPE, aggregations, internal);
+  private StateTracker stateTracker(String name, ArrayList<StateAgg> aggregations) {
+    return new StateTracker(name, reportType, aggregations);
   }
 
   /**
    * Tracks total time spent in each state during the report period.
-   *
+   * <p>
    * For use with string representations of state.
+   * </p>
    */
   public StringStateTracker stringStateTracker(String name, ArrayList<StateAgg> aggregations) {
-    return stringStateTracker(name, aggregations, false);
-  }
-
-  private StringStateTracker stringStateTracker(String name, ArrayList<StateAgg> aggregations,
-      boolean internal) {
-    return new StringStateTracker(name, REPORT_TYPE, aggregations, internal);
+    return new StringStateTracker(name, reportType, aggregations);
   }
 
   /**
    * Tracks total time spent in each state during the report period.
-   *
+   * <p>
    * For use with string representations of state.
+   * </p>
    */
   public BoolStateTracker boolStateTracker(String name) {
-    return boolStateTracker(name, new ArrayList<>(), false);
+    return boolStateTracker(name, new ArrayList<>());
   }
 
   /**
    * Tracks total time spent in each state during the report period.
-   *
+   * <p>
    * For use with string representations of state.
+   * </p>
    */
   public BoolStateTracker boolStateTracker(String name, ArrayList<StateAgg> aggregations) {
-    return boolStateTracker(name, aggregations, false);
-  }
-
-  private BoolStateTracker boolStateTracker(String name, ArrayList<StateAgg> aggregations,
-      boolean internal) {
-    return new BoolStateTracker(name, REPORT_TYPE, aggregations, internal);
+    return new BoolStateTracker(name, reportType, aggregations);
   }
 
   /**
    * Keep track of the latest value of a string property.
    */
   public StringProperty stringProperty(String name, Boolean addLatestToReport) {
-    return stringProperty(name, addLatestToReport, false);
-  }
-
-  private StringProperty stringProperty(String name, Boolean addLatestToReport, boolean internal) {
-    return new StringProperty(name, REPORT_TYPE, addLatestToReport, internal);
+    return new StringProperty(name, reportType, addLatestToReport);
   }
 
   public NumberProperty numberProperty(String name, Boolean addLatestToReport) {
-    return numberProperty(name, addLatestToReport, false);
-  }
-
-  private NumberProperty numberProperty(String name, Boolean addLatestToReport, boolean internal) {
-    return new NumberProperty(name, REPORT_TYPE, addLatestToReport, internal);
+    return new NumberProperty(name, reportType, addLatestToReport);
   }
 
   /**
    * Track individual events. Replacement for Custom Events.
    */
   public Event event(String name, Boolean countInReport) {
-    return event(name, countInReport, false);
-  }
-
-  private Event event(String name, Boolean countInReport, Boolean internal) {
-    return new Event(name, REPORT_TYPE, countInReport, internal);
+    return new Event(name, reportType, countInReport);
   }
 }

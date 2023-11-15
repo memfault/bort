@@ -25,6 +25,9 @@ import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.time.DurationAsMillisecondsLong
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import java.io.File
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Inject
@@ -32,9 +35,6 @@ import javax.inject.Singleton
 import kotlin.concurrent.withLock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 
 internal const val EVENT_TIMES_KEY = "event_times"
 internal const val ENTRIES_KEY = "entries"
@@ -165,11 +165,17 @@ class FileUploadHoldingArea @Inject constructor(
                 .takeLast(settings.maxStoredEventsOfInterest)
             entries = entries.filter { entry ->
                 entry.timeSpan.spanWithMargin().let {
-                    if (it.contains(time)) false.also {
-                        enqueueUpload.enqueueLogcatUpload(entry = entry)
-                    } else if (it.shouldBeDeletedAt(time)) false.also {
-                        removeEntry(entry)
-                    } else true
+                    if (it.contains(time)) {
+                        false.also {
+                            enqueueUpload.enqueueLogcatUpload(entry = entry)
+                        }
+                    } else if (it.shouldBeDeletedAt(time)) {
+                        false.also {
+                            removeEntry(entry)
+                        }
+                    } else {
+                        true
+                    }
                 }
             }
             persist()
@@ -206,9 +212,13 @@ class FileUploadHoldingArea @Inject constructor(
         lock.withLock {
             entries = entries.filter { entry ->
                 entry.timeSpan.spanWithMargin().let {
-                    if (it.shouldBeDeletedAt(now)) false.also {
-                        removeEntry(entry)
-                    } else true
+                    if (it.shouldBeDeletedAt(now)) {
+                        false.also {
+                            removeEntry(entry)
+                        }
+                    } else {
+                        true
+                    }
                 }
             }
             persist()

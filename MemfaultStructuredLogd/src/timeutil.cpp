@@ -74,5 +74,4 @@ void detectTimeChanges(std::function<void(uint64_t)> onRtcChanged) {
     close(signal->fd);
 }
 
-
-}
+}  // namespace structured

@@ -15,10 +15,6 @@ import com.memfault.usagereporter.clientserver.BortMessage.SendFileMessage
 import com.memfault.usagereporter.clientserver.RealB2BClientServer.Companion.start
 import com.memfault.usagereporter.clientserver.RealSendfileQueue.Companion.extractDropboxTag
 import com.memfault.usagereporter.getDropBoxManager
-import java.io.File
-import java.nio.channels.AsynchronousSocketChannel
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,6 +24,10 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.produceIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.whileSelect
+import java.io.File
+import java.nio.channels.AsynchronousSocketChannel
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Send/receive files to/from Bort running on another device, over a socket connection.
@@ -43,7 +43,11 @@ interface B2BClientServer {
     fun enqueueFile(dropboxTag: String, descriptor: ParcelFileDescriptor)
 
     companion object {
-        fun create(clientServerMode: ClientServerMode, context: Context, reporterSettings: ReporterSettings) =
+        fun create(
+            clientServerMode: ClientServerMode,
+            context: Context,
+            reporterSettings: ReporterSettings,
+        ) =
             when (clientServerMode) {
                 DISABLED -> NoOpB2BClientServer
                 else -> RealB2BClientServer(
@@ -124,7 +128,8 @@ class RealB2BClientServer(
                 connectionHandler = ConnectionHandler(
                     // No-Op Files = not sending files
                     NoOpSendfileQueue,
-                    getDropBoxManager, cacheDir
+                    getDropBoxManager,
+                    cacheDir,
                 ),
                 retryDelay = retryDelay,
             ).also { Logger.i("Using test client+server mode: client") }
@@ -135,11 +140,14 @@ class RealB2BClientServer(
                 connectionHandler = ConnectionHandler(
                     // No-Op Files = not sending files
                     NoOpSendfileQueue,
-                    getDropBoxManager, cacheDir
+                    getDropBoxManager,
+                    cacheDir,
                 ),
                 retryDelay = retryDelay,
             ).also { Logger.i("Using test client+server mode: server") }
-        } else null
+        } else {
+            null
+        }
 
     companion object {
         private const val LOCALHOST = "127.0.0.1"

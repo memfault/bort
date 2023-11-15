@@ -121,7 +121,6 @@ private fun generateDevConfig(
                    "file_upload_holding_area.trailing_margin_ms": 300000,
                    "http_api.device_base_url" : "${getDefaultProperty("MEMFAULT_API_BASE_URL") ?: "https://device.memfault.com"}",
                    "http_api.files_base_url" : "${getDefaultProperty("MEMFAULT_FILES_BASE_URL") ?: "https://files.memfault.com"}",
-                   "http_api.ingress_base_url" : "${getDefaultProperty("MEMFAULT_INGRESS_BASE_URL") ?: "https://ingress.memfault.com"}",
                    "http_api.upload_compression_enabled" : true,
                    "http_api.upload_network_constraint_allow_metered_connection" : true,
                    "http_api.connect_timeout_ms": 30000,

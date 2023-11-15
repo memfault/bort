@@ -14,10 +14,10 @@ import com.memfault.bort.settings.TimeoutConfig
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PackageManagerCommand
 import com.memfault.bort.shared.PackageManagerCommand.Util.isValidAndroidApplicationId
-import javax.inject.Inject
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.mapNotNull
+import javax.inject.Inject
 
 class PackageManagerClient @Inject constructor(
     private val reporterServiceConnector: ReporterServiceConnector,
@@ -37,7 +37,7 @@ class PackageManagerClient @Inject constructor(
             reporterServiceConnector.connect { getClient ->
                 getClient().packageManagerRun(
                     cmd = PackageManagerCommand(cmdOrAppId = cmdOrAppId),
-                    timeout = commandTimeoutConfig()
+                    timeout = commandTimeoutConfig(),
                 ) { invocation ->
                     invocation.awaitInputStream().andThen { stream ->
                         runCatching {
@@ -72,10 +72,16 @@ class PackageManagerClient @Inject constructor(
          * https://developer.android.com/guide/topics/manifest/application-element.html
          */
         fun appIdGuessesFromProcessName(processName: String): Sequence<String> =
-            if (!processName.isValidAndroidApplicationId()) emptySequence()
-            else generateSequence(processName) {
-                if (it.count { c -> c == '.' } <= 1) null
-                else it.substringBeforeLast('.')
+            if (!processName.isValidAndroidApplicationId()) {
+                emptySequence()
+            } else {
+                generateSequence(processName) {
+                    if (it.count { c -> c == '.' } <= 1) {
+                        null
+                    } else {
+                        it.substringBeforeLast('.')
+                    }
+                }
             }
     }
 }

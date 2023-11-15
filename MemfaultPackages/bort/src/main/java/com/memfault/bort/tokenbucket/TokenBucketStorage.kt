@@ -28,7 +28,7 @@ class RealTokenBucketStorage(
 
     override fun writeMap(map: StoredTokenBucketMap) =
         super.setValue(
-            BortJson.encodeToString(StoredTokenBucketMap.serializer(), map)
+            BortJson.encodeToString(StoredTokenBucketMap.serializer(), map),
         )
 
     companion object {
@@ -38,7 +38,7 @@ class RealTokenBucketStorage(
         ) = RealTokenBucketStorage(
             sharedPreferences = context.getSharedPreferences(
                 TOKEN_STORE_PREFERENCE_FILE_NAME_TEMPLATE.format(key),
-                Context.MODE_PRIVATE
+                Context.MODE_PRIVATE,
             ),
             preferenceKey = "tokens",
         )

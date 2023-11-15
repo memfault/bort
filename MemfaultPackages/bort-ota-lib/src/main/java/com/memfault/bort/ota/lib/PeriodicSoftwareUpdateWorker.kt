@@ -43,15 +43,16 @@ class PeriodicSoftwareUpdateWorker @AssistedInject constructor(
                 .build()
 
             val request = PeriodicWorkRequestBuilder<PeriodicSoftwareUpdateWorker>(
-                settings.get().updateCheckIntervalMs, TimeUnit.MILLISECONDS
+                settings.get().updateCheckIntervalMs,
+                TimeUnit.MILLISECONDS,
             ).apply {
                 addTag(PERIODIC_UPDATE_WORK)
                 setConstraints(constraints)
                 setInitialDelay(
                     JitterDelayProvider(
                         jitterDelayConfiguration = { JitterDelayProvider.ApplyJitter.APPLY },
-                        devMode = DEV_MODE_DISABLED
-                    ).randomJitterDelay()
+                        devMode = DEV_MODE_DISABLED,
+                    ).randomJitterDelay(),
                 )
             }.build()
 

@@ -11,12 +11,12 @@ import com.memfault.bort.requester.directorySize
 import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.settings.shouldUpload
 import com.memfault.bort.shared.Logger
+import kotlinx.serialization.SerializationException
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.text.Charsets.UTF_8
 import kotlin.time.Duration
-import kotlinx.serialization.SerializationException
 
 /**
  * Mar files are placed in this holding area after creation, if they are not eligible for upload under the current
@@ -62,8 +62,12 @@ class MarUnsampledHoldingArea @Inject constructor(
                     val marFile = marFileForManifest(manifestFile)
                     if (marFile.exists()) {
                         MarFileWithManifest(marFile, manifest)
-                    } else null
-                } else null
+                    } else {
+                        null
+                    }
+                } else {
+                    null
+                }
             }
         }
     }

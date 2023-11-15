@@ -14,15 +14,15 @@ import com.memfault.bort.shared.LogcatPriority
 import com.memfault.bort.time.boxed
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.serialization.SerializationException
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.serialization.SerializationException
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Test
 
 class DynamicSettingsProviderTest {
     private val projectKeyProvider = mockk<ProjectKeyProvider>(relaxed = true)
@@ -72,7 +72,7 @@ class DynamicSettingsProviderTest {
             dumpsterCapabilities = dumpsterCapabilities,
             projectKeyProvider = projectKeyProvider,
             cachedClientServerMode = mockk(),
-            devMode = mockk()
+            devMode = mockk(),
         )
 
         // The first call will use the value in resources
@@ -177,7 +177,6 @@ internal val EXPECTED_SETTINGS_DEFAULT = FetchedSettings(
     fileUploadHoldingAreaTrailingMargin = 300000.milliseconds.boxed(),
     httpApiDeviceBaseUrl = "https://device2.memfault.com",
     httpApiFilesBaseUrl = "https://files2.memfault.com",
-    httpApiIngressBaseUrl = "https://ingress2.memfault.com",
     httpApiUploadCompressionEnabled = false,
     httpApiUploadNetworkConstraintAllowMeteredConnection = false,
     httpApiConnectTimeout = 30.seconds.boxed(),
@@ -330,7 +329,6 @@ internal val SETTINGS_FIXTURE = """
                 "file_upload_holding_area.trailing_margin_ms": 300000,
                 "http_api.device_base_url": "https://device2.memfault.com",
                 "http_api.files_base_url": "https://files2.memfault.com",
-                "http_api.ingress_base_url": "https://ingress2.memfault.com",
                 "http_api.upload_compression_enabled": False,
                 "http_api.upload_network_constraint_allow_metered_connection": False,
                 "http_api.connect_timeout_ms": 30000,
@@ -464,7 +462,6 @@ internal val SETTINGS_FIXTURE_WITH_MISSING_FIELDS = """
                 "file_upload_holding_area.trailing_margin_ms": 300000,
                 "http_api.device_base_url": "https://device2.memfault.com",
                 "http_api.files_base_url": "https://files2.memfault.com",
-                "http_api.ingress_base_url": "https://ingress2.memfault.com",
                 "http_api.upload_compression_enabled": False,
                 "http_api.upload_network_constraint_allow_metered_connection": False,
                 "http_api.connect_timeout_ms": 30000,

@@ -24,7 +24,7 @@ interface NextLogcatCidProvider {
 
 @ContributesBinding(SingletonComponent::class, boundType = NextLogcatCidProvider::class)
 class RealNextLogcatCidProvider @Inject constructor(
-    sharedPreferences: SharedPreferences
+    sharedPreferences: SharedPreferences,
 ) : NextLogcatCidProvider, PreferenceKeyProvider<String>(
     sharedPreferences = sharedPreferences,
     defaultValue = "",
@@ -39,7 +39,7 @@ class RealNextLogcatCidProvider @Inject constructor(
                     Logger.w("Illegal logcat collection ID: ${super.getValue()}, generating new one: $it")
                     super.setValue(it.toString())
                 }
-            }
+            },
         )
         set(value) = super.setValue(value.uuid.toString())
 

@@ -8,12 +8,12 @@ import com.memfault.bort.kotlinxJsonConverterFactory
 import com.memfault.bort.settings.BortEnabledProvider
 import io.mockk.every
 import io.mockk.mockk
-import java.io.File
-import java.util.UUID
-import kotlin.String
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockWebServer
 import retrofit2.Retrofit
+import java.io.File
+import java.util.UUID
+import kotlin.String
 
 const val UPLOAD_URL = "https://test.com/abc"
 const val AUTH_TOKEN = "auth_token"
@@ -43,14 +43,14 @@ fun createRetrofit(server: MockWebServer) =
         .client(
             OkHttpClient.Builder()
                 .addInterceptor(ProjectKeyInjectingInterceptor({ SECRET_KEY }))
-                .build()
+                .build(),
         )
         .baseUrl(server.url("/"))
         .addConverterFactory(kotlinxJsonConverterFactory())
         .build()
 
 fun loadTestFileFromResources() = File(
-    PreparedUploaderTest::class.java.getResource("/test.txt")!!.path
+    PreparedUploaderTest::class.java.getResource("/test.txt")!!.path,
 )
 
 fun mockTaskRunnerWorker(inputData: Data, runAttemptCount: Int = 1) =

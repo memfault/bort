@@ -38,6 +38,7 @@ class SystemPropertiesCollector @Inject constructor(
             val internal = key in INTERNAL_PROPERTIES
             if (key in properties || internal) {
                 val type = systemPropertyTypes[key]
+
                 /**
                  * Android system properties all have a string key and string value. But there is metadata (which we get using
                  * getpropTypes()) to define typing for each property. We map those to internal types.

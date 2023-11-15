@@ -27,7 +27,7 @@ class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
         get() = "UPLOAD_JAVA_EXCEPTION"
 
     override fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean {
-        return if (tag.endsWith("wtf")) {
+        return if (isWtf(tag)) {
             // We limit WTFs using both a bucketed (by stacktrace) and total.
             val allowedByBucketed = wtfTokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
             // Don't also take from the total bucket if we aren't uploading.
@@ -51,4 +51,10 @@ class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
         } catch (e: Exception) {
             EntryInfo(entry.tag)
         }
+
+    override fun isCrash(tag: String): Boolean = !isWtf(tag)
+
+    companion object {
+        private fun isWtf(tag: String): Boolean = tag.endsWith("wtf")
+    }
 }

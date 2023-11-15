@@ -8,7 +8,7 @@ class MetricsTest {
         val tags = listOf(
             "SYSTEM_TAG",
             "TEST_TAG",
-            "RANDOM_TAG"
+            "RANDOM_TAG",
         )
         val expectation = listOf(
             "drop_box_trace_system_tag_count",

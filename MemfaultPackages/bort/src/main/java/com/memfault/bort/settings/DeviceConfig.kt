@@ -68,7 +68,7 @@ class DecodedDeviceConfigSerializer : KSerializer<DecodedDeviceConfig> {
             data = FetchedDeviceConfigContainer.FetchedDeviceConfig(
                 config = JsonObject(map.toMap()),
                 revision = value.revision,
-            )
+            ),
         )
         encoder.encodeSerializableValue(delegateSerializer, container)
     }

@@ -13,6 +13,7 @@ import com.memfault.bort.clientserver.MarMetadata.CustomDataRecordingMarMetadata
 import com.memfault.bort.clientserver.MarMetadata.HeartbeatMarMetadata
 import com.memfault.bort.dropbox.MetricReport
 import com.memfault.bort.metrics.HighResTelemetry.Companion.mergeHrtIntoFile
+import com.memfault.bort.networkstats.NetworkStatsCollector
 import com.memfault.bort.settings.MetricsSettings
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.Logger
@@ -22,12 +23,12 @@ import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.MetricsCollection
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueUpload
+import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import java.time.Instant
 import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.toKotlinDuration
-import kotlinx.serialization.json.JsonPrimitive
 
 class MetricsCollectionTask @Inject constructor(
     private val enqueueUpload: EnqueueUpload,
@@ -39,6 +40,7 @@ class MetricsCollectionTask @Inject constructor(
     private val systemPropertiesCollector: SystemPropertiesCollector,
     private val heartbeatReportCollector: HeartbeatReportCollector,
     private val storageStatsCollector: StorageStatsCollector,
+    private val networkStatsCollector: NetworkStatsCollector,
     private val appVersionsCollector: AppVersionsCollector,
     private val dumpsterClient: DumpsterClient,
     private val bortSystemCapabilities: BortSystemCapabilities,
@@ -46,6 +48,7 @@ class MetricsCollectionTask @Inject constructor(
     private val installationIdProvider: InstallationIdProvider,
     private val batteryStatsCollector: BatteryStatsCollector,
     private val metricsSettings: MetricsSettings,
+    private val crashHandler: CrashHandler,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -53,14 +56,17 @@ class MetricsCollectionTask @Inject constructor(
     private suspend fun enqueueHeartbeatUpload(
         collectionTime: CombinedTime,
         heartbeatInterval: Duration,
-        batteryStatsResult: BatteryStatsResult,
         propertiesStore: DevicePropertiesStore,
     ) {
+        val batteryStatsResult = batteryStatsCollector.collect(heartbeatInterval)
         Logger.test("Metrics: properties_use_service = ${metricsSettings.propertiesUseMetricService}")
         // These write to Custom Metrics - do before finishing the heartbeat report.
         storageStatsCollector.collectStorageStats()
+        val networkStatsResult = networkStatsCollector.collect(collectionTime, heartbeatInterval)
+
         systemPropertiesCollector.updateSystemProperties(propertiesStore)
         appVersionsCollector.updateAppVersions(propertiesStore)
+        crashHandler.process()
         val fallbackInternalMetrics =
             updateBuiltinProperties(
                 packageManagerClient,
@@ -91,16 +97,19 @@ class MetricsCollectionTask @Inject constructor(
             batteryStatsFile = batteryStatsResult.batteryStatsFileToUpload,
             collectionTime = collectionTime,
             heartbeatInterval = heartbeatInterval,
-            heartbeatReportMetrics = heartbeatReportMetrics + batteryStatsResult.aggregatedMetrics +
+            heartbeatReportMetrics = heartbeatReportMetrics +
+                batteryStatsResult.aggregatedMetrics +
+                networkStatsResult.heartbeatMetrics +
                 propertiesStoreMetrics,
             heartbeatReportInternalMetrics = internalMetrics + propertiesStoreInternalMetrics,
         )
         // Add batterystats to HRT file.
         heartbeatReport?.highResFile?.let { hrtFile ->
             val hrtMetricsToAdd = batteryStatsResult.batteryStatsHrt +
+                networkStatsResult.hrtRollup +
                 propertiesStore.hrtRollups(timestampMs = collectionTime.timestamp.toEpochMilli())
             if (hrtMetricsToAdd.isNotEmpty()) {
-                mergeHrtIntoFile(hrtFile, batteryStatsResult.batteryStatsHrt)
+                mergeHrtIntoFile(hrtFile, hrtMetricsToAdd)
             }
         }
         uploadHighResMetrics(
@@ -166,7 +175,7 @@ class MetricsCollectionTask @Inject constructor(
         propertiesStore.upsert(
             name = SUPPORTS_CALIPER_METRICS_KEY,
             value = supportsCaliperMetrics,
-            internal = true
+            internal = true,
         )
         if (!supportsCaliperMetrics) {
             Logger.d("!supportsCaliperMetrics, only uploading internal metrics")
@@ -186,8 +195,7 @@ class MetricsCollectionTask @Inject constructor(
             return TaskResult.SUCCESS
         }
 
-        val batteryStatsResult = batteryStatsCollector.collect(heartbeatInterval)
-        enqueueHeartbeatUpload(now, heartbeatInterval, batteryStatsResult, propertiesStore)
+        enqueueHeartbeatUpload(now, heartbeatInterval, propertiesStore)
 
         lastHeartbeatEndTimeProvider.lastEnd = now
         return TaskResult.SUCCESS

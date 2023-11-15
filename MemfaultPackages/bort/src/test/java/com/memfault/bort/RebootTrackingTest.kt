@@ -8,12 +8,12 @@ import com.memfault.bort.uploader.EnqueueUpload
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.milliseconds
 
 class RebootTrackingTest {
     @Test
@@ -52,7 +52,7 @@ class AndroidBootReasonParsing {
             "reboot" to AndroidBootReason("reboot"),
             "reboot,userrequested" to AndroidBootReason("reboot", "userrequested"),
             "shutdown,battery,thermal" to AndroidBootReason("shutdown", "battery", listOf("thermal")),
-            "shutdown,battery,thermal,50C" to AndroidBootReason("shutdown", "battery", listOf("thermal", "50C"))
+            "shutdown,battery,thermal,50C" to AndroidBootReason("shutdown", "battery", listOf("thermal", "50C")),
         )
         for ((input, expectedOutput) in testCases) {
             assertEquals(expectedOutput, AndroidBootReason.parse(input))

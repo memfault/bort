@@ -109,7 +109,7 @@ class DevicePropertiesStore(
                 Datum(
                     t = timestampMs,
                     value = value,
-                )
+                ),
             ),
         )
 

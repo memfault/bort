@@ -21,12 +21,12 @@ class TemperatureMetricCollector(
     }
 
     private fun collectForType(tag: String, type: Int) {
-        val service = storageManagerService() ?: return
+        val service = hardwarePropertiesService() ?: return
         val temps = service.getDeviceTemperatures(type, TEMPERATURE_CURRENT)
         temps.forEachIndexed { index, value ->
             report.distribution("temp.${tag}_$index", aggregations = listOf(MIN, MAX, MEAN)).record(value.toDouble())
         }
     }
 
-    private fun storageManagerService() = context.getSystemService(HardwarePropertiesManager::class.java)
+    private fun hardwarePropertiesService() = context.getSystemService(HardwarePropertiesManager::class.java)
 }

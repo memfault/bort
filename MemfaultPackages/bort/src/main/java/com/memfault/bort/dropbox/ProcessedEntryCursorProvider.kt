@@ -33,7 +33,7 @@ class RealDropBoxLastProcessedEntryProvider @Inject constructor(
 ) : DropBoxLastProcessedEntryProvider, PreferenceKeyProvider<Long>(
     sharedPreferences = sharedPreferences,
     defaultValue = NOT_SET,
-    preferenceKey = PREFERENCE_LAST_PROCESSED_DROPBOX_ENTRY_TIME_MILLIS
+    preferenceKey = PREFERENCE_LAST_PROCESSED_DROPBOX_ENTRY_TIME_MILLIS,
 ) {
     override var timeMillis
         get() = when (val timeMs = super.getValue()) {
@@ -51,11 +51,11 @@ class RealDropBoxLastProcessedEntryProvider @Inject constructor(
 
 @ContributesBinding(SingletonComponent::class, boundType = DropBoxPendingTimeChangeProvider::class)
 class RealDropBoxPendingTimeChangeProvider @Inject constructor(
-    sharedPreferences: SharedPreferences
+    sharedPreferences: SharedPreferences,
 ) : DropBoxPendingTimeChangeProvider, PreferenceKeyProvider<Boolean>(
     sharedPreferences = sharedPreferences,
     defaultValue = false,
-    preferenceKey = PREFERENCE_LAST_PROCESSED_DROPBOX_PENDING_TIME_CHANGE
+    preferenceKey = PREFERENCE_LAST_PROCESSED_DROPBOX_PENDING_TIME_CHANGE,
 ) {
     override var pendingBackwardsTimeChange
         get() = super.getValue()

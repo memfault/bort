@@ -15,7 +15,7 @@ class CommandRunner(
     val command: List<String>,
     val options: CommandRunnerOptions,
     val reportResult: CommandRunnerReportResult,
-    val outputStreamFactory: (ParcelFileDescriptor) -> OutputStream = ParcelFileDescriptor::AutoCloseOutputStream
+    val outputStreamFactory: (ParcelFileDescriptor) -> OutputStream = ParcelFileDescriptor::AutoCloseOutputStream,
 ) : TimeoutRunnable {
     var process: Process? = null
         private set

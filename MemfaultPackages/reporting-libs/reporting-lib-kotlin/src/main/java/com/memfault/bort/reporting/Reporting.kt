@@ -6,9 +6,11 @@ import com.memfault.bort.reporting.MetricType.COUNTER
 import com.memfault.bort.reporting.MetricType.EVENT
 import com.memfault.bort.reporting.MetricType.GAUGE
 import com.memfault.bort.reporting.MetricType.PROPERTY
+import com.memfault.bort.reporting.MetricValue.MetricJsonFields.REPORTING_CLIENT_VERSION
 import com.memfault.bort.reporting.NumericAgg.COUNT
 import com.memfault.bort.reporting.NumericAgg.LATEST_VALUE
 import com.memfault.bort.reporting.NumericAgg.SUM
+import com.memfault.bort.reporting.RemoteMetricsService.FinishReport
 
 public object Reporting {
     /**
@@ -25,7 +27,8 @@ public object Reporting {
         reportType: String = HEARTBEAT_REPORT,
         timeMs: Long = timestamp(),
         startNextReport: Boolean = false,
-    ): Boolean = RemoteMetricsService.finishReport(reportType, timeMs, startNextReport)
+    ): Boolean =
+        RemoteMetricsService.finishReport(FinishReport(timeMs, REPORTING_CLIENT_VERSION, reportType, startNextReport))
 
     // Bort heartbeat will call RemoteMetricsService.finishReport() using this report name.
     private const val HEARTBEAT_REPORT: String = "Heartbeat"
@@ -71,7 +74,9 @@ public object Reporting {
             aggregations: List<StateAgg> = listOf(),
             internal: Boolean = false,
         ): StateTracker<T> = StateTracker(
-            name = name, reportType = reportType, aggregations = aggregations,
+            name = name,
+            reportType = reportType,
+            aggregations = aggregations,
             internal = internal,
         )
 
@@ -86,14 +91,16 @@ public object Reporting {
             aggregations: List<StateAgg> = listOf(),
             internal: Boolean = false,
         ): StringStateTracker = StringStateTracker(
-            name = name, reportType = reportType, aggregations = aggregations,
+            name = name,
+            reportType = reportType,
+            aggregations = aggregations,
             internal = internal,
         )
 
         /**
          * Tracks total time spent in each state during the report period.
          *
-         * For use with string representations of state.
+         * For use with boolean representations of state.
          */
         @JvmOverloads
         public fun boolStateTracker(
@@ -101,7 +108,9 @@ public object Reporting {
             aggregations: List<StateAgg> = listOf(),
             internal: Boolean = false,
         ): BoolStateTracker = BoolStateTracker(
-            name = name, reportType = reportType, aggregations = aggregations,
+            name = name,
+            reportType = reportType,
+            aggregations = aggregations,
             internal = internal,
         )
 
@@ -121,7 +130,7 @@ public object Reporting {
         )
 
         /**
-         * Keep track of the latest value of a string property.
+         * Keep track of the latest value of a number property.
          */
         @JvmOverloads
         public fun numberProperty(
@@ -173,18 +182,18 @@ public object Reporting {
             // Sends entire metric definition + current value over IPC to the logging/metrics daemon.
             RemoteMetricsService.record(
                 MetricValue(
-                    timeMs = timeMs,
-                    reportType = reportType,
-                    eventName = name,
-                    aggregations = aggregations,
-                    stringVal = stringVal,
-                    numberVal = numberVal,
-                    boolVal = boolVal,
-                    internal = internal,
-                    metricType = metricType,
-                    dataType = dataType,
-                    carryOverValue = carryOverValue,
-                )
+                    name,
+                    reportType,
+                    aggregations,
+                    internal,
+                    metricType,
+                    dataType,
+                    carryOverValue,
+                    timeMs,
+                    stringVal,
+                    numberVal,
+                    boolVal,
+                ),
             )
         }
     }

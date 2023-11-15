@@ -41,7 +41,7 @@ class UptimeTickRequester @Inject constructor(
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         periodicWorkRequest<UptimeTickTask>(
             INTERVAL,
-            workDataOf()
+            workDataOf(),
         ) {
             addTag(UPTIME_WORK_TAG)
         }.also { workRequest ->
@@ -49,7 +49,7 @@ class UptimeTickRequester @Inject constructor(
                 .enqueueUniquePeriodicWork(
                     UPTIME_UNIQUE_NAME_PERIODIC,
                     ExistingPeriodicWorkPolicy.UPDATE,
-                    workRequest
+                    workRequest,
                 )
         }
     }

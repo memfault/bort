@@ -11,6 +11,18 @@
     <uses-permission android:name="com.memfault.usagereporter.permission.REPORTER_ACCESS" />
     <uses-permission android:name="com.memfault.bort.permission.UPDATE_STRUCTURED_LOG_CONFIG" />
 
+    <!-- DropBoxManager.getNextEntry() requires these: -->
+    <uses-permission
+        android:name="android.permission.READ_LOGS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- UserHandle.CURRENT and battery stats require this:-->
+    <uses-permission
+        android:name="android.permission.INTERACT_ACROSS_USERS"
+        tools:ignore="ProtectedPermissions" />
+
     <permission
         android:name="com.memfault.bort.permission.CONTROL"
         android:label="@string/permission_control_label"
@@ -38,6 +50,8 @@
     <!-- Prevent app being installed on non-vendor devices -->
     <uses-feature android:name="${bortFeatureName}" />
 
+    <uses-feature android:name="com.memfault.bort.privperms" android:required="true" />
+
     <application
         android:name=".Bort"
         android:allowBackup="false"
@@ -46,14 +60,6 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:forceQueryable="true"
         tools:ignore="MissingApplicationIcon">
-
-        <receiver
-            android:name=".receivers.DropBoxEntryAddedReceiver"
-            android:permission="android.permission.READ_LOGS">
-            <intent-filter>
-                <action android:name="com.memfault.intent.action.DROPBOX_ENTRY_ADDED" />
-            </intent-filter>
-        </receiver>
 
         <receiver
             android:name=".receivers.BugReportReceiver"

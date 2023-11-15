@@ -42,6 +42,11 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.Interceptor
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import vnd.myandroid.bortappid.CustomLogScrubber
 import java.io.File
 import javax.inject.Qualifier
 import javax.inject.Singleton
@@ -52,11 +57,6 @@ import kotlin.annotation.AnnotationTarget.PROPERTY_GETTER
 import kotlin.annotation.AnnotationTarget.PROPERTY_SETTER
 import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
 import kotlin.time.toJavaDuration
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.Interceptor
-import okhttp3.OkHttpClient
-import retrofit2.Retrofit
-import vnd.myandroid.bortappid.CustomLogScrubber
 
 /**
  * Anything that:
@@ -101,7 +101,7 @@ abstract class BortAppModule {
             .client(okHttpClient)
             .baseUrl(settingsProvider.httpApiSettings.filesBaseUrl.toHttpUrl())
             .addConverterFactory(
-                kotlinxJsonConverterFactory()
+                kotlinxJsonConverterFactory(),
             )
             .build()
 
@@ -109,7 +109,7 @@ abstract class BortAppModule {
         @Provides
         fun holdingAreaPharedPrefs(context: Application) = context.getSharedPreferences(
             FILE_UPLOAD_HOLDING_AREA_PREFERENCE_FILE_NAME,
-            Context.MODE_PRIVATE
+            Context.MODE_PRIVATE,
         )
 
         @Provides
@@ -490,7 +490,7 @@ abstract class BortAppModule {
             getTokenBucketFactory = {
                 RealTokenBucketFactory.from(
                     settingsProvider.dropBoxSettings.continuousLogFileRateLimitingSettings,
-                    metrics
+                    metrics,
                 )
             },
             devMode = devMode,
@@ -530,29 +530,35 @@ abstract class BortAppModule {
         fun settingsUpdateService(okHttpClient: OkHttpClient, settingsProvider: SettingsProvider) =
             SettingsUpdateService.create(
                 okHttpClient = okHttpClient,
-                deviceBaseUrl = settingsProvider.httpApiSettings.deviceBaseUrl
+                deviceBaseUrl = settingsProvider.httpApiSettings.deviceBaseUrl,
             )
 
         @Provides
         @Singleton
-        fun deviceConfigUpdateService(okHttpClient: OkHttpClient, settingsProvider: SettingsProvider) =
+        fun deviceConfigUpdateService(
+            okHttpClient: OkHttpClient,
+            settingsProvider: SettingsProvider,
+        ) =
             DeviceConfigUpdateService.create(
                 okHttpClient = okHttpClient,
-                deviceBaseUrl = settingsProvider.httpApiSettings.deviceBaseUrl
+                deviceBaseUrl = settingsProvider.httpApiSettings.deviceBaseUrl,
             )
 
         @Provides
         fun dataScrubber(settingsProvider: SettingsProvider): DataScrubber = DataScrubber(
             settingsProvider.dataScrubbingSettings.rules.filterIsInstance(LineScrubbingCleaner::class.java) +
-                CustomLogScrubber
+                CustomLogScrubber,
         )
 
         @Provides
         fun kernelOopsDetector(
             settingsProvider: SettingsProvider,
             kernelOopsDetector: KernelOopsDetector,
-        ) = if (settingsProvider.logcatSettings.kernelOopsDataSourceEnabled) kernelOopsDetector
-        else NoopLogcatLineProcessor
+        ) = if (settingsProvider.logcatSettings.kernelOopsDataSourceEnabled) {
+            kernelOopsDetector
+        } else {
+            NoopLogcatLineProcessor
+        }
 
         @Provides
         @MarFileSampledHoldingDir

@@ -6,13 +6,13 @@ import com.memfault.bort.time.BoxedDuration
 import io.mockk.Called
 import io.mockk.spyk
 import io.mockk.verify
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 
 data class MockTokenBucketStorage(
     var map: StoredTokenBucketMap,
@@ -56,7 +56,7 @@ class TokenBucketStoreTest {
             ).edit {
                 // not making any changes to the map here
                 blockResult
-            }
+            },
         )
         verify(exactly = 0) { storageProvider.writeMap(any()) }
     }
@@ -71,11 +71,11 @@ class TokenBucketStoreTest {
                             count = 3,
                             capacity = capacity,
                             period = BoxedDuration(period),
-                            periodStartElapsedRealtime = BoxedDuration(mockElapsedRealtime.now)
-                        )
-                    )
-                )
-            )
+                            periodStartElapsedRealtime = BoxedDuration(mockElapsedRealtime.now),
+                        ),
+                    ),
+                ),
+            ),
         )
 
         val blockResult = 1234
@@ -91,7 +91,7 @@ class TokenBucketStoreTest {
                 assertNotNull(bucket)
                 bucket?.take(tag = "test") // decrements count
                 blockResult
-            }
+            },
         )
 
         verify(exactly = 1) {
@@ -102,10 +102,10 @@ class TokenBucketStoreTest {
                             count = 2,
                             capacity = capacity,
                             period = BoxedDuration(period),
-                            periodStartElapsedRealtime = BoxedDuration(mockElapsedRealtime.now)
-                        )
-                    )
-                )
+                            periodStartElapsedRealtime = BoxedDuration(mockElapsedRealtime.now),
+                        ),
+                    ),
+                ),
             )
         }
     }
@@ -116,16 +116,16 @@ class TokenBucketStoreTest {
             count = 3,
             capacity = capacity,
             period = BoxedDuration(period),
-            periodStartElapsedRealtime = BoxedDuration(12345.milliseconds)
+            periodStartElapsedRealtime = BoxedDuration(12345.milliseconds),
         )
         val storage = spyk(
             MockTokenBucketStorage(
                 map = StoredTokenBucketMap(
                     mapOf(
-                        key to initialBucket
-                    )
-                )
-            )
+                        key to initialBucket,
+                    ),
+                ),
+            ),
         )
 
         RealTokenBucketStore(
@@ -140,10 +140,10 @@ class TokenBucketStoreTest {
                 StoredTokenBucketMap(
                     mapOf(
                         key to initialBucket.copy(
-                            periodStartElapsedRealtime = BoxedDuration((-206497).milliseconds)
-                        )
-                    )
-                )
+                            periodStartElapsedRealtime = BoxedDuration((-206497).milliseconds),
+                        ),
+                    ),
+                ),
             )
         }
     }
@@ -154,16 +154,16 @@ class TokenBucketStoreTest {
             count = 3,
             capacity = capacity,
             period = BoxedDuration(period),
-            periodStartElapsedRealtime = BoxedDuration(38842.milliseconds)
+            periodStartElapsedRealtime = BoxedDuration(38842.milliseconds),
         )
         val storage = spyk(
             MockTokenBucketStorage(
                 map = StoredTokenBucketMap(
                     mapOf(
-                        key to initialBucket
-                    )
-                )
-            )
+                        key to initialBucket,
+                    ),
+                ),
+            ),
         )
 
         RealTokenBucketStore(
@@ -178,10 +178,10 @@ class TokenBucketStoreTest {
                 StoredTokenBucketMap(
                     mapOf(
                         key to initialBucket.copy(
-                            periodStartElapsedRealtime = BoxedDuration((-3).minutes)
-                        )
-                    )
-                )
+                            periodStartElapsedRealtime = BoxedDuration((-3).minutes),
+                        ),
+                    ),
+                ),
             )
         }
     }
@@ -210,10 +210,10 @@ class TokenBucketStoreTest {
                         count = 0,
                         capacity = capacity,
                         period = BoxedDuration(period),
-                        periodStartElapsedRealtime = BoxedDuration(mockElapsedRealtime.now)
-                    )
-                )
-            )
+                        periodStartElapsedRealtime = BoxedDuration(mockElapsedRealtime.now),
+                    ),
+                ),
+            ),
         )
         val store = RealTokenBucketStore(
             storage = storage,
@@ -238,10 +238,10 @@ class TokenBucketStoreTest {
                         count = 1,
                         capacity = 0,
                         period = BoxedDuration(period),
-                        periodStartElapsedRealtime = BoxedDuration(mockElapsedRealtime.now)
-                    )
-                )
-            )
+                        periodStartElapsedRealtime = BoxedDuration(mockElapsedRealtime.now),
+                    ),
+                ),
+            ),
         )
         val storage = spyk(MockTokenBucketStorage(map = map))
         val devMode = object : DevMode {

@@ -3,8 +3,8 @@ package com.memfault.bort
 import android.app.Application
 import com.memfault.bort.metrics.DevicePropertiesStore
 import com.memfault.bort.shared.Logger
-import javax.inject.Inject
 import kotlinx.serialization.json.JsonPrimitive
+import javax.inject.Inject
 
 class IntegrationChecker @Inject constructor(
     private val application: Application,

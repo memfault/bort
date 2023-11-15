@@ -15,7 +15,9 @@ object SystemPropertiesProxy {
         try {
             val systemProperties = Class.forName("android.os.SystemProperties")
             val setter: Method = systemProperties.getDeclaredMethod(
-                "set", String::class.java, String::class.java
+                "set",
+                String::class.java,
+                String::class.java,
             )
             setter.isAccessible = true
             setter.invoke(systemProperties, key, value)

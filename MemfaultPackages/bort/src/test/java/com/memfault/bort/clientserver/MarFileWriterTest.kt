@@ -14,18 +14,18 @@ import com.memfault.bort.settings.Resolution
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.boxed
-import java.io.File
-import java.io.FileInputStream
-import java.time.Instant
-import java.util.UUID
-import java.util.zip.ZipInputStream
-import kotlin.time.Duration
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.assertThrows
+import java.io.File
+import java.io.FileInputStream
+import java.time.Instant
+import java.util.UUID
+import java.util.zip.ZipInputStream
+import kotlin.time.Duration
 
 internal class MarFileWriterTest {
     @Test
@@ -76,7 +76,6 @@ internal class MarFileWriterTest {
             override val projectKey: String get() = "key"
             override val filesBaseUrl: String get() = TODO("Not used")
             override val deviceBaseUrl: String get() = TODO("Not used")
-            override val ingressBaseUrl: String get() = TODO("Not used")
             override val uploadNetworkConstraint: NetworkConstraint get() = TODO("Not used")
             override val uploadCompressionEnabled: Boolean get() = TODO("Not used")
             override val connectTimeout: Duration get() = TODO("Not used")
@@ -155,7 +154,11 @@ internal class MarFileWriterTest {
         }
     }
 
-    private fun ZipInputStream.assertNextEntry(marFile: File, manifest: MarManifest, fileContent: String?) {
+    private fun ZipInputStream.assertNextEntry(
+        marFile: File,
+        manifest: MarManifest,
+        fileContent: String?,
+    ) {
         val dirEntry = nextEntry
         assertTrue(dirEntry.isDirectory)
         assertTrue(dirEntry.name.startsWith(marFile.name))
@@ -194,10 +197,14 @@ internal class MarFileWriterTest {
             elapsedRealtime = Duration.ZERO.boxed(),
             linuxBootId = "bootid",
             bootCount = 1,
-            timestamp = Instant.ofEpochMilli(timeMs)
+            timestamp = Instant.ofEpochMilli(timeMs),
         )
 
-        fun heartbeat(timeMs: Long, filename: String? = "batterystats", resolution: Resolution = Resolution.NORMAL) =
+        fun heartbeat(
+            timeMs: Long,
+            filename: String? = "batterystats",
+            resolution: Resolution = Resolution.NORMAL,
+        ) =
             MarManifest(
                 collectionTime = time(timeMs),
                 type = "android-heartbeat",

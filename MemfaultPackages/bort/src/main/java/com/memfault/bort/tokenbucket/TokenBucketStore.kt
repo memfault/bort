@@ -5,6 +5,7 @@ import com.memfault.bort.DevMode
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.BoxedDuration
 import com.memfault.bort.time.DurationAsMillisecondsLong
+import kotlinx.serialization.Serializable
 import java.util.concurrent.locks.ReentrantLock
 import javax.inject.Qualifier
 import kotlin.annotation.AnnotationRetention.RUNTIME
@@ -16,7 +17,6 @@ import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
 import kotlin.concurrent.withLock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
-import kotlinx.serialization.Serializable
 
 @Serializable
 data class StoredTokenBucketMap(
@@ -164,16 +164,16 @@ class RealTokenBucketStore(
                     val previousBootTimeLeftOver = previousUptime - storedBucket.periodStartElapsedRealtime.duration
                     Logger.d(
                         "handleLinuxReboot tokenBucket key=$key " +
-                            "previousBootTimeLeftOver=$previousBootTimeLeftOver"
+                            "previousBootTimeLeftOver=$previousBootTimeLeftOver",
                     )
                     Logger.logEvent(
                         "handleLinuxReboot tokenBucket key=$key " +
-                            "previousBootTimeLeftOver=$previousBootTimeLeftOver"
+                            "previousBootTimeLeftOver=$previousBootTimeLeftOver",
                     )
                     val newValue = -previousBootTimeLeftOver.coerceAtLeast(Duration.ZERO) - BOOT_TIME
                     storedBucket.copy(periodStartElapsedRealtime = BoxedDuration(newValue))
-                }
-            )
+                },
+            ),
         )
     }
 
@@ -194,8 +194,8 @@ class RealTokenBucketStore(
         StoredTokenBucketMap(
             map.mapValues { (_, bucket) ->
                 bucket.toStoredTokenBucket()
-            }
-        )
+            },
+        ),
     ).also {
         cachedMap = map
     }
@@ -206,7 +206,7 @@ class RealTokenBucketStore(
         val map = TokenBucketMap(
             initialMap = initialMap,
             maxBuckets = getMaxBuckets(),
-            tokenBucketFactory = getTokenBucketFactory()
+            tokenBucketFactory = getTokenBucketFactory(),
         )
         return block(map).also {
             val finalMap = map.toMap()

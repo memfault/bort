@@ -6,13 +6,13 @@ import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
 import com.memfault.bort.metrics.HighResTelemetry.DataType.StringType
 import com.memfault.bort.metrics.HighResTelemetry.Rollup
 import com.memfault.bort.settings.MetricsSettings
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.minutes
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 class DevicePropertiesStoreTest {
     private var writeToService = true
@@ -59,7 +59,7 @@ class DevicePropertiesStoreTest {
             HighResTelemetry.Datum(
                 t = TIMESTAMP,
                 value = value,
-            )
+            ),
         ),
     )
 
@@ -89,7 +89,7 @@ class DevicePropertiesStoreTest {
         propertiesStore.upsert(name = METRIC_NAME_STRING, value = METRIC_VALUE_STRING, internal = false)
         assertEquals(
             mapOf(METRIC_NAME_STRING.latest() to JsonPrimitive(METRIC_VALUE_STRING)),
-            propertiesStore.metrics()
+            propertiesStore.metrics(),
         )
         assertTrue(propertiesStore.internalMetrics().isEmpty())
         assertEquals(
@@ -98,10 +98,10 @@ class DevicePropertiesStoreTest {
                     name = METRIC_NAME_STRING,
                     value = JsonPrimitive(METRIC_VALUE_STRING),
                     dataType = StringType,
-                    internal = false
+                    internal = false,
                 ),
             ),
-            propertiesStore.hrtRollups(TIMESTAMP)
+            propertiesStore.hrtRollups(TIMESTAMP),
         )
     }
 
@@ -117,10 +117,10 @@ class DevicePropertiesStoreTest {
                     name = METRIC_NAME_LONG,
                     value = METRIC_JSON_LONG,
                     dataType = DoubleType,
-                    internal = true
+                    internal = true,
                 ),
             ),
-            propertiesStore.hrtRollups(TIMESTAMP)
+            propertiesStore.hrtRollups(TIMESTAMP),
         )
     }
 
@@ -139,14 +139,14 @@ class DevicePropertiesStoreTest {
                 METRIC_NAME_BOOL.latest() to METRIC_JSON_BOOL_REPORT,
                 METRIC_NAME_STRING.latest() to METRIC_JSON_STRING,
             ),
-            propertiesStore.metrics()
+            propertiesStore.metrics(),
         )
         assertEquals(
             mapOf(
                 METRIC_NAME_LONG.latest() to METRIC_JSON_LONG,
                 METRIC_NAME_INT.latest() to METRIC_JSON_INT,
             ),
-            propertiesStore.internalMetrics()
+            propertiesStore.internalMetrics(),
         )
         assertEquals(
             setOf(
@@ -154,34 +154,34 @@ class DevicePropertiesStoreTest {
                     name = METRIC_NAME_DOUBLE,
                     value = METRIC_JSON_DOUBLE,
                     dataType = DoubleType,
-                    internal = false
+                    internal = false,
                 ),
                 rollup(
                     name = METRIC_NAME_LONG,
                     value = METRIC_JSON_LONG,
                     dataType = DoubleType,
-                    internal = true
+                    internal = true,
                 ),
                 rollup(
                     name = METRIC_NAME_INT,
                     value = METRIC_JSON_INT,
                     dataType = DoubleType,
-                    internal = true
+                    internal = true,
                 ),
                 rollup(
                     name = METRIC_NAME_BOOL,
                     value = METRIC_JSON_BOOL_HRT,
                     dataType = BooleanType,
-                    internal = false
+                    internal = false,
                 ),
                 rollup(
                     name = METRIC_NAME_STRING,
                     value = METRIC_JSON_STRING,
                     dataType = StringType,
-                    internal = false
+                    internal = false,
                 ),
             ),
-            propertiesStore.hrtRollups(TIMESTAMP)
+            propertiesStore.hrtRollups(TIMESTAMP),
         )
     }
 }

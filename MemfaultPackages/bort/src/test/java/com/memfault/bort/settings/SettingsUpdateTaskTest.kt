@@ -19,7 +19,6 @@ import io.mockk.coVerify
 import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.mockk
-import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonObject
@@ -29,6 +28,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import retrofit2.HttpException
 import retrofit2.Response
+import java.util.UUID
 
 class SettingsUpdateTaskTest {
     private lateinit var worker: TaskRunnerWorker
@@ -80,7 +80,7 @@ class SettingsUpdateTaskTest {
                     linkedDeviceFileSender = linkedDeviceFileSender,
                     temporaryFileFactory = temporaryFileFactory,
                     clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
-                ).doWork(worker)
+                ).doWork(worker),
             )
         }
         // Check that endpoint was called once, and nothing else
@@ -113,7 +113,7 @@ class SettingsUpdateTaskTest {
                     linkedDeviceFileSender = linkedDeviceFileSender,
                     temporaryFileFactory = temporaryFileFactory,
                     clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
-                ).doWork(worker)
+                ).doWork(worker),
             )
 
             // Check that endpoint was called once, and nothing else
@@ -148,7 +148,7 @@ class SettingsUpdateTaskTest {
                     linkedDeviceFileSender = linkedDeviceFileSender,
                     temporaryFileFactory = temporaryFileFactory,
                     clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
-                ).doWork(worker)
+                ).doWork(worker),
             )
 
             // Check that endpoint was called once, and nothing else
@@ -194,7 +194,7 @@ class SettingsUpdateTaskTest {
                     linkedDeviceFileSender = linkedDeviceFileSender,
                     temporaryFileFactory = temporaryFileFactory,
                     clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
-                ).doWork(worker)
+                ).doWork(worker),
             )
         }
         coVerify(exactly = 0) { settingsService.settings(any(), any(), any()) }
@@ -290,7 +290,7 @@ class SettingsUpdateTaskTest {
                     linkedDeviceFileSender = linkedDeviceFileSender,
                     temporaryFileFactory = temporaryFileFactory,
                     clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
-                ).doWork(worker)
+                ).doWork(worker),
             )
         }
         coVerify(exactly = 0) { settingsService.settings(any(), any(), any()) }
@@ -314,7 +314,7 @@ class SettingsUpdateTaskTest {
         coVerify(exactly = 1) {
             linkedDeviceFileSender.sendFileToLinkedDevice(
                 any(),
-                CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG
+                CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG,
             )
         }
     }

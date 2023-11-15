@@ -25,7 +25,7 @@ class TombstoneParserTest {
     fun missingThreadHeader() {
         assertThrows<InvalidTombstoneException>("Failed to find thread header") {
             TombstoneParser(
-                "*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\n".byteInputStream()
+                "*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\n".byteInputStream(),
             ).parse()
         }
     }
@@ -36,7 +36,7 @@ class TombstoneParserTest {
             TombstoneParser(
                 """*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
                   |pid: xxx, tid: 19566, name: Chrome_IOThread  >>> com.android.chrome <<<
-                """.trimMargin().byteInputStream()
+                """.trimMargin().byteInputStream(),
             ).parse()
         }
     }

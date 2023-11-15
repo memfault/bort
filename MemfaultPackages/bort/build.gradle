@@ -68,9 +68,6 @@ kapt {
 dependencies {
     api project(':bort-shared')
 
-    // bort-shared exposes the kotlin lib and we only use the java lib in TestReceiver.kt
-    debugApi project(':reporting-libs:reporting-lib-java')
-
     implementation deps.android.work
     implementation deps.android.preference
     // An explicit reference to this transitive dependency fixes a duplicate class error during build.

@@ -28,7 +28,7 @@ data class BugReportRequest(
             fun fromString(pkgAndCls: String): Component {
                 val pattern = Regex("(^[^/]+)/(.+)$")
                 val match = pattern.matchEntire(pkgAndCls) ?: throw IllegalArgumentException(
-                    "Failed to parse component string '$pkgAndCls'. Expecting 'com.package.id/qualified.class.name'"
+                    "Failed to parse component string '$pkgAndCls'. Expecting 'com.package.id/qualified.class.name'",
                 )
                 val (pkg, cls) = match.destructured
                 return Component(pkg, cls)
@@ -52,15 +52,17 @@ data class BugReportRequest(
                 options = BugReportOptions(intent.getBooleanExtra(INTENT_EXTRA_BUG_REPORT_MINIMAL_MODE_BOOL, false)),
                 requestId = intent.getStringExtra(INTENT_EXTRA_BUG_REPORT_REQUEST_ID)?.let(::validateRequestId),
                 replyReceiver = intent.getStringExtra(INTENT_EXTRA_BUG_REPORT_REQUEST_REPLY_RECEIVER)?.let(
-                    Component::fromString
+                    Component::fromString,
                 ),
             )
 
         private fun validateRequestId(requestId: String): String =
             requestId.also {
-                if (it.length > BUG_REPORT_REQUEST_ID_MAXIMUM_LENGTH) throw IllegalArgumentException(
-                    "Bug report request ID is longer than $BUG_REPORT_REQUEST_ID_MAXIMUM_LENGTH chars: $it"
-                )
+                if (it.length > BUG_REPORT_REQUEST_ID_MAXIMUM_LENGTH) {
+                    throw IllegalArgumentException(
+                        "Bug report request ID is longer than $BUG_REPORT_REQUEST_ID_MAXIMUM_LENGTH chars: $it",
+                    )
+                }
             }
     }
 }

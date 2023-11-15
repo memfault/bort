@@ -22,7 +22,7 @@ class SoftwareUpdateSettingsContentProvider : ContentProvider() {
         projection: Array<out String>?,
         selection: String?,
         selectionArgs: Array<out String>?,
-        sortOrder: String?
+        sortOrder: String?,
     ): Cursor = createCursor(gatherConfig())
 
     private fun gatherConfig(): SoftwareUpdateSettings {
@@ -38,7 +38,7 @@ class SoftwareUpdateSettingsContentProvider : ContentProvider() {
                 updateCheckIntervalMs = settings.otaSettings.updateCheckInterval.inWholeMilliseconds,
                 baseUrl = settings.httpApiSettings.deviceBaseUrl,
                 projectApiKey = settings.httpApiSettings.projectKey,
-                downloadNetworkTypeConstraint = settings.otaSettings.downloadNetworkConstraint.networkType
+                downloadNetworkTypeConstraint = settings.otaSettings.downloadNetworkConstraint.networkType,
             )
         }
     }
@@ -49,7 +49,12 @@ class SoftwareUpdateSettingsContentProvider : ContentProvider() {
 
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int = 0
 
-    override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int =
+    override fun update(
+        uri: Uri,
+        values: ContentValues?,
+        selection: String?,
+        selectionArgs: Array<out String>?,
+    ): Int =
         0
 
     @EntryPoint

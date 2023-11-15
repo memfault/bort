@@ -6,13 +6,13 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import java.io.File
-import java.lang.IllegalStateException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.io.File
+import java.lang.IllegalStateException
 
 private const val OLD_SOFTWARE_VERSION = "old"
 
@@ -148,9 +148,9 @@ class RecoveryBasedUpdateActionHandlerTest {
         assertEquals(
             listOf(
                 State.UpdateDownloading(ota!!, progress = 50),
-                State.UpdateDownloading(ota!!, progress = 100)
+                State.UpdateDownloading(ota!!, progress = 100),
             ),
-            collectedStates
+            collectedStates,
         )
         assertEquals(listOf<Event>(), collectedEvents)
     }
@@ -202,7 +202,7 @@ class RecoveryBasedUpdateActionHandlerTest {
                 // Then back to idle because it failed
                 State.Idle,
             ),
-            collectedStates
+            collectedStates,
         )
         assertEquals(listOf<Event>(), collectedEvents)
         verify(exactly = 1) { recoveryInterface.install(File("dummy")) }

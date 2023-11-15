@@ -12,10 +12,10 @@ internal object ServiceManagerProxy {
             return with(Class.forName("android.os.ServiceManager")) {
                 this.getMethod(
                     "getService",
-                    String::class.java
+                    String::class.java,
                 ).invoke(
                     this,
-                    name
+                    name,
                 )
             } as IBinder?
         } catch (e: ReflectiveOperationException) {

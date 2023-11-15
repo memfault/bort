@@ -5,16 +5,16 @@ package com.memfault.usagereporter.clientserver
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.Logger
-import java.net.InetSocketAddress
-import java.nio.channels.AsynchronousServerSocketChannel
-import java.nio.channels.AsynchronousSocketChannel
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import org.jetbrains.annotations.TestOnly
+import java.net.InetSocketAddress
+import java.nio.channels.AsynchronousServerSocketChannel
+import java.nio.channels.AsynchronousSocketChannel
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 interface Connector {
     suspend fun run(scope: CoroutineScope)

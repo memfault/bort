@@ -9,14 +9,14 @@ class AnrParserTest {
     fun packageNameOK() {
         assertEquals(
             "com.memfault.bort_e2e_helper",
-            AnrParser(FIXTURE.byteInputStream()).parse().packageName
+            AnrParser(FIXTURE.byteInputStream()).parse().packageName,
         )
     }
 
     @Test
     fun noPackage() {
         assertNull(
-            AnrParser(INVALID_FIXTURE.byteInputStream()).parse().packageName
+            AnrParser(INVALID_FIXTURE.byteInputStream()).parse().packageName,
         )
     }
 }
@@ -43,5 +43,5 @@ CPU usage from 3290ms to -31207ms ago (1970-01-01 00:02:49.554 to 2020-11-06 10:
   1.3% 1094/installd: 0.6% user + 0.7% kernel / faults: 30 minor
   2.1% 1090/adbd: 0.4% user + 1.7% kernel / faults: 805 minor
   1.9% 1439/com.android.inputmethod.latin: 1.4% user + 0.5% kernel / faults: 427 minor 12 major
-  1.6% 1078/android.hardware.sensors@1.0-service: 0.7% user + 0.8% kernel 
+  1.6% 1078/android.hardware.sensors@1.0-service: 0.7% user + 0.8% kernel
 """.trimIndent()

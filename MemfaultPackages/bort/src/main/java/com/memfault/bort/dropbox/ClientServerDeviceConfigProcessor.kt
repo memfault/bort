@@ -11,8 +11,8 @@ import com.memfault.bort.time.AbsoluteTime
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.Lazy
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Inject
 import kotlinx.serialization.SerializationException
+import javax.inject.Inject
 
 @ContributesMultibinding(SingletonComponent::class)
 class ClientServerDeviceConfigProcessor @Inject constructor(

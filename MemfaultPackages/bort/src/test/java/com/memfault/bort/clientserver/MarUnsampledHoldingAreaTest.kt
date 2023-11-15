@@ -4,14 +4,14 @@ import com.memfault.bort.BortJson
 import com.memfault.bort.settings.Resolution.HIGH
 import com.memfault.bort.settings.Resolution.NORMAL
 import com.memfault.bort.settings.SamplingConfig
-import java.io.File
-import kotlin.time.Duration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.File
+import kotlin.time.Duration
 
 internal class MarUnsampledHoldingAreaTest {
     @get:Rule

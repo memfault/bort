@@ -7,21 +7,21 @@ import io.mockk.coEvery
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import io.mockk.slot
-import java.io.File
-import java.io.OutputStream
-import java.lang.Exception
-import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.io.File
+import java.io.OutputStream
+import java.lang.Exception
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 data class FakeNextBatteryStatsHistoryStartProvider(
-    override var historyStart: Long
+    override var historyStart: Long,
 ) : NextBatteryStatsHistoryStartProvider
 
 class BatteryStatsHistoryCollectorTest {
@@ -97,7 +97,7 @@ class BatteryStatsHistoryCollectorTest {
             0L to """
                 9,h,0:TIME:123456
                 NEXT: 505
-            """.trimIndent()
+            """.trimIndent(),
         )
         runBlocking {
             tempFile = collector.collect(limit = 1.hours).batteryStatsFileToUpload
@@ -125,7 +125,7 @@ class BatteryStatsHistoryCollectorTest {
             100000L to """
                 9,h,0:TIME:123456
                 NEXT: 100005
-            """.trimIndent()
+            """.trimIndent(),
         )
         runBlocking {
             tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
@@ -154,7 +154,7 @@ class BatteryStatsHistoryCollectorTest {
             100000L to """
                 9,h,0:TIME:123456
                 NEXT: 100005
-            """.trimIndent()
+            """.trimIndent(),
         )
         runBlocking {
             tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload

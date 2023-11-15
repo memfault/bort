@@ -4,9 +4,6 @@ import android.content.SharedPreferences
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.shared.SetReporterSettingsRequest
-import javax.inject.Inject
-import javax.inject.Singleton
-import kotlin.time.Duration
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +12,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.time.Duration
 
 interface ReporterSettings {
     val maxFileTransferStorageBytes: Long
@@ -29,7 +29,7 @@ interface ReporterSettings {
 @OptIn(ExperimentalCoroutinesApi::class)
 fun <T> StateFlow<SetReporterSettingsRequest>.onBortEnabledFlow(
     logName: String,
-    bortEnabledFlow: suspend () -> Flow<T>
+    bortEnabledFlow: suspend () -> Flow<T>,
 ) = map { it.bortEnabled }
     .distinctUntilChanged()
     .flatMapLatest { bortEnabled ->
@@ -50,7 +50,7 @@ class ReporterSettingsPreferenceProvider
     private val _settings = MutableStateFlow(
         SetReporterSettingsRequest.fromJson(getValue())
             // Use default values if never stored
-            ?: SetReporterSettingsRequest()
+            ?: SetReporterSettingsRequest(),
     )
 
     val settings: StateFlow<SetReporterSettingsRequest> = _settings

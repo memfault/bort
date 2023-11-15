@@ -25,7 +25,7 @@ PLACEHOLDER_BORT_AOSP_PATCH_VERSION = "manually_patched"
 PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_BORT_OTA_APP_ID = "vnd.myandroid.bort.otaappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
-RELEASES = ("8", "9", "10", "11", "12", "12_1", "13")
+RELEASES = range(8, 14 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 GRADLE_PROPERTIES = os.path.join(SCRIPT_DIR, "MemfaultPackages", "gradle.properties")
 PYTHON_MIN_VERSION = (3, 6, 0)
@@ -140,8 +140,7 @@ class PatchAOSPCommand(Command):
         self._apply_patch_command = apply_patch_command or self._default_apply_patch_command()
         self._force = force
 
-        patch_dir_map = "12" if android_release == "12_1" else android_release
-        self._patches_dir = os.path.join(patch_dir, f"android-{patch_dir_map}")
+        self._patches_dir = os.path.join(patch_dir, f"android-{android_release}")
 
         self._exclude_dirs = exclude or []
         self._errors = []
@@ -155,7 +154,7 @@ class PatchAOSPCommand(Command):
         )
         parser.add_argument(
             "--android-release",
-            type=str,
+            type=int,
             choices=RELEASES,
             required=True,
             help="Android platform version",
@@ -422,7 +421,7 @@ class _AlwaysMatcher(_Matcher):
         return True, "OK"
 
 
-def _format_error(description: str, *details: Any) -> str:
+def _format_error(description: str, *details: Any) -> str:  # noqa: ANN401
     return (2 * os.linesep).join(map(str, ("", description, *details)))
 
 

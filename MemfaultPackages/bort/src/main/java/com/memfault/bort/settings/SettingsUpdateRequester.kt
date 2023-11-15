@@ -37,13 +37,13 @@ internal fun restartPeriodicSettingsUpdate(
     } else {
         Logger.test(
             "Requesting settings every ${updateInterval.toDouble(HOURS)} " +
-                "hours (delayInitially=$delayAfterSettingsUpdate)"
+                "hours (delayInitially=$delayAfterSettingsUpdate)",
         )
     }
 
     periodicWorkRequest<SettingsUpdateTask>(
         updateInterval,
-        workDataOf()
+        workDataOf(),
     ) {
         addTag(WORK_TAG)
         setConstraints(httpApiSettings.uploadConstraints)
@@ -56,7 +56,7 @@ internal fun restartPeriodicSettingsUpdate(
             .enqueueUniquePeriodicWork(
                 WORK_UNIQUE_NAME_PERIODIC,
                 ExistingPeriodicWorkPolicy.UPDATE,
-                workRequest
+                workRequest,
             )
     }
 }

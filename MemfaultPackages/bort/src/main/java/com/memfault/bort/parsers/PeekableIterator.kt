@@ -7,16 +7,24 @@ class PeekableIterator<T : Any>(private var source: Iterator<T>) : Iterator<T> {
         peekedValues.isNotEmpty() || source.hasNext()
 
     override fun next(): T =
-        if (peekedValues.isEmpty()) source.next()
-        else peekedValues.removeFirst()
+        if (peekedValues.isEmpty()) {
+            source.next()
+        } else {
+            peekedValues.removeFirst()
+        }
 
     fun peek(): T? =
         if (peekedValues.isEmpty()) {
-            if (!source.hasNext()) null
-            else source.next().also {
-                peekedValues.add(it)
+            if (!source.hasNext()) {
+                null
+            } else {
+                source.next().also {
+                    peekedValues.add(it)
+                }
             }
-        } else peekedValues[0]
+        } else {
+            peekedValues[0]
+        }
 
     fun prepend(vararg values: T) {
         peekedValues.addAll(0, values.asList())

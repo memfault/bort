@@ -7,6 +7,7 @@ import com.memfault.bort.PackageNameAllowList
 import com.memfault.bort.clientserver.MarMetadata
 import com.memfault.bort.logcat.FakeNextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.parsers.EXAMPLE_NATIVE_BACKTRACE
 import com.memfault.bort.parsers.EXAMPLE_TOMBSTONE
 import com.memfault.bort.parsers.Package
@@ -38,6 +39,7 @@ class TombstoneEntryProcessorTest {
     lateinit var builtInMetricsStore: BuiltinMetricsStore
     lateinit var mockHandleEventOfInterest: HandleEventOfInterest
     lateinit var mockPackageNameAllowList: PackageNameAllowList
+    lateinit var crashHandler: CrashHandler
     private var allowedByRateLimit = true
 
     @BeforeEach
@@ -55,6 +57,7 @@ class TombstoneEntryProcessorTest {
         mockPackageNameAllowList = mockk {
             every { contains(any()) } returns true
         }
+        crashHandler = mockk(relaxed = true)
         processor = UploadingEntryProcessor(
             delegate = TombstoneUploadingEntryProcessorDelegate(
                 packageManagerClient = mockPackageManagerClient,
@@ -72,6 +75,7 @@ class TombstoneEntryProcessorTest {
             handleEventOfInterest = mockHandleEventOfInterest,
             packageNameAllowList = mockPackageNameAllowList,
             combinedTimeProvider = FakeCombinedTimeProvider,
+            crashHandler = crashHandler,
         )
     }
 
@@ -158,5 +162,5 @@ private val PACKAGE_FIXTURE = Package(
     userId = 1000,
     codePath = "/data/app.apk",
     versionCode = 1,
-    versionName = "1.0.0"
+    versionName = "1.0.0",
 )

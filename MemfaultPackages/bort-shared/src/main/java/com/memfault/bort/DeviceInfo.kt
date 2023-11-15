@@ -15,13 +15,13 @@ data class DeviceInfoParams(
 data class DeviceInfo(
     val deviceSerial: String,
     val hardwareVersion: String,
-    val softwareVersion: String
+    val softwareVersion: String,
 ) {
     companion object {
         fun fromSettingsAndSystemProperties(
             settings: DeviceInfoParams,
             props: Map<String, String>,
-            getBuildFingerprint: () -> String = { Build.FINGERPRINT }
+            getBuildFingerprint: () -> String = { Build.FINGERPRINT },
         ): DeviceInfo {
             val softwareVersion = when (settings.androidBuildFormat) {
                 AndroidBuildFormat.SYSTEM_PROPERTY_ONLY -> props[settings.androidBuildVersionKey] ?: "unknown"
@@ -32,7 +32,7 @@ data class DeviceInfo(
             return DeviceInfo(
                 props[settings.androidSerialNumberKey] ?: "unknown",
                 hardwareVersionFromSettingsAndSystemProperties(settings, props),
-                softwareVersion
+                softwareVersion,
             )
         }
 
@@ -43,7 +43,7 @@ data class DeviceInfo(
 
         fun hardwareVersionFromSettingsAndSystemProperties(
             settings: DeviceInfoParams,
-            props: Map<String, String>
+            props: Map<String, String>,
         ): String =
             settings.androidHardwareVersionKey.let { key ->
                 if (key != "") {

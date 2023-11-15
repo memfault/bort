@@ -11,13 +11,13 @@ import com.memfault.bort.shared.InternalMetric.Companion.OTA_INSTALL_RECOVERY_VE
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
-import java.io.File
-import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.io.File
+import javax.inject.Inject
 
 /**
  * This interface abstracts recovery interactions. On real devices, the RealRecoveryInterface will use RecoverySystem
@@ -83,20 +83,26 @@ class RecoveryBasedUpdateActionHandler @Inject constructor(
                             scheduleDownload = scheduleDownload,
                         )
                     }
-                } else logActionNotAllowed()
+                } else {
+                    logActionNotAllowed()
+                }
             }
 
             is Action.DownloadUpdate -> {
                 if (state is State.UpdateAvailable) {
                     updater.setState(State.UpdateDownloading(state.ota))
                     startUpdateDownload(state.ota.url)
-                } else logActionNotAllowed()
+                } else {
+                    logActionNotAllowed()
+                }
             }
 
             is Action.DownloadProgress -> {
                 if (state is State.UpdateDownloading) {
                     updater.setState(state.copy(progress = action.progress))
-                } else logActionNotAllowed()
+                } else {
+                    logActionNotAllowed()
+                }
             }
 
             is Action.DownloadCompleted -> {
@@ -111,14 +117,18 @@ class RecoveryBasedUpdateActionHandler @Inject constructor(
                         updater.setState(State.Idle)
                         updater.triggerEvent(Event.VerificationFailed)
                     }
-                } else logActionNotAllowed()
+                } else {
+                    logActionNotAllowed()
+                }
             }
 
             is Action.DownloadFailed -> {
                 if (state is State.UpdateDownloading) {
                     updater.setState(State.UpdateAvailable(state.ota, showNotification = false))
                     updater.triggerEvent(Event.DownloadFailed)
-                } else logActionNotAllowed()
+                } else {
+                    logActionNotAllowed()
+                }
             }
 
             is Action.InstallUpdate -> {
@@ -127,7 +137,7 @@ class RecoveryBasedUpdateActionHandler @Inject constructor(
                         State.RebootedForInstallation(
                             state.ota,
                             updatingFromVersion = settingsProvider.get().currentVersion,
-                        )
+                        ),
                     )
                     if (!installUpdate(File(state.path))) {
                         // Back to square one, this should not happen, ever. At this point the update is verified
@@ -135,7 +145,9 @@ class RecoveryBasedUpdateActionHandler @Inject constructor(
                         updater.setState(State.Idle)
                     }
                     // Do nothing, at this point the device is scheduled to reboot.
-                } else logActionNotAllowed()
+                } else {
+                    logActionNotAllowed()
+                }
             }
 
             else -> {
@@ -164,7 +176,7 @@ class RecoveryBasedUpdateActionHandler @Inject constructor(
 
     private suspend fun verifyUpdate(
         updateFile: File,
-        dispatcher: CoroutineDispatcher = Dispatchers.IO
+        dispatcher: CoroutineDispatcher = Dispatchers.IO,
     ) = withContext(dispatcher) {
         suspendCancellableCoroutine<Boolean> { continuation ->
             try {
@@ -183,7 +195,7 @@ class RecoveryBasedUpdateActionHandler @Inject constructor(
 
 @ContributesBinding(SingletonComponent::class)
 class RealRecoveryInterface @Inject constructor(
-    private val context: Application
+    private val context: Application,
 ) : RecoveryInterface {
     override fun verifyOrThrow(path: File) {
         RecoverySystem.verifyPackage(path, {}, null)

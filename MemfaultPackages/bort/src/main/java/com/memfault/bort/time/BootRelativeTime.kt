@@ -6,10 +6,10 @@ import android.provider.Settings
 import com.memfault.bort.LinuxBootId
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Inject
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 interface BaseLinuxBootRelativeTime {
     /**
@@ -52,7 +52,9 @@ data class LinuxBootRelativeTime(
     override val linuxBootId: String,
 ) : BaseLinuxBootRelativeTime {
     constructor(bootRelativeTime: BaseLinuxBootRelativeTime) : this(
-        bootRelativeTime.uptime, bootRelativeTime.elapsedRealtime, bootRelativeTime.linuxBootId
+        bootRelativeTime.uptime,
+        bootRelativeTime.elapsedRealtime,
+        bootRelativeTime.linuxBootId,
     )
 }
 

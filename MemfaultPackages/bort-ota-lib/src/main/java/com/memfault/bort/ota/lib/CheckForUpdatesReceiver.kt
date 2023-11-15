@@ -5,10 +5,10 @@ import android.content.Context
 import android.content.Intent
 import com.memfault.bort.shared.Logger
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class CheckForUpdatesReceiver : BroadcastReceiver() {

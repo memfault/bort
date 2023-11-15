@@ -18,6 +18,7 @@ private const val INTENT_EXTRA_MODE = "mode"
 @AndroidEntryPoint
 class OtaTestReceiver : BroadcastReceiver() {
     @Inject lateinit var testOtaModePreferenceProvider: TestOtaModePreferenceProvider
+
     @Inject lateinit var testUpdateEngine: TestUpdateEngine
 
     override fun onReceive(context: Context, intent: Intent) {

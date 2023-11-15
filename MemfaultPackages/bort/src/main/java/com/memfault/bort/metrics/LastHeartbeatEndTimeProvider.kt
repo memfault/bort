@@ -22,7 +22,7 @@ interface LastHeartbeatEndTimeProvider {
 
 @ContributesBinding(SingletonComponent::class, boundType = LastHeartbeatEndTimeProvider::class)
 class RealLastHeartbeatEndTimeProvider @Inject constructor(
-    sharedPreferences: SharedPreferences
+    sharedPreferences: SharedPreferences,
 ) : LastHeartbeatEndTimeProvider, PreferenceKeyProvider<String>(
     sharedPreferences = sharedPreferences,
     defaultValue = BortJson.encodeToString(LinuxBootRelativeTime.serializer(), DEFAULT_LAST_END),
@@ -30,10 +30,11 @@ class RealLastHeartbeatEndTimeProvider @Inject constructor(
 ) {
     override var lastEnd
         get() = BortJson.decodeFromString(
-            LinuxBootRelativeTime.serializer(), super.getValue()
+            LinuxBootRelativeTime.serializer(),
+            super.getValue(),
         ) as BaseLinuxBootRelativeTime
         set(value) = super.setValue(
-            BortJson.encodeToString(LinuxBootRelativeTime.serializer(), LinuxBootRelativeTime(value))
+            BortJson.encodeToString(LinuxBootRelativeTime.serializer(), LinuxBootRelativeTime(value)),
         )
 }
 

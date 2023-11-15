@@ -2,7 +2,6 @@ package com.memfault.bort
 
 import android.app.Application
 import android.content.ComponentName
-import android.os.DropBoxManager
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -16,10 +15,6 @@ import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import com.memfault.bort.shared.BatteryStatsCommand
 import com.memfault.bort.shared.BatteryStatsRequest
 import com.memfault.bort.shared.DEFAULT_REPLY_TIMEOUT
-import com.memfault.bort.shared.DropBoxGetNextEntryRequest
-import com.memfault.bort.shared.DropBoxGetNextEntryResponse
-import com.memfault.bort.shared.DropBoxSetTagFilterRequest
-import com.memfault.bort.shared.DropBoxSetTagFilterResponse
 import com.memfault.bort.shared.ErrorResponse
 import com.memfault.bort.shared.ErrorResponseException
 import com.memfault.bort.shared.LogLevel
@@ -54,13 +49,12 @@ import com.memfault.bort.shared.VersionResponse
 import com.memfault.bort.shared.result.StdResult
 import com.memfault.bort.shared.result.failure
 import com.memfault.bort.shared.result.mapCatching
-import com.memfault.bort.shared.result.success
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
+import okhttp3.internal.closeQuietly
 import java.io.File
 import javax.inject.Inject
 import kotlin.time.Duration
-import okhttp3.internal.closeQuietly
 
 typealias ReporterServiceConnection = ServiceMessageConnection<ReporterServiceMessage>
 
@@ -76,15 +70,17 @@ class RealReporterServiceConnector @Inject constructor(
     application,
     ComponentName(
         APPLICATION_ID_MEMFAULT_USAGE_REPORTER,
-        REPORTER_SERVICE_QUALIFIED_NAME
-    )
+        REPORTER_SERVICE_QUALIFIED_NAME,
+    ),
 ) {
     override fun createServiceWithBinder(binder: IBinder): ReporterClient =
         ReporterClient(
             RealServiceMessageConnection(
-                Messenger(binder), inboundLooper, ReporterServiceMessage.Companion::fromMessage
+                Messenger(binder),
+                inboundLooper,
+                ReporterServiceMessage.Companion::fromMessage,
             ),
-            CommandRunnerClient
+            CommandRunnerClient,
         )
 }
 
@@ -105,15 +101,6 @@ class ReporterClient(
         withVersion(context = "loglevel", minimumVersion = MINIMUM_VALID_VERSION_LOG_LEVEL) {
             send(SetLogLevelRequest(level)) { _: SetLogLevelResponse -> }
         }
-
-    suspend fun dropBoxSetTagFilter(includedTags: List<String>): StdResult<Unit> =
-        send(DropBoxSetTagFilterRequest(includedTags)) { _: DropBoxSetTagFilterResponse -> Result.success(Unit) }
-
-    /**
-     * Note: make sure to .close() the entry when you are done with it!
-     */
-    suspend fun dropBoxGetNextEntry(lastTimeMillis: Long): StdResult<DropBoxManager.Entry?> =
-        send(DropBoxGetNextEntryRequest(lastTimeMillis)) { response: DropBoxGetNextEntryResponse -> response.entry }
 
     suspend fun <R> sleep(
         delaySeconds: Int,
@@ -162,10 +149,12 @@ class ReporterClient(
     suspend fun sendFileToLinkedDevice(file: File, dropboxTag: String): StdResult<Unit> {
         return withVersion(
             context = "uploadfile",
-            minimumVersion = MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS
+            minimumVersion = MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS,
         ) {
             val descriptor = ParcelFileDescriptor.open(
-                file, ParcelFileDescriptor.MODE_READ_ONLY, MAIN_THREAD_HANDLER
+                file,
+                ParcelFileDescriptor.MODE_READ_ONLY,
+                MAIN_THREAD_HANDLER,
             ) {
                 file.deleteSilently()
             }
@@ -188,7 +177,7 @@ class ReporterClient(
     suspend fun setReporterSettings(settings: SetReporterSettingsRequest): StdResult<Unit> =
         withVersion(
             context = "reportersettings",
-            minimumVersion = MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS
+            minimumVersion = MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS,
         ) {
             send(settings) { _: SetReporterSettingsResponse -> }
         }
@@ -205,8 +194,8 @@ class ReporterClient(
             } else {
                 Result.failure(
                     UnsupportedOperationException(
-                        "Unsupported request for $context ($version < $minimumVersion)".also { Logger.v(it) }
-                    )
+                        "Unsupported request for $context ($version < $minimumVersion)".also { Logger.v(it) },
+                    ),
                 )
             }
         }
@@ -241,7 +230,10 @@ class ReporterClient(
             }
         }
 
-    private fun errorOrUnexpectedResponseException(request: ServiceMessage, response: ServiceMessage?): Throwable =
+    private fun errorOrUnexpectedResponseException(
+        request: ServiceMessage,
+        response: ServiceMessage?,
+    ): Throwable =
         when (response) {
             is ErrorResponse -> ErrorResponseException("Error response to $request: ${response.error}")
             else -> UnexpectedResponseException("Unexpected response to $request: $response")

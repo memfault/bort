@@ -13,9 +13,9 @@ import com.memfault.bort.shared.InternalMetric.Companion.sendMetric
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.goAsync
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
 import java.io.File
 import javax.inject.Inject
-import kotlinx.coroutines.flow.first
 
 /**
  * This receiver ensures that the initial state of the updater is correctly set once the device boots. It deletes
@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.first
 @AndroidEntryPoint
 class BootCompleteReceiver : BroadcastReceiver() {
     @Inject lateinit var updaterSettingsProvider: SoftwareUpdateSettingsProvider
+
     @Inject lateinit var updater: Updater
 
     override fun onReceive(context: Context, intent: Intent?) {
@@ -44,7 +45,7 @@ class BootCompleteReceiver : BroadcastReceiver() {
             mapOf(
                 PARAM_APP_VERSION_NAME to BuildConfig.APP_VERSION_NAME,
                 PARAM_APP_VERSION_CODE to BuildConfig.APP_VERSION_CODE,
-            )
+            ),
         )
 
         PeriodicSoftwareUpdateWorker.schedule(context, updaterSettingsProvider)
@@ -57,13 +58,16 @@ class BootCompleteReceiver : BroadcastReceiver() {
                         currentState.updatingFromVersion != updaterSettingsProvider.get().currentVersion
                     context.sendMetric(
                         InternalMetric(
-                            key = if (updateSuccessful) OTA_REBOOT_UPDATE_SUCCESS else OTA_REBOOT_UPDATE_ERROR
-                        )
+                            key = if (updateSuccessful) OTA_REBOOT_UPDATE_SUCCESS else OTA_REBOOT_UPDATE_ERROR,
+                        ),
                     )
                     // Emit actions if clients want to let users know about update failures
                     updater.triggerEvent(
-                        if (updateSuccessful) Event.RebootToUpdateSucceeded
-                        else Event.RebootToUpdateFailed
+                        if (updateSuccessful) {
+                            Event.RebootToUpdateSucceeded
+                        } else {
+                            Event.RebootToUpdateFailed
+                        },
                     )
                 }
 

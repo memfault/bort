@@ -7,11 +7,11 @@ import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.RemoteException
 import com.memfault.bort.shared.Logger
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 typealias ServiceGetter<S> = suspend () -> S
 

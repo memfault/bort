@@ -17,15 +17,15 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import java.io.File
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.hours
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.File
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 
 class MarFileHoldingAreaTest {
     private val combinedTimeProvider = FakeCombinedTimeProvider
@@ -355,7 +355,7 @@ class MarFileHoldingAreaTest {
         marMaxUnsampledAge = { maxMarUnsampledAge },
         marMaxUnsampledBytes = { maxMarUnsampledBytes },
         deviceInfoProvider = FakeDeviceInfoProvider(),
-        projectKey = { "" }
+        projectKey = { "" },
     )
 
     private fun assertMarFileInHoldingArea(

@@ -29,7 +29,7 @@ class ReporterSelfTester
 ) {
     suspend fun run(): Boolean =
         listOf(
-            initializedTestCase
+            initializedTestCase,
         ).map { case ->
             try {
                 Logger.test("Running $case...")

@@ -3,7 +3,7 @@ package com.memfault.bort.logcat
 import com.memfault.bort.LogcatCollectionId
 
 class FakeNextLogcatCidProvider(
-    private val values: Iterator<LogcatCollectionId>
+    private val values: Iterator<LogcatCollectionId>,
 ) : NextLogcatCidProvider {
     override var cid: LogcatCollectionId = values.next()
 
@@ -21,6 +21,6 @@ fun generateLogcatCollectionIds() =
 fun generateUUIDs() = sequence {
     yieldAll(
         generateSequence(1L) { it + 1 }
-            .map { java.util.UUID(0, it) }
+            .map { java.util.UUID(0, it) },
     )
 }

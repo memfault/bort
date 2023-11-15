@@ -37,4 +37,4 @@ private:
     std::atomic<uint32_t> counter;
     std::unique_ptr<TokenBucketRateLimiter> rateLimiter;
 };
-}
+}  // namespace structured

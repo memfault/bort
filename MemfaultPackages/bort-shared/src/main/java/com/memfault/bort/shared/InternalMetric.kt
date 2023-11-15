@@ -59,7 +59,7 @@ data class InternalMetric(
             Intent(INTENT_ACTION_INTERNAL_METRIC).apply {
                 putExtra(CONTENT_VALUES_KEY, Json.encodeToString(serializer(), internalMetric))
                 component = ComponentName.createRelative(BuildConfig.BORT_APPLICATION_ID, RECEIVER_CLASS)
-            }
+            },
         )
     }
 }

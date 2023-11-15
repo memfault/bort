@@ -1,16 +1,16 @@
 package com.memfault.bort
 
-import java.io.File
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import java.io.File
 
 class FileAsAbsolutePathSerializer : KSerializer<File> {
     override val descriptor = PrimitiveSerialDescriptor(
         "com.memfault.bort.FileAsAbsolutePathSerializer",
-        PrimitiveKind.STRING
+        PrimitiveKind.STRING,
     )
 
     override fun deserialize(decoder: Decoder): File =

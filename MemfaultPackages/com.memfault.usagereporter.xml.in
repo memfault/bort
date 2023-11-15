@@ -1,8 +1,6 @@
 <permissions>
     <privapp-permissions package="com.memfault.usagereporter">
-        <!-- DropBoxManager.getNextEntry() requires these: -->
         <permission name="android.permission.READ_LOGS" />
-        <permission name="android.permission.PACKAGE_USAGE_STATS" />
         <!-- UserHandle.CURRENT and battery stats require this:-->
         <permission name="android.permission.INTERACT_ACROSS_USERS" />
     </privapp-permissions>

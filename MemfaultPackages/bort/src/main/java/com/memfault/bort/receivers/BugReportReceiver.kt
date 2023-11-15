@@ -22,21 +22,27 @@ import com.memfault.bort.shared.goAsync
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.uploader.EnqueueUpload
 import dagger.hilt.android.AndroidEntryPoint
-import java.io.File
-import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class BugReportReceiver : BortEnabledFilteringReceiver(
-    setOf(INTENT_ACTION_BUGREPORT_FINISHED)
+    setOf(INTENT_ACTION_BUGREPORT_FINISHED),
 ) {
     @Inject lateinit var settingsProvider: SettingsProvider
+
     @Inject lateinit var pendingBugReportRequestAccessor: PendingBugReportRequestAccessor
+
     @Inject lateinit var bortSystemCapabilities: BortSystemCapabilities
+
     @Inject lateinit var temporaryFileFactory: TemporaryFileFactory
+
     @Inject lateinit var enqueueUpload: EnqueueUpload
+
     @Inject lateinit var combinedTimeProvider: CombinedTimeProvider
+
     @Inject lateinit var zipCompressionLevel: ZipCompressionLevel
 
     override fun onReceivedAndEnabled(context: Context, intent: Intent, action: String) {
@@ -98,9 +104,12 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
 
     private fun getPendingRequest(requestId: String?, context: Context) =
         pendingBugReportRequestAccessor.compareAndSwap(null) {
-            if (it == null) false // timeout task has run already
-            else (it.requestId == requestId).also { matches ->
-                if (matches) BugReportRequestTimeoutTask.cancel(context)
+            if (it == null) {
+                false // timeout task has run already
+            } else {
+                (it.requestId == requestId).also { matches ->
+                    if (matches) BugReportRequestTimeoutTask.cancel(context)
+                }
             }
         }
 }

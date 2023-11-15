@@ -6,13 +6,13 @@ import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.time.BoxedDuration
 import com.memfault.bort.time.DurationAsMillisecondsLong
 import com.memfault.bort.time.boxed
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
 @Serializable
 data class FetchedSettings(
@@ -102,6 +102,13 @@ data class FetchedSettings(
     @SerialName("drop_box.scrub_tombstones")
     val dropBoxScrubTombstones: Boolean = false,
 
+    @SerialName("drop_box.process_immediately")
+    val dropBoxProcessImmediately: Boolean = true,
+
+    @SerialName("drop_box.polling_interval_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val dropBoxPollingInterval: BoxedDuration = 15.minutes.boxed(),
+
     @SerialName("drop_box.java_exceptions.rate_limiting_settings")
     val dropBoxJavaExceptionsRateLimitingSettings: RateLimitingSettings,
 
@@ -147,9 +154,6 @@ data class FetchedSettings(
 
     @SerialName("http_api.files_base_url")
     val httpApiFilesBaseUrl: String,
-
-    @SerialName("http_api.ingress_base_url")
-    val httpApiIngressBaseUrl: String,
 
     @SerialName("http_api.upload_compression_enabled")
     val httpApiUploadCompressionEnabled: Boolean,
@@ -266,6 +270,15 @@ data class FetchedSettings(
     @SerialName("metrics.max_num_app_versions")
     val metricsMaxNumAppVersions: Int = 50,
 
+    @SerialName("network.data_source_enabled")
+    val networkDataSourceEnabled: Boolean = true,
+
+    @SerialName("network.collection_receive_threshold_kb")
+    val networkCollectionReceiveThresholdKb: Long = 1_000L,
+
+    @SerialName("network.collection_transmit_threshold_kb")
+    val networkCollectionTransmitThresholdKb: Long = 1_000L,
+
     @SerialName("metrics.reporter_collection_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val metricsReporterCollectionInterval: BoxedDuration = 10.minutes.boxed(),
@@ -370,7 +383,7 @@ data class FetchedSettings(
 ) {
     @Serializable
     data class FetchedSettingsContainer(
-        val data: FetchedSettings
+        val data: FetchedSettings,
     )
 
     companion object {

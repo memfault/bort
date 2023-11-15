@@ -8,9 +8,9 @@ import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PackageManagerCommand
 import com.memfault.bort.shared.result.isSuccess
-import kotlin.time.Duration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration
 
 class SelfTestPackageManager(
     private val reporterServiceConnector: ReporterServiceConnector,
@@ -24,11 +24,11 @@ class SelfTestPackageManager(
             PackageManagerTestCase(PackageManagerCommand(checkin = true), "vers,"),
             PackageManagerTestCase(
                 PackageManagerCommand(cmdOrAppId = PackageManagerCommand.CMD_PACKAGES),
-                "Packages:"
+                "Packages:",
             ),
             PackageManagerTestCase(
                 PackageManagerCommand(cmdOrAppId = APPLICATION_ID_MEMFAULT_USAGE_REPORTER),
-                "Packages:"
+                "Packages:",
             ),
         )
         return reporterServiceConnector.connect { getClient ->

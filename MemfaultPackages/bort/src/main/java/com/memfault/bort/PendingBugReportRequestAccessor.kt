@@ -35,8 +35,11 @@ class PendingBugReportRequestAccessor @Inject constructor(
     ): Pair<Boolean, BugReportRequest?> =
         lock.withLock {
             get().let { currentValue ->
-                if (predicate(currentValue)) Pair(true, currentValue).also { set(newValue) }
-                else Pair(false, null)
+                if (predicate(currentValue)) {
+                    Pair(true, currentValue).also { set(newValue) }
+                } else {
+                    Pair(false, null)
+                }
             }
         }
 }
@@ -51,16 +54,19 @@ class RealPendingBugReportRequestStorage @Inject constructor(
 ) {
     override fun write(request: BugReportRequest?) =
         super.setValue(
-            request?.let { BortJson.encodeToString(BugReportRequest.serializer(), it) } ?: ""
+            request?.let { BortJson.encodeToString(BugReportRequest.serializer(), it) } ?: "",
         )
 
     override fun read(): BugReportRequest? =
         super.getValue().let {
-            if (it.isBlank()) return null
-            else try {
-                BortJson.decodeFromString(BugReportRequest.serializer(), it)
-            } catch (e: Exception) {
-                null
+            if (it.isBlank()) {
+                return null
+            } else {
+                try {
+                    BortJson.decodeFromString(BugReportRequest.serializer(), it)
+                } catch (e: Exception) {
+                    null
+                }
             }
         }
 }

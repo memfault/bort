@@ -42,7 +42,7 @@ class TestOtaApp : OtaApp() {
             is State.UpdateAvailable -> {
                 testLog(
                     "update available version=${state.ota.version} url=${state.ota.url} " +
-                        "isForced=${state.ota.isForced}"
+                        "isForced=${state.ota.isForced}",
                 )
             }
             is State.ReadyToInstall -> {

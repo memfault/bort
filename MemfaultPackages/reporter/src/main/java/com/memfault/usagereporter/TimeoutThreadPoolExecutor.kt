@@ -16,7 +16,11 @@ interface TimeoutRunnable : Runnable {
 }
 
 class TimeoutThreadPoolExecutor(nThreads: Int) : ThreadPoolExecutor(
-    nThreads, nThreads, 0L, TimeUnit.MILLISECONDS, LinkedBlockingQueue()
+    nThreads,
+    nThreads,
+    0L,
+    TimeUnit.MILLISECONDS,
+    LinkedBlockingQueue(),
 ) {
     private val timeoutExecutor = Executors.newSingleThreadScheduledExecutor()
 
@@ -28,7 +32,7 @@ class TimeoutThreadPoolExecutor(nThreads: Int) : ThreadPoolExecutor(
                         task.handleTimeout()
                     }
                 },
-                timeout
+                timeout,
             )
         }
 

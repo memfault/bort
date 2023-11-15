@@ -3,6 +3,7 @@ package com.memfault.bort.metrics
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
 import com.memfault.bort.metrics.HighResTelemetry.Datum
+import com.memfault.bort.metrics.HighResTelemetry.MetricType
 import com.memfault.bort.metrics.HighResTelemetry.MetricType.Gauge
 import com.memfault.bort.metrics.HighResTelemetry.Rollup
 import com.memfault.bort.metrics.HighResTelemetry.RollupMetadata
@@ -11,16 +12,18 @@ import com.memfault.bort.parsers.BatteryStatsSummaryParser.BatteryState
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.BatteryStatsSummary
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.DischargeData
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.PowerUseItemData
+import com.memfault.bort.parsers.BatteryStatsSummaryParser.PowerUseSummary
 import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.shared.BatteryStatsCommand
 import com.memfault.bort.shared.Logger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.float
 import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * We periodically collect a batterystats `--checkin` report, which includes summary metrics describing the period
@@ -53,12 +56,15 @@ class BatterystatsSummaryCollector @Inject constructor(
 ) {
     suspend fun collectSummaryCheckin(): BatteryStatsResult {
         temporaryFileFactory.createTemporaryFile(
-            "batterystats", suffix = ".txt"
+            "batterystats",
+            suffix = ".txt",
         ).useFile { batteryStatsFile, _ ->
             withContext(Dispatchers.IO) {
                 batteryStatsFile.outputStream().use {
                     runBatteryStats.runBatteryStats(
-                        it, BatteryStatsCommand(checkin = true), settings.commandTimeout
+                        it,
+                        BatteryStatsCommand(checkin = true),
+                        settings.commandTimeout,
                     )
                 }
             }
@@ -75,13 +81,18 @@ class BatterystatsSummaryCollector @Inject constructor(
             val hrt = mutableSetOf<Rollup>()
             val report = mutableMapOf<String, JsonPrimitive>()
 
-            fun addHrtRollup(name: String, value: JsonPrimitive) {
+            fun addHrtRollup(
+                name: String,
+                value: JsonPrimitive,
+                internal: Boolean = false,
+                metricType: MetricType = Gauge,
+            ) {
                 val rollup = Rollup(
                     metadata = RollupMetadata(
                         stringKey = name,
-                        metricType = Gauge,
+                        metricType = metricType,
                         dataType = DoubleType,
-                        internal = false,
+                        internal = internal,
                     ),
                     data = listOf(Datum(t = summary.timestampMs, value = value)),
                 )
@@ -111,6 +122,45 @@ class BatterystatsSummaryCollector @Inject constructor(
                 report[ESTIMATED_BATTERY_CAPACITY] = estimatedCapacityMah
             }
 
+            if (summary.powerUseSummary.originalBatteryCapacity > 0 &&
+                summary.batteryState.estimatedBatteryCapacity > 0
+            ) {
+                val originalBatteryCapacityMah = JsonPrimitive(summary.powerUseSummary.originalBatteryCapacity)
+                addHrtRollup(
+                    name = ORIGINAL_BATTERY_CAPACITY,
+                    value = originalBatteryCapacityMah,
+                )
+                report[ORIGINAL_BATTERY_CAPACITY] = originalBatteryCapacityMah
+
+                val computedCapacity = JsonPrimitive(summary.powerUseSummary.computedCapacityMah)
+
+                /*
+                Internal because it may differ from the ESTIMATED_BATTERY_CAPACITY metric we are already
+                collecting. Long term we should compare these values and determine if they are the same or
+                one is more accurate
+                */
+                addHrtRollup(
+                    name = COMPUTED_BATTERY_CAPACITY,
+                    value = computedCapacity,
+                    internal = true,
+                )
+
+                val minCapacityMah = JsonPrimitive(summary.powerUseSummary.minCapacityMah)
+                addHrtRollup(name = MIN_BATTERY_CAPACITY, value = minCapacityMah)
+                report[MIN_BATTERY_CAPACITY] = minCapacityMah
+
+                val maxCapacityMah = JsonPrimitive(summary.powerUseSummary.maxCapacityMah)
+                addHrtRollup(name = MAX_BATTERY_CAPACITY, value = maxCapacityMah)
+                report[MAX_BATTERY_CAPACITY] = maxCapacityMah
+
+                val estimatedCapacityMah = JsonPrimitive(summary.batteryState.estimatedBatteryCapacity)
+                val batteryStateOfHealth = JsonPrimitive(
+                    ((estimatedCapacityMah.float / originalBatteryCapacityMah.float) * 100),
+                )
+                addHrtRollup(name = BATTERY_STATE_OF_HEALTH, value = batteryStateOfHealth)
+                report[BATTERY_STATE_OF_HEALTH] = batteryStateOfHealth
+            }
+
             if (reportBatteryDuration.isPositive()) {
                 // Per-component power usage summary (only HRT, because we can't store per-app metrics).
                 diff.componentPowerUse.forEach { component ->
@@ -137,6 +187,11 @@ class BatterystatsSummaryCollector @Inject constructor(
         const val SCREEN_ON_BATTERY_DRAIN_PER_HOUR = "screen_on_battery_drain_%/hour"
         const val COMPONENT_USE_PER_HOUR = "battery_use_%/hour_"
         const val ESTIMATED_BATTERY_CAPACITY = "estimated_battery_capacity_mah"
+        const val ORIGINAL_BATTERY_CAPACITY = "original_battery_capacity_mah"
+        const val COMPUTED_BATTERY_CAPACITY = "computed_battery_capacity_mah"
+        const val MIN_BATTERY_CAPACITY = "min_battery_capacity_mah"
+        const val MAX_BATTERY_CAPACITY = "max_battery_capacity_mah"
+        const val BATTERY_STATE_OF_HEALTH = "battery_state_of_health_%"
     }
 }
 
@@ -169,6 +224,7 @@ fun BatteryStatsSummary.diffFromPrevious(previous: BatteryStatsSummary?): Batter
             batteryState = batteryState - previous.batteryState,
             dischargeData = dischargeData - previous.dischargeData,
             powerUseItemData = powerUseItemData - previous.powerUseItemData,
+            powerUseSummary = powerUseSummary,
             timestampMs = batteryState.batteryRealtimeMs - previous.batteryState.batteryRealtimeMs,
         )
     }
@@ -197,7 +253,7 @@ fun BatteryStatsSummary.diffFromPrevious(previous: BatteryStatsSummary?): Batter
                     totalPowerPercent = (it.totalPowerMaH / batteryState.estimatedBatteryCapacity) * 100,
                 )
             }
-            .toSet()
+            .toSet(),
     )
 }
 
@@ -205,7 +261,7 @@ private operator fun BatteryState.minus(other: BatteryState) = BatteryState(
     batteryRealtimeMs = batteryRealtimeMs - other.batteryRealtimeMs,
     startClockTimeMs = startClockTimeMs - other.startClockTimeMs,
     estimatedBatteryCapacity = estimatedBatteryCapacity,
-    screenOffRealtimeMs = screenOffRealtimeMs - other.screenOffRealtimeMs
+    screenOffRealtimeMs = screenOffRealtimeMs - other.screenOffRealtimeMs,
 )
 
 private operator fun DischargeData.minus(other: DischargeData) = DischargeData(
@@ -220,6 +276,13 @@ private operator fun Set<PowerUseItemData>.minus(other: Set<PowerUseItemData>) =
         totalPowerMaH = newItem.totalPowerMaH - prevItem.totalPowerMaH,
     )
 }.toSet()
+
+private operator fun PowerUseSummary.minus(other: PowerUseSummary) = PowerUseSummary(
+    originalBatteryCapacity = originalBatteryCapacity - other.originalBatteryCapacity,
+    computedCapacityMah = computedCapacityMah - other.computedCapacityMah,
+    minCapacityMah = minCapacityMah - other.minCapacityMah,
+    maxCapacityMah = maxCapacityMah - other.maxCapacityMah,
+)
 
 private fun Double.proRataValuePerHour(period: Duration, dp: Int = 2) =
     ((this / period.inWholeMilliseconds.toDouble()) * 1.hours.inWholeMilliseconds.toDouble()).roundTo(dp)

@@ -64,8 +64,11 @@ open class DynamicSettingsProvider @Inject constructor(
 
     override val httpApiSettings = object : HttpApiSettings {
         override val uploadNetworkConstraint: NetworkConstraint
-            get() = if (settings.httpApiUploadNetworkConstraintAllowMeteredConnection) CONNECTED
-            else UNMETERED
+            get() = if (settings.httpApiUploadNetworkConstraintAllowMeteredConnection) {
+                CONNECTED
+            } else {
+                UNMETERED
+            }
         override val uploadCompressionEnabled
             get() = settings.httpApiUploadCompressionEnabled
         override val projectKey get() = projectKeyProvider.projectKey
@@ -73,8 +76,6 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.httpApiFilesBaseUrl
         override val deviceBaseUrl
             get() = settings.httpApiDeviceBaseUrl
-        override val ingressBaseUrl
-            get() = settings.httpApiIngressBaseUrl
         override val connectTimeout
             get() = settings.httpApiConnectTimeout.duration
         override val writeTimeout
@@ -89,6 +90,7 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.httpApiBatchMarUploads && !devMode.isEnabled()
         override val batchedMarUploadPeriod: Duration
             get() = settings.httpApiBatchedMarUploadPeriod.duration
+
         // TODO also true if fleet sampling enabled, but we don't know that
         // Only device config is supported in client/server mode.
         override suspend fun useDeviceConfig(): Boolean =
@@ -157,6 +159,10 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.dropBoxExcludedTags
         override val scrubTombstones: Boolean
             get() = settings.dropBoxScrubTombstones
+        override val processImmediately: Boolean
+            get() = settings.dropBoxProcessImmediately || devMode.isEnabled()
+        override val pollingInterval: Duration
+            get() = settings.dropBoxPollingInterval.duration
     }
 
     override val metricsSettings = object : MetricsSettings {
@@ -221,6 +227,15 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.fileUploadHoldingAreaMaxStoredEventsOfInterest
     }
 
+    override val networkUsageSettings = object : NetworkUsageSettings {
+        override val dataSourceEnabled: Boolean
+            get() = settings.networkDataSourceEnabled
+        override val collectionReceiveThresholdKb: Long
+            get() = settings.networkCollectionReceiveThresholdKb
+        override val collectionTransmitThresholdKb: Long
+            get() = settings.networkCollectionTransmitThresholdKb
+    }
+
     override val rebootEventsSettings = object : RebootEventsSettings {
         override val dataSourceEnabled: Boolean
             get() = settings.rebootEventsDataSourceEnabled
@@ -268,8 +283,11 @@ open class DynamicSettingsProvider @Inject constructor(
         override val updateCheckInterval: Duration
             get() = settings.otaUpdateCheckInterval.duration
         override val downloadNetworkConstraint: NetworkConstraint
-            get() = if (settings.otaDownloadNetworkConstraintAllowMeteredConnection) CONNECTED
-            else UNMETERED
+            get() = if (settings.otaDownloadNetworkConstraintAllowMeteredConnection) {
+                CONNECTED
+            } else {
+                UNMETERED
+            }
     }
 
     override val storageSettings = object : StorageSettings {

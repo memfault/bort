@@ -42,7 +42,7 @@ internal fun restartPeriodicLogcatCollection(
 
     periodicWorkRequest<LogcatCollectionTask>(
         collectionInterval,
-        workDataOf()
+        workDataOf(),
     ) {
         addTag(WORK_TAG)
         if (!collectImmediately) {
@@ -53,7 +53,7 @@ internal fun restartPeriodicLogcatCollection(
             .enqueueUniquePeriodicWork(
                 WORK_UNIQUE_NAME_PERIODIC,
                 ExistingPeriodicWorkPolicy.UPDATE,
-                workRequest
+                workRequest,
             )
     }
 }

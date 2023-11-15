@@ -80,7 +80,7 @@ subprojects {
     apply plugin: "org.jlleitschuh.gradle.ktlint"
 
     ktlint {
-        version = "0.39.0"
+        version = "0.48.2"
         android = true
         outputColorName = "RED"
     }

@@ -31,7 +31,7 @@ class PendingBugReportRequestAccessorTest {
             Pair(true, currentValue),
             accessor.compareAndSwap(newValue) {
                 it == currentValue
-            }
+            },
         )
         assertEquals(newValue, accessor.get())
     }
@@ -42,7 +42,7 @@ class PendingBugReportRequestAccessorTest {
             Pair(false, null),
             accessor.compareAndSwap(newValue) {
                 it == null
-            }
+            },
         )
         assertEquals(currentValue, accessor.get())
     }

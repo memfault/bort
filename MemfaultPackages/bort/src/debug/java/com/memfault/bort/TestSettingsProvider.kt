@@ -63,15 +63,21 @@ class TestSettingsProvider @Inject constructor(
                     LogcatFilterSpec("bort", LogcatPriority.VERBOSE),
                     LogcatFilterSpec("bort-test", LogcatPriority.VERBOSE),
                 )
-            } else settings.logcatSettings.filterSpecs
+            } else {
+                settings.logcatSettings.filterSpecs
+            }
     }
 
     // Include data scrubbing rules when testing
     override val dataScrubbingSettings = object : DataScrubbingSettings by settings.dataScrubbingSettings {
         override val rules: List<DataScrubbingRule>
-            get() = if (override()) listOf(
-                EmailScrubbingRule,
-                CredentialScrubbingRule,
-            ) else settings.dataScrubbingSettings.rules
+            get() = if (override()) {
+                listOf(
+                    EmailScrubbingRule,
+                    CredentialScrubbingRule,
+                )
+            } else {
+                settings.dataScrubbingSettings.rules
+            }
     }
 }

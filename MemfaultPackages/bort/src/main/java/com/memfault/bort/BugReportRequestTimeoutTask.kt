@@ -29,11 +29,15 @@ class BugReportRequestTimeoutTask @Inject constructor(
 
     fun doWork(requestId: String?) = TaskResult.SUCCESS.also {
         pendingBugReportRequestAccessor.compareAndSwap(null) {
-            if (it == null) false
-            else it.requestId == requestId
+            if (it == null) {
+                false
+            } else {
+                it.requestId == requestId
+            }
         }.also { (_, request) ->
             request?.broadcastReply(
-                application, BugReportRequestStatus.ERROR_TIMEOUT
+                application,
+                BugReportRequestStatus.ERROR_TIMEOUT,
             )
         }
     }
@@ -45,12 +49,12 @@ class BugReportRequestTimeoutTask @Inject constructor(
             context: Context,
             requestId: String?,
             existingWorkPolicy: ExistingWorkPolicy,
-            duration: Duration = DEFAULT_TIMEOUT
+            duration: Duration = DEFAULT_TIMEOUT,
         ) =
             oneTimeWorkRequest<BugReportRequestTimeoutTask>(
                 workDataOf(
                     REQUEST_ID_INPUT_DATA_KEY to requestId,
-                )
+                ),
             ) {
                 addTag(TIMEOUT_WORK_TAG)
                 setInitialDelay(duration.toJavaDuration())
@@ -59,7 +63,7 @@ class BugReportRequestTimeoutTask @Inject constructor(
                     .enqueueUniqueWork(
                         TIMEOUT_WORK_UNIQUE_NAME_PERIODIC,
                         existingWorkPolicy,
-                        workRequest
+                        workRequest,
                     )
             }
 

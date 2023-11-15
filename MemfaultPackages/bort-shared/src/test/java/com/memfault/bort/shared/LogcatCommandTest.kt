@@ -1,9 +1,9 @@
 package com.memfault.bort.shared
 
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 class LogcatCommandTest {
     @Test
@@ -13,9 +13,9 @@ class LogcatCommandTest {
             LogcatCommand(
                 filterSpecs = listOf(
                     LogcatFilterSpec(tag = Logger.getTag(), priority = LogcatPriority.DEBUG),
-                    LogcatFilterSpec(priority = LogcatPriority.ERROR)
-                )
-            ).toList()
+                    LogcatFilterSpec(priority = LogcatPriority.ERROR),
+                ),
+            ).toList(),
         )
     }
 
@@ -23,7 +23,7 @@ class LogcatCommandTest {
     fun format() {
         assertEquals(
             listOf("logcat", "-d", "-v", "brief"),
-            LogcatCommand(format = LogcatFormat.BRIEF).toList()
+            LogcatCommand(format = LogcatFormat.BRIEF).toList(),
         )
     }
 
@@ -42,7 +42,7 @@ class LogcatCommandTest {
                 "-v", "UTC",
                 "-v", "year",
                 "-v", "zone",
-                "-v", "nsec"
+                "-v", "nsec",
             ),
             LogcatCommand(
                 formatModifiers = listOf(
@@ -56,9 +56,9 @@ class LogcatCommandTest {
                     LogcatFormatModifier.UTC,
                     LogcatFormatModifier.YEAR,
                     LogcatFormatModifier.ZONE,
-                    LogcatFormatModifier.NSEC
-                )
-            ).toList()
+                    LogcatFormatModifier.NSEC,
+                ),
+            ).toList(),
         )
     }
 
@@ -66,7 +66,7 @@ class LogcatCommandTest {
     fun dividers() {
         assertEquals(
             listOf("logcat", "-D", "-d"),
-            LogcatCommand(dividers = true).toList()
+            LogcatCommand(dividers = true).toList(),
         )
     }
 
@@ -74,7 +74,7 @@ class LogcatCommandTest {
     fun clear() {
         assertEquals(
             listOf("logcat", "-c", "-d"),
-            LogcatCommand(clear = true).toList()
+            LogcatCommand(clear = true).toList(),
         )
     }
 
@@ -82,7 +82,7 @@ class LogcatCommandTest {
     fun maxCount() {
         assertEquals(
             listOf("logcat", "-d", "-m", "4"),
-            LogcatCommand(maxCount = 4).toList()
+            LogcatCommand(maxCount = 4).toList(),
         )
     }
 
@@ -90,7 +90,7 @@ class LogcatCommandTest {
     fun recentCount() {
         assertEquals(
             listOf("logcat", "-d", "-T", "4"),
-            LogcatCommand(recentCount = 4).toList()
+            LogcatCommand(recentCount = 4).toList(),
         )
     }
 
@@ -101,8 +101,8 @@ class LogcatCommandTest {
             listOf("logcat", "-d", "-T", "01-01 00:00:00.123456789"),
             LogcatCommand(
                 recentSince = LocalDateTime.ofEpochSecond(0, 123456789, zeroOffset),
-                getSdkVersion = { 23 }
-            ).toList()
+                getSdkVersion = { 23 },
+            ).toList(),
         )
     }
 
@@ -113,8 +113,8 @@ class LogcatCommandTest {
             listOf("logcat", "-d", "-T", "987654321.123456789"),
             LogcatCommand(
                 recentSince = LocalDateTime.ofEpochSecond(987654321, 123456789, zeroOffset),
-                getSdkVersion = { 24 }
-            ).toList()
+                getSdkVersion = { 24 },
+            ).toList(),
         )
     }
 
@@ -122,7 +122,7 @@ class LogcatCommandTest {
     fun getBufferSize() {
         assertEquals(
             listOf("logcat", "-d", "-g"),
-            LogcatCommand(getBufferSize = true).toList()
+            LogcatCommand(getBufferSize = true).toList(),
         )
     }
 
@@ -130,7 +130,7 @@ class LogcatCommandTest {
     fun last() {
         assertEquals(
             listOf("logcat", "-d", "-L"),
-            LogcatCommand(last = true).toList()
+            LogcatCommand(last = true).toList(),
         )
     }
 
@@ -148,7 +148,7 @@ class LogcatCommandTest {
                 "-b", "security",
                 "-b", "kernel",
                 "-b", "all",
-                "-d"
+                "-d",
             ),
             LogcatCommand(
                 buffers = listOf(
@@ -160,9 +160,9 @@ class LogcatCommandTest {
                     LogcatBufferId.STATS,
                     LogcatBufferId.SECURITY,
                     LogcatBufferId.KERNEL,
-                    LogcatBufferId.ALL
-                )
-            ).toList()
+                    LogcatBufferId.ALL,
+                ),
+            ).toList(),
         )
     }
 
@@ -170,7 +170,7 @@ class LogcatCommandTest {
     fun binary() {
         assertEquals(
             listOf("logcat", "-d", "-B"),
-            LogcatCommand(binary = true).toList()
+            LogcatCommand(binary = true).toList(),
         )
     }
 
@@ -178,7 +178,7 @@ class LogcatCommandTest {
     fun statistics() {
         assertEquals(
             listOf("logcat", "-d", "-S"),
-            LogcatCommand(statistics = true).toList()
+            LogcatCommand(statistics = true).toList(),
         )
     }
 
@@ -186,7 +186,7 @@ class LogcatCommandTest {
     fun getPrune() {
         assertEquals(
             listOf("logcat", "-d", "-p"),
-            LogcatCommand(getPrune = true).toList()
+            LogcatCommand(getPrune = true).toList(),
         )
     }
 
@@ -194,7 +194,7 @@ class LogcatCommandTest {
     fun wrap() {
         assertEquals(
             listOf("logcat", "-d", "--wrap"),
-            LogcatCommand(wrap = true).toList()
+            LogcatCommand(wrap = true).toList(),
         )
     }
 
@@ -202,7 +202,7 @@ class LogcatCommandTest {
     fun help() {
         assertEquals(
             listOf("logcat", "-d", "-h"),
-            LogcatCommand(help = true).toList()
+            LogcatCommand(help = true).toList(),
         )
     }
 }

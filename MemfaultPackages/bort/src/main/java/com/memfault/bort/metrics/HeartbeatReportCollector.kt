@@ -8,6 +8,11 @@ import com.memfault.bort.settings.StructuredLogSettings
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.time.Instant
 import javax.inject.Inject
@@ -15,11 +20,6 @@ import javax.inject.Singleton
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toKotlinDuration
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Requests heartbeat report collection, then waits on receiving that report.
@@ -81,7 +81,9 @@ class HeartbeatReportCollector @Inject constructor(
             val remainingTimeout = timeout - elapsed
             val highResFile = if (highResMetricsEnabled) {
                 withTimeoutOrNull(remainingTimeout) { receivedHighResFile?.await() }
-            } else null
+            } else {
+                null
+            }
             return MetricReportWithHighResFile(report, highResFile)
         } finally {
             receivedReport = null

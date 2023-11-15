@@ -27,16 +27,16 @@ class NativeBacktraceParserParseProcessMetadata {
             """
                 Cmd line: com.memfault.bort_e2e_helper
                 ABI: 'x86'
-                
+
                 "bort_e2e_helper" sysTid=2535
-            """.trimIndent().asLines()
+            """.trimIndent().asLines(),
         )
         assertEquals(
             mapOf(
                 "Cmd line" to "com.memfault.bort_e2e_helper",
-                "ABI" to "'x86'"
+                "ABI" to "'x86'",
             ),
-            metadata
+            metadata,
         )
     }
 
@@ -46,9 +46,9 @@ class NativeBacktraceParserParseProcessMetadata {
             NativeBacktraceParser.parseProcessMetadata(
                 """
                 Cmd line
-                
+
                 "bort_e2e_helper" sysTid=2535
-                """.trimIndent().asLines()
+                """.trimIndent().asLines(),
             )
         }
     }
@@ -65,8 +65,8 @@ class NativeBacktraceParserTest {
                     NativeBacktrace.Process(1, "foo"),
                     NativeBacktrace.Process(2, "bar"),
 
-                )
-            )
+                ),
+            ),
         )
     }
 
@@ -83,7 +83,7 @@ Build: generic/aosp_cf_x86_phone/vsoc_x86:9/PPRL.190801.002/root04302340:userdeb
 Hardware: cutf
 Revision: 0
 Bootloader: unknown
-Radio: 
+Radio:
 Kernel: Linux version 4.14.175-g263c7aebe991 (android-build@abfarm201)
 
 

@@ -15,10 +15,6 @@ import com.memfault.bort.shared.RunCommandContinue
 import com.memfault.bort.shared.RunCommandResponse
 import com.memfault.bort.shared.ServiceMessageReplyHandler
 import com.memfault.bort.shared.result.StdResult
-import java.io.Closeable
-import java.io.FileInputStream
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.cancelChildren
@@ -26,6 +22,10 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import java.io.Closeable
+import java.io.FileInputStream
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 private val DEFAULT_INPUT_STREAM_TIMEOUT = 30.seconds
 private val DEFAULT_RESPONSE_TIMEOUT = 5.seconds
@@ -89,9 +89,11 @@ class CommandRunnerClient(
                 val (readFd, writeFd) = ParcelFileDescriptor.createPipe()
                 return CommandRunnerClient(
                     options = CommandRunnerOptions(
-                        outFd = writeFd, redirectErr = mode == StdErrMode.REDIRECT, timeout = timeout
+                        outFd = writeFd,
+                        redirectErr = mode == StdErrMode.REDIRECT,
+                        timeout = timeout,
                     ),
-                    mode = BortCreatesPipes(out = AutoCloseInputStream(readFd), writeFd = writeFd)
+                    mode = BortCreatesPipes(out = AutoCloseInputStream(readFd), writeFd = writeFd),
                 )
             }
         }
@@ -145,7 +147,7 @@ class CommandRunnerClient(
 
     suspend fun <R> run(
         block: suspend (Invocation) -> StdResult<R>,
-        sendRequest: suspend (CommandRunnerOptions) -> StdResult<ServiceMessageReplyHandler<ReporterServiceMessage>>
+        sendRequest: suspend (CommandRunnerOptions) -> StdResult<ServiceMessageReplyHandler<ReporterServiceMessage>>,
     ): StdResult<R> =
         use {
             sendRequest(options).andThen { replyHandler ->

@@ -9,7 +9,7 @@ import javax.inject.Inject
 
 /** A receiver that only runs if the SDK is enabled. */
 abstract class BortEnabledFilteringReceiver(
-    actions: Set<String>
+    actions: Set<String>,
 ) : FilteringReceiver(actions) {
     @Inject lateinit var bortEnabledProvider: BortEnabledProvider
 
@@ -26,7 +26,7 @@ abstract class BortEnabledFilteringReceiver(
 
 /** A receiver that filters intents for the specified actions. */
 abstract class FilteringReceiver(
-    private val actions: Set<String>
+    private val actions: Set<String>,
 ) : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         Logger.v("Received action=${intent?.action}")

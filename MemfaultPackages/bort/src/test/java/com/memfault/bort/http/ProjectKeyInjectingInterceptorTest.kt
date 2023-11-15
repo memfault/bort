@@ -1,6 +1,5 @@
 package com.memfault.bort.http
 
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
@@ -14,6 +13,7 @@ import org.junit.jupiter.api.Test
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.http.POST
+import java.util.concurrent.TimeUnit
 
 interface AuthTestService {
     @POST("/authenticatedApi")
@@ -38,7 +38,7 @@ class ProjectKeyInjectingInterceptorTest {
             .client(
                 OkHttpClient.Builder()
                     .addInterceptor(ProjectKeyInjectingInterceptor({ SECRET }))
-                    .build()
+                    .build(),
             )
             .baseUrl(server.url("/"))
             .build()

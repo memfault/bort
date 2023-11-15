@@ -22,18 +22,22 @@ import com.memfault.bort.shared.LoggerSettings
 import com.memfault.bort.shared.disableAppComponents
 import com.memfault.bort.shared.isPrimaryUser
 import dagger.hilt.android.HiltAndroidApp
-import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @HiltAndroidApp
 open class OtaApp : Application(), Configuration.Provider {
     @Inject lateinit var workerFactory: HiltWorkerFactory
+
     @Inject lateinit var updater: Updater
+
     @Inject lateinit var actionHandler: UpdateActionHandler
+
     @Inject lateinit var otaMode: IsAbDevice
+
     @Inject lateinit var configureStrictMode: ConfigureStrictMode
     private lateinit var appStateListenerJob: Job
     private lateinit var eventListenerJob: Job
@@ -49,7 +53,7 @@ open class OtaApp : Application(), Configuration.Provider {
                 minLogcatLevel = LogLevel.DEBUG,
                 minStructuredLevel = LogLevel.INFO,
                 hrtEnabled = false,
-            )
+            ),
         )
         configureStrictMode.configure()
 
@@ -136,11 +140,17 @@ open class OtaApp : Application(), Configuration.Provider {
         val pendingIntent = PendingIntent.getActivity(this, 0, intent, 0)
 
         val title =
-            if (success) getString(R.string.update_succeeded)
-            else getString(R.string.update_failed)
+            if (success) {
+                getString(R.string.update_succeeded)
+            } else {
+                getString(R.string.update_failed)
+            }
         val contentText =
-            if (success) getString(R.string.update_succeeded_content)
-            else getString(R.string.update_failed_content)
+            if (success) {
+                getString(R.string.update_succeeded_content)
+            } else {
+                getString(R.string.update_failed_content)
+            }
 
         NotificationCompat.Builder(this, UPDATE_AVAILABLE)
             .setSmallIcon(R.drawable.ic_baseline_system_update_24)

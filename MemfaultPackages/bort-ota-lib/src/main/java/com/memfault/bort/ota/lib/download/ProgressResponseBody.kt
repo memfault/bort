@@ -26,8 +26,11 @@ class ProgressResponseBody(
     override fun contentLength(): Long = responseBody.contentLength()
 
     override fun source(): BufferedSource =
-        if (this::bufferedSource.isInitialized) bufferedSource
-        else sourceWithProgress(responseBody.source()).buffer().also { this.bufferedSource = it }
+        if (this::bufferedSource.isInitialized) {
+            bufferedSource
+        } else {
+            sourceWithProgress(responseBody.source()).buffer().also { this.bufferedSource = it }
+        }
 
     private fun sourceWithProgress(source: BufferedSource): Source =
         object : ForwardingSource(source) {

@@ -1,7 +1,12 @@
 <permissions>
     <feature name="$BORT_FEATURE_NAME" />
+    <feature name="com.memfault.bort.privperms" />
     <allow-in-power-save package="$BORT_APPLICATION_ID" />
     <privapp-permissions package="$BORT_APPLICATION_ID">
         <permission name="android.permission.DUMP" />
+        <!-- DropBoxManager.getNextEntry() requires these: -->
+        <permission name="android.permission.READ_LOGS" />
+        <permission name="android.permission.PACKAGE_USAGE_STATS" />
+        <permission name="android.permission.INTERACT_ACROSS_USERS" />
     </privapp-permissions>
 </permissions>

@@ -16,7 +16,7 @@ interface NextBatteryStatsHistoryStartProvider {
 
 @ContributesBinding(SingletonComponent::class, boundType = NextBatteryStatsHistoryStartProvider::class)
 class RealNextBatteryStatsHistoryStartProvider @Inject constructor(
-    sharedPreferences: SharedPreferences
+    sharedPreferences: SharedPreferences,
 ) : NextBatteryStatsHistoryStartProvider, PreferenceKeyProvider<Long>(
     sharedPreferences = sharedPreferences,
     defaultValue = 0,

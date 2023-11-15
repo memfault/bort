@@ -10,10 +10,10 @@ import io.mockk.coVerify
 import io.mockk.coVerifyAll
 import io.mockk.mockk
 import io.mockk.verify
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.ZERO
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.ZERO
 
 class AppVersionsCollectorTest {
     val store: DevicePropertiesStore = mockk(relaxed = true)
@@ -47,7 +47,7 @@ class AppVersionsCollectorTest {
                 Package(id = ABCD_ID, versionName = ABCD_VERSION),
                 Package(id = BCD_ID, versionName = BCD_VERSION),
                 Package(id = BCE_ID, versionName = BCE_VERSION),
-            )
+            ),
         )
         runBlocking {
             collector.updateAppVersions(store)
@@ -89,7 +89,7 @@ class AppVersionsCollectorTest {
                 Package(id = ABCD_ID, versionName = ABCD_VERSION),
                 Package(id = BCD_ID, versionName = BCD_VERSION),
                 Package(id = BCE_ID, versionName = BCE_VERSION),
-            )
+            ),
         )
         runBlocking {
             collector.updateAppVersions(store)

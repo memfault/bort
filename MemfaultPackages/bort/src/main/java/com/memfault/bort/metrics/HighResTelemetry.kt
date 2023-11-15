@@ -1,13 +1,13 @@
 package com.memfault.bort.metrics
 
 import com.memfault.bort.BortJson
-import java.io.File
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromStream
 import kotlinx.serialization.json.encodeToStream
+import java.io.File
 
 // Remember to handle deserializing v1, if this is ever rev'd to v2 (because there might be a metrics service creating
 // v1 files).

@@ -5,11 +5,11 @@ import com.memfault.bort.PackageManagerClient.Util.appIdGuessesFromProcessName
 import com.memfault.bort.parsers.PackageManagerReport
 import io.mockk.coEvery
 import io.mockk.mockk
-import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.minutes
 
 class PackageManagerClientTest {
     lateinit var mockServiceConnector: ReporterServiceConnector
@@ -35,12 +35,12 @@ class PackageManagerClientTest {
         // Valid app IDs must have at least one dot:
         assertEquals(
             listOf("com.memfault.smartsink.bort", "com.memfault.smartsink", "com.memfault"),
-            appIdGuessesFromProcessName("com.memfault.smartsink.bort").toList()
+            appIdGuessesFromProcessName("com.memfault.smartsink.bort").toList(),
         )
 
         assertEquals(
             emptyList<String>(),
-            appIdGuessesFromProcessName("/system/bin/storaged").toList()
+            appIdGuessesFromProcessName("/system/bin/storaged").toList(),
         )
     }
 

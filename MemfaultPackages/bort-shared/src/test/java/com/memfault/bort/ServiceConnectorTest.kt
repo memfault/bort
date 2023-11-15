@@ -35,7 +35,7 @@ class ServiceConnectorTest {
 
     inner class TestServiceConnector(
         context: Context,
-        componentName: ComponentName
+        componentName: ComponentName,
     ) : ServiceConnector<MockService>(context, componentName) {
         override fun createServiceWithBinder(binder: IBinder): MockService {
             return mockServiceFactory.createServiceWithBinder(binder)

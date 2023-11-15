@@ -15,8 +15,8 @@ class TokenBucketKeysTest {
                 unparsedStackFrames = listOf(
                     "android.app.ActivityThread.handleReceiver(ActivityThread.java:3194)",
                     "com.android.internal.os.RuntimeInit.MethodAndArgsCaller.run(RuntimeInit.java:438)",
-                )
-            ).tokenBucketKey()
+                ),
+            ).tokenBucketKey(),
         )
     }
 }

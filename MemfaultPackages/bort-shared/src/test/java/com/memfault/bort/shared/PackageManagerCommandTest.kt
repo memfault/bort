@@ -45,8 +45,9 @@ class PackageManagerCommandTest {
             assertEquals(
                 cmd,
                 PackageManagerCommand.fromBundle(
-                    mockDeserializationBundle(flag = flag), bundleFactory = bundleFactory
-                )
+                    mockDeserializationBundle(flag = flag),
+                    bundleFactory = bundleFactory,
+                ),
             )
         }
     }
@@ -60,8 +61,9 @@ class PackageManagerCommandTest {
         assertEquals(
             cmd,
             PackageManagerCommand.fromBundle(
-                mockDeserializationBundle(cmd = "com.memfault.bort"), bundleFactory = bundleFactory
-            )
+                mockDeserializationBundle(cmd = "com.memfault.bort"),
+                bundleFactory = bundleFactory,
+            ),
         )
     }
 
@@ -73,7 +75,7 @@ class PackageManagerCommandTest {
         }
         assertEquals(
             listOf("dumpsys", "package", "invalid.package.id"),
-            PackageManagerCommand.fromBundle(bundle).toList()
+            PackageManagerCommand.fromBundle(bundle).toList(),
         )
     }
 

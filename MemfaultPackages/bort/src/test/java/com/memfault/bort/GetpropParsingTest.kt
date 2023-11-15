@@ -12,7 +12,7 @@ class GetpropParsingTest {
             |[foo]: [bar baz]
             |[empty]: []
             |
-        """.trimMargin()
+            """.trimMargin(),
         )
 
         assertEquals(
@@ -20,8 +20,8 @@ class GetpropParsingTest {
             mapOf(
                 "persist.sys.timezone" to "Europe/Paris",
                 "foo" to "bar baz",
-                "empty" to ""
-            )
+                "empty" to "",
+            ),
         )
     }
 }

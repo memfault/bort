@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.memfault.reporting.java_test_app"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application
+        android:label="@string/app_name"
+    >
+        <receiver
+            android:name="com.memfault.reporting.JavaTestReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.JAVA_METRIC" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -10,13 +10,18 @@ abstract class TokenBucketFactory(
     val defaultCapacity: Int,
     val defaultPeriod: Duration,
 ) {
-    abstract fun create(count: Int, capacity: Int, period: Duration, periodStartElapsedRealtime: Duration?): TokenBucket
+    abstract fun create(
+        count: Int,
+        capacity: Int,
+        period: Duration,
+        periodStartElapsedRealtime: Duration?,
+    ): TokenBucket
 
     fun create(
         count: Int? = null,
         capacity: Int? = null,
         period: Duration? = null,
-        periodStartElapsedRealtime: Duration? = null
+        periodStartElapsedRealtime: Duration? = null,
     ): TokenBucket =
         create(
             count = count ?: defaultCapacity,
@@ -37,7 +42,7 @@ class RealTokenBucketFactory(
         count: Int,
         capacity: Int,
         period: Duration,
-        periodStartElapsedRealtime: Duration?
+        periodStartElapsedRealtime: Duration?,
     ): TokenBucket =
         TokenBucket(
             capacity = capacity,

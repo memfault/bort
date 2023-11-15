@@ -9,6 +9,7 @@ import com.memfault.bort.addZipEntry
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.settings.HttpApiSettings
 import com.memfault.bort.settings.ZipCompressionLevel
+import kotlinx.serialization.encodeToString
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -16,7 +17,6 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 import javax.inject.Inject
-import kotlinx.serialization.encodeToString
 
 class MarFileWriter @Inject constructor(
     private val httpSettings: HttpApiSettings,
@@ -49,7 +49,7 @@ class MarFileWriter @Inject constructor(
                 writeBatchedMarFile(
                     marFile = file,
                     inputFiles = batch,
-                    compressionLevel = zipCompressionLevel()
+                    compressionLevel = zipCompressionLevel(),
                 )
                 preventDeletion()
                 file
@@ -107,7 +107,12 @@ class MarFileWriter @Inject constructor(
          * If the [inputFile] is not null and does not exist on the the filesystem, throws a [FileMissingException].
          */
         @VisibleForTesting
-        internal fun writeMarFile(marFile: File, manifest: MarManifest, inputFile: File?, compressionLevel: Int) {
+        internal fun writeMarFile(
+            marFile: File,
+            manifest: MarManifest,
+            inputFile: File?,
+            compressionLevel: Int,
+        ) {
             ZipOutputStream(FileOutputStream(marFile)).use { out ->
                 out.setLevel(compressionLevel)
 
@@ -137,7 +142,11 @@ class MarFileWriter @Inject constructor(
         }
 
         @VisibleForTesting
-        internal fun writeBatchedMarFile(marFile: File, inputFiles: List<File>, compressionLevel: Int) {
+        internal fun writeBatchedMarFile(
+            marFile: File,
+            inputFiles: List<File>,
+            compressionLevel: Int,
+        ) {
             ZipOutputStream(FileOutputStream(marFile)).use { out ->
                 out.setLevel(compressionLevel)
 

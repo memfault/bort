@@ -1,10 +1,10 @@
 package com.memfault.bort
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import java.io.File
 import java.util.TimeZone
 import java.util.UUID
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 
 @Serializable
 data class FileUploadToken(

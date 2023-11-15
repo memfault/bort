@@ -24,13 +24,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import java.io.File
-import java.io.OutputStream
-import java.time.Instant
-import java.time.ZoneOffset
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.ZERO
-import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -38,6 +31,13 @@ import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.io.File
+import java.io.OutputStream
+import java.time.Instant
+import java.time.ZoneOffset
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.Duration.Companion.minutes
 
 data class FakeNextLogcatStartTimeProvider(
     override var nextStart: BaseAbsoluteTime,
@@ -67,7 +67,7 @@ class LogcatCollectorTest {
                 runLogcat(
                     capture(outputStreamSlot),
                     capture(commandSlot),
-                    any()
+                    any(),
                 )
             } answers {
                 logcatOutput.let { output ->
@@ -87,7 +87,7 @@ class LogcatCollectorTest {
                     Package(id = "android", userId = 1000),
                     Package(id = "com.memfault.bort", userId = 9008),
                     Package(id = "org.smartcompany.smartcupholder", userId = 9020),
-                )
+                ),
             )
         }
 
@@ -151,7 +151,8 @@ class LogcatCollectorTest {
             |2021-01-18 12:34:02.000000000 +0000  9013  9020 W SmartCupHolder: won't be scrubbed (< first app aid)
             |--------- switch to main
             |2021-01-18 12:34:02.000000000 +0000  9008  9008 W PackageManager: Installing app
-            |""".trimMargin()
+            |
+        """.trimMargin()
         val result = collect()
         assertEquals(
             """2021-01-18 12:34:02.000000000 +0000  9008  9008 I ServiceManager: Waiting...
@@ -162,8 +163,9 @@ class LogcatCollectorTest {
             |2021-01-18 12:34:02.000000000 +0000  9013  9020 W SmartCupHolder: won't be scrubbed (< first app aid)
             |--------- switch to main
             |2021-01-18 12:34:02.000000000 +0000  9008  9008 W PackageManager: Installing app
-            |""".trimMargin(),
-            result.file.readText()
+            |
+            """.trimMargin(),
+            result.file.readText(),
         )
         assertEquals(nextStartInstant, result.command.recentSince?.toInstant(ZoneOffset.UTC))
         assertEquals(initialCid, result.cid)
@@ -198,7 +200,8 @@ class LogcatCollectorTest {
         startTimeProvider.nextStart = AbsoluteTime(nextStartInstant)
         logcatOutput = """2021-01-18 12:34:02.000000000 +0000  9008  9008 I ServiceManager: Waiting...
             |--------- switch to main
-            |""".trimMargin()
+            |
+        """.trimMargin()
         val result = collect()
         assertNotEquals(FAKE_NOW, startTimeProvider.nextStart)
         assertEquals(
@@ -234,8 +237,8 @@ class LogcatCollectorTest {
                     LogcatPriority.getByCliValue(literal),
                     BortJson.decodeFromString(
                         LogcatPrioritySerializer,
-                        json
-                    )
+                        json,
+                    ),
                 )
                 assertEquals(
                     BortJson.encodeToString(LogcatPrioritySerializer, LogcatPriority.getByCliValue(literal)!!),
@@ -253,7 +256,7 @@ class LogcatCollectorTest {
                 Package(id = "net.smartthings.smartcarpet", userId = 1002),
                 Package(id = "net.smartthings.smartshoe", userId = 1004),
                 Package(id = "android", userId = 2000),
-            )
+            ),
         )
 
         val allowList = PackageNameAllowList { it?.contains("smart") ?: false }

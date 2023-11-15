@@ -52,7 +52,7 @@ data class PackageManagerCommand(
             CHECKIN to checkin,
             FILTERS to filters,
             ALL_COMPONENTS to allComponents,
-            HELP to help
+            HELP to help,
         )
 
     override fun toList(): List<String> =
@@ -153,5 +153,6 @@ private const val ALL_COMPONENTS = "--all-components"
 private const val CMD = "CMD"
 
 private const val INVALID_PACKAGE_ID = "invalid.package.id"
+
 // This is arbitrary, but do want to enforce a maximum length for safety
 private const val MAX_APPLICATION_ID_LENGTH = 512

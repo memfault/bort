@@ -38,6 +38,8 @@ import com.memfault.bort.uploader.BACKOFF_DURATION
 import com.memfault.bort.uploader.EnqueuePreparedUploadTask
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -46,8 +48,6 @@ import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 /**
  * Can be either periodic or one-time.
@@ -79,7 +79,7 @@ class MarBatchingTask @Inject constructor(
             val result = cleanupFiles(
                 dir = tempDir,
                 maxDirStorageBytes = storageSettings.bortTempMaxStorageBytes,
-                maxFileAge = storageSettings.bortTempMaxStorageAge
+                maxFileAge = storageSettings.bortTempMaxStorageAge,
             )
             val deleted = result.deletedForStorageCount + result.deletedForAgeCount
             if (deleted > 0) {
@@ -122,7 +122,7 @@ class MarBatchingTask @Inject constructor(
                     .enqueueUniqueWork(
                         WORK_UNIQUE_NAME_ONE_TIME,
                         ExistingWorkPolicy.APPEND_OR_REPLACE,
-                        workRequest
+                        workRequest,
                     )
             }
         }
@@ -143,7 +143,7 @@ class MarBatchingTask @Inject constructor(
                     .enqueueUniquePeriodicWork(
                         WORK_UNIQUE_NAME_PERIODIC,
                         ExistingPeriodicWorkPolicy.UPDATE,
-                        workRequest
+                        workRequest,
                     )
             }
         }

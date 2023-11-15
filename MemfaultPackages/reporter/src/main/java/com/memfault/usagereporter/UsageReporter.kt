@@ -18,7 +18,6 @@ import com.memfault.usagereporter.clientserver.B2BClientServer
 import com.memfault.usagereporter.clientserver.B2BClientServer.Companion.create
 import com.memfault.usagereporter.metrics.ReporterMetrics
 import com.memfault.usagereporter.receivers.ConnectivityReceiver
-import com.memfault.usagereporter.receivers.DropBoxEntryAddedForwardingReceiver
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -26,11 +25,15 @@ import javax.inject.Inject
 class UsageReporter : Application(), Configuration.Provider {
 
     @Inject lateinit var connectivityReceiver: ConnectivityReceiver
-    @Inject lateinit var dropBoxEntryAddedForwardingReceiver: DropBoxEntryAddedForwardingReceiver
+
     @Inject lateinit var hiltWorkerFactory: HiltWorkerFactory
+
     @Inject lateinit var reporterSettingsPreferenceProvider: ReporterSettingsPreferenceProvider
+
     @Inject lateinit var reporterMetrics: ReporterMetrics
+
     @Inject lateinit var sharedPreferences: SharedPreferences
+
     @Inject lateinit var configureStrictMode: ConfigureStrictMode
 
     override fun onCreate() {
@@ -47,7 +50,7 @@ class UsageReporter : Application(), Configuration.Provider {
                 minLogcatLevel = minLogcatLevel,
                 minStructuredLevel = LogLevel.INFO,
                 hrtEnabled = false,
-            )
+            ),
         )
         configureStrictMode.configure()
 
@@ -70,7 +73,7 @@ class UsageReporter : Application(), Configuration.Provider {
                 |  upstreamGitSha=$upstreamGitSha
                 |  upstreamVersionName=$upstreamVersionName
                 |  upstreamVersionCode=$upstreamVersionCode
-                """.trimMargin()
+                """.trimMargin(),
             )
         }
 
@@ -83,7 +86,6 @@ class UsageReporter : Application(), Configuration.Provider {
         _b2bClientServer = create(clientServerMode, this, reporterSettingsPreferenceProvider)
 
         connectivityReceiver.start()
-        dropBoxEntryAddedForwardingReceiver.start()
         reporterMetrics.init()
 
         ReporterFileCleanupTask.schedule(this)

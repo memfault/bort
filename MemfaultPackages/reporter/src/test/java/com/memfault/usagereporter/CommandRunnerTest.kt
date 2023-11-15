@@ -6,16 +6,16 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
-import java.io.IOException
-import java.io.OutputStream
-import java.util.concurrent.CancellationException
-import kotlin.text.Charsets.UTF_8
-import kotlin.time.Duration.Companion.milliseconds
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.io.IOException
+import java.io.OutputStream
+import java.util.concurrent.CancellationException
+import kotlin.text.Charsets.UTF_8
+import kotlin.time.Duration.Companion.milliseconds
 
 val TRUE_COMMAND = listOf("true")
 val ECHO_COMMAND = listOf("echo", "hello")
@@ -52,7 +52,7 @@ class CommandRunnerTest {
             TRUE_COMMAND,
             CommandRunnerOptions(outFd = null),
             reportResultMock,
-            outputStreamFactoryMock
+            outputStreamFactoryMock,
         ).apply { run() }
         assertEquals(cmd.process, null)
         verify(exactly = 1) { reportResultMock(null, false) }
@@ -66,7 +66,7 @@ class CommandRunnerTest {
             ECHO_COMMAND,
             CommandRunnerOptions(outFd = outFd),
             reportResultMock,
-            outputStreamFactoryMock
+            outputStreamFactoryMock,
         ).apply { run() }
         assertNotNull(cmd.process)
         verify(exactly = 1) { outputStreamFactoryMock.invoke(outFd) }
@@ -82,7 +82,7 @@ class CommandRunnerTest {
             NON_EXISTENT_COMMAND,
             CommandRunnerOptions(outFd = outFd),
             reportResultMock,
-            outputStreamFactoryMock
+            outputStreamFactoryMock,
         ).apply { run() }
         verify(exactly = 1) { outputStreamMock.close() }
         verify(exactly = 1) { reportResultMock(null, false) }
@@ -100,7 +100,7 @@ class CommandRunnerTest {
             YES_COMMAND,
             CommandRunnerOptions(outFd = outFd),
             reportResultMock,
-            outputStreamFactoryMock
+            outputStreamFactoryMock,
         ).apply { run() }
         assertNotNull(cmd.process)
         cmd.process?.let {
@@ -118,7 +118,7 @@ class CommandRunnerTest {
             SLEEP_COMMAND,
             CommandRunnerOptions(outFd = outFd),
             reportResultMock,
-            outputStreamFactoryMock
+            outputStreamFactoryMock,
         )
         val future = executor.submitWithTimeout(cmd, 10.milliseconds)
         assertThrows<CancellationException> {

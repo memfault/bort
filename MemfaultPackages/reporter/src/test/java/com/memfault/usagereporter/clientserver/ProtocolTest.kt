@@ -2,6 +2,15 @@ package com.memfault.usagereporter.clientserver
 
 import com.memfault.usagereporter.clientserver.BortMessage.Companion.readMessage
 import com.memfault.usagereporter.clientserver.BortMessage.SendFileMessage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 import java.io.Closeable
 import java.io.File
 import java.net.InetSocketAddress
@@ -15,15 +24,6 @@ import java.util.concurrent.Future
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
 
 internal class ProtocolTest {
     private lateinit var outputFolder: File
@@ -118,7 +118,7 @@ internal class ProtocolTest {
         return Sockets(
             server = server,
             serverSocket = TestAsyncChannel(serverSocket, testConfig),
-            client = TestAsyncChannel(client, testConfig)
+            client = TestAsyncChannel(client, testConfig),
         )
     }
 

@@ -6,8 +6,6 @@ import com.memfault.bort.MarFileUploadPayload
 import com.memfault.bort.Payload.MarPayload
 import com.memfault.bort.TemporaryFile
 import com.memfault.bort.http.PROJECT_KEY_HEADER
-import java.nio.charset.Charset
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -20,6 +18,8 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
+import java.nio.charset.Charset
+import java.util.concurrent.TimeUnit
 
 internal class PreparedUploaderTest {
     @get:Rule
@@ -32,14 +32,14 @@ internal class PreparedUploaderTest {
             deviceSerial = "",
             softwareVersion = "",
             softwareType = "",
-        )
+        ),
     )
 
     @Test
     fun prepareProvidesUrlAndToken() {
         server.enqueue(
             MockResponse()
-                .setBody(UPLOAD_RESPONSE)
+                .setBody(UPLOAD_RESPONSE),
         )
         val result = runBlocking {
             TemporaryFile().useFile { file, _ ->
@@ -57,10 +57,9 @@ internal class PreparedUploaderTest {
         false,
     ).map { shouldCompress ->
         DynamicTest.dynamicTest("shouldCompress=$shouldCompress") {
-
             server.enqueue(
                 MockResponse()
-                    .setBody(UPLOAD_RESPONSE)
+                    .setBody(UPLOAD_RESPONSE),
             )
             runBlocking {
                 createUploader(server).upload(
@@ -81,9 +80,12 @@ internal class PreparedUploaderTest {
             assertEquals(
                 text,
                 recordedRequest.body.let {
-                    if (shouldCompress) GzipSource(it).buffer()
-                    else it
-                }.readUtf8()
+                    if (shouldCompress) {
+                        GzipSource(it).buffer()
+                    } else {
+                        it
+                    }
+                }.readUtf8(),
             )
         }
     }
@@ -101,8 +103,8 @@ internal class PreparedUploaderTest {
                         softwareVersion = deviceInfo.softwareVersion,
                         deviceSerial = deviceInfo.deviceSerial,
                         file = FileUploadToken("", "aa", "logcat.txt"),
-                    )
-                )
+                    ),
+                ),
             )
         }
         val recordedRequest = server.takeRequest(5, TimeUnit.MILLISECONDS)
@@ -116,7 +118,7 @@ internal class PreparedUploaderTest {
                     """"hardware_version":"HW-FOO","device_serial":"SN1234","software_version":"1.0.0",""" +
                     """"software_type":"android-build"}""".trimMargin()
                 ),
-            recordedRequest.body.readUtf8()
+            recordedRequest.body.readUtf8(),
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.memfault.usagereporter.clientserver
 
+import kotlinx.coroutines.suspendCancellableCoroutine
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.AsynchronousByteChannel
@@ -8,7 +9,6 @@ import java.nio.channels.AsynchronousSocketChannel
 import java.nio.channels.CompletionHandler
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * Coroutine wrappers for java channel nio methods.
@@ -16,11 +16,12 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 
 suspend fun AsynchronousSocketChannel.cConnect(host: String, port: Int) = suspendCancellableCoroutine<Unit> { cont ->
     connect(
-        InetSocketAddress(host, port), Unit,
+        InetSocketAddress(host, port),
+        Unit,
         object : CompletionHandler<Void, Unit> {
             override fun completed(result: Void?, attachment: Unit): Unit = run { cont.resume(Unit) }
             override fun failed(exc: Throwable, attachment: Unit): Unit = run { cont.resumeWithException(exc) }
-        }
+        },
     )
 }
 
@@ -53,11 +54,12 @@ suspend fun AsynchronousByteChannel.cWrite(buffer: ByteBuffer): Int {
  */
 private suspend fun AsynchronousByteChannel.cWriteChunk(buffer: ByteBuffer) = suspendCancellableCoroutine<Int> { cont ->
     write(
-        buffer, Unit,
+        buffer,
+        Unit,
         object : CompletionHandler<Int, Unit> {
             override fun completed(result: Int, attachment: Unit): Unit = run { cont.resume(result) }
             override fun failed(exc: Throwable, attachment: Unit): Unit = run { cont.resumeWithException(exc) }
-        }
+        },
     )
 }
 
@@ -81,7 +83,7 @@ suspend fun AsynchronousByteChannel.cRead(
  * Perform a single read.
  */
 private suspend fun AsynchronousByteChannel.cReadChunk(
-    buffer: ByteBuffer
+    buffer: ByteBuffer,
 ) = suspendCancellableCoroutine<Int> { cont ->
     read(
         buffer,
@@ -93,7 +95,7 @@ private suspend fun AsynchronousByteChannel.cReadChunk(
                 }
 
             override fun failed(exc: Throwable, attachment: Unit): Unit = run { cont.resumeWithException(exc) }
-        }
+        },
     )
 }
 
@@ -105,6 +107,6 @@ suspend fun AsynchronousServerSocketChannel.cAccept() = suspendCancellableCorout
                 cont.resume(result)
             }
             override fun failed(exc: Throwable, attachment: Unit): Unit = run { cont.resumeWithException(exc) }
-        }
+        },
     )
 }

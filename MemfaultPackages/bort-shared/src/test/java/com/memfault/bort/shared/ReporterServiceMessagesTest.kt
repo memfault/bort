@@ -1,6 +1,5 @@
 package com.memfault.bort.shared
 
-import java.lang.Exception
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -12,15 +11,11 @@ class ReporterServiceMessagesTest {
     fun simpleMessage() {
         assertEquals(
             SimpleReporterServiceMessage(1),
-            SimpleReporterServiceMessage(1)
+            SimpleReporterServiceMessage(1),
         )
         assertNotEquals(
-            SimpleReporterServiceMessage(DROPBOX_SET_TAG_FILTER_RSP),
-            DropBoxSetTagFilterResponse()
-        )
-        assertEquals(
-            DropBoxSetTagFilterResponse().toString(),
-            "DropBoxSetTagFilterResponse(messageId=101)"
+            SimpleReporterServiceMessage(SEND_FILE_TO_SERVER_REQ),
+            SetLogLevelResponse,
         )
     }
 

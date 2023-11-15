@@ -7,7 +7,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class RandomUuidInstallationIdProviderTest {
-    lateinit var mockSharedPreferences: MockSharedPreferences
+    lateinit var mockSharedPreferences: FakeSharedPreferences
 
     @BeforeEach
     fun setUp() {

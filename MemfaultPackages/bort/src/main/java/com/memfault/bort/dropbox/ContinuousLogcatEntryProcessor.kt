@@ -28,6 +28,7 @@ import com.memfault.bort.uploader.LogcatFileUploadPayload
 import com.memfault.bort.uploader.PendingFileUploadEntry
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
+import okio.ByteString.Companion.toByteString
 import java.io.File
 import java.security.MessageDigest
 import java.time.Duration
@@ -35,7 +36,6 @@ import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlin.time.toKotlinDuration
-import okio.ByteString.Companion.toByteString
 
 private const val DROPBOX_ENTRY_TAG = "memfault_clog"
 
@@ -63,7 +63,7 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
             LogcatFormatModifier.UTC,
             LogcatFormatModifier.YEAR,
             LogcatFormatModifier.UID,
-        )
+        ),
     )
 
     private fun allowedByRateLimit(): Boolean =
@@ -87,7 +87,8 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
 
         val metadata = stream.bufferedReader().useLines { lines ->
             temporaryFileFactory.createTemporaryFile(
-                prefix = "logcat", suffix = ".txt"
+                prefix = "logcat",
+                suffix = ".txt",
             ).useFile { file, preventDeletion ->
                 file.outputStream().bufferedWriter().use { outputWriter ->
                     val md5 = MessageDigest.getInstance("MD5")

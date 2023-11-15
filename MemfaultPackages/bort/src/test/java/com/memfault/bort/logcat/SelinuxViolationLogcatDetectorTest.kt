@@ -1,5 +1,6 @@
 package com.memfault.bort.logcat
 
+import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.settings.RateLimitingSettings
@@ -12,9 +13,6 @@ import com.memfault.bort.uploader.EnqueueUpload
 import com.memfault.bort.uploader.HandleEventOfInterest
 import io.mockk.coEvery
 import io.mockk.mockk
-import java.time.Instant
-import java.util.stream.Stream
-import kotlin.time.Duration.Companion.days
 import org.junit.Assert.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.extension.ExtensionContext
@@ -22,6 +20,9 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.ArgumentsProvider
 import org.junit.jupiter.params.provider.ArgumentsSource
+import java.time.Instant
+import java.util.stream.Stream
+import kotlin.time.Duration.Companion.days
 
 class SelinuxViolationLogcatDetectorTest {
     lateinit var combinedTimeProvider: CombinedTimeProvider
@@ -29,6 +30,7 @@ class SelinuxViolationLogcatDetectorTest {
     lateinit var handleEventOfInterest: HandleEventOfInterest
     lateinit var settingsProvider: SettingsProvider
     lateinit var tokenBucketStore: TokenBucketStore
+    lateinit var crashHandler: CrashHandler
 
     lateinit var detector: SelinuxViolationLogcatDetector
 
@@ -37,6 +39,7 @@ class SelinuxViolationLogcatDetectorTest {
         combinedTimeProvider = mockk()
         enqueueUpload = mockk()
         handleEventOfInterest = mockk()
+        crashHandler = mockk()
         settingsProvider = mockk {
             coEvery { selinuxViolationSettings } answers {
                 object : SelinuxViolationSettings {
@@ -57,6 +60,7 @@ class SelinuxViolationLogcatDetectorTest {
             handleEventOfInterest = handleEventOfInterest,
             settingsProvider = settingsProvider,
             tokenBucketStore = tokenBucketStore,
+            crashHandler = crashHandler,
         )
     }
 
@@ -67,7 +71,7 @@ class SelinuxViolationLogcatDetectorTest {
             message = testCase.logcatLineAfterTag,
             uid = testCase.uid,
             timestamp = Instant.now(),
-            packageManagerReport = PackageManagerReport(testCase.packages)
+            packageManagerReport = PackageManagerReport(testCase.packages),
         )
 
         assertEquals(testCase.expectedAction, selinuxViolation?.action)

@@ -9,7 +9,7 @@ interface LastTrackedLinuxBootIdProvider {
 }
 
 class RealLastTrackedLinuxBootIdProvider(
-    sharedPreferences: SharedPreferences
+    sharedPreferences: SharedPreferences,
 ) : LastTrackedLinuxBootIdProvider, PreferenceKeyProvider<String>(
     sharedPreferences = sharedPreferences,
     defaultValue = "",

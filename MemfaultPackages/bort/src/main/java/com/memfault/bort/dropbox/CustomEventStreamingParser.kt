@@ -54,15 +54,16 @@ class StructuredLogStreamingParser(
             schemaVersion,
             LogcatCollectionId(UUID.fromString(cid)),
             LogcatCollectionId(UUID.fromString(nextCid)),
-            UUID.fromString(linuxBootId)
+            UUID.fromString(linuxBootId),
         )
     }
 
     private fun checkRequiredFields() {
         if (cid == null) throw StructuredLogParseException("Missing cid")
         if (nextCid == null) throw StructuredLogParseException("Missing next_cid")
-        if (schemaVersion != 1)
+        if (schemaVersion != 1) {
             throw StructuredLogParseException("Unsupported schema version, expected 1, was $schemaVersion")
+        }
         if (linuxBootId == null) throw StructuredLogParseException("Missing linux_boot_id")
         if (!hasEvents) throw StructuredLogParseException("Missing events")
     }
@@ -97,7 +98,7 @@ class StructuredLogStreamingParser(
                     passThrough(reader, writer)
                 }
                 DEVICE_SERIAL, SOFTWARE_VERSION, HARDWARE_VERSION -> throw StructuredLogParseException(
-                    "Unexpected key '$name' in structured log the entry should be added by this parser"
+                    "Unexpected key '$name' in structured log the entry should be added by this parser",
                 )
                 else -> throw StructuredLogParseException("Unexpected name in json: $name")
             }
@@ -124,8 +125,11 @@ class StructuredLogStreamingParser(
                     // its string form and attempt to parse it.
                     val num = reader.nextString()
                     val asInt = num.toIntOrNull()
-                    if (asInt != null) writer.value(asInt)
-                    else writer.value(num.toDouble())
+                    if (asInt != null) {
+                        writer.value(asInt)
+                    } else {
+                        writer.value(num.toDouble())
+                    }
                 }
                 JsonToken.STRING -> writer.value(reader.nextString())
                 JsonToken.BEGIN_OBJECT -> {
@@ -172,7 +176,7 @@ data class StructuredLogMetadata(
     val schemaVersion: Int,
     val cid: LogcatCollectionId,
     val nextCid: LogcatCollectionId,
-    val linuxBootId: UUID
+    val linuxBootId: UUID,
 )
 
 private const val SCHEMA_VERSION = "schema_version"

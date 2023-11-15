@@ -3,7 +3,7 @@ package com.memfault.bort.selfTesting
 import com.memfault.bort.ReporterServiceConnector
 
 class SelfTestReporterServiceConnect(
-    val reporterServiceConnector: ReporterServiceConnector
+    val reporterServiceConnector: ReporterServiceConnector,
 ) : SelfTester.Case {
     override suspend fun test(): Boolean {
         // Regression test for MFLT-3126

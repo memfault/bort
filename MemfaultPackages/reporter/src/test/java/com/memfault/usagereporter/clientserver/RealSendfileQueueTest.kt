@@ -3,13 +3,13 @@ package com.memfault.usagereporter.clientserver
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.usagereporter.ReporterSettings
 import com.memfault.usagereporter.clientserver.RealSendfileQueue.Companion.extractDropboxTag
-import java.io.File
-import java.nio.file.Files
-import kotlin.time.Duration
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.io.File
+import java.nio.file.Files
+import kotlin.time.Duration
 
 internal class RealSendfileQueueTest {
     private val dir = Files.createTempDirectory("send").toFile().also { it.deleteOnExit() }

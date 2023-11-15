@@ -1,16 +1,19 @@
 package com.memfault.bort.android
 
 import android.app.Application
+import android.app.usage.NetworkStatsManager
 import android.content.ContentResolver
 import android.content.res.Resources
+import android.os.DropBoxManager
 import android.os.Looper
+import com.memfault.bort.IO
 import com.memfault.bort.Main
 import com.squareup.anvil.annotations.ContributesTo
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.components.SingletonComponent
-import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Module to bind simple Android services to the Dagger graph.
@@ -31,4 +34,16 @@ class SharedAndroidModule {
     @Provides
     @Main
     fun mainCoroutineContext(): CoroutineContext = Dispatchers.Main
+
+    @Provides
+    @IO
+    fun ioCoroutineContext(): CoroutineContext = Dispatchers.IO
+
+    @Provides
+    fun dropBoxManager(application: Application): DropBoxManager? =
+        application.getSystemService(DropBoxManager::class.java)
+
+    @Provides
+    fun networkStatsManager(application: Application): NetworkStatsManager =
+        application.getSystemService(NetworkStatsManager::class.java)
 }

@@ -59,4 +59,4 @@ private:
     std::mutex mutex;
 };
 
-}
+}  // namespace structured

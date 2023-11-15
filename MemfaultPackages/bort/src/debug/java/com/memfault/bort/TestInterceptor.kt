@@ -9,10 +9,10 @@ import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
-import javax.inject.Inject
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
+import javax.inject.Inject
 
 @ContributesMultibinding(SingletonComponent::class, replaces = [LoggingNetworkInterceptor::class])
 class TestInterceptor @Inject constructor(
@@ -30,7 +30,7 @@ class TestInterceptor @Inject constructor(
         Logger.v(
             """Received response for ${response.request.url} in ${String.format("%.1f", delta)} ms
                    ${response.headers}
-            """.trimIndent()
+            """.trimIndent(),
         )
         if (!response.isSuccessful) {
             logFailure(response.code, metrics)

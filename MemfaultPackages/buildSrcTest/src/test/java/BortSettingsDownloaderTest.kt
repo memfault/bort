@@ -4,17 +4,18 @@ import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import java.io.File
-import java.nio.file.Files
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.io.File
+import java.nio.file.Files
 
 const val SUCCESS_FIXTURE = """{"valid": "true"}"""
 private val OTHER_FIXTURE = """{
     |  "valid" : "false"
-    |}""".trimMargin()
+    |}
+""".trimMargin()
 
 class BortSettingsDownloaderTest {
     lateinit var mockRootDir: File
@@ -43,7 +44,7 @@ class BortSettingsDownloaderTest {
                 skipDownload = false,
                 getDefaultProperty = { _ -> null },
                 warn = mockWarn,
-                fetchBortConfigFun = mockFetchConfig
+                fetchBortConfigFun = mockFetchConfig,
             )
         }
     }
@@ -58,7 +59,6 @@ class BortSettingsDownloaderTest {
             "ANDROID_HARDWARE_VERSION_KEY" to "ro.product.board",
             "MEMFAULT_API_BASE_URL" to "http://localhost:8000",
             "MEMFAULT_FILES_BASE_URL" to "http://localhost:8000",
-            "MEMFAULT_INGRESS_BASE_URL" to "http://localhost:8000",
         )
 
         val mockDefaultProperty: (String) -> String? = mockk {
@@ -157,14 +157,18 @@ class BortSettingsDownloaderTest {
         }
 
         verify {
-            mockWarn("Diff between local configuration and project configuration in Memfault servers:", null)
+            mockWarn(
+                "Diff between local configuration and project configuration in Memfault servers:",
+                null,
+            )
             mockWarn(
                 """[ {
                 |  "op" : "replace",
                 |  "path" : "/valid",
                 |  "value" : "false"
-                |} ]""".trimMargin(),
-                null
+                |} ]
+                """.trimMargin(),
+                null,
             )
         }
     }
@@ -184,7 +188,7 @@ class BortSettingsDownloaderTest {
 
         assertEquals(
             getBortSettingsAssetsFile(mockRootDir).readText(),
-            OTHER_FIXTURE
+            OTHER_FIXTURE,
         )
     }
 

@@ -11,8 +11,6 @@ import com.memfault.bort.tokenbucket.MetricReportStore
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
-import java.io.File
-import javax.inject.Inject
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonPrimitive
@@ -20,6 +18,8 @@ import okio.IOException
 import okio.buffer
 import okio.sink
 import okio.source
+import java.io.File
+import javax.inject.Inject
 
 private const val DROPBOX_ENTRY_TAG = "memfault_report"
 private const val HEARTBEAT_REPORT_TYPE = "Heartbeat"
@@ -70,7 +70,7 @@ class MetricReportEntryProcessor @Inject constructor(
             if (report.reportType != HEARTBEAT_REPORT_TYPE) {
                 Logger.w(
                     "Received a metric report of type ${report.reportType} " +
-                        "but currently on handling heartbeats"
+                        "but currently on handling heartbeats",
                 )
                 return@useFile
             }

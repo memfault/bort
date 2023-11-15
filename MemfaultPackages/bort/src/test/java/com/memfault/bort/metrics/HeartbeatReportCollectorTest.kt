@@ -3,8 +3,6 @@ package com.memfault.bort.metrics
 import com.memfault.bort.dropbox.MetricReport
 import com.memfault.bort.dropbox.MetricReportWithHighResFile
 import com.memfault.bort.settings.StructuredLogSettings
-import java.io.File
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -14,6 +12,8 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.File
+import kotlin.time.Duration.Companion.seconds
 
 internal class HeartbeatReportCollectorTest {
     private var metricReportEnabledSetting = true

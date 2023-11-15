@@ -8,6 +8,7 @@ import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.clientserver.MarMetadata.DropBoxMarMetadata
 import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.metrics.metricForTraceTag
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTimeProvider
@@ -31,6 +32,8 @@ interface UploadingEntryProcessorDelegate {
     fun isTraceEntry(entry: DropBoxManager.Entry): Boolean = true
 
     fun scrub(inputFile: File, tag: String): File = inputFile
+
+    fun isCrash(tag: String): Boolean
 }
 
 data class EntryInfo(
@@ -49,6 +52,7 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
     private val packageNameAllowList: PackageNameAllowList,
     private val handleEventOfInterest: HandleEventOfInterest,
     private val combinedTimeProvider: CombinedTimeProvider,
+    private val crashHandler: CrashHandler,
 ) : EntryProcessor() {
     override val tags: List<String>
         get() = delegate.tags
@@ -96,6 +100,10 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
             // Only consider trace entries as "events of interest" for log collection purposes:
             if (delegate.isTraceEntry(entry)) {
                 handleEventOfInterest.handleEventOfInterest(now)
+            }
+
+            if (delegate.isCrash(entry.tag)) {
+                crashHandler.onCrash()
             }
         }
     }
