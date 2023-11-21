@@ -2,36 +2,64 @@
 
 ## v4.10.0 - November 15, 2023
 
+### :boom: Breaking Changes
+
+- Previous AOSP system images with Bort are not backwards compatible with newer
+  versions of the Bort apk, due to new permissions required by Bort that are
+  only granted by a new AOSP build. These permissions were previously granted to
+  UsageReporter. This means that newer versions of the Bort apk cannot run on
+  older system images - they must be released together.
+
 ### :rocket: New Features
 
-- Added network stats metrics. This tracks the total and per app usages of the Wi-Fi, Ethernet, and cellular interfaces. Please see [documentation](https://docs.memfault.com/docs/android/android-builtin-metrics#network-usage-metrics) for more information.
-- Added new Crash-Free hours metric. Please see [documentation](https://docs.memfault.com/docs/best-practices/fleet-reliability-metrics-crash-free-hours/#enable-crash-free-hours-on-your-devices) for more information.
-- Added new battery charge rate first 80% metric. This measures the rate at which the battery is charging before Android begins trickle charging the battery at a slower rate. This allows for a more accurate understanding of the health of the battery.
-- Added new Battery SOC percentage drop metric which will be used to estimate expected battery runtime of the device.
-- Added a new Battery State of Health (SoH) metric. This metric measures the current full charge capacity of the battery against the original full charge capacity and reports the value as a percentage of health remaining.
+- Added network stats metrics. This tracks the total and per app usages of the
+  Wi-Fi, Ethernet, and cellular interfaces. Please see
+  [documentation](https://docs.memfault.com/docs/android/android-builtin-metrics#network-usage-metrics)
+  for more information.
+- Added new Crash-Free hours metric. Please see
+  [documentation](https://docs.memfault.com/docs/best-practices/fleet-reliability-metrics-crash-free-hours/#enable-crash-free-hours-on-your-devices)
+  for more information.
+- Added new battery charge rate first 80% metric. This measures the rate at
+  which the battery is charging before Android begins trickle charging the
+  battery at a slower rate. This allows for a more accurate understanding of the
+  health of the battery.
+- Added new Battery SOC percentage drop metric which will be used to estimate
+  expected battery runtime of the device.
+- Added a new Battery State of Health (SoH) metric. This metric measures the
+  current full charge capacity of the battery against the original full charge
+  capacity and reports the value as a percentage of health remaining.
 
 ### :chart_with_upwards_trend: Improvements
 
-- Fixed a typo in TemperatureMetricCollector. Thank you [satur9nine](https://github.com/satur9nine) for bringing this to our attention and fixing. [PR #4](https://github.com/memfault/bort/pull/4)
-- Improved detection of battery state (charging or discharging) when gathering battery related metrics.
-- Improved the reliability of OTA downloads by refactoring to more modern coroutine best practices.
+- Fixed a typo in TemperatureMetricCollector. Thank you
+  [satur9nine](https://github.com/satur9nine) for bringing this to our attention
+  and fixing. [PR #4](https://github.com/memfault/bort/pull/4)
+- Improved detection of battery state (charging or discharging) when gathering
+  battery related metrics.
+- Improved the reliability of OTA downloads by refactoring to more modern
+  coroutine best practices.
 - Improved Custom Metrics API for native code (C/C++).
   - Missing `Event` type added.
   - Missing metadata added.
-  - Removed finishReport method and report name parameters as they were meant for internal use only.
+  - Removed finishReport method and report name parameters as they were meant
+    for internal use only.
   - Support Soong (Blueprint files) build system.
   - Removed deprecated Custom Event API.
   - Fixed native Reporting API timestamp generation.
 - Fixed .gitignore to remove build files that were incorrectly being included.
 - Updated AGP, Kotlin, and 3rd party libraries to newer versions.
-- Refactor the Kotlin Reporting Library to use the Java lib internally to keep a single source of truth for implementation.
-- Moved DropBoxManager entry processing from UsageReporter to Bort. This stops waking Bort for every new entry, if Bort already isn't running, and significantly simplifies DropBoxManager entry processing.
+- Refactor the Kotlin Reporting Library to use the Java lib internally to keep a
+  single source of truth for implementation.
+- Moved DropBoxManager entry processing from UsageReporter to Bort. This stops
+  waking Bort for every new entry, if Bort already isn't running, and
+  significantly simplifies DropBoxManager entry processing.
 
 ### :house: Internal
 
 - Improved Kotlin formatting by updating ktlint.
 - Removed unused ingress URL.
-- Added exemplary Java app compiled using Android Make to demonstrate usage of the Java based Reporting lib.
+- Added exemplary Java app compiled using Android Make to demonstrate usage of
+  the Java based Reporting lib.
 
 ## v4.9.0 - September 5, 2023
 
