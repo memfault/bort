@@ -52,15 +52,16 @@ ContinuousLogcat::ContinuousLogcat() :
   }
 
   config.restore_config();
+  rebuild_log_format(config.filter_specs());
   if (config.started()) {
-    this->start();
+    this->start(true /* start_from_previous_config */);
   }
 }
 
-void ContinuousLogcat::start() {
+void ContinuousLogcat::start(bool start_from_previous_config) {
   std::lock_guard<std::mutex> lock(log_lock);
   ALOGT("clog: start (running=%d)", config.started());
-  if (!config.started()) {
+  if (!config.started() || start_from_previous_config) {
     output_fd = creat(CONTINUOUS_LOGCAT_FILE, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
     output_fp = fdopen(output_fd, "w");
     config.set_started(true);
@@ -116,6 +117,16 @@ void ContinuousLogcat::reconfigure(
   std::lock_guard<std::mutex> lock(log_lock);
   ALOGT("clog: reconfiguring");
 
+  rebuild_log_format(filter_specs);
+
+  config.set_filter_specs(filter_specs);
+  config.set_dump_threshold_bytes(dump_threshold_bytes);
+  config.set_dump_threshold_time_ms(dump_threshold_time_ms);
+  config.set_dump_wrapping_timeout_ms(dump_wrapping_timeout_ms);
+  config.persist_config();
+}
+
+void ContinuousLogcat::rebuild_log_format(const std::vector<std::string>& filter_specs) {
   // readers receive all the logs and decide how to format them through a log_format object
   // log_format controls:
   // - Output formats (i.e. time spec, whether to print nanoseconds, etc)
@@ -144,14 +155,9 @@ void ContinuousLogcat::reconfigure(
 
   // add filters
   for (auto &filter : filter_specs) {
+    ALOGT("clog: filter: %s", filter.c_str());
     android_log_addFilterString(log_format.get(), filter.c_str());
   }
-
-  config.set_filter_specs(filter_specs);
-  config.set_dump_threshold_bytes(dump_threshold_bytes);
-  config.set_dump_threshold_time_ms(dump_threshold_time_ms);
-  config.set_dump_wrapping_timeout_ms(dump_wrapping_timeout_ms);
-  config.persist_config();
 }
 
 void ContinuousLogcat::join() {
@@ -269,6 +275,13 @@ void ContinuousLogcat::run() {
 #endif
       if (err < 0) {
         ALOGE("error processing line: %d\n", err);
+        continue;
+      }
+
+      // Force-checked if line should be printed, in some android
+      // versions, the filters are not passed to the logd backend
+      // so we need to recheck them
+      if (!android_log_shouldPrintLine(log_format.get(), entry.tag, entry.priority)) {
         continue;
       }
 

@@ -1,6 +1,5 @@
 package com.memfault.bort.receivers
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
@@ -8,13 +7,13 @@ import androidx.preference.PreferenceManager
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import com.memfault.bort.INTENT_EXTRA_PROJECT_KEY
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.TestOverrideSettings
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
 import com.memfault.bort.clientserver.MarMetadata
 import com.memfault.bort.dropbox.DropBoxLastProcessedEntryProvider
 import com.memfault.bort.logcat.RealNextLogcatCidProvider
+import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.restartPeriodicLogcatCollection
 import com.memfault.bort.requester.restartPeriodicMetricsCollection
 import com.memfault.bort.selfTesting.SelfTestWorker
@@ -156,6 +155,16 @@ class BortTestReceiver : FilteringReceiver(
                 Kotlin_Reporting.report()
                     .counter("reporting_kotlin_test_metric_internal", sumInReport = true, internal = true)
                     .increment()
+
+                val reportingSuccessOrFailure = Reporting.report().successOrFailure(name = "reporting_test")
+                reportingSuccessOrFailure.success()
+                reportingSuccessOrFailure.failure()
+
+                val sync = Reporting.report().sync()
+                sync.success()
+                sync.success()
+                sync.failure()
+                sync.failure()
             }
             "com.memfault.intent.action.TEST_RESET_RATE_LIMITS" -> {
                 resetRateLimits()
@@ -166,23 +175,12 @@ class BortTestReceiver : FilteringReceiver(
             // Sent before each E2E test:
             "com.memfault.intent.action.TEST_SETUP" -> {
                 useTestOverrides(true, context)
-                context.sendBroadcast(
-                    Intent("com.memfault.intent.action.UPDATE_PROJECT_KEY").apply {
-                        component = ComponentName(context, ShellControlReceiver::class.java)
-                        putExtra(INTENT_EXTRA_PROJECT_KEY, intent.getStringExtra(INTENT_EXTRA_PROJECT_KEY))
-                    },
-                )
                 resetDynamicSettings()
                 resetRateLimits()
                 resetDropboxCursor()
             }
             "com.memfault.intent.action.TEST_TEARDOWN" -> {
                 useTestOverrides(false, context)
-                context.sendBroadcast(
-                    Intent("com.memfault.intent.action.UPDATE_PROJECT_KEY").apply {
-                        component = ComponentName(context, ShellControlReceiver::class.java)
-                    },
-                )
             }
             "com.memfault.intent.action.TEST_UPLOAD_MAR" -> enqueueOneTimeBatchMarFiles(
                 context = context,

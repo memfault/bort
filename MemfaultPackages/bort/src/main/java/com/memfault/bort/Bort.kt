@@ -15,6 +15,7 @@ import com.memfault.bort.shared.disableAppComponents
 import com.memfault.bort.shared.isPrimaryUser
 import com.memfault.bort.time.UptimeTracker
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Provider
 
@@ -40,6 +41,8 @@ open class Bort : Application(), Configuration.Provider {
 
     @Inject lateinit var dropBoxEntryAddedReceiver: DropBoxEntryAddedReceiver
 
+    @Inject lateinit var projectKeySysprop: ProjectKeySysprop
+
     override fun onCreate() {
         super.onCreate()
 
@@ -62,6 +65,11 @@ open class Bort : Application(), Configuration.Provider {
         metrics.increment(BORT_STARTED)
         logDebugInfo(bortEnabledProvider, settingsProvider)
         uptimeTracker.trackUptimeOnStart()
+
+        // We want this to happen even if Bort is disabled.
+        runBlocking {
+            projectKeySysprop.loadFromSysprop()
+        }
 
         if (!bortEnabledProvider.isEnabled()) {
             Logger.test("Bort not enabled, not running app")

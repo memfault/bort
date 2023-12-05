@@ -1,2 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+    Don't put anything in here - it won't be used in the aosp build, where we just include the
+    source files (not the manifest).
+    -->
 </manifest>

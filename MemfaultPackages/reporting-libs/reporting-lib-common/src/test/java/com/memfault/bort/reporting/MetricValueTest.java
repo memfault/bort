@@ -14,44 +14,47 @@ public class MetricValueTest {
   private static final int version = 3;
 
   @Test
-  public void testStringMetric() throws JSONException {
+  public void testSerializeStringMetric() throws JSONException {
     MetricValue metric = new MetricValue("metric_string", reportType,
         singletonList(LATEST_VALUE), false, MetricType.PROPERTY, DataType.STRING,
-        true, timeMs, "abc", null, null);
+        true, timeMs, "abc", null, null, version);
     String expectedJson =
         "{\"reportType\":\"heartbeat\",\"metricType\":\"property\",\"dataType\":\"string\","
-            + "\"eventName\":\"metric_string\",\"carryOver\":true,\"version\":2,"
+            + "\"eventName\":\"metric_string\",\"carryOver\":true,\"version\":3,"
             + "\"aggregations\":[\"LATEST_VALUE\"],\"value\":\"abc\",\"timestampMs\":123456}";
     assertEquals(expectedJson, metric.toJson());
+    assertEquals(metric, MetricValue.fromJson(expectedJson));
   }
 
   @Test
-  public void testInternalMetric() throws JSONException {
+  public void testSerializeInternalMetric() throws JSONException {
     MetricValue metric = new MetricValue("metric_string_internal", reportType,
         singletonList(LATEST_VALUE), true, MetricType.PROPERTY, DataType.STRING,
-        true, timeMs, "abc", null, null);
+        true, timeMs, "abc", null, null, version);
     String expectedJson =
         "{\"reportType\":\"heartbeat\",\"metricType\":\"property\",\"internal\":true,"
             + "\"dataType\":\"string\",\"eventName\":\"metric_string_internal\",\"carryOver\":true,"
-            + "\"version\":2,\"aggregations\":[\"LATEST_VALUE\"],\"value\":\"abc\","
+            + "\"version\":3,\"aggregations\":[\"LATEST_VALUE\"],\"value\":\"abc\","
             + "\"timestampMs\":123456}";
     assertEquals(expectedJson, metric.toJson());
+    assertEquals(metric, MetricValue.fromJson(expectedJson));
   }
 
   @Test
-  public void testNumberMetric() throws JSONException {
+  public void testSerializeNumberMetric() throws JSONException {
     MetricValue metric = new MetricValue("metric_number", reportType,
         singletonList(SUM), false, MetricType.COUNTER, DataType.DOUBLE,
-        false, timeMs, null, 1.0, null);
+        false, timeMs, null, 1.0, null, version);
     String expectedJson =
         "{\"reportType\":\"heartbeat\",\"metricType\":\"counter\",\"dataType\":\"double\","
-            + "\"eventName\":\"metric_number\",\"carryOver\":false,\"version\":2,"
+            + "\"eventName\":\"metric_number\",\"carryOver\":false,\"version\":3,"
             + "\"aggregations\":[\"SUM\"],\"value\":1,\"timestampMs\":123456}";
     assertEquals(expectedJson, metric.toJson());
+    assertEquals(metric, MetricValue.fromJson(expectedJson));
   }
 
   @Test
-  public void testFinishReport() throws JSONException {
+  public void testSerializeFinishReport() throws JSONException {
     String reportJson =
         (new RemoteMetricsService.FinishReport(timeMs, version, reportType, false)).toJson();
     String expectedJson = "{\"reportType\":\"heartbeat\",\"version\":3,\"timestampMs\":123456}";
@@ -59,7 +62,7 @@ public class MetricValueTest {
   }
 
   @Test
-  public void testRollingFinishReport() throws JSONException {
+  public void testSerializeRollingFinishReport() throws JSONException {
     String reportJson =
         (new RemoteMetricsService.FinishReport(timeMs, version, reportType, true)).toJson();
     String expectedJson =

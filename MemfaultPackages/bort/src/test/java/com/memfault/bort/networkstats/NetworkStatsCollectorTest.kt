@@ -1,5 +1,6 @@
 package com.memfault.bort.networkstats
 
+import com.memfault.bort.BortBuildConfig
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.makeFakeSharedPreferences
 import com.memfault.bort.metrics.HighResTelemetry.DataType
@@ -14,6 +15,7 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.long
 import org.junit.Test
 import java.time.Instant
@@ -22,6 +24,10 @@ import kotlin.time.Duration.Companion.hours
 
 class NetworkStatsCollectorTest {
 
+    private val bortBuildConfig = object : BortBuildConfig {
+        override val bortAppId: String = "com.memfault.bort"
+        override val otaAppId: String? = null
+    }
     private val fakeSharedPreferences = makeFakeSharedPreferences()
     private val lastNetworkStatsCollectionTimestamp = LastNetworkStatsCollectionTimestamp(fakeSharedPreferences)
     private val networkStatsQueries = mockk<NetworkStatsQueries>()
@@ -39,11 +45,19 @@ class NetworkStatsCollectorTest {
     }
 
     private val collector = RealNetworkStatsCollector(
+        bortBuildConfig = bortBuildConfig,
         lastNetworkStatsCollectionTimestamp = lastNetworkStatsCollectionTimestamp,
         networkStatsQueries = networkStatsQueries,
         packageManagerClient = packageManagerClient,
         settingsProvider = settingsProvider,
     )
+
+    private val perAppStringKeys = cartesianProduct(
+        listOf("eth", "mobile", "wifi"),
+        listOf("in", "out"),
+        listOf("bort", "ota"),
+    )
+        .map { (connectivity, transfer, app) -> "network.app.$transfer.${connectivity}_$app" }
 
     private fun time(timeMs: Long) = CombinedTime(
         uptime = Duration.ZERO.boxed(),
@@ -90,18 +104,19 @@ class NetworkStatsCollectorTest {
 
         val result = collector.collect(time(2.hours.inWholeMilliseconds), 1.hours)
 
-        assert(result.hrtRollup.size == 3) { result.hrtRollup }
+        assert(result.hrtRollup.size == 15) { result.hrtRollup }
         assert(result.heartbeatMetrics.size == 3) { result.heartbeatMetrics }
+        assert(result.internalHeartbeatMetrics.size == 12) { result.internalHeartbeatMetrics }
+
+        val hrtStringKeys = perAppStringKeys +
+            listOf("eth", "mobile", "wifi").map { "network.total.in.$it" }
+
+        assert(result.hrtRollup.map { it.metadata.stringKey }.containsAll(hrtStringKeys.toList()))
 
         result.hrtRollup.forEach { rollup ->
-            assert(
-                rollup.metadata.stringKey == "network.total.in.eth" ||
-                    rollup.metadata.stringKey == "network.total.in.mobile" ||
-                    rollup.metadata.stringKey == "network.total.in.wifi",
-            ) { rollup }
             assert(rollup.metadata.dataType == DataType.DoubleType) { rollup }
             assert(rollup.metadata.metricType == MetricType.Gauge) { rollup }
-            assert(!rollup.metadata.internal) { rollup }
+            assert(rollup.metadata.internal == (rollup.metadata.stringKey in perAppStringKeys)) { rollup }
         }
 
         result.heartbeatMetrics.forEach { (metricName, metricValue) ->
@@ -133,20 +148,19 @@ class NetworkStatsCollectorTest {
 
         val result = collector.collect(time(2.hours.inWholeMilliseconds), 1.hours)
 
-        assert(result.hrtRollup.size == 3) { result.hrtRollup }
+        assert(result.hrtRollup.size == 15) { result.hrtRollup }
         assert(result.heartbeatMetrics.isEmpty()) { result.heartbeatMetrics }
+        assert(result.internalHeartbeatMetrics.size == 12) { result.internalHeartbeatMetrics }
+
+        val hrtStringKeys = perAppStringKeys +
+            listOf("eth", "mobile", "wifi").map { "network.app.out.${it}_com.memfault.bort" }
+
+        assert(result.hrtRollup.map { it.metadata.stringKey }.containsAll(hrtStringKeys.toList()))
 
         result.hrtRollup.forEach { rollup ->
-            assert(
-                rollup.metadata.stringKey in setOf(
-                    "network.app.out.eth_com.memfault.bort",
-                    "network.app.out.mobile_com.memfault.bort",
-                    "network.app.out.wifi_com.memfault.bort",
-                ),
-            ) { rollup }
             assert(rollup.metadata.dataType == DataType.DoubleType) { rollup }
             assert(rollup.metadata.metricType == MetricType.Gauge) { rollup }
-            assert(!rollup.metadata.internal) { rollup }
+            assert(rollup.metadata.internal == rollup.metadata.stringKey in perAppStringKeys) { rollup }
         }
     }
 
@@ -164,7 +178,70 @@ class NetworkStatsCollectorTest {
 
         val result = collector.collect(time(2.hours.inWholeMilliseconds), 1.hours)
 
-        assert(result.hrtRollup.isEmpty()) { result.hrtRollup }
+        assert(result.hrtRollup.size == 12) { result.hrtRollup }
         assert(result.heartbeatMetrics.isEmpty()) { result.heartbeatMetrics }
+        assert(result.internalHeartbeatMetrics.size == 12) { result.internalHeartbeatMetrics }
+
+        assert(result.hrtRollup.map { it.metadata.stringKey }.containsAll(perAppStringKeys.toList()))
+    }
+
+    @Test fun `bort and ota always track internal metrics`() = runTest {
+        coEvery {
+            networkStatsQueries.getTotalUsage(start = any(), end = any(), connectivity = any())
+        } coAnswers { null }
+
+        coEvery {
+            networkStatsQueries.getUsageByApp(start = any(), end = any(), connectivity = any())
+        } coAnswers {
+            val connectivity = call.invocation.args[2] as NetworkStatsConnectivity
+            mapOf(10_000 to listOf(fakeNetworkStatsSummary.copy(txBytes = 10_000_000, connectivity = connectivity)))
+        }
+
+        coEvery {
+            packageManagerClient.getPackageManagerReport(any())
+        } coAnswers {
+            PackageManagerReport(
+                listOf(Package(id = "com.memfault.bort", userId = 10_000)),
+            )
+        }
+
+        val result = collector.collect(time(1.hours.inWholeMilliseconds), 1.hours)
+
+        assert(result.hrtRollup.size == 15) { result.hrtRollup }
+        assert(result.heartbeatMetrics.isEmpty()) { result.heartbeatMetrics }
+        assert(result.internalHeartbeatMetrics.size == 12) { result.internalHeartbeatMetrics }
+
+        val hrtStringKeys = perAppStringKeys +
+            listOf("eth", "mobile", "wifi").map { "network.app.out.${it}_com.memfault.bort" }
+
+        assert(result.hrtRollup.map { it.metadata.stringKey }.containsAll(hrtStringKeys.toList()))
+
+        result.hrtRollup.forEach { rollup ->
+            assert(rollup.metadata.dataType == DataType.DoubleType) { rollup }
+            assert(rollup.metadata.metricType == MetricType.Gauge) { rollup }
+            assert(rollup.metadata.internal == rollup.metadata.stringKey in perAppStringKeys) { rollup }
+        }
+
+        assert(result.internalHeartbeatMetrics["network.app.in.eth_bort"]?.doubleOrNull == 1.0) { result }
+        assert(result.internalHeartbeatMetrics["network.app.in.mobile_bort"]?.doubleOrNull == 1.0) { result }
+        assert(result.internalHeartbeatMetrics["network.app.in.wifi_bort"]?.doubleOrNull == 1.0) { result }
+
+        assert(result.internalHeartbeatMetrics["network.app.out.eth_bort"]?.doubleOrNull == 10_000.0) { result }
+        assert(result.internalHeartbeatMetrics["network.app.out.mobile_bort"]?.doubleOrNull == 10_000.0) { result }
+        assert(result.internalHeartbeatMetrics["network.app.out.wifi_bort"]?.doubleOrNull == 10_000.0) { result }
+
+        assert(result.internalHeartbeatMetrics["network.app.in.eth_ota"]?.doubleOrNull == 0.0) { result }
+        assert(result.internalHeartbeatMetrics["network.app.in.mobile_ota"]?.doubleOrNull == 0.0) { result }
+        assert(result.internalHeartbeatMetrics["network.app.in.wifi_ota"]?.doubleOrNull == 0.0) { result }
+
+        assert(result.internalHeartbeatMetrics["network.app.out.eth_ota"]?.doubleOrNull == 0.0) { result }
+        assert(result.internalHeartbeatMetrics["network.app.out.mobile_ota"]?.doubleOrNull == 0.0) { result }
+        assert(result.internalHeartbeatMetrics["network.app.out.wifi_ota"]?.doubleOrNull == 0.0) { result }
     }
 }
+
+fun cartesianProduct(vararg lists: List<*>): Sequence<List<*>> =
+    lists.asSequence()
+        .fold(sequenceOf(emptyList<Any?>())) { acc, running ->
+            acc.flatMap { list -> running.map { element -> list + element } }
+        }

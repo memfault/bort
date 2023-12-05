@@ -31,6 +31,7 @@ android {
         buildConfigField "Boolean", "OTA_AUTO_INSTALL", bortProperty("OTA_AUTO_INSTALL")
         buildConfigField "Boolean", "ALLOW_PROJECT_KEY_CHANGE", bortProperty("ALLOW_PROJECT_KEY_CHANGE")
         buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "\"" + bortProperty("MEMFAULT_PROJECT_API_KEY") + "\""
+        buildConfigField "String", "PROJECT_KEY_SYSPROP", "\"" + bortProperty("PROJECT_KEY_SYSPROP") + "\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

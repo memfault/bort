@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.memfault.bort.ConfigureStrictMode
+import com.memfault.bort.Main
 import com.memfault.bort.android.SystemPropertiesProxy
 import com.memfault.bort.shared.BuildConfigSdkVersionInfo
 import com.memfault.bort.shared.ClientServerMode
@@ -19,7 +20,11 @@ import com.memfault.usagereporter.clientserver.B2BClientServer.Companion.create
 import com.memfault.usagereporter.metrics.ReporterMetrics
 import com.memfault.usagereporter.receivers.ConnectivityReceiver
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
+import kotlin.system.exitProcess
 
 @HiltAndroidApp
 class UsageReporter : Application(), Configuration.Provider {
@@ -35,6 +40,11 @@ class UsageReporter : Application(), Configuration.Provider {
     @Inject lateinit var sharedPreferences: SharedPreferences
 
     @Inject lateinit var configureStrictMode: ConfigureStrictMode
+
+    @Main @Inject
+    lateinit var mainCoroutineContext: CoroutineContext
+
+    private var appCoroutineScope: CoroutineScope? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -52,13 +62,18 @@ class UsageReporter : Application(), Configuration.Provider {
                 hrtEnabled = false,
             ),
         )
-        configureStrictMode.configure()
 
         if (!isPrimaryUser()) {
             Logger.w("reporter disabled for secondary user")
             disableAppComponents(applicationContext)
-            System.exit(0)
+            exitProcess(0)
         }
+
+        appCoroutineScope?.cancel()
+        val coroutineScope = CoroutineScope(mainCoroutineContext)
+        appCoroutineScope = coroutineScope
+
+        configureStrictMode.configure()
 
         with(BuildConfigSdkVersionInfo) {
             Logger.v(
@@ -85,10 +100,17 @@ class UsageReporter : Application(), Configuration.Provider {
         // unbinds.
         _b2bClientServer = create(clientServerMode, this, reporterSettingsPreferenceProvider)
 
-        connectivityReceiver.start()
+        connectivityReceiver.start(coroutineScope)
         reporterMetrics.init()
 
         ReporterFileCleanupTask.schedule(this)
+    }
+
+    override fun onTerminate() {
+        super.onTerminate()
+
+        appCoroutineScope?.cancel()
+        appCoroutineScope = null
     }
 
     override fun getWorkManagerConfiguration(): Configuration = Configuration.Builder()

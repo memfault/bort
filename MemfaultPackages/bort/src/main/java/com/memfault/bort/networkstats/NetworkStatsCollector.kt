@@ -1,6 +1,7 @@
 package com.memfault.bort.networkstats
 
 import android.os.Process
+import com.memfault.bort.BortBuildConfig
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.metrics.HighResTelemetry
 import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
@@ -31,6 +32,7 @@ interface NetworkStatsCollector {
 data class NetworkStatsResult(
     val hrtRollup: Set<HighResTelemetry.Rollup>,
     val heartbeatMetrics: Map<String, JsonPrimitive>,
+    val internalHeartbeatMetrics: Map<String, JsonPrimitive> = emptyMap(),
 ) {
 
     companion object {
@@ -39,13 +41,19 @@ data class NetworkStatsResult(
         fun merge(vararg results: NetworkStatsResult): NetworkStatsResult {
             val hrtRollup = mutableSetOf<HighResTelemetry.Rollup>()
             val heartbeatMetrics = mutableMapOf<String, JsonPrimitive>()
+            val internalHeartbeatMetrics = mutableMapOf<String, JsonPrimitive>()
 
             results.forEach { result ->
                 hrtRollup.addAll(result.hrtRollup)
                 heartbeatMetrics.putAll(result.heartbeatMetrics)
+                internalHeartbeatMetrics.putAll(result.internalHeartbeatMetrics)
             }
 
-            return NetworkStatsResult(hrtRollup = hrtRollup, heartbeatMetrics = heartbeatMetrics)
+            return NetworkStatsResult(
+                hrtRollup = hrtRollup,
+                heartbeatMetrics = heartbeatMetrics,
+                internalHeartbeatMetrics = internalHeartbeatMetrics,
+            )
         }
     }
 }
@@ -53,6 +61,7 @@ data class NetworkStatsResult(
 @ContributesBinding(SingletonComponent::class)
 class RealNetworkStatsCollector
 @Inject constructor(
+    private val bortBuildConfig: BortBuildConfig,
     private val lastNetworkStatsCollectionTimestamp: LastNetworkStatsCollectionTimestamp,
     private val networkStatsQueries: NetworkStatsQueries,
     private val packageManagerClient: PackageManagerClient,
@@ -110,6 +119,7 @@ class RealNetworkStatsCollector
         val packageManagerReport = packageManagerClient.getPackageManagerReport()
 
         val perAppEthernetUsage = queryPerAppUsageMetric(
+            bortBuildConfig = bortBuildConfig,
             packageManagerReport = packageManagerReport,
             networkUsageSettings = networkUsageSettings,
             connectivity = ETHERNET,
@@ -118,6 +128,7 @@ class RealNetworkStatsCollector
         )
 
         val perAppMobileUsage = queryPerAppUsageMetric(
+            bortBuildConfig = bortBuildConfig,
             packageManagerReport = packageManagerReport,
             networkUsageSettings = networkUsageSettings,
             connectivity = MOBILE,
@@ -126,6 +137,7 @@ class RealNetworkStatsCollector
         )
 
         val perAppWifiUsage = queryPerAppUsageMetric(
+            bortBuildConfig = bortBuildConfig,
             packageManagerReport = packageManagerReport,
             networkUsageSettings = networkUsageSettings,
             connectivity = WIFI,
@@ -183,6 +195,7 @@ class RealNetworkStatsCollector
     }
 
     private suspend fun queryPerAppUsageMetric(
+        bortBuildConfig: BortBuildConfig,
         packageManagerReport: PackageManagerReport,
         networkUsageSettings: NetworkUsageSettings,
         connectivity: NetworkStatsConnectivity,
@@ -213,9 +226,43 @@ class RealNetworkStatsCollector
         }
 
         val hrtRollup = mutableSetOf<HighResTelemetry.Rollup>()
+        val internalHeartbeatMetrics = mutableMapOf<String, JsonPrimitive>()
 
-        // Logs the package if it exceeds the specified threshold.
+        val bortUsage = usageByPackage[bortBuildConfig.bortAppId]
+        val otaUsage = usageByPackage[bortBuildConfig.otaAppId]
+
+        fun rollupInternalUsage(inName: String, outName: String, usage: NetworkStatsUsage?) {
+            hrtRollup += networkMetricHrtRollup(
+                metricName = inName,
+                metricValue = usage?.rxKB ?: 0.0,
+                collectionTime = queryEndTime,
+                internal = true,
+            )
+            hrtRollup += networkMetricHrtRollup(
+                metricName = outName,
+                metricValue = usage?.txKB ?: 0.0,
+                collectionTime = queryEndTime,
+                internal = true,
+            )
+            internalHeartbeatMetrics[inName] = JsonPrimitive(usage?.rxKB ?: 0.0)
+            internalHeartbeatMetrics[outName] = JsonPrimitive(usage?.txKB ?: 0.0)
+        }
+
+        rollupInternalUsage(
+            inName = appInMetricName(connectivity, "bort"),
+            outName = appOutMetricName(connectivity, "bort"),
+            usage = bortUsage,
+        )
+
+        rollupInternalUsage(
+            inName = appInMetricName(connectivity, "ota"),
+            outName = appOutMetricName(connectivity, "ota"),
+            usage = otaUsage,
+        )
+
         for ((packageName, usage) in usageByPackage) {
+            // Logs the package if it exceeds the specified threshold.
+
             if (usage.rxKB >= networkUsageSettings.collectionReceiveThresholdKb) {
                 hrtRollup += networkMetricHrtRollup(
                     metricName = appInMetricName(connectivity, packageName),
@@ -233,7 +280,11 @@ class RealNetworkStatsCollector
             }
         }
 
-        return NetworkStatsResult(hrtRollup = hrtRollup, heartbeatMetrics = emptyMap())
+        return NetworkStatsResult(
+            hrtRollup = hrtRollup,
+            heartbeatMetrics = emptyMap(),
+            internalHeartbeatMetrics = internalHeartbeatMetrics,
+        )
     }
 
     private fun PackageManagerReport.uuidToName(uid: Int): String = when (uid) {
@@ -250,14 +301,15 @@ class RealNetworkStatsCollector
 
     private fun networkMetricHrtRollup(
         metricName: String,
-        metricValue: Long,
+        metricValue: Number,
         collectionTime: Instant,
+        internal: Boolean = false,
     ) = HighResTelemetry.Rollup(
         metadata = RollupMetadata(
             stringKey = metricName,
             metricType = Gauge,
             dataType = DoubleType,
-            internal = false,
+            internal = internal,
         ),
         data = listOf(Datum(t = collectionTime.toEpochMilli(), value = JsonPrimitive(metricValue))),
     )

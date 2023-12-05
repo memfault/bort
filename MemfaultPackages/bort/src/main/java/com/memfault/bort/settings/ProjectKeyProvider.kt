@@ -19,31 +19,41 @@ open class ProjectKeyProvider @Inject constructor(
     private val marFileHoldingArea: Provider<MarFileHoldingArea>,
     private val temporaryFileFactory: TemporaryFileFactory,
 ) {
-    var projectKey: String
+    val projectKey: String
         get() = if (BuildConfig.ALLOW_PROJECT_KEY_CHANGE) {
             preferenceProvider.getValue()
         } else {
             BuildConfig.MEMFAULT_PROJECT_API_KEY
         }
-        set(newKey) {
-            if (!BuildConfig.ALLOW_PROJECT_KEY_CHANGE) {
-                Logger.w("Changing Bort project not permitted")
-                return
-            }
-            if (newKey == projectKey) return
-            Logger.i("Changing Bort project key from broadcast")
-            preferenceProvider.setValue(newKey)
-            // Delete all pending mar files (they use the old project key).
-            marFileHoldingArea.get().deleteAllFiles()
-            // Also delete any pending file uploads (including mar files).
-            temporaryFileFactory.temporaryFileDirectory?.let {
-                cleanupFiles(dir = it, maxDirStorageBytes = 0)
-            }
-        }
 
-    fun reset() {
-        Logger.i("Removing project key override")
+    fun setProjectKey(newKey: String, source: String) {
+        if (!BuildConfig.ALLOW_PROJECT_KEY_CHANGE) {
+            Logger.w("Changing Bort project not permitted")
+            return
+        }
+        if (newKey == projectKey) return
+        Logger.i("Changing Bort project key from $source")
+        preferenceProvider.setValue(newKey)
+        wipeStaleFiles()
+    }
+
+    fun reset(source: String) {
+        if (preferenceProvider.getValue() == BuildConfig.MEMFAULT_PROJECT_API_KEY) {
+            // Already unset; don't wipe files (this could be called every time bort starts).
+            return
+        }
+        Logger.i("Removing project key override from $source")
         preferenceProvider.remove()
+        wipeStaleFiles()
+    }
+
+    private fun wipeStaleFiles() {
+        // Delete all pending mar files (they use the old project key).
+        marFileHoldingArea.get().deleteAllFiles()
+        // Also delete any pending file uploads (including mar files).
+        temporaryFileFactory.temporaryFileDirectory?.let {
+            cleanupFiles(dir = it, maxDirStorageBytes = 0)
+        }
     }
 }
 

@@ -8,15 +8,17 @@ import com.memfault.bort.reporting.RemoteMetricsService;
 import java.util.Collections;
 import java.util.List;
 
+import static com.memfault.bort.reporting.MetricValue.MetricJsonFields.REPORTING_CLIENT_VERSION;
+
 public abstract class Metric {
   final String eventName;
   final String reportType;
-  final List<? extends AggregationType> aggregations;
+  final List<AggregationType> aggregations;
   final MetricType metricType;
   final DataType dataType;
   final Boolean carryOverValue;
 
-  Metric(String eventName, String reportType, List<? extends AggregationType> aggregations,
+  Metric(String eventName, String reportType, List<AggregationType> aggregations,
       MetricType metricType, DataType dataType, Boolean carryOverValue) {
     this.reportType = reportType;
     this.aggregations = Collections.unmodifiableList(aggregations);
@@ -30,7 +32,7 @@ public abstract class Metric {
     dataType.verifyValueType(stringVal);
     RemoteMetricsService.record(new MetricValue(
         eventName, reportType, aggregations, false, metricType, dataType, carryOverValue,
-        timeMs, stringVal, null, null)
+        timeMs, stringVal, null, null, REPORTING_CLIENT_VERSION)
     );
   }
 
@@ -38,7 +40,7 @@ public abstract class Metric {
     dataType.verifyValueType(numberVal);
     RemoteMetricsService.record(new MetricValue(
         eventName, reportType, aggregations, false, metricType, dataType, carryOverValue,
-        timeMs, null, numberVal, null)
+        timeMs, null, numberVal, null, REPORTING_CLIENT_VERSION)
     );
   }
 
@@ -46,7 +48,7 @@ public abstract class Metric {
     dataType.verifyValueType(boolVal);
     RemoteMetricsService.record(new MetricValue(
         eventName, reportType, aggregations, false, metricType, dataType, carryOverValue,
-        timeMs, null, null, boolVal)
+        timeMs, null, null, boolVal, REPORTING_CLIENT_VERSION)
     );
   }
 

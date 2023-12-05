@@ -1,7 +1,9 @@
 package com.memfault.bort.reporting;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -12,20 +14,37 @@ import org.json.JSONObject;
 public final class MetricValue {
   public final String eventName;
   public final String reportType;
-  public final List<? extends AggregationType> aggregations;
+  public final List<AggregationType> aggregations;
   public final Boolean internal;
   public final MetricType metricType;
   public final DataType dataType;
   public final Boolean carryOverValue;
   public final long timeMs;
+  /** Nullable. */
   public final String stringVal;
+  /** Nullable. */
   public final Double numberVal;
+  /** Nullable. */
   public final Boolean boolVal;
+  public final int version;
 
-  public MetricValue(String eventName, String reportType,
-      List<? extends AggregationType> aggregations, Boolean internal, MetricType metricType,
-      DataType dataType, Boolean carryOverValue, long timeMs, String stringVal, Double numberVal,
-      Boolean boolVal) {
+  public MetricValue(
+      String eventName,
+      String reportType,
+      List<AggregationType> aggregations,
+      Boolean internal,
+      MetricType metricType,
+      DataType dataType,
+      Boolean carryOverValue,
+      long timeMs,
+      /* Nullable. */
+      String stringVal,
+      /* Nullable. */
+      Double numberVal,
+      /* Nullable */
+      Boolean boolVal,
+      int version
+  ) {
     this.reportType = reportType;
     this.aggregations = Collections.unmodifiableList(aggregations);
     this.eventName = eventName;
@@ -37,11 +56,67 @@ public final class MetricValue {
     this.stringVal = stringVal;
     this.numberVal = numberVal;
     this.boolVal = boolVal;
+    this.version = version;
+  }
+
+  /**
+   * Parse json.
+   */
+  public static MetricValue fromJson(String json) throws JSONException {
+    JSONObject object = new JSONObject(json);
+    // TODO handle versions here. What changed in V2?
+
+    JSONArray aggTypesArray = object.getJSONArray(MetricJsonFields.AGGREGATIONS);
+    List<AggregationType> aggTypes = new ArrayList<>();
+    for (int i = 0; i < aggTypesArray.length(); i++) {
+      AggregationType agg = AggregationType.fromString(aggTypesArray.getString(i));
+      if (agg != null) {
+        aggTypes.add(agg);
+      }
+    }
+
+    String metricTypeString = object.getString(MetricJsonFields.METRIC_TYPE);
+    MetricType metricType = MetricType.lookup.get(metricTypeString);
+    if (metricType == null) {
+      throw new JSONException("Invalid MetricType: " + metricTypeString);
+    }
+
+    String dataTypeString = object.getString(MetricJsonFields.DATA_TYPE);
+    DataType dataType = DataType.lookup.get(dataTypeString);
+    if (dataType == null) {
+      throw new JSONException("Invalid DataType: " + dataTypeString);
+    }
+
+    String stringVal = null;
+    Double doubleVal = null;
+    Boolean boolVal = null;
+    if (dataType == DataType.STRING) {
+      stringVal = object.getString(MetricJsonFields.VALUE);
+    } else if (dataType == DataType.DOUBLE) {
+      doubleVal = object.getDouble(MetricJsonFields.VALUE);
+    } else if (dataType == DataType.BOOLEAN) {
+      boolVal = object.getString(MetricJsonFields.VALUE).equals("1");
+    }
+
+    return new MetricValue(
+        object.getString(MetricJsonFields.EVENT_NAME),
+        object.getString(MetricJsonFields.REPORT_TYPE),
+        aggTypes,
+        object.optBoolean(MetricJsonFields.INTERNAL),
+        metricType,
+        dataType,
+        object.getBoolean(MetricJsonFields.CARRY_OVER),
+        object.getLong(MetricJsonFields.TIMESTAMP_MS),
+        stringVal,
+        doubleVal,
+        boolVal,
+        object.getInt(MetricJsonFields.VERSION)
+    );
   }
 
   String toJson() throws JSONException, IllegalArgumentException {
     JSONObject json = new JSONObject();
-    json.put(MetricJsonFields.VERSION, MetricJsonFields.REPORTING_CLIENT_VERSION);
+    json.put(MetricJsonFields.VERSION, version);
     json.put(MetricJsonFields.TIMESTAMP_MS, timeMs);
     json.put(MetricJsonFields.REPORT_TYPE, reportType);
     json.put(MetricJsonFields.EVENT_NAME, eventName);
@@ -52,7 +127,7 @@ public final class MetricValue {
 
     JSONArray aggregationsJsonArray = new JSONArray();
     aggregations.forEach(agg -> {
-      aggregationsJsonArray.put(agg.toString().toUpperCase());
+      aggregationsJsonArray.put(agg.value());
     });
     json.put(MetricJsonFields.AGGREGATIONS, aggregationsJsonArray);
 
@@ -71,6 +146,53 @@ public final class MetricValue {
     json.put(MetricJsonFields.CARRY_OVER, carryOverValue);
 
     return json.toString();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    MetricValue that = (MetricValue) o;
+    return timeMs == that.timeMs
+        && eventName.equals(that.eventName)
+        && reportType.equals(that.reportType)
+        && aggregations.equals(that.aggregations)
+        && internal.equals(that.internal)
+        && metricType == that.metricType
+        && dataType == that.dataType
+        && carryOverValue.equals(that.carryOverValue)
+        && Objects.equals(stringVal, that.stringVal)
+        && Objects.equals(numberVal, that.numberVal)
+        && Objects.equals(boolVal, that.boolVal)
+        && version == that.version;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(eventName, reportType, aggregations, internal, metricType, dataType,
+        carryOverValue, timeMs, stringVal, numberVal, boolVal, version);
+  }
+
+  @Override
+  public String toString() {
+    return "MetricValue{"
+        + "eventName='" + eventName + '\''
+        + ", reportType='" + reportType + '\''
+        + ", aggregations=" + aggregations
+        + ", internal=" + internal
+        + ", metricType=" + metricType
+        + ", dataType=" + dataType
+        + ", carryOverValue=" + carryOverValue
+        + ", timeMs=" + timeMs
+        + ", stringVal='" + stringVal + '\''
+        + ", numberVal=" + numberVal
+        + ", boolVal=" + boolVal
+        + ", version=" + version
+        + '}';
   }
 
   public static class MetricJsonFields {

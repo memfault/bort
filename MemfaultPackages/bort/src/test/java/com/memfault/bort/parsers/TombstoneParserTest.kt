@@ -40,6 +40,15 @@ class TombstoneParserTest {
             ).parse()
         }
     }
+
+    @Test
+    fun spaceInThreadName_processInProcessName() {
+        val tombstone = TombstoneParser(EXAMPLE_TOMBSTONE_THREADNAME_PROCESSNAME.byteInputStream()).parse()
+        assertEquals(1700, tombstone.pid)
+        assertEquals(1923, tombstone.tid)
+        assertEquals("AsyncTask #1", tombstone.threadName)
+        assertEquals("com.android.nfc", tombstone.processName)
+    }
 }
 
 val EXAMPLE_TOMBSTONE = """isPrevious: false
@@ -90,4 +99,32 @@ pid: 19474, tid: 19474, name: .android.chrome  >>> com.android.chrome <<<
 
 backtrace:
     #00 pc 00053ac0  /system/lib/libc.so (__epoll_pwait+20)
+"""
+
+val EXAMPLE_TOMBSTONE_THREADNAME_PROCESSNAME = """isPrevious: true
+Build: Square/t2_sdm660_64/t2_sdm660_64:10/5.21.0052/029d2ef:user/dev-keys
+Hardware: sdm660
+Revision: 0
+Bootloader: unknown
+Radio: null
+Kernel: Linux version 4.14.156-perf+ (build@squid-build-dev-8) (clang version 8.0.12 for Android NDK) #1 SMP PREEMPT Wed Jul 6 03:48:53 UTC 2022
+
+*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+Build fingerprint: 'Square/t2_sdm660_64/t2_sdm660_64:10/5.21.0052/029d2ef:user/dev-keys'
+Revision: '0'
+ABI: 'arm64'
+Timestamp: 2023-09-23 09:12:30-0600
+pid: 1700, tid: 1923, name: AsyncTask #1  >>> com.android.nfc:phoenix <<<
+uid: 1027
+signal 6 (SIGABRT), code -1 (SI_QUEUE), fault addr --------
+Abort message: 'FORTIFY: pthread_mutex_lock called on a destroyed mutex (0x74cf80ac18)'
+    x0  0000000000000000  x1  0000000000000783  x2  0000000000000006  x3  00000074793e98a0
+    x4  0000000000000000  x5  0000000000000000  x6  0000000000000000  x7  0000000000000038
+    x8  00000000000000f0  x9  f12ec1ea89763424  x10 0000000000000001  x11 0000000000000000
+    x12 fffffff0fffffbdf  x13 0000000000000004  x14 00000074793e940f  x15 0000000000000005
+    x16 0000007561dd58c0  x17 0000007561db1890  x18 00000074781ba000  x19 00000000000006a4
+    x20 0000000000000783  x21 00000000ffffffff  x22 00000074cf9ff584  x23 00000074cf9ff598
+    x24 00000074cf80ac60  x25 00000074793e9d50  x26 00000074793ea020  x27 000000747b5fc020
+    x28 00000074cf80acd8  x29 00000074793e9940
+    sp  00000074793e9880  lr  0000007561d63048  pc  0000007561d63074
 """

@@ -7,7 +7,8 @@
             android:name=".selftest.ReporterTestReceiver"
             tools:ignore="ExportedReceiver">
             <intent-filter>
-                <action android:name="com.memfault.intent.action.TEST_REPORTER_SELF_TEST" />
+              <action android:name="com.memfault.intent.action.TEST_REPORTER_REPLAY_CONNECTIVITY" />
+              <action android:name="com.memfault.intent.action.TEST_REPORTER_SELF_TEST" />
             </intent-filter>
         </receiver>
     </application>

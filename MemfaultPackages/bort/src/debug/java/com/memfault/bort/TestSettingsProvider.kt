@@ -62,6 +62,9 @@ class TestSettingsProvider @Inject constructor(
                     LogcatFilterSpec("*", LogcatPriority.WARN),
                     LogcatFilterSpec("bort", LogcatPriority.VERBOSE),
                     LogcatFilterSpec("bort-test", LogcatPriority.VERBOSE),
+                    // e2e-helper-test is the tag used to generate random bytes
+                    // for the continuous logcat bytes-threshold test
+                    LogcatFilterSpec("e2e-helper-test", LogcatPriority.VERBOSE),
                 )
             } else {
                 settings.logcatSettings.filterSpecs

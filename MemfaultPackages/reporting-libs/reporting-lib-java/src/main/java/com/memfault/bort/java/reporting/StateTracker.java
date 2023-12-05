@@ -15,7 +15,8 @@ public class StateTracker extends Metric {
   private static final Boolean CARRY_OVER_VALUE = true;
 
   StateTracker(String eventName, String reportType, ArrayList<StateAgg> aggregations) {
-    super(eventName, reportType, aggregations, METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
+    super(eventName, reportType, new ArrayList<>(aggregations), METRIC_TYPE, DATA_TYPE,
+            CARRY_OVER_VALUE);
   }
 
   public <T extends Enum<T>> void state(T state) {

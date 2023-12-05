@@ -8,7 +8,6 @@ import com.memfault.bort.reporting.MetricType.GAUGE
 import com.memfault.bort.reporting.MetricType.PROPERTY
 import com.memfault.bort.reporting.MetricValue.MetricJsonFields.REPORTING_CLIENT_VERSION
 import com.memfault.bort.reporting.NumericAgg.COUNT
-import com.memfault.bort.reporting.NumericAgg.LATEST_VALUE
 import com.memfault.bort.reporting.NumericAgg.SUM
 import com.memfault.bort.reporting.RemoteMetricsService.FinishReport
 
@@ -45,6 +44,46 @@ public object Reporting {
             sumInReport: Boolean = true,
             internal: Boolean = false,
         ): Counter = Counter(name = name, reportType = reportType, internal = internal, sumInReport = sumInReport)
+
+        /**
+         * All-purpose success and failure counter for any sync-like events.
+         */
+        @JvmOverloads
+        public fun sync(
+            sumInReport: Boolean = true,
+        ): SuccessOrFailure = successOrFailure(
+            name = "sync",
+            sumInReport = sumInReport,
+            internal = false,
+        )
+
+        /**
+         * Counts the number of success and failures of a custom metric type in the period.
+         *
+         * Prefer using underscores as separators in the metric name and avoiding spaces.
+         */
+        @JvmOverloads
+        public fun successOrFailure(
+            name: String,
+            sumInReport: Boolean = true,
+            internal: Boolean = false,
+        ): SuccessOrFailure {
+            check(name.isNotBlank()) { "Name '$name' must not be blank." }
+
+            val successCounter = counter(
+                name = "${name}_successful",
+                sumInReport = sumInReport,
+                internal = internal,
+            )
+
+            val failureCounter = counter(
+                name = "${name}_failure",
+                sumInReport = sumInReport,
+                internal = internal,
+            )
+
+            return SuccessOrFailure(successCounter, failureCounter)
+        }
 
         /**
          * Keeps track of a distribution of the values recorded during the period.
@@ -193,6 +232,7 @@ public object Reporting {
                     stringVal,
                     numberVal,
                     boolVal,
+                    REPORTING_CLIENT_VERSION,
                 ),
             )
         }
@@ -204,13 +244,16 @@ public object Reporting {
         override val internal: Boolean,
         private val addLatestToReport: Boolean,
     ) : Metric() {
-        override val aggregations = if (addLatestToReport) listOf(LATEST_VALUE) else emptyList()
+        override val aggregations = if (addLatestToReport) listOf(StateAgg.LATEST_VALUE) else emptyList()
         override val metricType = PROPERTY
         override val dataType = STRING
         override val carryOverValue = true
 
         @JvmOverloads
-        public fun update(value: String?, timestamp: Long = timestamp()): Unit =
+        public fun update(
+            value: String?,
+            timestamp: Long = timestamp(),
+        ): Unit =
             add(timeMs = timestamp, stringVal = value ?: "")
     }
 
@@ -220,30 +263,54 @@ public object Reporting {
         override val internal: Boolean,
         private val addLatestToReport: Boolean,
     ) : Metric() {
-        override val aggregations = if (addLatestToReport) listOf(LATEST_VALUE) else emptyList()
+        override val aggregations = if (addLatestToReport) listOf(NumericAgg.LATEST_VALUE) else emptyList()
         override val metricType = PROPERTY
         override val dataType = DOUBLE
         override val carryOverValue = true
 
         @JvmOverloads
-        public fun update(value: Double?, timestamp: Long = timestamp()): Unit =
+        public fun update(
+            value: Double?,
+            timestamp: Long = timestamp(),
+        ): Unit =
             add(timeMs = timestamp, numberVal = value)
 
         @JvmOverloads
-        public fun update(value: Float?, timestamp: Long = timestamp()): Unit =
+        public fun update(
+            value: Float?,
+            timestamp: Long = timestamp(),
+        ): Unit =
             add(timeMs = timestamp, numberVal = value?.toDouble())
 
         @JvmOverloads
-        public fun update(value: Long?, timestamp: Long = timestamp()): Unit =
+        public fun update(
+            value: Long?,
+            timestamp: Long = timestamp(),
+        ): Unit =
             add(timeMs = timestamp, numberVal = value?.toDouble())
 
         @JvmOverloads
-        public fun update(value: Int?, timestamp: Long = timestamp()): Unit =
+        public fun update(
+            value: Int?,
+            timestamp: Long = timestamp(),
+        ): Unit =
             add(timeMs = timestamp, numberVal = value?.toDouble())
 
         @JvmOverloads
-        public fun update(value: Boolean?, timestamp: Long = timestamp()): Unit =
+        public fun update(
+            value: Boolean?,
+            timestamp: Long = timestamp(),
+        ): Unit =
             add(timeMs = timestamp, numberVal = value?.asNumber())
+    }
+
+    public class SuccessOrFailure internal constructor(
+        private val successCounter: Counter,
+        private val failureCounter: Counter,
+    ) {
+        public fun success(): Unit = successCounter.increment()
+
+        public fun failure(): Unit = failureCounter.increment()
     }
 
     public data class Counter internal constructor(
@@ -258,13 +325,19 @@ public object Reporting {
         override val carryOverValue = false
 
         @JvmOverloads
-        public fun incrementBy(byDouble: Double = 1.0, timestamp: Long = timestamp()) {
+        public fun incrementBy(
+            byDouble: Double = 1.0,
+            timestamp: Long = timestamp(),
+        ) {
             add(timeMs = timestamp, numberVal = byDouble)
         }
 
         @JvmName("incrementByInt")
         @JvmOverloads
-        public fun incrementBy(by: Int = 1, timestamp: Long = timestamp()) {
+        public fun incrementBy(
+            by: Int = 1,
+            timestamp: Long = timestamp(),
+        ) {
             add(timeMs = timestamp, numberVal = by.toDouble())
         }
 
@@ -283,7 +356,10 @@ public object Reporting {
         override val carryOverValue = true
 
         @JvmOverloads
-        public fun state(state: T?, timestamp: Long = timestamp()) {
+        public fun state(
+            state: T?,
+            timestamp: Long = timestamp(),
+        ) {
             add(timeMs = timestamp, stringVal = state?.name ?: "")
         }
     }
@@ -299,7 +375,10 @@ public object Reporting {
         override val carryOverValue = true
 
         @JvmOverloads
-        public fun state(state: String?, timestamp: Long = timestamp()) {
+        public fun state(
+            state: String?,
+            timestamp: Long = timestamp(),
+        ) {
             add(timeMs = timestamp, stringVal = state ?: "")
         }
     }
@@ -315,7 +394,10 @@ public object Reporting {
         override val carryOverValue = true
 
         @JvmOverloads
-        public fun state(state: Boolean, timestamp: Long = timestamp()) {
+        public fun state(
+            state: Boolean,
+            timestamp: Long = timestamp(),
+        ) {
             add(timeMs = timestamp, boolVal = state)
         }
     }
@@ -331,12 +413,18 @@ public object Reporting {
         override val carryOverValue = false
 
         @JvmOverloads
-        public fun record(value: Double, timestamp: Long = timestamp()) {
+        public fun record(
+            value: Double,
+            timestamp: Long = timestamp(),
+        ) {
             add(timeMs = timestamp, numberVal = value)
         }
 
         @JvmOverloads
-        public fun record(value: Long, timestamp: Long = timestamp()) {
+        public fun record(
+            value: Long,
+            timestamp: Long = timestamp(),
+        ) {
             add(timeMs = timestamp, numberVal = value.toDouble())
         }
     }
@@ -353,7 +441,10 @@ public object Reporting {
         override val aggregations = if (countInReport) listOf(COUNT) else emptyList()
 
         @JvmOverloads
-        public fun add(value: String, timestamp: Long = timestamp()): Unit = add(timeMs = timestamp, stringVal = value)
+        public fun add(
+            value: String,
+            timestamp: Long = timestamp(),
+        ): Unit = add(timeMs = timestamp, stringVal = value)
     }
 }
 

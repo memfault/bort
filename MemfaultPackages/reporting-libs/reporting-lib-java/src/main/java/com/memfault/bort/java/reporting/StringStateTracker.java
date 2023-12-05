@@ -15,7 +15,8 @@ public class StringStateTracker extends Metric {
   private static final Boolean CARRY_OVER_VALUE = true;
 
   StringStateTracker(String eventName, String reportType, ArrayList<StateAgg> aggregations) {
-    super(eventName, reportType, aggregations, METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
+    super(eventName, reportType, new ArrayList<>(aggregations), METRIC_TYPE, DATA_TYPE,
+            CARRY_OVER_VALUE);
   }
 
   public void state(String state) {

@@ -1,5 +1,31 @@
 # Memfault Bort Changelog
 
+## v4.11.0 - December 5, 2023
+
+### :rocket: New Features
+
+- Added `connectivity_connected_time_ms` and `connectivity_expected_time_ms`
+  connectivity metrics.
+  [See documentation](https://mflt.io/connectivity-metrics).
+- Added support for `Reporting.report().successOrFailure()` and
+  `Reporting.report().sync()` - see
+  [documentation](https://mflt.io/android-custom-metrics-types). Update to the
+  latest version of `reporting-lib` (kotlin only) to use these.
+- Project keys can now be set using a sysprop, in addition to an Intent. See
+  [documentation](https://mflt.io/android-setting-project-key-at-runtime) for
+  more details.
+
+### :chart_with_upwards_trend: Improvements
+
+- Fixed parsing of application ID in tombstones, where a named process is in
+  use.
+- Fixed an issue with Continuous Logging, where the filter-spec was not
+  correctly applied.
+
+### :house: Internal
+
+- Added internal metrics for Bort network usage.
+
 ## v4.10.0 - November 15, 2023
 
 ### :boom: Breaking Changes

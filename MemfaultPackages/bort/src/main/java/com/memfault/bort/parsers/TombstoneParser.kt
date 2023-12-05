@@ -27,7 +27,7 @@ class TombstoneParser(val inputStream: InputStream) {
             val (pid, tid, threadName, processName) =
                 THREAD_HEADER_REGEX.matchEntire(line)?.destructured ?: continue
             return try {
-                ThreadHeader(pid.toInt(), tid.toInt(), threadName, processName)
+                ThreadHeader(pid.toInt(), tid.toInt(), threadName, processName.removeProcessSuffix())
             } catch (e: NumberFormatException) {
                 throw InvalidTombstoneException("Thread header failed to parse", e)
             }
@@ -43,6 +43,11 @@ class TombstoneParser(val inputStream: InputStream) {
         }
         if (lines.peek() == null) throw InvalidTombstoneException()
     }
+}
+
+private fun String.removeProcessSuffix(): String = when {
+    contains(":") -> split(":")[0]
+    else -> this
 }
 
 private const val FILE_START_TOKEN = "*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***"

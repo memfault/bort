@@ -215,9 +215,9 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
         // This is allowed to run before enabling Bort (in fact this is encouraged if possible).
         val newProjectKey = intent.getStringExtra(INTENT_EXTRA_PROJECT_KEY)
         if (newProjectKey != null) {
-            projectKeyProvider.projectKey = newProjectKey
+            projectKeyProvider.setProjectKey(newKey = newProjectKey, source = "broadcast")
         } else {
-            projectKeyProvider.reset()
+            projectKeyProvider.reset(source = "broadcast")
         }
     }
 

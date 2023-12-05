@@ -22,7 +22,7 @@ object AggregateMetricFilter {
     private fun handleMetric(
         metric: Map.Entry<String, JsonPrimitive>,
         internal: Boolean,
-    ): Pair<String, JsonPrimitive>? {
+    ): Pair<String, JsonPrimitive> {
         if (!internal) {
             // Special case: app versions. Drop .latest.
             if (metric.key.startsWith("version.")) {
@@ -33,6 +33,14 @@ object AggregateMetricFilter {
         // Special case: sysprops (internal and external). Drop .latest.
         if (metric.key.startsWith("sysprop.")) {
             return metric.key.removeSuffix(".latest") to metric.value
+        }
+
+        // Special case: sync_.*success.sum and sync_.*failure.sum. Drop .sum.
+        if (metric.key.endsWith("_successful.sum")) {
+            return metric.key.removeSuffix(".sum") to metric.value
+        }
+        if (metric.key.endsWith("_failure.sum")) {
+            return metric.key.removeSuffix(".sum") to metric.value
         }
 
         // Internal metrics: drop the sum/latest suffixes.

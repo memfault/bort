@@ -1,5 +1,9 @@
 package com.memfault.bort.reporting;
 
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Used to validate the metric type.
  */
@@ -45,6 +49,14 @@ public enum DataType {
       super(
           String.format("Metric value %s does match expected DataType of %s",
               value.toString(), DataType.this.value));
+    }
+  }
+
+  public static final Map<String, DataType> lookup = new HashMap<>();
+
+  static {
+    for (DataType s : EnumSet.allOf(DataType.class)) {
+      lookup.put(s.value, s);
     }
   }
 }

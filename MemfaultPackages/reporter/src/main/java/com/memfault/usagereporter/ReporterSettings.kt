@@ -27,7 +27,7 @@ interface ReporterSettings {
  * Returns a Flow that subscribes to the [onBortEnabledFlow] if Bort is enabled, otherwise doesn't emit.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-fun <T> StateFlow<SetReporterSettingsRequest>.onBortEnabledFlow(
+fun <T> Flow<SetReporterSettingsRequest>.onBortEnabledFlow(
     logName: String,
     bortEnabledFlow: suspend () -> Flow<T>,
 ) = map { it.bortEnabled }

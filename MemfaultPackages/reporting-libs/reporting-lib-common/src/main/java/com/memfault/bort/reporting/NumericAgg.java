@@ -1,31 +1,55 @@
 package com.memfault.bort.reporting;
 
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
+
 public enum NumericAgg implements AggregationType {
   /**
    * Minimum value seen during the period.
    */
-  MIN,
+  MIN("MIN"),
 
   /**
    * Maximum value seen during the period.
    */
-  MAX,
+  MAX("MAX"),
 
   /**
    * Sum of all values seen during the period.
    */
-  SUM,
+  SUM("SUM"),
 
   /**
    * Mean value seen during the period.
    */
-  MEAN,
+  MEAN("MEAN"),
 
   /**
    * Number of values seen during the period.
    */
-  COUNT,
+  COUNT("COUNT"),
 
-  LATEST_VALUE,
+  LATEST_VALUE("LATEST_VALUE"),
   // Future: more aggregations e.g. Std Dev, Percentile
+  ;
+
+  public final String value;
+
+  NumericAgg(String s) {
+    this.value = s;
+  }
+
+  public static final Map<String, NumericAgg> lookup = new HashMap<>();
+
+  static {
+    for (NumericAgg s : EnumSet.allOf(NumericAgg.class)) {
+      lookup.put(s.value, s);
+    }
+  }
+
+  @Override
+  public String value() {
+    return value;
+  }
 }

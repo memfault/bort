@@ -151,7 +151,7 @@ class DumpsterClient @Inject constructor(
         }
 
     /**
-     * @return All system propertiy types, or null in case they could not be retrieved.
+     * @return All system property types, or null in case they could not be retrieved.
      */
     suspend fun getpropTypes(): Map<String, String>? =
         withService<Map<String, String>?>(minimumVersion = IDumpster.VERSION_GETPROP_TYPES) {
