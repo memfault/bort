@@ -1,5 +1,7 @@
 package com.memfault.bort.http
 
+import com.memfault.bort.http.RetrofitInterceptor.InterceptorType
+import com.memfault.bort.http.RetrofitInterceptor.InterceptorType.PROJECT_KEY
 import com.memfault.bort.settings.ProjectKey
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
@@ -20,21 +22,26 @@ annotation class ProjectKeyAuthenticated
  * requests coming from calls of Retrofit methods marked with the @ProjectKeyAuth annotation.
  */
 @ContributesMultibinding(SingletonComponent::class)
-class ProjectKeyInjectingInterceptor @Inject constructor(val getProjectKey: ProjectKey) : Interceptor {
+class ProjectKeyInjectingInterceptor @Inject constructor(
+    private val getProjectKey: ProjectKey,
+) : RetrofitInterceptor {
+
+    override val type: InterceptorType = PROJECT_KEY
+
     override fun intercept(chain: Interceptor.Chain): Response {
         return chain.proceed(transformRequest(chain.request()))
     }
 
-    fun transformRequest(originalRequest: Request): Request {
-        val annotation = originalRequest.tag(Invocation::class.java)?.method()?.getAnnotation(
-            ProjectKeyAuthenticated::class.java,
-        )
+    private fun transformRequest(originalRequest: Request): Request {
+        val annotation = originalRequest.tag(Invocation::class.java)
+            ?.method()
+            ?.getAnnotation(ProjectKeyAuthenticated::class.java)
+
         return when (annotation) {
             null -> originalRequest
-            else -> originalRequest.newBuilder().header(
-                PROJECT_KEY_HEADER,
-                getProjectKey(),
-            ).build()
+            else -> originalRequest.newBuilder()
+                .header(PROJECT_KEY_HEADER, getProjectKey())
+                .build()
         }
     }
 }

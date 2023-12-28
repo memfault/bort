@@ -1,5 +1,22 @@
 # Memfault Bort Changelog
 
+## v4.12.0 - December 28, 2023
+
+### :rocket: New Features
+
+- Added a OTA validation to the bort_cli.py
+- Added a new disk wear metric.
+
+### :chart_with_upwards_trend: Improvements
+
+- Improved logging of network requests.
+- Improved the way the Bort BoardConfig is loaded to allow it to be added
+  multiple times. This was added to support devices who include a system and
+  vendor boardconfig.
+- Improved the sepolicy check in the bort_cli.py
+- Moved the custom metrics database into bort. This is not yet used but will
+  allow for future improvements.
+
 ## v4.11.0 - December 5, 2023
 
 ### :rocket: New Features

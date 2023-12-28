@@ -83,6 +83,7 @@ class LogcatCollector @Inject constructor(
     private val packageManagerClient: PackageManagerClient,
     private val packageNameAllowList: PackageNameAllowList,
     private val dataScrubber: DataScrubber,
+    private val storagedDiskWearLogcatDetector: StoragedDiskWearLogcatDetector,
 ) {
     suspend fun collect(): LogcatCollectorResult {
         temporaryFileFactory.createTemporaryFile(
@@ -168,10 +169,10 @@ class LogcatCollector @Inject constructor(
                             .onEach {
                                 selinuxViolationLogcatDetector.process(it, packageManagerReport)
                                 kernelOopsDetector.process(it)
+                                storagedDiskWearLogcatDetector.detect(it)
                             }
                             .map { it.scrub(scrubber, allowedUids) }
                             .onEach { it.writeTo(scrubbedWriter) }
-                            .asIterable()
                             .lastOrNull { it.logTime != null }
                             ?.logTime
                     }.also {

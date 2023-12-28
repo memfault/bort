@@ -31,6 +31,12 @@ android {
         buildConfigField "Boolean", "RUNTIME_ENABLE_REQUIRED", bortProperty("RUNTIME_ENABLE_REQUIRED")
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        javaCompileOptions {
+          annotationProcessorOptions {
+            arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
+          }
+        }
     }
 
     signingConfigs {
@@ -80,6 +86,9 @@ dependencies {
     implementation deps.retrofit
     implementation deps.okhttp
     implementation deps.okio
+    implementation deps.room.runtime
+    kapt deps.room.compiler
+    implementation deps.room.ktx
 
     implementation deps.jblake2
 

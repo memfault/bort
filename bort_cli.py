@@ -42,6 +42,7 @@ MEMFAULT_STRUCTURED_RC_PATH = "/etc/init/memfault_structured_logd.rc"
 MEMFAULT_STRUCTURED_DATA_PATH = "/data/system/MemfaultStructuredLogd/"
 MEMFAULT_STRUCTURED_EXEC_PATH = "/system/bin/MemfaultStructuredLogd"
 BORT_APK_PATH = r"package:/system/priv-app/MemfaultBort/MemfaultBort.apk"
+BORT_OTA_APK_PATH = r"package:/system/priv-app/MemfaultBortOta/MemfaultBortOta.apk"
 VENDOR_CIL_PATH = "/vendor/etc/selinux/vendor_sepolicy.cil"
 LOG_ENTRY_SEPARATOR = "============================================================"
 
@@ -515,6 +516,13 @@ def _check_bort_app_id(bort_app_id: str) -> None:
         )
 
 
+def _check_bort_ota_app_id(bort_ota_app_id: str) -> None:
+    if bort_ota_app_id == PLACEHOLDER_BORT_OTA_APP_ID:
+        sys.exit(
+            f"Invalid application ID '{bort_ota_app_id}'. Please configure BORT_OTA_APPLICATION_ID in bort.properties."
+        )
+
+
 def _check_feature_name(feature_name: str) -> None:
     if feature_name == PLACEHOLDER_FEATURE_NAME:
         sys.exit(
@@ -686,9 +694,9 @@ class OtaCheckForUpdates(Command):
             "broadcast",
             "--receiver-include-background",
             "-a",
-            "com.memfault.intent.action.OTA_CHECK_FOR_UPDATES",
+            "com.memfault.intent.action.OTA_CHECK_FOR_UPDATES_SHELL",
             "-n",
-            f"{self._bort_ota_app_id}/com.memfault.bort.ota.lib.CheckForUpdatesReceiver",
+            f"{self._bort_ota_app_id}/com.memfault.bort.ota.lib.ShellCheckForUpdatesReceiver",
         )
         _send_broadcast(
             self._bort_ota_app_id, "Checking for OTA updates", broadcast_cmd, self._device
@@ -738,8 +746,9 @@ class DevMode(Command):
 
 
 class ValidateConnectedDevice(Command):
-    def __init__(self, bort_app_id, device=None, vendor_feature_name=None):
+    def __init__(self, bort_app_id, bort_ota_app_id=None, device=None, vendor_feature_name=None):
         self._bort_app_id = bort_app_id
+        self._bort_ota_app_id = bort_ota_app_id
         self._device = device
         self._vendor_feature_name = vendor_feature_name or bort_app_id
         self._errors = []
@@ -748,6 +757,7 @@ class ValidateConnectedDevice(Command):
     def register(cls, create_parser):
         parser = create_parser(cls, "validate-sdk-integration")
         parser.add_argument("--bort-app-id", type=android_application_id_type, required=True)
+        parser.add_argument("--bort-ota-app-id", type=android_application_id_type, required=False)
         parser.add_argument(
             "--device", type=str, help="Optional device ID passed to ADB's `-s` flag"
         )
@@ -789,7 +799,7 @@ class ValidateConnectedDevice(Command):
                     ):
                         errors.extend(
                             [
-                                "Expected a selinux rule (allow priv_app memfault_dumpster_service:service_manager find), please recheck integration"
+                                "Expected a selinux rule (allow priv_app memfault_dumpster_service:service_manager find), please recheck integration - see https://mflt.io/android-sepolicy"
                             ]
                         )
 
@@ -869,6 +879,20 @@ class ValidateConnectedDevice(Command):
                 device=self._device,
             )
         )
+
+        if self._bort_ota_app_id:
+            context = "privapp_data_file" if sdk_version >= 29 else "app_data_file"
+            self._errors.extend(
+                _check_file_ownership_and_secontext(
+                    path=f"/data/data/{self._bort_ota_app_id}/",
+                    mode="drwx------",
+                    owner="u[0-9]+_a[0-9]+",
+                    group="u[0-9]+_a[0-9]+",
+                    secontext=f"u:object_r:{context}:s0",
+                    directory=True,
+                    device=self._device,
+                )
+            )
 
         self._errors.extend(
             _check_file_ownership_and_secontext(
@@ -968,6 +992,8 @@ class ValidateConnectedDevice(Command):
         logging.getLogger("").addHandler(fh)
 
         _check_bort_app_id(self._bort_app_id)
+        if self._bort_ota_app_id:
+            _check_bort_ota_app_id(self._bort_ota_app_id)
         _check_feature_name(self._vendor_feature_name)
         logging.info(LOG_ENTRY_SEPARATOR)
         logging.info("validate-sdk-integration %s", datetime.datetime.now())  # noqa: DTZ005
@@ -1004,6 +1030,17 @@ class ValidateConnectedDevice(Command):
                 device=self._device,
             )
         )
+
+        if self._bort_ota_app_id:
+            self._errors.extend(
+                _run_adb_shell_cmd_and_expect(
+                    description="Verifying MemfaultBort OTA app is installed",
+                    cmd=("pm", "path", self._bort_ota_app_id),
+                    matcher=_RegexMatcher(BORT_OTA_APK_PATH),
+                    device=self._device,
+                )
+            )
+
         self._errors.extend(
             _run_adb_shell_cmd_and_expect(
                 description=f"Verifying device has feature {self._vendor_feature_name}",

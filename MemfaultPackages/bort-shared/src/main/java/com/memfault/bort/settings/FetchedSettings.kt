@@ -90,6 +90,9 @@ data class FetchedSettings(
     @SerialName("device_info.android_hardware_version_key")
     val deviceInfoAndroidHardwareVersionKey: String,
 
+    @SerialName("disk_wear.data_source_enabled")
+    val diskWearDataSourceEnabled: Boolean = true,
+
     @SerialName("drop_box.excluded_tags")
     val dropBoxExcludedTags: Set<String>,
 

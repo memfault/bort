@@ -13,13 +13,13 @@ import static com.memfault.bort.reporting.MetricValue.MetricJsonFields.REPORTING
 public abstract class Metric {
   final String eventName;
   final String reportType;
-  final List<AggregationType> aggregations;
+  final List<? extends AggregationType> aggregations;
   final MetricType metricType;
   final DataType dataType;
-  final Boolean carryOverValue;
+  final boolean carryOverValue;
 
-  Metric(String eventName, String reportType, List<AggregationType> aggregations,
-      MetricType metricType, DataType dataType, Boolean carryOverValue) {
+  Metric(String eventName, String reportType, List<? extends AggregationType> aggregations,
+      MetricType metricType, DataType dataType, boolean carryOverValue) {
     this.reportType = reportType;
     this.aggregations = Collections.unmodifiableList(aggregations);
     this.eventName = eventName;

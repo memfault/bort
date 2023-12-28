@@ -1,5 +1,7 @@
 package com.memfault.bort.http
 
+import com.memfault.bort.http.RetrofitInterceptor.InterceptorType
+import com.memfault.bort.http.RetrofitInterceptor.InterceptorType.LOGGING
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.REQUEST_ATTEMPT
 import com.memfault.bort.metrics.REQUEST_FAILED
@@ -30,7 +32,12 @@ internal fun scrubUrl(url: HttpUrl): HttpUrl =
 private val decimalFormat = DecimalFormat("#.##")
 
 @ContributesMultibinding(SingletonComponent::class)
-class LoggingNetworkInterceptor @Inject constructor(private val metrics: BuiltinMetricsStore) : Interceptor {
+class LoggingNetworkInterceptor @Inject constructor(
+    private val metrics: BuiltinMetricsStore,
+) : RetrofitInterceptor {
+
+    override val type: InterceptorType = LOGGING
+
     override fun intercept(chain: Interceptor.Chain): Response = logTimeout(metrics) {
         logAttempt(metrics)
         val request: Request = chain.request()

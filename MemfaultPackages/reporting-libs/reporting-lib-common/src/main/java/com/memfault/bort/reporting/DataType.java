@@ -45,7 +45,7 @@ public enum DataType {
   }
 
   private class DataTypeMismatchException extends RuntimeException {
-    public DataTypeMismatchException(Object value) {
+    DataTypeMismatchException(Object value) {
       super(
           String.format("Metric value %s does match expected DataType of %s",
               value.toString(), DataType.this.value));

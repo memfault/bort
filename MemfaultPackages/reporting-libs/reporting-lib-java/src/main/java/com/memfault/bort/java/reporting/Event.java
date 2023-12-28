@@ -12,11 +12,12 @@ public class Event extends Metric {
 
   private static final MetricType METRIC_TYPE = EVENT;
   private static final DataType DATA_TYPE = STRING;
-  private static final Boolean CARRY_OVER_VALUE = false;
+  private static final boolean CARRY_OVER_VALUE = false;
 
-  Event(String eventName, String reportType, Boolean countInReport) {
-    super(eventName, reportType, countInReport ? Collections.singletonList(COUNT) :
-        Collections.EMPTY_LIST, METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
+  Event(String eventName, String reportType, boolean countInReport) {
+    super(eventName, reportType,
+        countInReport ? Collections.singletonList(COUNT) : Collections.emptyList(), METRIC_TYPE,
+        DATA_TYPE, CARRY_OVER_VALUE);
   }
 
   public void add(String value) {

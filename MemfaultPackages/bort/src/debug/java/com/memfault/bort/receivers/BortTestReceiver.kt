@@ -62,6 +62,7 @@ class BortTestReceiver : FilteringReceiver(
         "com.memfault.intent.action.TEST_RESET_DYNAMIC_SETTINGS",
         "com.memfault.intent.action.TEST_RESET_RATE_LIMITS",
         "com.memfault.intent.action.TEST_SETUP",
+        "com.memfault.intent.action.TEST_TEARDOWN",
         "com.memfault.intent.action.TEST_UPLOAD_MAR",
         "com.memfault.intent.action.TEST_CDR",
     ),
@@ -105,6 +106,7 @@ class BortTestReceiver : FilteringReceiver(
                 fileUploadHoldingArea.handleEventOfInterest(SystemClock.elapsedRealtime().milliseconds)
                 Logger.test("Added event of interest")
             }
+            "com.memfault.intent.action.TEST_CDR" -> testUploadCdr()
             "com.memfault.intent.action.TEST_REQUEST_LOGCAT_COLLECTION" -> {
                 // Pretend an event of interest occurred, so that the logcat file gets uploaded immediately:
                 fileUploadHoldingArea.handleEventOfInterest(SystemClock.elapsedRealtime().milliseconds)
@@ -125,17 +127,6 @@ class BortTestReceiver : FilteringReceiver(
                 }.also {
                     Logger.test("cid=${it.uuid}")
                 }
-            }
-            "com.memfault.intent.action.TEST_REQUEST_SETTINGS_UPDATE" -> {
-                restartPeriodicSettingsUpdate(
-                    context = context,
-                    // Something long to ensure it does not re-run & interfere with tests:
-                    updateInterval = 4.days,
-                    httpApiSettings = settingsProvider.httpApiSettings,
-                    delayAfterSettingsUpdate = false,
-                    testRequest = true,
-                    jitterDelayProvider = jitterDelayProvider,
-                )
             }
             "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION" -> {
                 restartPeriodicMetricsCollection(
@@ -166,11 +157,22 @@ class BortTestReceiver : FilteringReceiver(
                 sync.failure()
                 sync.failure()
             }
-            "com.memfault.intent.action.TEST_RESET_RATE_LIMITS" -> {
-                resetRateLimits()
+            "com.memfault.intent.action.TEST_REQUEST_SETTINGS_UPDATE" -> {
+                restartPeriodicSettingsUpdate(
+                    context = context,
+                    // Something long to ensure it does not re-run & interfere with tests:
+                    updateInterval = 4.days,
+                    httpApiSettings = settingsProvider.httpApiSettings,
+                    delayAfterSettingsUpdate = false,
+                    testRequest = true,
+                    jitterDelayProvider = jitterDelayProvider,
+                )
             }
             "com.memfault.intent.action.TEST_RESET_DYNAMIC_SETTINGS" -> {
                 resetDynamicSettings()
+            }
+            "com.memfault.intent.action.TEST_RESET_RATE_LIMITS" -> {
+                resetRateLimits()
             }
             // Sent before each E2E test:
             "com.memfault.intent.action.TEST_SETUP" -> {
@@ -185,7 +187,6 @@ class BortTestReceiver : FilteringReceiver(
             "com.memfault.intent.action.TEST_UPLOAD_MAR" -> enqueueOneTimeBatchMarFiles(
                 context = context,
             )
-            "com.memfault.intent.action.TEST_CDR" -> testUploadCdr()
         }
     }
 

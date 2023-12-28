@@ -19,10 +19,10 @@ class MemfaultFileUploader @Inject constructor(
         val prepareResponse = try {
             preparedUploader.prepare(file, payload.kind())
         } catch (e: HttpException) {
-            Logger.e("prepare", e)
+            Logger.e("Upload failed due to HTTP error", e)
             return TaskResult.RETRY
         } catch (e: Exception) {
-            Logger.e("prepare", e)
+            Logger.e("Upload failed due to error", e)
             return TaskResult.RETRY
         }
 

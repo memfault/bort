@@ -56,6 +56,7 @@ class LogcatCollectorTest {
     lateinit var selinuxViolationLogcatDetector: SelinuxViolationLogcatDetector
     lateinit var logcatSettings: LogcatSettings
     lateinit var logcatRunner: LogcatRunner
+    lateinit var storagedDiskWearLogcatDetector: StoragedDiskWearLogcatDetector
     var tempFile: File? = null
 
     @BeforeEach
@@ -113,6 +114,8 @@ class LogcatCollectorTest {
             override val continuousLogDumpWrappingTimeout: Duration = 30.minutes
         }
 
+        storagedDiskWearLogcatDetector = StoragedDiskWearLogcatDetector()
+
         collector = LogcatCollector(
             temporaryFileFactory = TestTemporaryFileFactory,
             nextLogcatStartTimeProvider = startTimeProvider,
@@ -125,6 +128,7 @@ class LogcatCollectorTest {
             selinuxViolationLogcatDetector = selinuxViolationLogcatDetector,
             logcatSettings = logcatSettings,
             logcatRunner = logcatRunner,
+            storagedDiskWearLogcatDetector = storagedDiskWearLogcatDetector,
         )
     }
 

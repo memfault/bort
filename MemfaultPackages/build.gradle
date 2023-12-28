@@ -13,7 +13,7 @@ buildscript {
     ext.versions = [
             'minSdk'                           : bortProperty("MIN_SDK_VERSION") as Integer,
             'targetSdk'                        : bortProperty("TARGET_SDK_VERSION") as Integer,
-            'compileSdk'                       : 33
+            'compileSdk'                       : 34
     ]
 
     repositories {

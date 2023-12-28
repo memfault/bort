@@ -31,7 +31,7 @@ public final class MetricValue {
   public MetricValue(
       String eventName,
       String reportType,
-      List<AggregationType> aggregations,
+      List<? extends AggregationType> aggregations,
       Boolean internal,
       MetricType metricType,
       DataType dataType,

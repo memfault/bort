@@ -18,6 +18,15 @@
         <action android:name="com.memfault.intent.action.OTA_CHECK_FOR_UPDATES" />
       </intent-filter>
     </receiver>
+
+    <receiver
+        android:name=".ShellCheckForUpdatesReceiver"
+        android:permission="android.permission.DUMP">
+      <intent-filter>
+        <action android:name="com.memfault.intent.action.OTA_CHECK_FOR_UPDATES_SHELL" />
+      </intent-filter>
+    </receiver>
+
     <service android:name=".download.DownloadOtaService" />
   </application>
   <!-- Allows writing recovery-based OTA to /data/ota_package -->

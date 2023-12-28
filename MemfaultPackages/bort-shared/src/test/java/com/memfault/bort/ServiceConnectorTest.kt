@@ -80,7 +80,7 @@ class ServiceConnectorTest {
             }
             // Wait until each of the clients is suspended in the connect {} block:
             channels.forEach { it.receive() }
-            verify(exactly = 1) { mockContext.bindService(any(), any(), any()) }
+            verify(exactly = 1) { mockContext.bindService(any(), any(), any<Int>()) }
             // Wait until each client returns from of the connect {} block:
             channels.forEach {
                 it.send(Unit)
@@ -103,7 +103,7 @@ class ServiceConnectorTest {
     @Test
     fun handlesRemoteExceptionDuringBind() {
         every {
-            mockContext.bindService(any(), any(), any())
+            mockContext.bindService(any(), any(), any<Int>())
         } throws RemoteException()
 
         var connectCalled = false
@@ -183,7 +183,7 @@ class ServiceConnectorTest {
             assertEquals(iBinder2, service2B?.binder)
             assertEquals(false, serviceConnector.hasClients)
             assertEquals(false, serviceConnector.bound)
-            verify(exactly = 1) { mockContext.bindService(any(), any(), any()) }
+            verify(exactly = 1) { mockContext.bindService(any(), any(), any<Int>()) }
             verify(exactly = 1) { mockContext.unbindService(any()) }
         }
     }

@@ -5,9 +5,11 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.Resources
 import androidx.preference.PreferenceManager
+import com.memfault.bort.http.RetrofitInterceptor
 import com.memfault.bort.logcat.KernelOopsDetector
 import com.memfault.bort.logcat.NoopLogcatLineProcessor
 import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.metrics.database.MetricsDb
 import com.memfault.bort.settings.BundledConfig
 import com.memfault.bort.settings.DeviceConfigUpdateService
 import com.memfault.bort.settings.SettingsProvider
@@ -43,7 +45,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import vnd.myandroid.bortappid.CustomLogScrubber
@@ -86,13 +87,19 @@ abstract class BortAppModule {
         @Singleton
         fun okHttpClient(
             settingsProvider: SettingsProvider,
-            interceptors: InjectSet<Interceptor>,
+            interceptors: InjectSet<RetrofitInterceptor>,
         ) = OkHttpClient.Builder()
             .connectTimeout(settingsProvider.httpApiSettings.connectTimeout.toJavaDuration())
             .writeTimeout(settingsProvider.httpApiSettings.writeTimeout.toJavaDuration())
             .readTimeout(settingsProvider.httpApiSettings.readTimeout.toJavaDuration())
             .callTimeout(settingsProvider.httpApiSettings.callTimeout.toJavaDuration())
-            .also { client -> interceptors.forEach { client.addInterceptor(it) } }
+            .also { client ->
+                check(interceptors.size == 4) {
+                    "Update this check when adding or removing RetrofitInterceptors."
+                }
+                interceptors.sortedBy { it.type.order }
+                    .forEach { client.addInterceptor(it) }
+            }
             .build()
 
         @Provides
@@ -567,6 +574,10 @@ abstract class BortAppModule {
         @Provides
         @MarFileUnsampledHoldingDir
         fun marFileUnsampledHoldingDir(application: Application) = File(application.filesDir, "mar-unsampled")
+
+        @Singleton
+        @Provides
+        fun metricsDb(application: Application) = MetricsDb.create(application)
     }
 }
 

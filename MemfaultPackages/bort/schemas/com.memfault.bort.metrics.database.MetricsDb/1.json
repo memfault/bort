@@ -1,0 +1,166 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "7667fa7d6bb9adb311d5080e6ddbdf68",
+    "entities": [
+      {
+        "tableName": "reports",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`type` TEXT NOT NULL, `startTimeMs` INTEGER NOT NULL, PRIMARY KEY(`type`))",
+        "fields": [
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startTimeMs",
+            "columnName": "startTimeMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": ["type"]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "metric_metadata",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `reportType` TEXT NOT NULL, `eventName` TEXT NOT NULL, `metricType` TEXT NOT NULL, `dataType` TEXT NOT NULL, `carryOver` INTEGER NOT NULL, `aggregations` TEXT NOT NULL, `internal` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reportType",
+            "columnName": "reportType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eventName",
+            "columnName": "eventName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "metricType",
+            "columnName": "metricType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dataType",
+            "columnName": "dataType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "carryOver",
+            "columnName": "carryOver",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aggregations",
+            "columnName": "aggregations",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "internal",
+            "columnName": "internal",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": ["id"]
+        },
+        "indices": [
+          {
+            "name": "index_metric_metadata_reportType_eventName",
+            "unique": true,
+            "columnNames": ["reportType", "eventName"],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_metric_metadata_reportType_eventName` ON `${TABLE_NAME}` (`reportType`, `eventName`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "metric_values",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `metricId` INTEGER NOT NULL, `version` INTEGER NOT NULL, `timestampMs` INTEGER NOT NULL, `stringVal` TEXT, `numberVal` REAL, `boolVal` INTEGER, `newField` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "metricId",
+            "columnName": "metricId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "version",
+            "columnName": "version",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestampMs",
+            "columnName": "timestampMs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stringVal",
+            "columnName": "stringVal",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "numberVal",
+            "columnName": "numberVal",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "boolVal",
+            "columnName": "boolVal",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "newField",
+            "columnName": "newField",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": ["id"]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7667fa7d6bb9adb311d5080e6ddbdf68')"
+    ]
+  }
+}

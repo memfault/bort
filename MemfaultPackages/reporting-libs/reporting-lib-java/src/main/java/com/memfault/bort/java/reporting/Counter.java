@@ -12,11 +12,12 @@ public class Counter extends Metric {
 
   private static final MetricType METRIC_TYPE = COUNTER;
   private static final DataType DATA_TYPE = DOUBLE;
-  private static final Boolean CARRY_OVER_VALUE = false;
+  private static final boolean CARRY_OVER_VALUE = false;
 
-  Counter(String name, String reportType, Boolean sumInReport) {
-    super(name, reportType, sumInReport ? Collections.singletonList(NumericAgg.SUM) :
-        Collections.emptyList(), METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
+  Counter(String name, String reportType, boolean sumInReport) {
+    super(name, reportType,
+        sumInReport ? Collections.singletonList(NumericAgg.SUM) : Collections.emptyList(),
+        METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
   }
 
   public void increment() {

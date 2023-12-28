@@ -11,6 +11,20 @@ import com.memfault.bort.reporting.NumericAgg.COUNT
 import com.memfault.bort.reporting.NumericAgg.SUM
 import com.memfault.bort.reporting.RemoteMetricsService.FinishReport
 
+/**
+ * Entry point to Memfault's Reporting library.
+ *
+ * Sample usage:
+ *
+ * ```
+ * val counter = Reporting.report()
+ *     .counter("api-count", sumInReport=true)
+ * ...
+ * counter.increment()
+ * ```
+ *
+ * See [Custom Metrics](https://mflt.io/android-custom-metrics) for more information.
+ */
 public object Reporting {
     /**
      * Default report. Values are aggregated using the default Bort heartbeat period.
@@ -37,6 +51,9 @@ public object Reporting {
     public class Report internal constructor(public val reportType: String) {
         /**
          * Aggregates the total count at the end of the period.
+         *
+         * @param name the name of the metric.
+         * @param sumInReport if true, includes the sum of all counts in the heartbeat report.
          */
         @JvmOverloads
         public fun counter(
@@ -47,6 +64,8 @@ public object Reporting {
 
         /**
          * All-purpose success and failure counter for any sync-like events.
+         *
+         * @param sumInReport if true, includes the sum of successes and failures in the heartbeat report.
          */
         @JvmOverloads
         public fun sync(
@@ -61,6 +80,9 @@ public object Reporting {
          * Counts the number of success and failures of a custom metric type in the period.
          *
          * Prefer using underscores as separators in the metric name and avoiding spaces.
+         *
+         * @param name the name of the metric.
+         * @param sumInReport if true, includes the sum of successes and failures in the heartbeat report.
          */
         @JvmOverloads
         public fun successOrFailure(
@@ -88,7 +110,9 @@ public object Reporting {
         /**
          * Keeps track of a distribution of the values recorded during the period.
          *
-         * One metric will be generated for each [aggregations].
+         * @param name the name of the metric.
+         * @param aggregations a list of [NumericAgg]regations to perform on the values recorded during the heartbeat
+         *                     period, included as metrics in the heartbeat report.
          */
         @JvmOverloads
         public fun distribution(
@@ -106,6 +130,10 @@ public object Reporting {
          * Tracks total time spent in each state during the report period.
          *
          * For use with enums.
+         *
+         * @param name the name of the metric.
+         * @param aggregations a list of [StateAgg]regations to perform on the values recorded during the heartbeat
+         *                     period, included as metrics in the heartbeat report.
          */
         @JvmOverloads
         public fun <T : Enum<T>> stateTracker(
@@ -123,6 +151,10 @@ public object Reporting {
          * Tracks total time spent in each state during the report period.
          *
          * For use with string representations of state.
+         *
+         * @param name the name of the metric.
+         * @param aggregations a list of [StateAgg]regations to perform on the values recorded during the heartbeat
+         *                     period, included as metrics in the heartbeat report.
          */
         @JvmOverloads
         public fun stringStateTracker(
@@ -140,6 +172,10 @@ public object Reporting {
          * Tracks total time spent in each state during the report period.
          *
          * For use with boolean representations of state.
+         *
+         * @param name the name of the metric.
+         * @param aggregations a list of [StateAgg]regations to perform on the values recorded during the heartbeat
+         *                     period, included as metrics in the heartbeat report.
          */
         @JvmOverloads
         public fun boolStateTracker(
@@ -155,6 +191,9 @@ public object Reporting {
 
         /**
          * Keep track of the latest value of a string property.
+         *
+         * @param name the name of the metric.
+         * @param addLatestToReport if true, includes the latest value of the metric in the heartbeat report.
          */
         @JvmOverloads
         public fun stringProperty(
@@ -170,6 +209,9 @@ public object Reporting {
 
         /**
          * Keep track of the latest value of a number property.
+         *
+         * @param name the name of the metric.
+         * @param addLatestToReport if true, includes the latest value of the metric in the heartbeat report.
          */
         @JvmOverloads
         public fun numberProperty(
@@ -185,6 +227,10 @@ public object Reporting {
 
         /**
          * Track individual events. Replacement for Custom Events.
+         *
+         * @param name the name of the metric.
+         * @param countInReport if true, includes a count of the number of events reported during the heartbeat period,
+         *                      in the the heartbeat report.
          */
         @JvmOverloads
         public fun event(
@@ -197,11 +243,17 @@ public object Reporting {
             countInReport = countInReport,
             internal = internal,
         )
-
-        public fun numericAggs(vararg aggregations: NumericAgg): List<NumericAgg> = aggregations.asList()
-
-        public fun statsAggs(vararg aggregations: StateAgg): List<StateAgg> = aggregations.asList()
     }
+
+    /**
+     * Convenience method for Java callers instead of using `asList()`.
+     */
+    public fun numericAggs(vararg aggregations: NumericAgg): List<NumericAgg> = aggregations.asList()
+
+    /**
+     * Convenience method for Java callers instead of using `asList()`.
+     */
+    public fun statsAggs(vararg aggregations: StateAgg): List<StateAgg> = aggregations.asList()
 
     public abstract class Metric internal constructor() {
         internal abstract val name: String

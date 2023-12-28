@@ -2,6 +2,8 @@ package com.memfault.bort.http
 
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.InstallationIdProvider
+import com.memfault.bort.http.RetrofitInterceptor.InterceptorType
+import com.memfault.bort.http.RetrofitInterceptor.InterceptorType.DEBUG_INFO
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.shared.SdkVersionInfo
 import com.squareup.anvil.annotations.ContributesMultibinding
@@ -29,7 +31,9 @@ class DebugInfoInjectingInterceptor @Inject constructor(
     private val installationIdProvider: InstallationIdProvider,
     private val bortEnabledProvider: BortEnabledProvider,
     private val deviceInfoProvider: DeviceInfoProvider,
-) : Interceptor {
+) : RetrofitInterceptor {
+
+    override val type: InterceptorType = DEBUG_INFO
 
     fun transformRequest(request: Request): Request {
         val url = request.url
@@ -50,17 +54,18 @@ class DebugInfoInjectingInterceptor @Inject constructor(
                 ""
             }
         val transformedUrl = url.newBuilder().apply {
-            linkedMapOf(
+            listOf(
                 QUERY_PARAM_DEVICE_SERIAL to deviceSerial,
                 QUERY_PARAM_UPSTREAM_VERSION_NAME to sdkVersionInfo.upstreamVersionName,
-                QUERY_PARAM_UPSTREAM_VERSION_CODE to sdkVersionInfo.upstreamVersionCode
-                    .toString(),
+                QUERY_PARAM_UPSTREAM_VERSION_CODE to sdkVersionInfo.upstreamVersionCode.toString(),
                 QUERY_PARAM_UPSTREAM_GIT_SHA to sdkVersionInfo.upstreamGitSha,
                 QUERY_PARAM_VERSION_NAME to sdkVersionInfo.appVersionName,
                 QUERY_PARAM_VERSION_CODE to sdkVersionInfo.appVersionCode.toString(),
                 QUERY_PARAM_DEVICE_ID to installationIdProvider.id(),
                 X_REQUEST_ID to xRequestId,
-            ).forEach { key, value -> addQueryParameter(key, value) }
+            ).forEach { (key, value) ->
+                addQueryParameter(key, value)
+            }
         }.build()
         return request.newBuilder()
             .addHeader(X_REQUEST_ID, xRequestId)

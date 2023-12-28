@@ -1,5 +1,7 @@
 package com.memfault.bort.http
 
+import com.memfault.bort.http.RetrofitInterceptor.InterceptorType
+import com.memfault.bort.http.RetrofitInterceptor.InterceptorType.GZIP
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
 import okhttp3.Interceptor
@@ -18,7 +20,10 @@ import javax.inject.Inject
 annotation class GzipRequest
 
 @ContributesMultibinding(SingletonComponent::class)
-class GzipRequestInterceptor @Inject constructor() : Interceptor {
+class GzipRequestInterceptor @Inject constructor() : RetrofitInterceptor {
+
+    override val type: InterceptorType = GZIP
+
     override fun intercept(chain: Interceptor.Chain): Response {
         return chain.proceed(transformRequest(chain.request()))
     }
