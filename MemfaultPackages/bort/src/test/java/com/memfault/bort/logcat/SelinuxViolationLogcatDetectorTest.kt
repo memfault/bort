@@ -14,6 +14,7 @@ import com.memfault.bort.uploader.HandleEventOfInterest
 import io.mockk.coEvery
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.params.ParameterizedTest
@@ -74,6 +75,7 @@ class SelinuxViolationLogcatDetectorTest {
             packageManagerReport = PackageManagerReport(testCase.packages),
         )
 
+        assertNotNull(selinuxViolation)
         assertEquals(testCase.expectedAction, selinuxViolation?.action)
         assertEquals(testCase.expectedSourceContext, selinuxViolation?.sourceContext)
         assertEquals(testCase.expectedTargetContext, selinuxViolation?.targetContext)
@@ -233,6 +235,31 @@ class SelinuxViolationLogcatDetectorTest {
                 expectedComm = "m.webview_shell",
                 expectedName = null,
                 expectedMarMetadataTitle = "Denied open for org.chromium.webview_shell (m.webview_shell)",
+                expectedPackageName = "com.memfault.test.match",
+                expectedPackageVersionName = "version_name",
+                expectedPackageVersionCode = 1,
+            ),
+            TestCase(
+                logcatLineAfterTag = """type=1400 audit(0.0:169): avc: denied { read } for name="init" """ +
+                    """dev="dm-0" ino=25 scontext=u:r:untrusted_app_25:s0:c512,c768 """ +
+                    """tcontext=u:object_r:init_exec:s0 tclass=lnk_file permissive=0 """ +
+                    """app=com.squareup.data.migration.demo.x2""",
+                uid = 10083,
+                packages = listOf(
+                    Package(
+                        id = "com.memfault.test.match",
+                        userId = 10083,
+                        versionName = "version_name",
+                        versionCode = 1,
+                    ),
+                ),
+                expectedAction = "read",
+                expectedSourceContext = "untrusted_app_25",
+                expectedTargetContext = "init_exec",
+                expectedTargetClass = "lnk_file",
+                expectedApp = "com.squareup.data.migration.demo.x2",
+                expectedName = "init",
+                expectedMarMetadataTitle = "Denied read for com.squareup.data.migration.demo.x2 (init)",
                 expectedPackageName = "com.memfault.test.match",
                 expectedPackageVersionName = "version_name",
                 expectedPackageVersionCode = 1,

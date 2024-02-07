@@ -13,7 +13,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -62,35 +62,29 @@ class CustomEventEntryProcessorTest {
     }
 
     @Test
-    fun enqueues() {
-        runBlocking {
-            processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE))
-            val metadata = marMetadataSlot.captured as MarMetadata.StructuredLogMarMetadata
-            assertEquals(LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000002")), metadata.cid)
-            assertEquals(LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000003")), metadata.nextCid)
-            assertEquals(FakeCombinedTimeProvider.now(), collectionTimeSlot.captured)
+    fun enqueues() = runTest {
+        processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE))
+        val metadata = marMetadataSlot.captured as MarMetadata.StructuredLogMarMetadata
+        assertEquals(LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000002")), metadata.cid)
+        assertEquals(LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000003")), metadata.nextCid)
+        assertEquals(FakeCombinedTimeProvider.now(), collectionTimeSlot.captured)
+    }
+
+    @Test
+    fun rateLimiting() = runTest {
+        allowedByRateLimit = true
+        processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
+        allowedByRateLimit = false
+        processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
+        verify(exactly = 1) {
+            mockEnqueueUpload.enqueue(any(), any(), any())
         }
     }
 
     @Test
-    fun rateLimiting() {
-        runBlocking {
-            allowedByRateLimit = true
-            processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
-            allowedByRateLimit = false
-            processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
-            verify(exactly = 1) {
-                mockEnqueueUpload.enqueue(any(), any(), any())
-            }
-        }
-    }
-
-    @Test
-    fun noProcessingWhenDataSourceDisabled() {
+    fun noProcessingWhenDataSourceDisabled() = runTest {
         dataSourceEnabled = false
-        runBlocking {
-            processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
-            verify(exactly = 0) { mockEnqueueUpload.enqueue(any(), any(), any()) }
-        }
+        processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
+        verify(exactly = 0) { mockEnqueueUpload.enqueue(any(), any(), any()) }
     }
 }

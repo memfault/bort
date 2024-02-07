@@ -11,7 +11,6 @@ import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.clientserver.MarMetadata.CustomDataRecordingMarMetadata
 import com.memfault.bort.clientserver.MarMetadata.HeartbeatMarMetadata
-import com.memfault.bort.connectivity.ConnectivitySyncCalculator
 import com.memfault.bort.connectivity.ConnectivityTimeCalculator
 import com.memfault.bort.dropbox.MetricReport
 import com.memfault.bort.metrics.HighResTelemetry.Companion.mergeHrtIntoFile
@@ -51,7 +50,6 @@ class MetricsCollectionTask @Inject constructor(
     private val batteryStatsCollector: BatteryStatsCollector,
     private val metricsSettings: MetricsSettings,
     private val crashHandler: CrashHandler,
-    private val connectivitySyncCalculator: ConnectivitySyncCalculator,
     private val connectivityTimeCalculator: ConnectivityTimeCalculator,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
@@ -70,6 +68,9 @@ class MetricsCollectionTask @Inject constructor(
 
         systemPropertiesCollector.updateSystemProperties(propertiesStore)
         appVersionsCollector.updateAppVersions(propertiesStore)
+        if (bortSystemCapabilities.useBortMetricsDb()) {
+            propertiesStore.upsert(BORT_LITE_METRIC_KEY, true, internal = false)
+        }
         crashHandler.process()
         val fallbackInternalMetrics =
             updateBuiltinProperties(
@@ -95,13 +96,6 @@ class MetricsCollectionTask @Inject constructor(
         val propertiesStoreInternalMetrics =
             AggregateMetricFilter.filterAndRenameMetrics(propertiesStore.internalMetrics(), internal = true)
 
-        val connectivitySyncResults =
-            connectivitySyncCalculator.calculateSyncMetrics(
-                startTimestampMs = heartbeatReport?.metricReport?.startTimestampMs,
-                endTimestampMs = heartbeatReport?.metricReport?.endTimestampMs,
-                heartbeatInternalReportMetrics = heartbeatReportInternalMetrics,
-            )
-
         val connectivityTimeResults =
             connectivityTimeCalculator.calculateConnectedTimeMetrics(
                 startTimestampMs = heartbeatReport?.metricReport?.startTimestampMs,
@@ -118,18 +112,16 @@ class MetricsCollectionTask @Inject constructor(
             heartbeatReportMetrics = heartbeatReportMetrics +
                 batteryStatsResult.aggregatedMetrics +
                 networkStatsResult.heartbeatMetrics +
-                connectivitySyncResults.heartbeatMetrics +
                 connectivityTimeResults.heartbeatMetrics +
                 propertiesStoreMetrics,
             heartbeatReportInternalMetrics = internalMetrics +
                 networkStatsResult.internalHeartbeatMetrics +
                 propertiesStoreInternalMetrics,
         )
-        // Add batterystats to HRT file.
+        // Add batterystats and others to the HRT file.
         heartbeatReport?.highResFile?.let { hrtFile ->
             val hrtMetricsToAdd = batteryStatsResult.batteryStatsHrt +
                 networkStatsResult.hrtRollup +
-                connectivitySyncResults.hrtRollup +
                 connectivityTimeResults.hrtRollup +
                 propertiesStore.hrtRollups(timestampMs = collectionTime.timestamp.toEpochMilli())
             if (hrtMetricsToAdd.isNotEmpty()) {
@@ -204,7 +196,7 @@ class MetricsCollectionTask @Inject constructor(
             value = supportsCaliperMetrics,
             internal = true,
         )
-        if (!supportsCaliperMetrics) {
+        if (!supportsCaliperMetrics && !bortSystemCapabilities.useBortMetricsDb()) {
             Logger.d("!supportsCaliperMetrics, only uploading internal metrics")
             // Include some really basic information.
             val failureMetrics = mapOf(
@@ -232,3 +224,4 @@ class MetricsCollectionTask @Inject constructor(
 private const val HIGH_RES_METRICS_MIME_TYPE = "application/vnd.memfault.hrt.v1"
 private const val HIGH_RES_METRICS_REASON = "memfault-high-res-metrics"
 private const val SUPPORTS_CALIPER_METRICS_KEY = "supports_caliper_metrics"
+const val BORT_LITE_METRIC_KEY = "bort_lite"

@@ -8,12 +8,13 @@ import com.memfault.bort.kotlinxJsonConverterFactory
 import com.memfault.bort.settings.BortEnabledProvider
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockWebServer
 import retrofit2.Retrofit
 import java.io.File
 import java.util.UUID
-import kotlin.String
 
 const val UPLOAD_URL = "https://test.com/abc"
 const val AUTH_TOKEN = "auth_token"
@@ -53,22 +54,26 @@ fun loadTestFileFromResources() = File(
     PreparedUploaderTest::class.java.getResource("/test.txt")!!.path,
 )
 
-fun mockTaskRunnerWorker(inputData: Data, runAttemptCount: Int = 1) =
-    mockk<TaskRunnerWorker> {
-        every { getRunAttemptCount() } returns runAttemptCount
-        every { getInputData() } returns inputData
-        every { id } returns UUID.randomUUID()
-        every { tags } returns emptySet()
-    }
+fun mockTaskRunnerWorker(
+    inputData: Data,
+    runAttemptCount: Int = 1,
+) = mockk<TaskRunnerWorker> {
+    every { getRunAttemptCount() } returns runAttemptCount
+    every { getInputData() } returns inputData
+    every { id } returns UUID.randomUUID()
+    every { tags } returns emptySet()
+}
 
-class BortEnabledTestProvider(private var enabled: Boolean = true) : BortEnabledProvider {
+class BortEnabledTestProvider(
+    private var enabled: MutableStateFlow<Boolean> = MutableStateFlow(true),
+) : BortEnabledProvider {
+
     override fun setEnabled(isOptedIn: Boolean) {
-        enabled = isOptedIn
+        enabled.value = isOptedIn
     }
 
-    override fun isEnabled(): Boolean {
-        return enabled
-    }
+    override fun isEnabled(): Boolean = enabled.value
+    override fun isEnabledFlow(): Flow<Boolean> = enabled
 
     override fun requiresRuntimeEnable(): Boolean = true
 }

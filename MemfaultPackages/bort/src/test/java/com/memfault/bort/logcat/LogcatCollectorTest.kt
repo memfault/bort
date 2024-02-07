@@ -24,7 +24,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -69,6 +69,7 @@ class LogcatCollectorTest {
                     capture(outputStreamSlot),
                     capture(commandSlot),
                     any(),
+                    any(),
                 )
             } answers {
                 logcatOutput.let { output ->
@@ -83,7 +84,7 @@ class LogcatCollectorTest {
         cidProvider = FakeNextLogcatCidProvider.incrementing()
 
         mockPackageManagerClient = mockk {
-            coEvery { getPackageManagerReport(null) } returns PackageManagerReport(
+            coEvery { getPackageManagerReport() } returns PackageManagerReport(
                 listOf(
                     Package(id = "android", userId = 1000),
                     Package(id = "com.memfault.bort", userId = 9008),
@@ -137,13 +138,11 @@ class LogcatCollectorTest {
         tempFile?.delete()
     }
 
-    private fun collect() =
-        runBlocking {
-            collector.collect()
-        }.also { result -> tempFile = result.file }
+    private suspend fun collect() = collector.collect()
+        .also { result -> tempFile = result.file }
 
     @Test
-    fun happyPath() {
+    fun happyPath() = runTest {
         val initialCid = cidProvider.cid
         val nextStartInstant = Instant.ofEpochSecond(1234, 56789)
         startTimeProvider.nextStart = AbsoluteTime(nextStartInstant)
@@ -186,7 +185,7 @@ class LogcatCollectorTest {
     }
 
     @Test
-    fun whenLastLogLineFailedToParsefallbackToNowAsNextStart() {
+    fun whenLastLogLineFailedToParsefallbackToNowAsNextStart() = runTest {
         logcatOutput = "foo bar"
         val result = collect()
         assertEquals(
@@ -199,7 +198,7 @@ class LogcatCollectorTest {
     }
 
     @Test
-    fun useLastDateIflastLogLineIsSeparator() {
+    fun useLastDateIflastLogLineIsSeparator() = runTest {
         val nextStartInstant = Instant.ofEpochSecond(1234, 56789)
         startTimeProvider.nextStart = AbsoluteTime(nextStartInstant)
         logcatOutput = """2021-01-18 12:34:02.000000000 +0000  9008  9008 I ServiceManager: Waiting...
@@ -218,7 +217,7 @@ class LogcatCollectorTest {
     }
 
     @Test
-    fun emptyLogcatOutput() {
+    fun emptyLogcatOutput() = runTest {
         logcatOutput = ""
         val initialCid = cidProvider.cid
         val result = collect()
@@ -232,7 +231,7 @@ class LogcatCollectorTest {
     }
 
     @Test
-    fun logPrioritySerializerDeserializer() {
+    fun logPrioritySerializerDeserializer() = runTest {
         LogcatPriority.values()
             .map {
                 Pair(it.cliValue, """"${it.cliValue}"""")

@@ -10,6 +10,8 @@
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="com.memfault.usagereporter.permission.REPORTER_ACCESS" />
     <uses-permission android:name="com.memfault.bort.permission.UPDATE_STRUCTURED_LOG_CONFIG" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
 
     <!-- DropBoxManager.getNextEntry() requires these: -->
     <uses-permission
@@ -21,6 +23,10 @@
     <!-- UserHandle.CURRENT and battery stats require this:-->
     <uses-permission
         android:name="android.permission.INTERACT_ACROSS_USERS"
+        tools:ignore="ProtectedPermissions" />
+    <!-- Enable dropbox tags -->
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
 
     <permission
@@ -133,6 +139,12 @@
             android:name=".settings.SoftwareUpdateSettingsContentProvider"
             android:exported="true"
             android:readPermission="com.memfault.bort.permission.READ_SOFTWARE_UPDATE_SETTINGS" />
+
+        <provider
+            android:name=".metrics.custom.CustomMetricsProvider"
+            android:authorities="com.memfault.bort.metrics"
+            android:exported="true"
+            tools:ignore="ExportedContentProvider" />
     </application>
 
 </manifest>

@@ -1,0 +1,16 @@
+diff --git a/services/core/java/com/android/server/power/stats/BatteryStatsImpl.java b/services/core/java/com/android/server/power/stats/BatteryStatsImpl.java
+index 27329e20..085fb734 100644
+--- a/services/core/java/com/android/server/power/stats/BatteryStatsImpl.java
++++ b/services/core/java/com/android/server/power/stats/BatteryStatsImpl.java
+@@ -14593,7 +14593,10 @@ public class BatteryStatsImpl extends BatteryStats {
+             // We don't record history while we are plugged in and fully charged
+             // (or when battery is not present).  The next time we are
+             // unplugged, history will be cleared.
+-            mHistory.setHistoryRecordingEnabled(DEBUG);
++            //mHistory.setHistoryRecordingEnabled(DEBUG);
++
++            // For Memfault Bort's data collection, keep recording history:
++            mHistory.setHistoryRecordingEnabled(true);
+         }
+ 
+         mLastLearnedBatteryCapacityUah = chargeFullUah;

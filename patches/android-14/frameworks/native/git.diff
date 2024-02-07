@@ -1,0 +1,55 @@
+diff --git a/cmds/dumpstate/dumpstate.cpp b/cmds/dumpstate/dumpstate.cpp
+index 8a337569c4..9132f7c2c4 100644
+--- a/cmds/dumpstate/dumpstate.cpp
++++ b/cmds/dumpstate/dumpstate.cpp
+@@ -3048,6 +3048,41 @@ void Dumpstate::PreDumpUiData() {
+     MaybeSnapshotUiTraces();
+ }
+ 
++static void DumpstateMemfaultMinimalMode() {
++    MYLOGI("Running Dumpstate in Memfault Minimal Mode...\n");
++
++    /* Run some operations that require root. */
++    ds.tombstone_data_ = GetDumpFds(TOMBSTONE_DIR, TOMBSTONE_FILE_PREFIX);
++    ds.anr_data_ = GetDumpFds(ANR_DIR, ANR_FILE_PREFIX);
++    ds.AddDir(RECOVERY_DIR, true);
++    ds.AddDir(RECOVERY_DATA_DIR, true);
++    ds.AddDir(UPDATE_ENGINE_LOG_DIR, true);
++    ds.AddDir(LOGPERSIST_DATA_DIR, false);
++
++    if (!DropRootUser()) {
++        return;
++    }
++    RunCommand("PRINTENV", {"printenv"});
++    if (android::base::GetBoolProperty("ro.logd.kernel", false)) {
++        DoKernelLogcat();
++    } else {
++        do_dmesg();
++    }
++    DoLogcat();
++    AddAnrTraceFiles();
++    // NOTE: tombstones are always added as separate entries in the zip archive
++    // and are not interspersed with the main report.
++    const bool tombstones_dumped = AddDumps(ds.tombstone_data_.begin(), ds.tombstone_data_.end(),
++                                            "TOMBSTONE", true /* add_to_zip */);
++    if (!tombstones_dumped) {
++        printf("*** NO TOMBSTONES to dump in %s\n\n", TOMBSTONE_DIR.c_str());
++    }
++    DoKmsg();
++    RunCommand("SYSTEM PROPERTIES", {"getprop"});
++    RunDumpsysNormal();
++    RunDumpsys("CHECKIN BATTERYSTATS", {"batterystats", "-c"});
++}
++
+ /*
+  * Dumps relevant information to a bugreport based on the given options.
+  *
+@@ -3252,6 +3287,8 @@ Dumpstate::RunStatus Dumpstate::RunInternal(int32_t calling_uid,
+         DumpstateWifiOnly();
+     } else if (options_->limited_only) {
+         DumpstateLimitedOnly();
++    } else if (android::base::GetBoolProperty("dumpstate.memfault.minimal", false)) {
++        DumpstateMemfaultMinimalMode();
+     } else {
+         // Dump state for the default case. This also drops root.
+         RunStatus s = DumpstateDefaultAfterCritical();

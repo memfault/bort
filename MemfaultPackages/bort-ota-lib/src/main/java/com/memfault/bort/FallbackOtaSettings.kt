@@ -30,6 +30,7 @@ class FallbackOtaSettings @Inject constructor(
         RealDeviceInfoProvider(
             deviceInfoSettings = bundledSdkSettings.deviceInfoSettings(),
             dumpsterClient = dumpsterClient,
+            application = application,
         )
     }
     private val deviceInfo by lazy { runBlocking { deviceInfoProvider.getDeviceInfo() } }

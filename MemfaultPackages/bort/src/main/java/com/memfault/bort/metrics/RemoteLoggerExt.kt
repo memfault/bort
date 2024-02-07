@@ -3,7 +3,7 @@ package com.memfault.bort.metrics
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.Logger
 
-private const val HEARTBEAT_REPORT_TYPE = "Heartbeat"
+const val HEARTBEAT_REPORT_TYPE = "Heartbeat"
 
 /**
  * Finishes a heartbeat report via reflection until starting/finishing reports becomes part of the public API

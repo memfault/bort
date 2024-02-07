@@ -2,6 +2,7 @@ package com.memfault.bort
 
 import android.os.PersistableBundle
 import android.os.RemoteException
+import com.memfault.bort.process.ProcessExecutor
 import com.memfault.bort.shared.CONTINUOUS_LOG_DUMP_THRESHOLD_BYTES
 import com.memfault.bort.shared.CONTINUOUS_LOG_DUMP_THRESHOLD_TIME_MS
 import com.memfault.bort.shared.CONTINUOUS_LOG_DUMP_WRAPPING_TIMEOUT_MS
@@ -111,8 +112,9 @@ private class WrappedService(val service: IDumpster, val basicCommandTimeout: Lo
 annotation class BasicCommandTimout
 
 class DumpsterClient @Inject constructor(
-    val serviceProvider: DumpsterServiceProvider,
-    @BasicCommandTimout val basicCommandTimeout: Long,
+    private val serviceProvider: DumpsterServiceProvider,
+    @BasicCommandTimout private val basicCommandTimeout: Long,
+    private val processExecutor: ProcessExecutor,
 ) {
     private fun getServiceSilently(): IDumpster? = serviceProvider.get(logIfMissing = false)
 
@@ -148,6 +150,9 @@ class DumpsterClient @Inject constructor(
             return runBasicCommand(IDumpster.CMD_ID_GETPROP)?.let {
                 parseGetpropOutput(it)
             }
+            // Bort Lite: fall back to getting whatever sysprops we are allowed to, locally.
+        } ?: processExecutor.execute(listOf("/system/bin/getprop")) {
+            parseGetpropOutput(it.reader().readText())
         }
 
     /**
@@ -158,7 +163,9 @@ class DumpsterClient @Inject constructor(
             return runBasicCommand(IDumpster.CMD_ID_GETPROP_TYPES)?.let {
                 parseGetpropOutput(it)
             }
-        }
+        } ?: processExecutor.execute(listOf("/system/bin/getprop", "-T")) {
+            parseGetpropOutput(it.reader().readText())
+        } ?: emptyMap() // Types aren't available on Android 8 - fails if we don't do this
 
     /**
      * Sets a system property (persist.system.memfault.bort.enabled) so that other components may enable / disable

@@ -9,16 +9,6 @@
         android:label="@string/permission_reporter_label"
         android:protectionLevel="signature|privileged" />
 
-    <!-- DropBoxManager.getNextEntry() requires these: -->
-    <uses-permission
-        android:name="android.permission.READ_LOGS"
-        tools:ignore="ProtectedPermissions" />
-
-    <!-- UserHandle.CURRENT and battery stats require this:-->
-    <uses-permission
-        android:name="android.permission.INTERACT_ACROSS_USERS"
-        tools:ignore="ProtectedPermissions" />
-
     <application
         android:name=".UsageReporter"
         android:allowBackup="false"

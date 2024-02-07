@@ -3,7 +3,6 @@ package com.memfault.bort.receivers
 import android.content.Context
 import android.content.Intent
 import com.memfault.bort.AppUpgrade
-import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.BugReportRequestStatus
 import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.DumpsterClient
@@ -21,12 +20,14 @@ import com.memfault.bort.RealDevMode
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.broadcastReply
 import com.memfault.bort.clientserver.ClientDeviceInfoSender
+import com.memfault.bort.dropbox.DropBoxTagEnabler
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.requester.MetricsCollectionRequester
 import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
 import com.memfault.bort.requester.StartRealBugReport
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.ContinuousLoggingController
+import com.memfault.bort.settings.ProjectKeyChangeSource.BROADCAST
 import com.memfault.bort.settings.ProjectKeyProvider
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.SettingsUpdateRequester
@@ -69,8 +70,6 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
     @BugReportRequestStore @Inject
     lateinit var tokenBucketStore: TokenBucketStore
 
-    @Inject lateinit var bortSystemCapabilities: BortSystemCapabilities
-
     @Inject lateinit var builtInMetricsStore: BuiltinMetricsStore
 
     @Inject lateinit var startBugReport: StartRealBugReport
@@ -92,6 +91,8 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
     @Inject lateinit var projectKeyProvider: ProjectKeyProvider
 
     @Inject lateinit var dropBoxEntryAddedReceiver: DropBoxEntryAddedReceiver
+
+    @Inject lateinit var dropBoxTagEnabler: DropBoxTagEnabler
 
     private fun allowedByRateLimit(): Boolean =
         tokenBucketStore.takeSimple(key = "control-requested", tag = "bugreport_request")
@@ -128,7 +129,6 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
                 request,
                 timeout,
                 settingsProvider.bugReportSettings,
-                bortSystemCapabilities,
                 builtInMetricsStore,
             )
         }
@@ -153,6 +153,9 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
         Logger.i(if (isNowEnabled) "bort.enabled" else "bort.disabled", mapOf())
 
         bortEnabledProvider.setEnabled(isNowEnabled)
+        if (isNowEnabled) {
+            dropBoxTagEnabler.enableTagsIfRequired()
+        }
         fileUploadHoldingArea.handleChangeBortEnabled()
         dropBoxEntryAddedReceiver.initialize()
 
@@ -208,16 +211,18 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
             INTENT_EXTRA_DEV_MODE_ENABLED,
             false, // never used, because we just checked hasExtra()
         )
-        devMode.setEnabled(enabled, context)
+        goAsync {
+            devMode.setEnabled(enabled, context)
+        }
     }
 
     private fun onChangeProjectKey(intent: Intent) {
         // This is allowed to run before enabling Bort (in fact this is encouraged if possible).
         val newProjectKey = intent.getStringExtra(INTENT_EXTRA_PROJECT_KEY)
         if (newProjectKey != null) {
-            projectKeyProvider.setProjectKey(newKey = newProjectKey, source = "broadcast")
+            projectKeyProvider.setProjectKey(newKey = newProjectKey, source = BROADCAST)
         } else {
-            projectKeyProvider.reset(source = "broadcast")
+            projectKeyProvider.reset(source = BROADCAST)
         }
     }
 

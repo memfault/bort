@@ -24,4 +24,5 @@ android {
 
 dependencies {
     api deps.bundles.kotlin
+    testImplementation deps.test.assertk
 }

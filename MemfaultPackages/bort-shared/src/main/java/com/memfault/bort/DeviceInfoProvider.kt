@@ -1,5 +1,6 @@
 package com.memfault.bort
 
+import android.app.Application
 import com.memfault.bort.settings.DeviceInfoSettings
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
@@ -18,11 +19,13 @@ interface DeviceInfoProvider {
 class RealDeviceInfoProvider @Inject constructor(
     private val deviceInfoSettings: DeviceInfoSettings,
     private val dumpsterClient: DumpsterClient,
+    private val application: Application,
 ) : DeviceInfoProvider {
     private val deviceInfo = CachedAsyncProperty {
         DeviceInfo.fromSettingsAndSystemProperties(
             lastSettings,
             dumpsterClient.getprop() ?: emptyMap(),
+            application,
         )
     }
     private var lastSettings = deviceInfoSettings.asParams()

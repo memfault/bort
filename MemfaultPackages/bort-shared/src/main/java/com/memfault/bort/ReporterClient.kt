@@ -12,8 +12,6 @@ import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.runCatching
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
-import com.memfault.bort.shared.BatteryStatsCommand
-import com.memfault.bort.shared.BatteryStatsRequest
 import com.memfault.bort.shared.DEFAULT_REPLY_TIMEOUT
 import com.memfault.bort.shared.ErrorResponse
 import com.memfault.bort.shared.ErrorResponseException
@@ -25,8 +23,6 @@ import com.memfault.bort.shared.MINIMUM_VALID_VERSION
 import com.memfault.bort.shared.MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS
 import com.memfault.bort.shared.MINIMUM_VALID_VERSION_LOG_LEVEL
 import com.memfault.bort.shared.MINIMUM_VALID_VERSION_METRIC_COLLECTION
-import com.memfault.bort.shared.PackageManagerCommand
-import com.memfault.bort.shared.PackageManagerRequest
 import com.memfault.bort.shared.REPORTER_SERVICE_QUALIFIED_NAME
 import com.memfault.bort.shared.RealServiceMessageConnection
 import com.memfault.bort.shared.ReporterServiceMessage
@@ -113,17 +109,6 @@ class ReporterClient(
             }
         }
 
-    suspend fun <R> batteryStatsRun(
-        cmd: BatteryStatsCommand,
-        timeout: Duration,
-        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>,
-    ): StdResult<R> =
-        withVersion(context = "battery stats") { version ->
-            commandRunnerClientFactory.create(timeout = timeout, reporterVersion = version).run(block) { options ->
-                sendAndGetReplyHandler(BatteryStatsRequest(cmd, options))
-            }
-        }
-
     suspend fun <R> logcatRun(
         cmd: LogcatCommand,
         timeout: Duration,
@@ -132,17 +117,6 @@ class ReporterClient(
         withVersion(context = "logcat") { version ->
             commandRunnerClientFactory.create(timeout = timeout, reporterVersion = version).run(block) { options ->
                 sendAndGetReplyHandler(LogcatRequest(cmd, options))
-            }
-        }
-
-    suspend fun <R> packageManagerRun(
-        cmd: PackageManagerCommand,
-        timeout: Duration,
-        block: suspend (CommandRunnerClient.Invocation) -> StdResult<R>,
-    ): StdResult<R> =
-        withVersion(context = "package manager") { version ->
-            commandRunnerClientFactory.create(timeout = timeout, reporterVersion = version).run(block) { options ->
-                sendAndGetReplyHandler(PackageManagerRequest(cmd, options))
             }
         }
 

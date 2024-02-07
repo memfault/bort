@@ -4,14 +4,10 @@ import android.content.SharedPreferences
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.shared.SetReporterSettingsRequest
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
+import com.squareup.anvil.annotations.ContributesBinding
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration
@@ -21,23 +17,12 @@ interface ReporterSettings {
     val maxFileTransferStorageAge: Duration
     val maxReporterTempStorageBytes: Long
     val maxReporterTempStorageAge: Duration
+
+    val settings: StateFlow<SetReporterSettingsRequest>
 }
 
-/**
- * Returns a Flow that subscribes to the [onBortEnabledFlow] if Bort is enabled, otherwise doesn't emit.
- */
-@OptIn(ExperimentalCoroutinesApi::class)
-fun <T> Flow<SetReporterSettingsRequest>.onBortEnabledFlow(
-    logName: String,
-    bortEnabledFlow: suspend () -> Flow<T>,
-) = map { it.bortEnabled }
-    .distinctUntilChanged()
-    .flatMapLatest { bortEnabled ->
-        Logger.test("Listening for $logName: $bortEnabled")
-        if (bortEnabled) bortEnabledFlow() else emptyFlow()
-    }
-
 @Singleton
+@ContributesBinding(SingletonComponent::class, boundType = ReporterSettings::class)
 class ReporterSettingsPreferenceProvider
 @Inject constructor(
     sharedPreferences: SharedPreferences,
@@ -53,7 +38,7 @@ class ReporterSettingsPreferenceProvider
             ?: SetReporterSettingsRequest(),
     )
 
-    val settings: StateFlow<SetReporterSettingsRequest> = _settings
+    override val settings: StateFlow<SetReporterSettingsRequest> = _settings
 
     fun set(settings: SetReporterSettingsRequest) {
         if (_settings.value == settings) return

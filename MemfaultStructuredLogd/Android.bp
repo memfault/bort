@@ -9,7 +9,6 @@ cc_library_shared {
         local_include_dirs: ["."],
     },
     srcs: ["com/memfault/bort/internal/ILogger.aidl"],
-    clang: true,
     shared_libs: [
         "libbase",
         "libbinder",
@@ -30,7 +29,6 @@ cc_library_shared {
         "-Wno-unused-private-field",
         "-DIN_LIB_DEV",
     ],
-    clang: true,
     shared_libs: [
         "liblog",
         "libstructuredaidl",

@@ -2,7 +2,6 @@ package com.memfault.bort.receivers
 
 import android.content.Context
 import android.content.Intent
-import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.BugReportRequestStatus
 import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.INTENT_ACTION_BUGREPORT_FINISHED
@@ -34,8 +33,6 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
     @Inject lateinit var settingsProvider: SettingsProvider
 
     @Inject lateinit var pendingBugReportRequestAccessor: PendingBugReportRequestAccessor
-
-    @Inject lateinit var bortSystemCapabilities: BortSystemCapabilities
 
     @Inject lateinit var temporaryFileFactory: TemporaryFileFactory
 
@@ -80,8 +77,7 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
                 }
             }
 
-            val dropBoxDataSourceEnabledAndSupported = settingsProvider.dropBoxSettings.dataSourceEnabled &&
-                bortSystemCapabilities.supportsCaliperDropBoxTraces()
+            val dropBoxDataSourceEnabledAndSupported = settingsProvider.dropBoxSettings.dataSourceEnabled
 
             enqueueUpload.enqueue(
                 file = file,

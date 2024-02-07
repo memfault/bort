@@ -1,8 +1,11 @@
 package com.memfault.usagereporter.clientserver
 
 import com.memfault.bort.fileExt.deleteSilently
+import com.memfault.bort.shared.SetReporterSettingsRequest
 import com.memfault.usagereporter.ReporterSettings
 import com.memfault.usagereporter.clientserver.RealSendfileQueue.Companion.extractDropboxTag
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -19,6 +22,8 @@ internal class RealSendfileQueueTest {
         override val maxFileTransferStorageAge: Duration = Duration.ZERO
         override val maxReporterTempStorageBytes: Long = 0
         override val maxReporterTempStorageAge: Duration = Duration.ZERO
+        override val settings: StateFlow<SetReporterSettingsRequest> =
+            MutableStateFlow(SetReporterSettingsRequest())
     }
     private val queue = RealSendfileQueue(dir, settings, maxRetryCount)
 

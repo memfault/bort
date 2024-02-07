@@ -9,6 +9,5 @@ cc_binary {
         "-Wno-unused-parameter",
         "-fexceptions",
     ],
-    clang: true,
     shared_libs: ["libmflt-reporting"],
 }

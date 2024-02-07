@@ -117,10 +117,6 @@ class Command(abc.ABC):
     """
 
     @abc.abstractmethod
-    def register(self, create_parser):
-        pass
-
-    @abc.abstractmethod
     def run(self):
         pass
 
@@ -797,11 +793,9 @@ class ValidateConnectedDevice(Command):
                         r"allow .*_app_.* memfault_dumpster_service \(service_manager \(find\)\)",
                         rules,
                     ):
-                        errors.extend(
-                            [
-                                "Expected a selinux rule (allow priv_app memfault_dumpster_service:service_manager find), please recheck integration - see https://mflt.io/android-sepolicy"
-                            ]
-                        )
+                        errors.extend([
+                            "Expected a selinux rule (allow priv_app memfault_dumpster_service:service_manager find), please recheck integration - see https://mflt.io/android-sepolicy"
+                        ])
 
             return errors
 

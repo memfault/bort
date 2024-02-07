@@ -42,6 +42,7 @@ interface DropBoxSettings {
     val marFileRateLimitingSettings: RateLimitingSettings
     val continuousLogFileRateLimitingSettings: RateLimitingSettings
     val excludedTags: Set<String>
+    val forceEnableWtfTags: Boolean
     val scrubTombstones: Boolean
     val processImmediately: Boolean
     val pollingInterval: Duration
@@ -62,6 +63,7 @@ interface MetricsSettings {
     val maxNumAppVersions: Int
     val reporterCollectionInterval: Duration
     val propertiesUseMetricService: Boolean
+    val cachePackageManagerReport: Boolean
 }
 
 interface LogcatSettings {
@@ -252,11 +254,5 @@ fun SettingsProvider.asLoggerSettings(): LoggerSettings = LoggerSettings(
     minStructuredLevel = minStructuredLogLevel,
     hrtEnabled = structuredLogSettings.highResMetricsEnabled,
 )
-
-interface BortEnabledProvider {
-    fun setEnabled(isOptedIn: Boolean)
-    fun isEnabled(): Boolean
-    fun requiresRuntimeEnable(): Boolean
-}
 
 typealias ConfigValue<T> = () -> T

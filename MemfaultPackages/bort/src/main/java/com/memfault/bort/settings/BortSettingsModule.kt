@@ -25,6 +25,8 @@ fun interface ZipCompressionLevel : () -> Int
 fun interface MarUnsampledMaxStorageAge : () -> Duration
 fun interface MarUnsampledMaxStorageBytes : () -> Long
 fun interface DropboxScrubTombstones : () -> Boolean
+fun interface CachePackageManagerReport : () -> Boolean
+fun interface DropBoxForceEnableWtfTags : () -> Boolean
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -127,5 +129,13 @@ abstract class BortSettingsModule {
         @Provides
         fun scrubTombstones(settings: SettingsProvider) =
             DropboxScrubTombstones { settings.dropBoxSettings.scrubTombstones }
+
+        @Provides
+        fun cachePackageManagerReport(settings: SettingsProvider) =
+            CachePackageManagerReport { settings.metricsSettings.cachePackageManagerReport }
+
+        @Provides
+        fun dropBoxForceEnableWtfTags(settings: SettingsProvider) =
+            DropBoxForceEnableWtfTags { settings.dropBoxSettings.forceEnableWtfTags }
     }
 }

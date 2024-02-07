@@ -58,10 +58,8 @@ val LOG_LEVEL_SET_REQ: Int = 3
 val LOG_LEVEL_SET_RSP: Int = 4
 
 // Command Runner messages:
-val RUN_COMMAND_BATTERYSTATS_REQ: Int = 500
 val RUN_COMMAND_LOGCAT_REQ: Int = 501
 val RUN_COMMAND_SLEEP_REQ: Int = 502
-val RUN_COMMAND_PACKAGE_MANAGER_REQ: Int = 503
 val RUN_COMMAND_CONT: Int = 600
 val RUN_COMMAND_RSP: Int = 601
 
@@ -96,10 +94,8 @@ abstract class ReporterServiceMessage : ServiceMessage {
                 LOG_LEVEL_SET_REQ -> SetLogLevelRequest.fromBundle(message.data)
                 LOG_LEVEL_SET_RSP -> SetLogLevelResponse
 
-                RUN_COMMAND_BATTERYSTATS_REQ -> BatteryStatsRequest.fromBundle(message.data)
                 RUN_COMMAND_LOGCAT_REQ -> LogcatRequest.fromBundle(message.data)
                 RUN_COMMAND_SLEEP_REQ -> SleepRequest.fromBundle(message.data)
-                RUN_COMMAND_PACKAGE_MANAGER_REQ -> PackageManagerRequest.fromBundle(message.data)
                 RUN_COMMAND_CONT -> RunCommandContinue.fromBundle(message.data)
                 RUN_COMMAND_RSP -> RunCommandResponse.fromBundle(message.data)
 
@@ -233,20 +229,6 @@ fun Bundle.getCommandRunnerOptions() =
 fun Bundle.getCommandRunnerCommand() =
     this.getParcelable<Bundle>(COMMAND)
 
-data class BatteryStatsRequest(
-    override val command: BatteryStatsCommand,
-    override val runnerOptions: CommandRunnerOptions,
-) : RunCommandRequest<BatteryStatsCommand>() {
-    override val messageId: Int = RUN_COMMAND_BATTERYSTATS_REQ
-
-    companion object {
-        fun fromBundle(bundle: Bundle) = BatteryStatsRequest(
-            bundle.getCommandRunnerCommand()?.let { BatteryStatsCommand.fromBundle(it) } ?: BatteryStatsCommand(),
-            bundle.getCommandRunnerOptions(),
-        )
-    }
-}
-
 data class LogcatRequest(
     override val command: LogcatCommand,
     override val runnerOptions: CommandRunnerOptions,
@@ -274,21 +256,6 @@ data class SleepRequest(
         )
     }
 }
-
-data class PackageManagerRequest(
-    override val command: PackageManagerCommand,
-    override val runnerOptions: CommandRunnerOptions,
-) : RunCommandRequest<PackageManagerCommand>() {
-    override val messageId: Int = RUN_COMMAND_PACKAGE_MANAGER_REQ
-
-    companion object {
-        fun fromBundle(bundle: Bundle) = PackageManagerRequest(
-            bundle.getCommandRunnerCommand()?.let { PackageManagerCommand.fromBundle(it) } ?: PackageManagerCommand(),
-            bundle.getCommandRunnerOptions(),
-        )
-    }
-}
-
 private const val ERROR_MESSAGE = "MSG"
 
 data class ErrorResponse(val error: String?) : ReporterServiceMessage() {

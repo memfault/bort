@@ -7,7 +7,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -25,24 +25,20 @@ class ClientServerFileUploadProcessorTest {
     private var rateLimit = false
 
     @Test
-    fun notProcessedIfRateLimited() {
-        runBlocking {
-            rateLimit = true
-            processor.process(mockEntry(text = FILE_CONTENT.decodeToString()))
-            coVerify(exactly = 0) { marHoldingArea.addSampledMarFileDirectlyFromOtherDevice(any()) }
-        }
+    fun notProcessedIfRateLimited() = runTest {
+        rateLimit = true
+        processor.process(mockEntry(text = FILE_CONTENT.decodeToString()))
+        coVerify(exactly = 0) { marHoldingArea.addSampledMarFileDirectlyFromOtherDevice(any()) }
     }
 
     @Test
-    fun processed() {
+    fun processed() = runTest {
         val file = slot<File>()
 
-        runBlocking {
-            rateLimit = false
-            processor.process(mockEntry(text = FILE_CONTENT.decodeToString()))
-            coVerify(exactly = 1) { marHoldingArea.addSampledMarFileDirectlyFromOtherDevice(capture(file)) }
-            assertArrayEquals(FILE_CONTENT, file.captured.readBytes())
-        }
+        rateLimit = false
+        processor.process(mockEntry(text = FILE_CONTENT.decodeToString()))
+        coVerify(exactly = 1) { marHoldingArea.addSampledMarFileDirectlyFromOtherDevice(capture(file)) }
+        assertArrayEquals(FILE_CONTENT, file.captured.readBytes())
     }
 
     companion object {

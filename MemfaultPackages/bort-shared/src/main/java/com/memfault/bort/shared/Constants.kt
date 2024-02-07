@@ -11,8 +11,6 @@ const val INTENT_EXTRA_BUG_REPORT_REQUEST_TIMEOUT_MS = "com.memfault.intent.extr
 const val INTENT_ACTION_BUG_REPORT_REQUEST_REPLY = "com.memfault.intent.action.BUG_REPORT_REQUEST_REPLY"
 const val INTENT_EXTRA_BUG_REPORT_REQUEST_STATUS = "com.memfault.intent.extra.BUG_REPORT_REQUEST_STATUS"
 
-const val INTENT_ACTION_DROPBOX_ENTRY_ADDED = "com.memfault.intent.action.DROPBOX_ENTRY_ADDED"
-
 const val DROPBOX_ENTRY_ADDED_RECEIVER_QUALIFIED_NAME = "com.memfault.bort.receivers.DropBoxEntryAddedReceiver"
 
 const val APPLICATION_ID_MEMFAULT_USAGE_REPORTER = "com.memfault.usagereporter"

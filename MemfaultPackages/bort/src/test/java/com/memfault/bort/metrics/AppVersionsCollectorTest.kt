@@ -10,7 +10,7 @@ import io.mockk.coVerify
 import io.mockk.coVerifyAll
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
@@ -35,11 +35,13 @@ class AppVersionsCollectorTest {
             override val reporterCollectionInterval: Duration = ZERO
             override val propertiesUseMetricService: Boolean
                 get() = true
+            override val cachePackageManagerReport: Boolean
+                get() = true
         },
         packageManagerClient = pmClient,
     )
 
-    @Test fun addsAppVersionsWithWildcard() {
+    @Test fun addsAppVersionsWithWildcard() = runTest {
         packages = listOf("a.b.c", "b.*")
         report = PackageManagerReport(
             listOf(
@@ -49,38 +51,34 @@ class AppVersionsCollectorTest {
                 Package(id = BCE_ID, versionName = BCE_VERSION),
             ),
         )
-        runBlocking {
-            collector.updateAppVersions(store)
-            coVerifyAll {
-                store.upsert(
-                    name = "version.$ABC_ID",
-                    value = ABC_VERSION,
-                    internal = false,
-                )
-                store.upsert(
-                    name = "version.$BCD_ID",
-                    value = BCD_VERSION,
-                    internal = false,
-                )
-                store.upsert(
-                    name = "version.$BCE_ID",
-                    value = BCE_VERSION,
-                    internal = false,
-                )
-            }
+        collector.updateAppVersions(store)
+        coVerifyAll {
+            store.upsert(
+                name = "version.$ABC_ID",
+                value = ABC_VERSION,
+                internal = false,
+            )
+            store.upsert(
+                name = "version.$BCD_ID",
+                value = BCD_VERSION,
+                internal = false,
+            )
+            store.upsert(
+                name = "version.$BCE_ID",
+                value = BCE_VERSION,
+                internal = false,
+            )
         }
     }
 
-    @Test fun packageManagerNotCalledIfNoRegexes() {
+    @Test fun packageManagerNotCalledIfNoRegexes() = runTest {
         packages = emptyList()
-        runBlocking {
-            collector.updateAppVersions(store)
-            verify { pmClient wasNot Called }
-            verify { store wasNot Called }
-        }
+        collector.updateAppVersions(store)
+        verify { pmClient wasNot Called }
+        verify { store wasNot Called }
     }
 
-    @Test fun maxNumVersionsCollected() {
+    @Test fun maxNumVersionsCollected() = runTest {
         packages = listOf("*")
         maxNumberAppVersions = 3
         report = PackageManagerReport(
@@ -91,10 +89,8 @@ class AppVersionsCollectorTest {
                 Package(id = BCE_ID, versionName = BCE_VERSION),
             ),
         )
-        runBlocking {
-            collector.updateAppVersions(store)
-            coVerify(exactly = 3) { store.upsert(any(), any<String>(), false) }
-        }
+        collector.updateAppVersions(store)
+        coVerify(exactly = 3) { store.upsert(any(), any<String>(), false) }
     }
 
     companion object {

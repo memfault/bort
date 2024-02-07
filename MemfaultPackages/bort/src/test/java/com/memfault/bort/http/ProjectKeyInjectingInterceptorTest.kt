@@ -1,6 +1,6 @@
 package com.memfault.bort.http
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -46,26 +46,22 @@ class ProjectKeyInjectingInterceptorTest {
     }
 
     @Test
-    fun authedApi() {
-        runBlocking {
-            server.enqueue(MockResponse().setResponseCode(200))
-            service.authenticatedApi()
-            server.takeRequest(5, TimeUnit.MILLISECONDS).let {
-                assertNotNull(it)
-                assertEquals(SECRET, it?.getHeader(PROJECT_KEY_HEADER))
-            }
+    fun authedApi() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+        service.authenticatedApi()
+        server.takeRequest(5, TimeUnit.MILLISECONDS).let {
+            assertNotNull(it)
+            assertEquals(SECRET, it?.getHeader(PROJECT_KEY_HEADER))
         }
     }
 
     @Test
-    fun openApi() {
-        runBlocking {
-            server.enqueue(MockResponse().setResponseCode(200))
-            service.openApi()
-            server.takeRequest(5, TimeUnit.MILLISECONDS).let {
-                assertNotNull(it)
-                assertNull(it?.getHeader(PROJECT_KEY_HEADER))
-            }
+    fun openApi() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+        service.openApi()
+        server.takeRequest(5, TimeUnit.MILLISECONDS).let {
+            assertNotNull(it)
+            assertNull(it?.getHeader(PROJECT_KEY_HEADER))
         }
     }
 }

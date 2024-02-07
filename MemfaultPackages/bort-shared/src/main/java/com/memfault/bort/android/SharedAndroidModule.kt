@@ -3,7 +3,9 @@ package com.memfault.bort.android
 import android.app.Application
 import android.app.usage.NetworkStatsManager
 import android.content.ContentResolver
+import android.content.pm.PackageManager
 import android.content.res.Resources
+import android.net.ConnectivityManager
 import android.os.DropBoxManager
 import android.os.Looper
 import com.memfault.bort.IO
@@ -23,6 +25,9 @@ import kotlin.coroutines.CoroutineContext
 class SharedAndroidModule {
     @Provides
     fun contentResolver(application: Application): ContentResolver = application.contentResolver
+
+    @Provides
+    fun packageManager(application: Application): PackageManager = application.packageManager
 
     @Provides
     fun resources(application: Application): Resources = application.resources
@@ -46,4 +51,8 @@ class SharedAndroidModule {
     @Provides
     fun networkStatsManager(application: Application): NetworkStatsManager =
         application.getSystemService(NetworkStatsManager::class.java)
+
+    @Provides
+    fun connectivityManager(application: Application): ConnectivityManager =
+        application.getSystemService(ConnectivityManager::class.java)
 }

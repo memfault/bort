@@ -1,87 +1,101 @@
 package com.memfault.bort
 
-import android.os.RemoteException
-import com.github.michaelbull.result.andThen
-import com.github.michaelbull.result.getOr
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.runCatching
-import com.github.michaelbull.result.toErrorIf
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
+import android.content.pm.PackageManager.NameNotFoundException
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.parsers.PackageManagerReport
-import com.memfault.bort.parsers.PackageManagerReportParser
-import com.memfault.bort.settings.TimeoutConfig
+import com.memfault.bort.settings.CachePackageManagerReport
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.shared.PackageManagerCommand
-import com.memfault.bort.shared.PackageManagerCommand.Util.isValidAndroidApplicationId
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration.Companion.seconds
 
 class PackageManagerClient @Inject constructor(
-    private val reporterServiceConnector: ReporterServiceConnector,
-    private val commandTimeoutConfig: TimeoutConfig,
+    private val packageManager: PackageManager,
+    private val cachePackageManagerReport: CachePackageManagerReport,
+    @IO private val ioCoroutineContext: CoroutineContext,
 ) {
-    suspend fun findPackagesByProcessName(processName: String): Package? =
-        appIdGuessesFromProcessName(processName).asFlow().mapNotNull(::findPackageByApplicationId).firstOrNull()
+    private val mutex = Mutex()
 
-    suspend fun findPackageByApplicationId(appId: String): Package? =
-        getPackageManagerReport(appId).packages.firstOrNull()
+    /**
+     * Sequence number returned by getChangedPackages() (starts from zero). If this changes, then a package was added/
+     * removed/updated.
+     **/
+    private var lastSequence: Int = 0
 
-    suspend fun getPackageManagerReport(appId: String? = null): PackageManagerReport {
-        if (appId != null && !appId.isValidAndroidApplicationId()) return PackageManagerReport()
-        val cmdOrAppId = appId ?: PackageManagerCommand.CMD_PACKAGES
+    /**
+     * Cached package manager report. We recreate this whenever getChangedPackages() returns changes.
+     */
+    private var cachedReport: PackageManagerReport? = null
 
-        return try {
-            reporterServiceConnector.connect { getClient ->
-                getClient().packageManagerRun(
-                    cmd = PackageManagerCommand(cmdOrAppId = cmdOrAppId),
-                    timeout = commandTimeoutConfig(),
-                ) { invocation ->
-                    invocation.awaitInputStream().andThen { stream ->
-                        runCatching {
-                            stream.use {
-                                PackageManagerReportParser(stream).parse()
-                            }
-                        }
-                    }.andThen { packages ->
-                        invocation.awaitResponse(commandTimeoutConfig()).toErrorIf({ it.exitCode != 0 }) {
-                            Exception("Remote error while running dumpsys package! result=$it")
-                        }.map { packages }
+    /**
+     * Get the latest installed packages report. This will always be current. State is cached internally, but there is
+     * a small cost to calling this method, so iterate over the result if required, rather than calling multiple times.
+     */
+    suspend fun getPackageManagerReport(): PackageManagerReport = mutex.withLock {
+        if (!cachePackageManagerReport()) {
+            cachedReport = null
+            return fetchApplicationsFromPackageManager()
+        }
+        val changes = packageManager.getChangedPackages(lastSequence)
+        val newSequence = changes?.sequenceNumber ?: lastSequence
+        val cachedReportValForSmartCast = cachedReport
+        return if (newSequence != lastSequence || cachedReportValForSmartCast == null) {
+            Logger.d("PackageManagerClient: re-creating report")
+            val report = fetchApplicationsFromPackageManager()
+            cachedReport = report
+            lastSequence = newSequence
+            report
+        } else {
+            cachedReportValForSmartCast
+        }
+    }
+
+    /**
+     * Build a report from [PackageManager]. This requires a couple of API calls to collect all of the required values.
+     */
+    @Suppress("DEPRECATION")
+    @SuppressLint("QueryPermissionsNeeded")
+    private suspend fun fetchApplicationsFromPackageManager(): PackageManagerReport = withContext(ioCoroutineContext) {
+        try {
+            withTimeout(TIMEOUT) {
+                val fetchedApps = try {
+                    packageManager.getInstalledApplications(0)
+                } catch (e: NameNotFoundException) {
+                    null
+                }
+                val fetchedPackages = try {
+                    packageManager.getInstalledPackages(0)
+                } catch (e: NameNotFoundException) {
+                    null
+                }
+                val packagesList = mutableListOf<Package>()
+                fetchedApps?.forEach { application ->
+                    fetchedPackages?.firstOrNull { pkg -> pkg.packageName == application.packageName }?.let { pkg ->
+                        val pkgToAdd = Package(
+                            id = application.packageName,
+                            userId = application.uid,
+                            versionCode = pkg.versionCode.toLong(),
+                            versionName = pkg.versionName,
+                        )
+                        packagesList.add(pkgToAdd)
                     }
                 }
-            }.onFailure {
-                Logger.e("Error getting package manager report", it)
-            }.getOr(PackageManagerReport())
-        } catch (e: RemoteException) {
-            Logger.w("Unable to connect to ReporterService to get package manager report")
+                PackageManagerReport(packagesList)
+            }
+        } catch (e: TimeoutCancellationException) {
+            Logger.w("PackageManagerClient: timeout")
             PackageManagerReport()
         }
     }
 
-    companion object Util {
-        /*
-         * The approach here isn't correct but works for some common apps:
-         *
-         *  * com.google.android.gms.persistent (package: com.google.android.gms)
-         *
-         * The "android:process" manifest field can hold a name that doesn't share
-         * any resemblance with the APK package name.
-         *
-         * https://developer.android.com/guide/topics/manifest/application-element.html
-         */
-        fun appIdGuessesFromProcessName(processName: String): Sequence<String> =
-            if (!processName.isValidAndroidApplicationId()) {
-                emptySequence()
-            } else {
-                generateSequence(processName) {
-                    if (it.count { c -> c == '.' } <= 1) {
-                        null
-                    } else {
-                        it.substringBeforeLast('.')
-                    }
-                }
-            }
+    companion object {
+        private val TIMEOUT = 10.seconds
     }
 }

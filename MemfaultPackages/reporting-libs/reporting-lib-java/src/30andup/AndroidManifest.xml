@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.memfault.bort.reporting.java">
+    <queries>
+        <provider android:authorities="com.memfault.bort.metrics" android:name="junk" />
+    </queries>
+</manifest>

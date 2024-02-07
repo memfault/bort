@@ -10,12 +10,15 @@ import com.memfault.bort.logcat.KernelOopsDetector
 import com.memfault.bort.logcat.NoopLogcatLineProcessor
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.database.MetricsDb
+import com.memfault.bort.settings.AllowProjectKeyChange
+import com.memfault.bort.settings.BuiltInProjectKey
 import com.memfault.bort.settings.BundledConfig
 import com.memfault.bort.settings.DeviceConfigUpdateService
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.SettingsUpdateService
 import com.memfault.bort.settings.readBundledSettings
 import com.memfault.bort.shared.BASIC_COMMAND_TIMEOUT_MS
+import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.tokenbucket.Anr
 import com.memfault.bort.tokenbucket.BugReportPeriodic
 import com.memfault.bort.tokenbucket.BugReportRequestStore
@@ -127,9 +130,6 @@ abstract class BortAppModule {
         fun bundledConfig(resources: Resources) = BundledConfig {
             resources.readBundledSettings()
         }
-
-        @Provides
-        fun bootId() = LinuxBootId { File("/proc/sys/kernel/random/boot_id").readText().trim() }
 
         @Provides
         @BasicCommandTimout
@@ -578,6 +578,15 @@ abstract class BortAppModule {
         @Singleton
         @Provides
         fun metricsDb(application: Application) = MetricsDb.create(application)
+
+        @Provides
+        fun projectKeySyspropName() = ProjectKeySyspropName { BuildConfig.PROJECT_KEY_SYSPROP }
+
+        @Provides
+        fun builtInProjectKey() = BuiltInProjectKey { BuildConfig.MEMFAULT_PROJECT_API_KEY }
+
+        @Provides
+        fun allowProjectKeyChange() = AllowProjectKeyChange { BuildConfig.ALLOW_PROJECT_KEY_CHANGE }
     }
 }
 

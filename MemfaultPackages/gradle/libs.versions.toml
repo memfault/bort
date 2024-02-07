@@ -50,6 +50,7 @@ room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 
 # test
+test-assertk = { module = "com.willowtreeapps.assertk:assertk", version = "0.28.0" }
 test-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 test-json = { module = "org.json:json", version = "20230227" }
 test-junit-bom = { module = "org.junit:junit-bom", version = "5.9.3" }

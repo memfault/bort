@@ -4,6 +4,7 @@ import android.os.DropBoxManager
 import com.memfault.bort.shared.CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG
 import com.memfault.bort.shared.CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG
 import com.memfault.bort.shared.ClientServerMode
+import com.memfault.bort.shared.SetReporterSettingsRequest
 import com.memfault.usagereporter.ReporterSettings
 import io.mockk.clearMocks
 import io.mockk.every
@@ -16,8 +17,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
@@ -51,6 +54,8 @@ class B2BClientServerTest {
             override val maxFileTransferStorageAge: Duration = 7.days
             override val maxReporterTempStorageBytes: Long = 10000000
             override val maxReporterTempStorageAge: Duration = 1.days
+            override val settings: StateFlow<SetReporterSettingsRequest> =
+                MutableStateFlow(SetReporterSettingsRequest())
         }
         b2BClientServer = RealB2BClientServer(
             clientServerMode = ClientServerMode.CLIENT,
@@ -102,83 +107,85 @@ class B2BClientServerTest {
     }
 
     @Test
-    fun testRunChannels() {
-        runBlocking {
-            val connectionHandler = ConnectionHandler(
-                files = NoOpSendfileQueue,
-                getDropBoxManager = { null },
-                tempDirectory = cacheDir,
-            )
-            val channel = RealASCWrapper(AsynchronousSocketChannel.open())
-            val incomingMessages = Channel<BortMessage>()
-            val filesChannel = Channel<File?>()
-            launch {
-                incomingMessages.close()
-            }
-            try {
-                connectionHandler.runChannels(channel, incomingMessages, filesChannel)
-            } catch (e: Exception) {
-                // Check that it didn't throw when the channel was closed.
-                fail("Caught Exception: $e")
-            }
+    fun testRunChannels() = runTest {
+        val connectionHandler = ConnectionHandler(
+            files = NoOpSendfileQueue,
+            getDropBoxManager = { null },
+            tempDirectory = cacheDir,
+        )
+        val channel = RealASCWrapper(AsynchronousSocketChannel.open())
+        val incomingMessages = Channel<BortMessage>()
+        val filesChannel = Channel<File?>()
+        launch {
+            incomingMessages.close()
+        }
+        try {
+            connectionHandler.runChannels(channel, incomingMessages, filesChannel)
+        } catch (e: Exception) {
+            // Check that it didn't throw when the channel was closed.
+            fail("Caught Exception: $e")
         }
     }
 
     @Test
-    fun incrementSendCountOnFailure() {
-        runBlocking {
-            val sendFileQueue = spyk(NoOpSendfileQueue)
-            val connectionHandler = ConnectionHandler(
-                files = sendFileQueue,
-                getDropBoxManager = { null },
-                tempDirectory = cacheDir,
-            )
-            val channel = object : ASCWrapper {
-                override suspend fun writeMessage(message: BortMessage) {
-                    throw IOException("failed")
-                }
-                override suspend fun readMessages(directory: File, scope: CoroutineScope): ReceiveChannel<BortMessage> {
-                    return Channel()
-                }
+    fun incrementSendCountOnFailure() = runTest {
+        val sendFileQueue = spyk(NoOpSendfileQueue)
+        val connectionHandler = ConnectionHandler(
+            files = sendFileQueue,
+            getDropBoxManager = { null },
+            tempDirectory = cacheDir,
+        )
+        val channel = object : ASCWrapper {
+            override suspend fun writeMessage(message: BortMessage) {
+                throw IOException("failed")
             }
-            val incomingMessages = Channel<BortMessage>()
-            val filesChannel = Channel<File?>()
-            launch {
-                val file = File.createTempFile("temp", ".$CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG", uploadDir)
-                file.writeText("tmp file content")
-                filesChannel.send(file)
+
+            override suspend fun readMessages(
+                directory: File,
+                scope: CoroutineScope,
+            ): ReceiveChannel<BortMessage> {
+                return Channel()
             }
-            connectionHandler.runChannels(channel, incomingMessages, filesChannel)
-            verify { sendFileQueue.incrementSendCount(any()) }
         }
+        val incomingMessages = Channel<BortMessage>()
+        val filesChannel = Channel<File?>()
+        launch {
+            val file = File.createTempFile("temp", ".$CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG", uploadDir)
+            file.writeText("tmp file content")
+            filesChannel.send(file)
+        }
+        connectionHandler.runChannels(channel, incomingMessages, filesChannel)
+        verify { sendFileQueue.incrementSendCount(any()) }
     }
 
     @Test
-    fun doesNotIncrementSendCountOnSuccess() {
-        runBlocking {
-            val sendFileQueue = spyk(NoOpSendfileQueue)
-            val connectionHandler = ConnectionHandler(
-                files = sendFileQueue,
-                getDropBoxManager = { null },
-                tempDirectory = cacheDir,
-            )
-            val channel = object : ASCWrapper {
-                override suspend fun writeMessage(message: BortMessage) {
-                }
-                override suspend fun readMessages(directory: File, scope: CoroutineScope): ReceiveChannel<BortMessage> {
-                    return Channel()
-                }
+    fun doesNotIncrementSendCountOnSuccess() = runTest {
+        val sendFileQueue = spyk(NoOpSendfileQueue)
+        val connectionHandler = ConnectionHandler(
+            files = sendFileQueue,
+            getDropBoxManager = { null },
+            tempDirectory = cacheDir,
+        )
+        val channel = object : ASCWrapper {
+            override suspend fun writeMessage(message: BortMessage) {
             }
-            val incomingMessages = Channel<BortMessage>()
-            val filesChannel = Channel<File?>()
-            launch {
-                val file = File.createTempFile("temp", ".$CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG", uploadDir)
-                file.writeText("tmp file content")
-                filesChannel.send(file)
-                incomingMessages.close()
+
+            override suspend fun readMessages(
+                directory: File,
+                scope: CoroutineScope,
+            ): ReceiveChannel<BortMessage> {
+                return Channel()
             }
-            connectionHandler.runChannels(channel, incomingMessages, filesChannel)
-            verify(exactly = 0) { sendFileQueue.incrementSendCount(any()) }
         }
+        val incomingMessages = Channel<BortMessage>()
+        val filesChannel = Channel<File?>()
+        launch {
+            val file = File.createTempFile("temp", ".$CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG", uploadDir)
+            file.writeText("tmp file content")
+            filesChannel.send(file)
+            incomingMessages.close()
+        }
+        connectionHandler.runChannels(channel, incomingMessages, filesChannel)
+        verify(exactly = 0) { sendFileQueue.incrementSendCount(any()) }
     }
 }

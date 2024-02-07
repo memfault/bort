@@ -25,9 +25,6 @@ data class AndroidPackage(
 
     @SerialName("user_id")
     val userId: Int,
-
-    @SerialName("code_path")
-    val codePath: String,
 )
 
 @Serializable

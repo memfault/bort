@@ -157,6 +157,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.dropBoxContinuousLogFileLimitingSettings
         override val excludedTags: Set<String>
             get() = settings.dropBoxExcludedTags
+        override val forceEnableWtfTags: Boolean
+            get() = settings.dropBoxForceEnableWtfTags
         override val scrubTombstones: Boolean
             get() = settings.dropBoxScrubTombstones
         override val processImmediately: Boolean
@@ -180,6 +182,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.metricsReporterCollectionInterval.duration
         override val propertiesUseMetricService: Boolean
             get() = settings.metricsPropertiesUseService
+        override val cachePackageManagerReport: Boolean
+            get() = settings.metricsCachePackages
     }
 
     override val batteryStatsSettings = object : BatteryStatsSettings {

@@ -80,12 +80,7 @@ private fun generateDevConfig(
                        "default_period_ms": 1800000,
                        "max_buckets": 1
                    },
-                   "data_scrubbing.rules": [
-                       {"app_id_pattern": "com.memfault.*", "type": "android_app_id"},
-                       {"app_id_pattern": "com.yolo.*", "type": "android_app_id"},
-                       {"type": "text_email"},
-                       {"type": "text_credential"}
-                   ],
+                   "data_scrubbing.rules": [],
                    "device_info.android_build_version_key" : "${getDefaultProperty("ANDROID_BUILD_VERSION_KEY") ?: "ro.build.date.utc"}",
                    "device_info.android_build_version_source" : "${getDefaultProperty("ANDROID_BUILD_VERSION_SOURCE") ?: "build_fingerprint_and_system_property"}",
                    "device_info.android_device_serial_key" : "${getDefaultProperty("ANDROID_DEVICE_SERIAL_KEY") ?: "ro.serialno"}",

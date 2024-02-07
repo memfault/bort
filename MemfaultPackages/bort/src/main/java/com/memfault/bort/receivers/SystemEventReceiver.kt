@@ -3,21 +3,14 @@ package com.memfault.bort.receivers
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
-import androidx.preference.PreferenceManager
-import com.memfault.bort.AndroidBootReason
-import com.memfault.bort.BootCountTracker
-import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DumpsterClient
-import com.memfault.bort.LinuxBootId
-import com.memfault.bort.LinuxRebootTracker
-import com.memfault.bort.RealLastTrackedBootCountProvider
-import com.memfault.bort.RealLastTrackedLinuxBootIdProvider
-import com.memfault.bort.RebootEventUploader
 import com.memfault.bort.ReporterServiceConnector
+import com.memfault.bort.boot.BootCountTracker
+import com.memfault.bort.boot.LinuxRebootTracker
 import com.memfault.bort.clientserver.ClientDeviceInfoSender
 import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
-import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
+import com.memfault.bort.logcat.NextLogcatStartTimeProvider
 import com.memfault.bort.logcat.handleTimeChanged
 import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
@@ -72,10 +65,7 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
     lateinit var tokenBucketStore: TokenBucketStore
 
     @Inject
-    lateinit var bortSystemCapabilities: BortSystemCapabilities
-
-    @Inject
-    lateinit var readLinuxBootId: LinuxBootId
+    lateinit var linuxRebootTracker: LinuxRebootTracker
 
     @Inject
     lateinit var dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider
@@ -89,6 +79,12 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
     @Inject
     lateinit var crashHandler: CrashHandler
 
+    @Inject
+    lateinit var bootCountTracker: BootCountTracker
+
+    @Inject
+    lateinit var nextLogcatStartTimeProvider: NextLogcatStartTimeProvider
+
     private fun onPackageReplaced() {
         goAsync {
             periodicWorkManager.scheduleTasksAfterBootOrEnable(
@@ -100,13 +96,8 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
 
     private fun onBootCompleted(context: Context) {
         Logger.logEvent("boot")
-        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
 
-        if (LinuxRebootTracker(
-                readLinuxBootId,
-                RealLastTrackedLinuxBootIdProvider(sharedPreferences),
-            ).checkAndUnset()
-        ) {
+        if (linuxRebootTracker.checkAndUnset()) {
             tokenBucketStoreRegistry.handleLinuxReboot()
             fileUploadHoldingArea.handleLinuxReboot()
         }
@@ -129,26 +120,9 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
 
             continuousLoggingController.configureContinuousLogging()
 
-            if (settingsProvider.rebootEventsSettings.dataSourceEnabled &&
-                bortSystemCapabilities.supportsRebootEvents()
-            ) {
-                dumpsterClient.getprop()?.let { systemProperties ->
-                    val rebootEventUploader = RebootEventUploader(
-                        deviceInfo = deviceInfoProvider.getDeviceInfo(),
-                        androidSysBootReason = systemProperties.get(AndroidBootReason.SYS_BOOT_REASON_KEY),
-                        tokenBucketStore = tokenBucketStore,
-                        getLinuxBootId = readLinuxBootId,
-                        enqueueUpload = enqueueUpload,
-                    )
-
-                    val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
-                    BootCountTracker(
-                        lastTrackedBootCountProvider = RealLastTrackedBootCountProvider(
-                            sharedPreferences = sharedPreferences,
-                        ),
-                        untrackedBootCountHandler = rebootEventUploader::handleUntrackedBootCount,
-                    ).trackIfNeeded(bootCount)
-                }
+            if (settingsProvider.rebootEventsSettings.dataSourceEnabled) {
+                val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
+                bootCountTracker.trackIfNeeded(bootCount)
             }
 
             periodicWorkManager.scheduleTasksAfterBootOrEnable(
@@ -158,10 +132,8 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         }
     }
 
-    private fun onTimeChanged(context: Context) {
-        RealNextLogcatStartTimeProvider(
-            PreferenceManager.getDefaultSharedPreferences(context),
-        ).handleTimeChanged()
+    private fun onTimeChanged() {
+        nextLogcatStartTimeProvider.handleTimeChanged()
         dropBoxProcessedEntryCursorProvider.handleTimeChange()
     }
 
@@ -169,7 +141,7 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         when (action) {
             Intent.ACTION_MY_PACKAGE_REPLACED -> onPackageReplaced()
             Intent.ACTION_BOOT_COMPLETED -> onBootCompleted(context)
-            Intent.ACTION_TIME_CHANGED -> onTimeChanged(context)
+            Intent.ACTION_TIME_CHANGED -> onTimeChanged()
         }
     }
 }

@@ -360,6 +360,14 @@ public object Reporting {
         private val successCounter: Counter,
         private val failureCounter: Counter,
     ) {
+        public fun record(successful: Boolean) {
+            if (successful) {
+                success()
+            } else {
+                failure()
+            }
+        }
+
         public fun success(): Unit = successCounter.increment()
 
         public fun failure(): Unit = failureCounter.increment()

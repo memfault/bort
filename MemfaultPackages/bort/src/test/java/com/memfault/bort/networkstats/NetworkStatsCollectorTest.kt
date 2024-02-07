@@ -139,7 +139,7 @@ class NetworkStatsCollectorTest {
         }
 
         coEvery {
-            packageManagerClient.getPackageManagerReport(any())
+            packageManagerClient.getPackageManagerReport()
         } coAnswers {
             PackageManagerReport(
                 listOf(Package(id = "com.memfault.bort", userId = 10_000)),
@@ -198,7 +198,7 @@ class NetworkStatsCollectorTest {
         }
 
         coEvery {
-            packageManagerClient.getPackageManagerReport(any())
+            packageManagerClient.getPackageManagerReport()
         } coAnswers {
             PackageManagerReport(
                 listOf(Package(id = "com.memfault.bort", userId = 10_000)),

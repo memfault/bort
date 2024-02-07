@@ -9,7 +9,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 import kotlin.time.Duration
@@ -46,7 +46,7 @@ class SettingsUpdateHandlerTest {
     )
 
     @Test
-    fun validResponse() = runBlocking {
+    fun validResponse() = runTest {
         val response1 = SETTINGS_FIXTURE.toSettings()
         handler.handleSettingsUpdate(response1)
 

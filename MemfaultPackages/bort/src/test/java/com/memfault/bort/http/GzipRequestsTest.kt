@@ -1,6 +1,6 @@
 package com.memfault.bort.http
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -65,32 +65,28 @@ class GzipInterceptorTest {
     }
 
     @Test
-    fun gzipSupportedApi() {
-        runBlocking {
-            server.enqueue(MockResponse().setResponseCode(200))
-            service.gzipSupportedApi("hello".toRequestBody())
-            server.takeRequest(5, TimeUnit.MILLISECONDS).let {
-                assertNotNull(it)
-                it as RecordedRequest
+    fun gzipSupportedApi() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+        service.gzipSupportedApi("hello".toRequestBody())
+        server.takeRequest(5, TimeUnit.MILLISECONDS).let {
+            assertNotNull(it)
+            it as RecordedRequest
 
-                assertEquals("gzip", it.getHeader("Content-Encoding"))
-                assertEquals("hello", GzipSource(it.body).buffer().readUtf8())
-            }
+            assertEquals("gzip", it.getHeader("Content-Encoding"))
+            assertEquals("hello", GzipSource(it.body).buffer().readUtf8())
         }
     }
 
     @Test
-    fun plainApi() {
-        runBlocking {
-            server.enqueue(MockResponse().setResponseCode(200))
-            service.plainApi("hello".toRequestBody())
-            server.takeRequest(5, TimeUnit.MILLISECONDS).let {
-                assertNotNull(it)
-                it as RecordedRequest
+    fun plainApi() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+        service.plainApi("hello".toRequestBody())
+        server.takeRequest(5, TimeUnit.MILLISECONDS).let {
+            assertNotNull(it)
+            it as RecordedRequest
 
-                assertEquals(null, it.getHeader("Content-Encoding"))
-                assertEquals("hello", it.body.readUtf8())
-            }
+            assertEquals(null, it.getHeader("Content-Encoding"))
+            assertEquals("hello", it.body.readUtf8())
         }
     }
 }

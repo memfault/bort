@@ -15,7 +15,7 @@ import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import io.mockk.verify
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -57,6 +57,7 @@ class DropBoxGetEntriesTaskTest {
         override val marFileRateLimitingSettings = mockRateLimitingSettings
         override val continuousLogFileRateLimitingSettings = mockRateLimitingSettings
         override val excludedTags get() = emptySet<String>()
+        override val forceEnableWtfTags: Boolean = true
         override val scrubTombstones: Boolean = false
         override val processImmediately: Boolean = true
         override val pollingInterval: Duration = 15.minutes
@@ -109,23 +110,19 @@ class DropBoxGetEntriesTaskTest {
     }
 
     @Test
-    fun failsTaskUponRemoteException() {
+    fun failsTaskUponRemoteException() = runTest {
         coEvery { dropBoxManager.getNextEntry(any(), any()) } throws RemoteException("Boom!")
 
-        val result = runBlocking {
-            task.doWork()
-        }
+        val result = task.doWork()
         coVerify(exactly = 1) { dropBoxManager.getNextEntry(any(), any()) }
         assertEquals(TaskResult.FAILURE, result)
     }
 
     @Test
-    fun retriesOnceMoreAfterNullEntry() {
+    fun retriesOnceMoreAfterNullEntry() = runTest {
         mockGetNextEntryReponses(null)
 
-        val result = runBlocking {
-            task.doWork()
-        }
+        val result = task.doWork()
 
         coVerify(exactly = 2) {
             dropBoxManager.getNextEntry(any(), any())
@@ -134,7 +131,7 @@ class DropBoxGetEntriesTaskTest {
     }
 
     @Test
-    fun refreshesCursorBeforeRetryAfterNullEntry() {
+    fun refreshesCursorBeforeRetryAfterNullEntry() = runTest {
         mockGetNextEntryReponses(null)
 
         // Simulate that a time adjustment took place while waiting for the retry delay to pass:
@@ -143,9 +140,7 @@ class DropBoxGetEntriesTaskTest {
             processedEntryCursorProvider.makeCursor().next(changedTimeMillis)
         }
 
-        val result = runBlocking {
-            task.doWork()
-        }
+        val result = task.doWork()
 
         coVerify {
             dropBoxManager.getNextEntry(null, 0)
@@ -155,7 +150,7 @@ class DropBoxGetEntriesTaskTest {
     }
 
     @Test
-    fun ignoreEntryProcessorExceptions() {
+    fun ignoreEntryProcessorExceptions() = runTest {
         val verifyCloseCalled = mockGetNextEntryReponses(
             mockEntry(10),
             mockEntry(20),
@@ -163,9 +158,7 @@ class DropBoxGetEntriesTaskTest {
         )
         coEvery { mockEntryProcessor.process(any()) } throws Exception("Processing failed!")
 
-        val result = runBlocking {
-            task.doWork()
-        }
+        val result = task.doWork()
 
         coVerify(exactly = 4) {
             dropBoxManager.getNextEntry(any(), any())
@@ -179,14 +172,12 @@ class DropBoxGetEntriesTaskTest {
     }
 
     @Test
-    fun ignoreEntryTagWithNoMatchingProcessor() {
+    fun ignoreEntryTagWithNoMatchingProcessor() = runTest {
         val verifyCloseCalled = mockGetNextEntryReponses(
             mockEntry(10, tag_ = "unknown"),
             null,
         )
-        val result = runBlocking {
-            task.doWork()
-        }
+        val result = task.doWork()
 
         coVerify(exactly = 3) {
             dropBoxManager.getNextEntry(any(), any())
@@ -200,12 +191,10 @@ class DropBoxGetEntriesTaskTest {
     }
 
     @Test
-    fun ignoreEmptyEntry() {
+    fun ignoreEmptyEntry() = runTest {
         val entry = mockEntry(10, tag_ = TEST_TAG)
         val verifyCloseCalled = mockGetNextEntryReponses(entry, null)
-        val result = runBlocking {
-            task.doWork()
-        }
+        val result = task.doWork()
 
         coVerify(exactly = 1) {
             mockEntryProcessor.process(any())
@@ -215,10 +204,8 @@ class DropBoxGetEntriesTaskTest {
         verifyCloseCalled()
     }
 
-    private fun runAndAssertNoop() {
-        val result = runBlocking {
-            task.doWork()
-        }
+    private fun runAndAssertNoop() = runTest {
+        val result = task.doWork()
         assertEquals(TaskResult.SUCCESS, result)
 
         // There was nothing to do, so it must not connect to the reporter service at all:

@@ -1,7 +1,4 @@
 <permissions>
     <privapp-permissions package="com.memfault.usagereporter">
-        <permission name="android.permission.READ_LOGS" />
-        <!-- UserHandle.CURRENT and battery stats require this:-->
-        <permission name="android.permission.INTERACT_ACROSS_USERS" />
     </privapp-permissions>
 </permissions>

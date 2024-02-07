@@ -7,7 +7,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Before
 import org.junit.Test
@@ -41,93 +41,79 @@ class MetricReportEntryProcessorTest {
     }
 
     @Test
-    fun metricExtraction() {
-        runBlocking {
-            processor.process(mockEntry(text = VALID_HEARTBEAT_REPORT_FIXTURE, tag_ = "memfault_report"))
+    fun metricExtraction() = runTest {
+        processor.process(mockEntry(text = VALID_HEARTBEAT_REPORT_FIXTURE, tag_ = "memfault_report"))
 
-            assertEquals(
-                mapOf(
-                    "string_metric" to JsonPrimitive("some value"),
-                    "double_metric" to JsonPrimitive(3.0),
-                ),
-                heartbeat.captured.metrics,
-            )
+        assertEquals(
+            mapOf(
+                "string_metric" to JsonPrimitive("some value"),
+                "double_metric" to JsonPrimitive(3.0),
+            ),
+            heartbeat.captured.metrics,
+        )
 
-            assertEquals(
-                mapOf(
-                    "internal_string_metric" to JsonPrimitive("some value"),
-                    "internal_double_metric" to JsonPrimitive(3.0),
-                ),
-                heartbeat.captured.internalMetrics,
-            )
-        }
+        assertEquals(
+            mapOf(
+                "internal_string_metric" to JsonPrimitive("some value"),
+                "internal_double_metric" to JsonPrimitive(3.0),
+            ),
+            heartbeat.captured.internalMetrics,
+        )
     }
 
     @Test
-    fun metricExtractionNoInternal() {
-        runBlocking {
-            processor.process(mockEntry(text = VALID_HEARTBEAT_REPORT_FIXTURE_NO_INTERNAL, tag_ = "memfault_report"))
+    fun metricExtractionNoInternal() = runTest {
+        processor.process(mockEntry(text = VALID_HEARTBEAT_REPORT_FIXTURE_NO_INTERNAL, tag_ = "memfault_report"))
 
-            assertEquals(
-                mapOf(
-                    "string_metric" to JsonPrimitive("some value"),
-                    "double_metric" to JsonPrimitive(3.0),
-                ),
-                heartbeat.captured.metrics,
-            )
-            assertEquals(
-                emptyMap<String, JsonPrimitive>(),
-                heartbeat.captured.internalMetrics,
-            )
-        }
+        assertEquals(
+            mapOf(
+                "string_metric" to JsonPrimitive("some value"),
+                "double_metric" to JsonPrimitive(3.0),
+            ),
+            heartbeat.captured.metrics,
+        )
+        assertEquals(
+            emptyMap<String, JsonPrimitive>(),
+            heartbeat.captured.internalMetrics,
+        )
     }
 
     @Test
-    fun noProcessingWhenReportIsEmpty() {
-        runBlocking {
-            processor.process(mockEntry(text = "", tag_ = "memfault_report"))
-            verify(exactly = 0) { heartbeatReportCollector.handleFinishedHeartbeatReport(any()) }
-        }
+    fun noProcessingWhenReportIsEmpty() = runTest {
+        processor.process(mockEntry(text = "", tag_ = "memfault_report"))
+        verify(exactly = 0) { heartbeatReportCollector.handleFinishedHeartbeatReport(any()) }
     }
 
     @Test
-    fun noProcessingWhenReportIsNotParseable() {
-        runBlocking {
-            processor.process(mockEntry(text = MALFORMED_REPORT_FIXTURE, tag_ = "memfault_report"))
-            verify(exactly = 0) { heartbeatReportCollector.handleFinishedHeartbeatReport(any()) }
-        }
+    fun noProcessingWhenReportIsNotParseable() = runTest {
+        processor.process(mockEntry(text = MALFORMED_REPORT_FIXTURE, tag_ = "memfault_report"))
+        verify(exactly = 0) { heartbeatReportCollector.handleFinishedHeartbeatReport(any()) }
     }
 
     @Test
-    fun noProcessingForNonHeartbeatReports() {
-        runBlocking {
-            processor.process(mockEntry(text = NON_HEARTBEAT_REPORT_FIXTURE, tag_ = "memfault_report"))
-            verify(exactly = 0) { heartbeatReportCollector.handleFinishedHeartbeatReport(any()) }
-        }
+    fun noProcessingForNonHeartbeatReports() = runTest {
+        processor.process(mockEntry(text = NON_HEARTBEAT_REPORT_FIXTURE, tag_ = "memfault_report"))
+        verify(exactly = 0) { heartbeatReportCollector.handleFinishedHeartbeatReport(any()) }
     }
 
     @Test
-    fun rateLimiting() {
-        runBlocking {
-            allowedByRateLimit = true
-            processor.process(mockEntry(text = VALID_HEARTBEAT_REPORT_FIXTURE, tag_ = "memfault_report"))
-            allowedByRateLimit = false
-            processor.process(mockEntry(text = VALID_HEARTBEAT_REPORT_FIXTURE, tag_ = "memfault_report"))
-            // The second call will be ignored by rate limiting
-            verify(exactly = 1) { heartbeatReportCollector.handleFinishedHeartbeatReport(any()) }
-        }
+    fun rateLimiting() = runTest {
+        allowedByRateLimit = true
+        processor.process(mockEntry(text = VALID_HEARTBEAT_REPORT_FIXTURE, tag_ = "memfault_report"))
+        allowedByRateLimit = false
+        processor.process(mockEntry(text = VALID_HEARTBEAT_REPORT_FIXTURE, tag_ = "memfault_report"))
+        // The second call will be ignored by rate limiting
+        verify(exactly = 1) { heartbeatReportCollector.handleFinishedHeartbeatReport(any()) }
     }
 
     @Test
-    fun metricReportDisabled() {
+    fun metricReportDisabled() = runTest {
         metricReportEnabled = false
-        runBlocking {
-            repeat(2) {
-                processor.process(mockEntry(text = VALID_HEARTBEAT_REPORT_FIXTURE, tag_ = "memfault_report"))
-            }
-            // All calls will be ignored because reports are disabled by settings
-            verify(exactly = 0) { heartbeatReportCollector.handleFinishedHeartbeatReport(any()) }
+        repeat(2) {
+            processor.process(mockEntry(text = VALID_HEARTBEAT_REPORT_FIXTURE, tag_ = "memfault_report"))
         }
+        // All calls will be ignored because reports are disabled by settings
+        verify(exactly = 0) { heartbeatReportCollector.handleFinishedHeartbeatReport(any()) }
     }
 }
 

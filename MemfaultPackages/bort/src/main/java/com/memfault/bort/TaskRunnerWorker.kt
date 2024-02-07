@@ -1,7 +1,7 @@
 package com.memfault.bort
 
-import android.app.Application
 import android.content.Context
+import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ListenableWorker.Result
@@ -12,16 +12,20 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkRequest
 import androidx.work.WorkerParameters
+import com.memfault.bort.clientserver.MarBatchingTask
+import com.memfault.bort.dropbox.DropBoxGetEntriesTask
+import com.memfault.bort.logcat.LogcatCollectionTask
 import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.metrics.MetricsCollectionTask
+import com.memfault.bort.settings.SettingsUpdateTask
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.runAndTrackExceptions
+import com.memfault.bort.uploader.FileUploadTask
 import com.memfault.bort.uploader.limitAttempts
-import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.TimeUnit
+import javax.inject.Provider
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 
@@ -113,25 +117,34 @@ inline fun <reified K : Task<*>> periodicWorkRequest(
         .apply(block)
         .build()
 
-interface TaskFactory {
-    fun create(inputData: Data): Task<*>?
-}
-
-@AssistedFactory
-@ContributesMultibinding(SingletonComponent::class)
-interface TaskRunnerWorkerFactory : IndividualWorkerFactory {
-    override fun create(workerParameters: WorkerParameters): TaskRunnerWorker
-    override fun type() = TaskRunnerWorker::class
-}
-
+@HiltWorker
 class TaskRunnerWorker @AssistedInject constructor(
-    appContext: Application,
-    @Assisted workerParameters: WorkerParameters,
-    private val taskFactory: BortTaskFactory,
-) : CoroutineWorker(appContext, workerParameters) {
+    @Assisted appContext: Context,
+    @Assisted params: WorkerParameters,
+    private val fileUpload: Provider<FileUploadTask>,
+    private val dropBox: Provider<DropBoxGetEntriesTask>,
+    private val metrics: Provider<MetricsCollectionTask>,
+    private val bugReportTimeout: Provider<BugReportRequestTimeoutTask>,
+    private val logcat: Provider<LogcatCollectionTask>,
+    private val settings: Provider<SettingsUpdateTask>,
+    private val marBatching: Provider<MarBatchingTask>,
+) : CoroutineWorker(appContext, params) {
+
+    private fun createTask(inputData: Data): Task<*>? {
+        return when (inputData.workDelegateClass) {
+            FileUploadTask::class.qualifiedName -> fileUpload.get()
+            DropBoxGetEntriesTask::class.qualifiedName -> dropBox.get()
+            MetricsCollectionTask::class.qualifiedName -> metrics.get()
+            BugReportRequestTimeoutTask::class.qualifiedName -> bugReportTimeout.get()
+            LogcatCollectionTask::class.qualifiedName -> logcat.get()
+            SettingsUpdateTask::class.qualifiedName -> settings.get()
+            MarBatchingTask::class.qualifiedName -> marBatching.get()
+            else -> null
+        }
+    }
 
     override suspend fun doWork(): Result = runAndTrackExceptions(jobName = inputData.workDelegateClass) {
-        when (val task = taskFactory.create(inputData)) {
+        when (val task = createTask(inputData)) {
             null -> Result.failure().also {
                 Logger.e("Could not create task for inputData (id=$id)")
             }

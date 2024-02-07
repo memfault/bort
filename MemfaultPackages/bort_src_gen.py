@@ -70,7 +70,7 @@ def _replace_placeholders(content, replacements):
 
 
 def _write_if_changed(content, output_file_abspath):
-    existing_content = None  # type: str | None  # type: ignore[reportTypeCommentUsage]
+    existing_content = None  # type: str | None  # pyright: ignore[reportTypeCommentUsage]
     try:
         with open(output_file_abspath) as file:
             existing_content = file.read()

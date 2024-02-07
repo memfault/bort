@@ -1,5 +1,78 @@
 # Memfault Bort Changelog
 
+## v4.13.0 - February 7, 2024
+
+### :boom: Breaking Changes
+
+- This release contains more features inside the Bort app which rely on the
+  peermission whitelist changes made in 4.10.0. This release itself isn't
+  breaking, but the Bort app v4.13.0 will not work with a base Bort SDK prior to
+  4.10.0 - this will only be an issue if updating the Bort apk separately from
+  the rest of the Bort SDK.
+- Removed the default value of the `PROJECT_KEY_SYSPROP` property in
+  `bort.properties`. Setting the project key via broadcast would fail, if this
+  is configured (it would reset whenever Bort restarts). **Be sure that this
+  property is not configured if you intend to set the project key via
+  broadcast**. See
+  [documentation](https://mflt.io/android-setting-project-key-at-runtime).
+
+### :rocket: New Features
+
+- Android 14 is supported.
+- Bort Lite is supported (several changes below are in support of this). This is
+  a cut-down version of the Bort SDK for previewing Memfault on any Android
+  device with `adb` access. This will be released separately, as a pre-built
+  binary.
+- `batterystats` and `PackageManager` access is moved from `UsageReporter` to
+  the `Bort` app. Periodic log collection is also moved to the Bort app on
+  Android versions <= 12, and `sysprop` collection is done inside Bort if
+  `MemfaultDumpster` is not available. This enables the forthcoming Bort Lite
+  feature. The `READ_LOGS` and `INTERACT_ACROSS_USERS` permissions are removed
+  from `UsageReporter` (they were added to Bort in 4.10.0).
+- Connectivity metrics can now be collected by the `Bort` app, if
+  `UsageReporter` is not installed. This is only used for Bort Lite (otherwise,
+  `UsageReporter` is still used because it is persistent).
+
+### :chart_with_upwards_trend: Improvements
+
+- Disabled setting the project key via broacast if `PROJECT_KEY_SYSPROP` is
+  configured. See
+  [documentation](https://mflt.io/android-setting-project-key-at-runtime).
+- Use `successOrFailure` to generate the
+  `sync_memfault_successful`/`sync_memfault_failure` Core Metrics. This improves
+  their display on the device timeline.
+- Fixed the naming of the battery life Core Metrics
+  (`operational_hours`/`operational_crashfree_hours`) - removing the `.sum`
+  suffix.
+- Fixed an issue where if Dev Mode is toggled (enabled+disabled) on the device,
+  then `mar` files will fail to upload until the device is rebooted.
+- Migrated all Package Manager queries to use the java `PackageManager` API
+  instead of `dumpsys pm` - this is much faster, and removed the possibility for
+  `dumpsys` lock contention. Also added a caching layer to avoid doing a full
+  query each time this data is needed.
+
+### :house: Internal
+
+- Adds Custom Metrics database in the Bort app. This is only used for the
+  unreleased Bort Lite feature (i.e. not for the standard Bort SDK) - this will
+  be migrated in a future release, to remove the `MemfaultStructuredLogD`
+  database.
+- The `reporting-lib` Custom Metrics library will attempt to add metrics to the
+  Bort Custom Metrics database using a `ContentProvider` if
+  `MemfaultStructuredLogD` is not installed. This is a no-op unless using Bort
+  Lite.
+- Adds a fallback device identifier, for the case where Bort doesn't have
+  permission to get the real device identifier (only for use in Bort Lite).
+- Fixed camelCase package naming.
+- Cleaned up duplicate network interceptor code in the `debug` variant of the
+  app.
+- Removed all uses of `runBlocking` in unit tests.
+- Removed unnecessary `IndividualTaskWorkerFactory` interface.
+- Added an internal `bort_lite` metric to flag when Bort Lite is being used vs
+  the full Bort SDK.
+- Improved dagger usage in `SystemEventReceiver` to inject more classes vs
+  creating them locally.
+
 ## v4.12.0 - December 28, 2023
 
 ### :rocket: New Features

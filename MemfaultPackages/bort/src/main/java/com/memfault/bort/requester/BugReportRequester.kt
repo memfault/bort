@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -12,10 +13,8 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.BugReportRequestStatus
 import com.memfault.bort.BugReportRequestTimeoutTask
-import com.memfault.bort.IndividualWorkerFactory
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.broadcastReply
 import com.memfault.bort.metrics.BUG_REPORT_DELETED_OLD
@@ -35,7 +34,6 @@ import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.squareup.anvil.annotations.ContributesBinding
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.assisted.Assisted
-import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.components.SingletonComponent
 import java.io.File
@@ -64,7 +62,6 @@ interface StartBugReport {
         request: BugReportRequest,
         requestTimeout: Duration = BugReportRequestTimeoutTask.DEFAULT_TIMEOUT,
         bugReportSettings: BugReportSettings,
-        bortSystemCapabilities: BortSystemCapabilities,
         builtInMetricsStore: BuiltinMetricsStore,
     ): Boolean
 }
@@ -77,7 +74,6 @@ class StartRealBugReport @Inject constructor() : StartBugReport {
         request: BugReportRequest,
         requestTimeout: Duration,
         bugReportSettings: BugReportSettings,
-        bortSystemCapabilities: BortSystemCapabilities,
         builtInMetricsStore: BuiltinMetricsStore,
     ): Boolean {
         // First, cleanup old bugreport files that:
@@ -191,24 +187,17 @@ class BugReportRequester @Inject constructor(
             old.bugReportSettings.defaultOptions != new.bugReportSettings.defaultOptions
 }
 
-@AssistedFactory
-@ContributesMultibinding(SingletonComponent::class)
-interface BugReportRequestWorkerFactory : IndividualWorkerFactory {
-    override fun create(workerParameters: WorkerParameters): BugReportRequestWorker
-    override fun type() = BugReportRequestWorker::class
-}
-
+@HiltWorker
 class BugReportRequestWorker @AssistedInject constructor(
-    appContext: Application,
-    @Assisted workerParameters: WorkerParameters,
+    @Assisted appContext: Context,
+    @Assisted params: WorkerParameters,
     private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
     @BugReportPeriodic private val tokenBucketStore: TokenBucketStore,
     private val bugReportSettings: BugReportSettings,
-    private val bortSystemCapabilities: BortSystemCapabilities,
     private val builtInMetricsStore: BuiltinMetricsStore,
     private val bortEnabledProvider: BortEnabledProvider,
     private val startBugReport: StartBugReport,
-) : CoroutineWorker(appContext, workerParameters) {
+) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "BugReportRequestWorker") {
         if (bortEnabledProvider.isEnabled() &&
@@ -225,7 +214,6 @@ class BugReportRequestWorker @AssistedInject constructor(
         pendingBugReportRequestAccessor = pendingBugReportRequestAccessor,
         request = inputData.toBugReportOptions(),
         bugReportSettings = bugReportSettings,
-        bortSystemCapabilities = bortSystemCapabilities,
         builtInMetricsStore = builtInMetricsStore,
     )
 

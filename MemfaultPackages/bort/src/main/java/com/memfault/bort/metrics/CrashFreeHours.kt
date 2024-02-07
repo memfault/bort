@@ -53,8 +53,10 @@ class CrashFreeHoursMetricLogger @Inject constructor() {
     }
 
     companion object {
-        private val OPERATIONAL_HOURS_METRIC = Reporting.report().counter("operational_hours")
-        private val CRASH_FREE_HOURS_METRIC = Reporting.report().counter("operational_crashfree_hours")
+        const val OPERATIONAL_HOURS_METRIC_KEY = "operational_hours"
+        const val CRASH_FREE_HOURS_METRIC_KEY = "operational_crashfree_hours"
+        private val OPERATIONAL_HOURS_METRIC = Reporting.report().counter(OPERATIONAL_HOURS_METRIC_KEY)
+        private val CRASH_FREE_HOURS_METRIC = Reporting.report().counter(CRASH_FREE_HOURS_METRIC_KEY)
     }
 }
 

@@ -8,6 +8,7 @@ import androidx.work.Configuration
 import com.memfault.bort.ConfigureStrictMode
 import com.memfault.bort.Main
 import com.memfault.bort.android.SystemPropertiesProxy
+import com.memfault.bort.connectivity.ConnectivityMetrics
 import com.memfault.bort.shared.BuildConfigSdkVersionInfo
 import com.memfault.bort.shared.ClientServerMode
 import com.memfault.bort.shared.LogLevel
@@ -18,7 +19,6 @@ import com.memfault.bort.shared.isPrimaryUser
 import com.memfault.usagereporter.clientserver.B2BClientServer
 import com.memfault.usagereporter.clientserver.B2BClientServer.Companion.create
 import com.memfault.usagereporter.metrics.ReporterMetrics
-import com.memfault.usagereporter.receivers.ConnectivityReceiver
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
@@ -29,7 +29,7 @@ import kotlin.system.exitProcess
 @HiltAndroidApp
 class UsageReporter : Application(), Configuration.Provider {
 
-    @Inject lateinit var connectivityReceiver: ConnectivityReceiver
+    @Inject lateinit var connectivityMetrics: ConnectivityMetrics
 
     @Inject lateinit var hiltWorkerFactory: HiltWorkerFactory
 
@@ -100,7 +100,7 @@ class UsageReporter : Application(), Configuration.Provider {
         // unbinds.
         _b2bClientServer = create(clientServerMode, this, reporterSettingsPreferenceProvider)
 
-        connectivityReceiver.start(coroutineScope)
+        connectivityMetrics.start(coroutineScope)
         reporterMetrics.init()
 
         ReporterFileCleanupTask.schedule(this)

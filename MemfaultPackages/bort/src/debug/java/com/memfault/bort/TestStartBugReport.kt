@@ -20,7 +20,6 @@ class TestStartBugReport @Inject constructor() : StartBugReport {
         request: BugReportRequest,
         requestTimeout: Duration,
         bugReportSettings: BugReportSettings,
-        bortSystemCapabilities: BortSystemCapabilities,
         builtInMetricsStore: BuiltinMetricsStore,
     ): Boolean {
         Logger.i("** MFLT-TEST ** Periodic Bug Report Request")

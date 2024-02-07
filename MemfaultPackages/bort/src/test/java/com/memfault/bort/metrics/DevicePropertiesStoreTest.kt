@@ -24,6 +24,7 @@ class DevicePropertiesStoreTest {
         override val maxNumAppVersions: Int = 10
         override val reporterCollectionInterval: Duration = 15.minutes
         override val propertiesUseMetricService: Boolean get() = writeToService
+        override val cachePackageManagerReport: Boolean = true
     }
 
     private val propertiesStore = DevicePropertiesStore(metricsSettings)

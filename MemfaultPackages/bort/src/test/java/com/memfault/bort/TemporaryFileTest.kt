@@ -1,6 +1,6 @@
 package com.memfault.bort
 
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -9,30 +9,26 @@ import java.io.File
 
 class TemporaryFileTest {
     @Test
-    fun cleanup() {
+    fun cleanup() = runTest {
         lateinit var file: File
         val tempFile = TemporaryFile()
         assertThrows<Exception> {
-            runBlocking {
-                tempFile.useFile { f, _ ->
-                    file = f
-                    throw Exception()
-                }
+            tempFile.useFile { f, _ ->
+                file = f
+                throw Exception()
             }
         }
         assertFalse(file.exists())
     }
 
     @Test
-    fun preventDeletion() {
+    fun preventDeletion() = runTest {
         lateinit var file: File
         val tempFile = TemporaryFile()
-        runBlocking {
-            tempFile.useFile { f, preventDeletion ->
-                f.writeText("hi")
-                file = f
-                preventDeletion()
-            }
+        tempFile.useFile { f, preventDeletion ->
+            f.writeText("hi")
+            file = f
+            preventDeletion()
         }
         assertTrue(file.exists())
     }

@@ -10,6 +10,7 @@ import com.github.michaelbull.result.onFailure
 import com.memfault.bort.BortJson
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.ReporterServiceConnector
+import com.memfault.bort.dropbox.DropBoxTagEnabler
 import com.memfault.bort.receivers.DropBoxEntryAddedReceiver
 import com.memfault.bort.reporting.CustomEvent
 import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
@@ -30,6 +31,7 @@ class SettingsUpdateCallback @Inject constructor(
     private val continuousLoggingController: ContinuousLoggingController,
     private val periodicWorkManager: PeriodicWorkManager,
     private val dropBoxEntryAddedReceiver: DropBoxEntryAddedReceiver,
+    private val dropBoxTagEnabler: DropBoxTagEnabler,
 ) {
     suspend fun onSettingsUpdated(
         settingsProvider: SettingsProvider,
@@ -48,6 +50,7 @@ class SettingsUpdateCallback @Inject constructor(
 
         // Update periodic tasks that might have changed after a settings update
         periodicWorkManager.maybeRestartTasksAfterSettingsChange(fetchedSettingsUpdate)
+        dropBoxTagEnabler.enableTagsIfRequired()
         dropBoxEntryAddedReceiver.initialize()
 
         with(settingsProvider) {

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
 import androidx.preference.PreferenceManager
+import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -13,10 +14,11 @@ import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBa
 import com.memfault.bort.clientserver.MarMetadata
 import com.memfault.bort.dropbox.DropBoxLastProcessedEntryProvider
 import com.memfault.bort.logcat.RealNextLogcatCidProvider
+import com.memfault.bort.metrics.CrashFreeHoursMetricLogger
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.restartPeriodicLogcatCollection
 import com.memfault.bort.requester.restartPeriodicMetricsCollection
-import com.memfault.bort.selfTesting.SelfTestWorker
+import com.memfault.bort.selftest.SelfTestWorker
 import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.StoredSettingsPreferenceProvider
@@ -48,6 +50,7 @@ import kotlin.time.toJavaDuration
 import com.memfault.bort.reporting.Reporting as Kotlin_Reporting
 
 private const val INTENT_EXTRA_ECHO_STRING = "echo"
+const val INTENT_EXTRA_BORT_LITE = "com.memfault.intent.extra.BORT_LITE"
 private const val WORK_UNIQUE_NAME_SELF_TEST = "com.memfault.bort.work.SELF_TEST"
 
 @AndroidEntryPoint
@@ -65,6 +68,7 @@ class BortTestReceiver : FilteringReceiver(
         "com.memfault.intent.action.TEST_TEARDOWN",
         "com.memfault.intent.action.TEST_UPLOAD_MAR",
         "com.memfault.intent.action.TEST_CDR",
+        "com.memfault.intent.action.TEST_CRASH_FREE_HOURS_METRICS",
     ),
 ) {
     @Inject lateinit var settingsProvider: SettingsProvider
@@ -87,19 +91,24 @@ class BortTestReceiver : FilteringReceiver(
 
     @Inject lateinit var dropBoxLastProcessedEntryProvider: DropBoxLastProcessedEntryProvider
 
+    @Inject lateinit var crashFreeHoursMetricLogger: CrashFreeHoursMetricLogger
+
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {
         when (action) {
             "com.memfault.intent.action.TEST_BORT_ECHO" -> {
                 Logger.test("bort echo ${intent.getStringExtra(INTENT_EXTRA_ECHO_STRING)}")
             }
             "com.memfault.intent.action.TEST_SELF_TEST" -> {
-                OneTimeWorkRequestBuilder<SelfTestWorker>().build().also {
-                    WorkManager.getInstance(context).enqueueUniqueWork(
-                        WORK_UNIQUE_NAME_SELF_TEST,
-                        ExistingWorkPolicy.REPLACE,
-                        it,
-                    )
-                }
+                val isBortLite = intent.getBooleanExtra(INTENT_EXTRA_BORT_LITE, false)
+                OneTimeWorkRequestBuilder<SelfTestWorker>()
+                    .setInputData(Data.Builder().putBoolean(INTENT_EXTRA_BORT_LITE, isBortLite).build())
+                    .build().also {
+                        WorkManager.getInstance(context).enqueueUniqueWork(
+                            WORK_UNIQUE_NAME_SELF_TEST,
+                            ExistingWorkPolicy.REPLACE,
+                            it,
+                        )
+                    }
             }
             "com.memfault.intent.action.TEST_ADD_EVENT_OF_INTEREST" -> {
                 // Pretend an event of interest occurred, so that the logcat file gets uploaded immediately:
@@ -187,6 +196,10 @@ class BortTestReceiver : FilteringReceiver(
             "com.memfault.intent.action.TEST_UPLOAD_MAR" -> enqueueOneTimeBatchMarFiles(
                 context = context,
             )
+            "com.memfault.intent.action.TEST_CRASH_FREE_HOURS_METRICS" -> {
+                crashFreeHoursMetricLogger.incrementCrashFreeHours(1)
+                crashFreeHoursMetricLogger.incrementOperationalHours(1)
+            }
         }
     }
 

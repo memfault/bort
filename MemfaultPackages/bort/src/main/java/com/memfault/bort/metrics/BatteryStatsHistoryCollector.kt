@@ -1,14 +1,10 @@
 package com.memfault.bort.metrics
 
-import com.github.michaelbull.result.andThen
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.toErrorIf
-import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.parsers.BatteryStatsHistoryParser
 import com.memfault.bort.parsers.BatteryStatsParser
 import com.memfault.bort.parsers.BatteryStatsReport
+import com.memfault.bort.process.ProcessExecutor
 import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.shared.BatteryStatsCommand
 import com.memfault.bort.shared.Logger
@@ -22,31 +18,15 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 class RunBatteryStats @Inject constructor(
-    private val reporterServiceConnector: ReporterServiceConnector,
+    private val processExecutor: ProcessExecutor,
 ) {
     suspend fun runBatteryStats(
         outputStream: OutputStream,
         batteryStatsCommand: BatteryStatsCommand,
+        @Suppress("UNUSED_PARAMETER")
         timeout: Duration,
     ) {
-        reporterServiceConnector.connect { getClient ->
-            getClient().batteryStatsRun(
-                batteryStatsCommand,
-                timeout,
-            ) { invocation ->
-                invocation.awaitInputStream().map { stream ->
-                    stream.use {
-                        stream.copyTo(outputStream)
-                    }
-                }.andThen {
-                    invocation.awaitResponse(timeout).toErrorIf({ it.exitCode != 0 }) {
-                        Exception("Remote error: $it")
-                    }
-                }
-            }
-        } onFailure {
-            throw it
-        }
+        processExecutor.execute(batteryStatsCommand.toList()) { it.copyTo(outputStream) }
     }
 }
 

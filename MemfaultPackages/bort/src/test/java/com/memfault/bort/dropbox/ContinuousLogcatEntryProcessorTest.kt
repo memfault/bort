@@ -26,7 +26,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -54,7 +54,7 @@ class ContinuousLogcatEntryProcessorTest {
         }
 
         mockPackageManagerClient = mockk {
-            coEvery { getPackageManagerReport(null) } returns PackageManagerReport(
+            coEvery { getPackageManagerReport() } returns PackageManagerReport(
                 listOf(
                     Package(id = "android", userId = 1000),
                     Package(id = "com.memfault.bort", userId = 9008),
@@ -153,12 +153,10 @@ class ContinuousLogcatEntryProcessorTest {
     private fun withProcessedEntry(
         text: String = sampleLogcat,
         block: DropBoxManager.Entry.() -> Unit,
-    ) {
-        runBlocking {
-            val entry = mockEntry(text = text)
-            processor.process(entry)
-            block(entry)
-        }
+    ) = runTest {
+        val entry = mockEntry(text = text)
+        processor.process(entry)
+        block(entry)
     }
 
     private val sampleLogcat = """

@@ -5,7 +5,7 @@ import androidx.work.workDataOf
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.uploader.mockTaskRunnerWorker
 import io.mockk.mockk
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -21,7 +21,10 @@ class SampleTask(
     var finallyCalled: Boolean = false
     var doWorkInput: String? = null
 
-    override suspend fun doWork(worker: TaskRunnerWorker, input: String): TaskResult =
+    override suspend fun doWork(
+        worker: TaskRunnerWorker,
+        input: String,
+    ): TaskResult =
         result.also {
             doWorkInput = input
         }
@@ -36,17 +39,15 @@ class SampleTask(
 
 class BaseTaskTest {
     @Test
-    fun inputDataDeserializationFailed() {
+    fun inputDataDeserializationFailed() = runTest {
         val worker = mockTaskRunnerWorker(workDataOf())
         val task = SampleTask()
-        runBlocking {
-            assertEquals(TaskResult.FAILURE, task.doWork(worker))
-        }
+        assertEquals(TaskResult.FAILURE, task.doWork(worker))
         assertTrue(task.finallyCalled)
     }
 
     @Test
-    fun limitAttempts() {
+    fun limitAttempts() = runTest {
         val runs = listOf(
             Triple(1, TaskResult.RETRY, false),
             Triple(2, TaskResult.FAILURE, true),
@@ -58,12 +59,7 @@ class BaseTaskTest {
                 runAttemptCount = runAttemptCount,
             ).let { worker ->
                 SampleTask(getMaxAttempts = { 1 }, result = TaskResult.RETRY).let { task ->
-                    assertEquals(
-                        expectedResult,
-                        runBlocking {
-                            task.doWork(worker)
-                        },
-                    )
+                    assertEquals(expectedResult, task.doWork(worker))
                     assertEquals(expectedFinallyCalled, task.finallyCalled)
                 }
             }
@@ -71,12 +67,10 @@ class BaseTaskTest {
     }
 
     @Test
-    fun happyPath() {
+    fun happyPath() = runTest {
         val worker = mockTaskRunnerWorker(workDataOf(SAMPLE_TASK_INPUT_DATA_KEY to "foo"))
         val task = SampleTask(result = TaskResult.SUCCESS)
-        runBlocking {
-            assertEquals(TaskResult.SUCCESS, task.doWork(worker))
-        }
+        assertEquals(TaskResult.SUCCESS, task.doWork(worker))
         assertTrue(task.finallyCalled)
         assertEquals("foo", task.doWorkInput)
     }

@@ -17,7 +17,7 @@ import kotlin.time.Duration.Companion.minutes
 @Serializable
 data class FetchedSettings(
     @SerialName("battery_stats.collect_summary")
-    val batteryStatsCollectSummary: Boolean = false,
+    val batteryStatsCollectSummary: Boolean = true,
 
     @SerialName("battery_stats.command_timeout_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
@@ -95,6 +95,9 @@ data class FetchedSettings(
 
     @SerialName("drop_box.excluded_tags")
     val dropBoxExcludedTags: Set<String>,
+
+    @SerialName("drop_box.force_enable_wtf_tags")
+    val dropBoxForceEnableWtfTags: Boolean = true,
 
     @SerialName("drop_box.anrs.rate_limiting_settings")
     val dropBoxAnrsRateLimitingSettings: RateLimitingSettings,
@@ -253,6 +256,9 @@ data class FetchedSettings(
     @SerialName("logcat.continuous_dump_wrapping_timeout_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val logcatContinuousDumpWrappingTimeout: BoxedDuration = 15.minutes.boxed(),
+
+    @SerialName("metrics.cache_packages")
+    val metricsCachePackages: Boolean = true,
 
     @SerialName("metrics.collection_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)

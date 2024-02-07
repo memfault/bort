@@ -8,7 +8,7 @@ LOCAL_SRC_FILES := $(call all-subdir-java-files)
 LOCAL_RESOURCE_DIR := $(LOCAL_PATH)/app/src/main/res
 LOCAL_MANIFEST_FILE := app/src/main/AndroidManifest.xml
 
-LOCAL_STATIC_JAVA_LIBRARIES := memfault-reporting-lib
+LOCAL_STATIC_ANDROID_LIBRARIES := memfault-reporting-lib
 
 # Name of the APK to build
 LOCAL_PACKAGE_NAME := ReportingJavaTestApp

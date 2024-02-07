@@ -7,7 +7,7 @@ import io.mockk.coEvery
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import io.mockk.slot
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -67,7 +67,7 @@ class BatteryStatsHistoryCollectorTest {
     }
 
     @Test
-    fun simpleCase() {
+    fun simpleCase() = runTest {
         nextBatteryStatsHistoryStartProvider.historyStart = 1000
         batteryStatsOutputByHistoryStart = mapOf(
             1000L to """
@@ -75,9 +75,7 @@ class BatteryStatsHistoryCollectorTest {
                 NEXT: 1100
             """.trimIndent(),
         )
-        runBlocking {
-            tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
-        }
+        tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
         coVerifyOrder {
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 1000), 1.minutes)
         }
@@ -86,7 +84,7 @@ class BatteryStatsHistoryCollectorTest {
     }
 
     @Test
-    fun historyStartInFuture() {
+    fun historyStartInFuture() = runTest {
         /**
          * Tests that the collector detects when the historyStart is in the future according to the batterystats
          * output (TIME missing), resets the historyStart to 0 and re-runs batterystats:
@@ -99,9 +97,7 @@ class BatteryStatsHistoryCollectorTest {
                 NEXT: 505
             """.trimIndent(),
         )
-        runBlocking {
-            tempFile = collector.collect(limit = 1.hours).batteryStatsFileToUpload
-        }
+        tempFile = collector.collect(limit = 1.hours).batteryStatsFileToUpload
         coVerifyOrder {
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 1000), 1.minutes)
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 0), 1.minutes)
@@ -111,7 +107,7 @@ class BatteryStatsHistoryCollectorTest {
     }
 
     @Test
-    fun historyStartExceedsLimit() {
+    fun historyStartExceedsLimit() = runTest {
         /**
          * Tests that the collector detects when the historyStart is so "early" that the output limit is exceeded,
          * adjusts historyStart to (NEXT - limit) and re-runs batterystats:
@@ -127,9 +123,7 @@ class BatteryStatsHistoryCollectorTest {
                 NEXT: 100005
             """.trimIndent(),
         )
-        runBlocking {
-            tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
-        }
+        tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
         coVerifyOrder {
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 1000), 1.minutes)
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 100000), 1.minutes)
@@ -139,7 +133,7 @@ class BatteryStatsHistoryCollectorTest {
     }
 
     @Test
-    fun historyStartInFutureThenExceedsLimit() {
+    fun historyStartInFutureThenExceedsLimit() = runTest {
         /**
          * Tests that the collector detects when the historyStart is so "early" that the output limit is exceeded,
          * adjusts historyStart to (NEXT - limit) and re-runs batterystats:
@@ -156,9 +150,7 @@ class BatteryStatsHistoryCollectorTest {
                 NEXT: 100005
             """.trimIndent(),
         )
-        runBlocking {
-            tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
-        }
+        tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
         coVerifyOrder {
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 1000), 1.minutes)
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 0), 1.minutes)
@@ -169,7 +161,7 @@ class BatteryStatsHistoryCollectorTest {
     }
 
     @Test
-    fun throwsWhenTooManyAttempts() {
+    fun throwsWhenTooManyAttempts() = runTest {
         /**
          * Tests that the collector throws in case it felt like it needed to run batterystats more than twice.
          * This should never happen in practice, but we want to avoid getting into an infinite loop in case
@@ -182,9 +174,7 @@ class BatteryStatsHistoryCollectorTest {
             """.trimIndent(),
         )
         assertThrows<Exception> {
-            runBlocking {
-                tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
-            }
+            tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
         }
     }
 }

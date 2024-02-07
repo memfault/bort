@@ -78,7 +78,8 @@ class TombstoneUploadingEntryProcessorDelegate @Inject constructor(
             Logger.e("Tombstone failed to parse")
         }
 
-        val packageInfo = packageManagerClient.findPackagesByProcessName(processName)
+        val packages = packageManagerClient.getPackageManagerReport()
+        val packageInfo = packages.findPackagesByProcessName(processName)
         val uploaderPackage =
             packageInfo?.toUploaderPackage() ?: return emptyList<AndroidPackage>().also {
                 Logger.e("Failed to resolve package: processName=$processName packageInfo=$packageInfo")

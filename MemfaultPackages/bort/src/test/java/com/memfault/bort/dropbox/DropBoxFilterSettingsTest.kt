@@ -8,6 +8,8 @@ import io.mockk.MockKAnnotations
 import io.mockk.every
 import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -20,7 +22,7 @@ class DropBoxFilterSettingsTest {
     lateinit var mockEntryProcessor: EntryProcessor
     private var mockGetExcludedTags: Set<String> = setOf()
     lateinit var entryProcessors: DropBoxEntryProcessors
-    private var bortEnabled = true
+    private var bortEnabled = MutableStateFlow(true)
 
     private val mockRateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 10,
@@ -29,9 +31,8 @@ class DropBoxFilterSettingsTest {
     )
     private val bortEnabledProvider = object : BortEnabledProvider {
         override fun setEnabled(isOptedIn: Boolean) = Unit
-
-        override fun isEnabled(): Boolean = bortEnabled
-
+        override fun isEnabled(): Boolean = bortEnabled.value
+        override fun isEnabledFlow(): Flow<Boolean> = bortEnabled
         override fun requiresRuntimeEnable(): Boolean = true
     }
 
@@ -48,6 +49,7 @@ class DropBoxFilterSettingsTest {
         override val marFileRateLimitingSettings = mockRateLimitingSettings
         override val continuousLogFileRateLimitingSettings = mockRateLimitingSettings
         override val excludedTags get() = mockGetExcludedTags
+        override val forceEnableWtfTags: Boolean = true
         override val scrubTombstones: Boolean = false
         override val processImmediately: Boolean = true
         override val pollingInterval: Duration = 15.minutes
@@ -80,7 +82,7 @@ class DropBoxFilterSettingsTest {
     @Test
     fun noTagsPassedWhenBortDisabled() {
         mockGetExcludedTags = setOf(TEST_TAG_TO_IGNORE)
-        bortEnabled = false
+        bortEnabled.value = false
         val configureFilterSettings = RealDropBoxFilters(
             entryProcessors = entryProcessors,
             settings = mockDropboxSettings,

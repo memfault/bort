@@ -1,5 +1,7 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.CRASH_FREE_HOURS_METRIC_KEY
+import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_HOURS_METRIC_KEY
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
@@ -41,6 +43,16 @@ object AggregateMetricFilter {
         }
         if (metric.key.endsWith("_failure.sum")) {
             return metric.key.removeSuffix(".sum") to metric.value
+        }
+
+        // Special case: crash-free hours. Drop .sum
+        if (metric.key == "$OPERATIONAL_HOURS_METRIC_KEY.sum" || metric.key == "$CRASH_FREE_HOURS_METRIC_KEY.sum") {
+            return metric.key.removeSuffix(".sum") to metric.value
+        }
+
+        // Sepcial case: bort_lite
+        if (metric.key == "$BORT_LITE_METRIC_KEY.latest") {
+            return BORT_LITE_METRIC_KEY to metric.value
         }
 
         // Internal metrics: drop the sum/latest suffixes.

@@ -1,10 +1,10 @@
 package com.memfault.bort
 
 import android.os.RemoteException
+import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.MINIMUM_VALID_VERSION
 import com.memfault.dumpster.IDumpster
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,7 +21,7 @@ class BortSystemCapabilities @Inject constructor(
 ) {
     private val dumpsterVersion: Int? by lazy { dumpsterClient.availableVersion() }
 
-    private val reporterServiceVersion = CachedAsyncProperty(this::getReporterServiceVersion)
+    val reporterServiceVersion = CachedAsyncProperty(this::getReporterServiceVersion)
 
     private suspend fun getReporterServiceVersion() =
         try {
@@ -45,34 +45,9 @@ class BortSystemCapabilities @Inject constructor(
             else -> version >= MINIMUM_VALID_VERSION
         }
 
-    fun supportsDynamicSettings() = supportsCaliperDeviceInfo()
-
-    fun supportsRebootEvents() = supportsCaliperDeviceInfo()
-
     suspend fun supportsCaliperMetrics() = supportsCaliperDeviceInfo() && hasMinimumValidReporterService()
 
-    suspend fun supportsCaliperLogcatCollection() = supportsCaliperDeviceInfo() && hasMinimumValidReporterService()
+    fun isStructuredLogDInstalled(): Boolean = File("/system/bin/MemfaultStructuredLogd").exists()
 
-    suspend fun supportsCaliperDropBoxTraces() = supportsCaliperDeviceInfo() && hasMinimumValidReporterService()
-}
-
-class CachedAsyncProperty<out T>(val factory: suspend () -> T) {
-    private var value: CachedValue<T> = CachedValue.Absent
-    private val mutex = Mutex()
-
-    suspend fun get(): T = mutex.withLock {
-        return when (val cached = value) {
-            is CachedValue.Value -> cached.value
-            CachedValue.Absent -> factory().also { value = CachedValue.Value(it) }
-        }
-    }
-
-    fun invalidate() {
-        value = CachedValue.Absent
-    }
-
-    private sealed class CachedValue<out T> {
-        object Absent : CachedValue<Nothing>()
-        class Value<T>(val value: T) : CachedValue<T>()
-    }
+    fun useBortMetricsDb(): Boolean = BuildConfig.INTERNAL_METRICS_DB && !isStructuredLogDInstalled()
 }

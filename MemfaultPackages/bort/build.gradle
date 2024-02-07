@@ -92,7 +92,9 @@ dependencies {
 
     implementation deps.jblake2
 
+    implementation deps.android.hilt.work
     implementation deps.dagger.hilt
+    kapt deps.android.hilt.compiler
     kapt deps.dagger.hilt.compiler
 
     // Required for unit tests to access JSONObject

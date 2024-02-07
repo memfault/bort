@@ -4,7 +4,7 @@ import com.memfault.bort.FileUploadToken
 import com.memfault.bort.MarFileUploadPayload
 import com.memfault.bort.Payload
 import com.memfault.bort.TaskResult
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Rule
@@ -45,35 +45,31 @@ class MemfaultFileUploaderTest {
     )
 
     @Test
-    fun prepareFailsOnBadCode() {
+    fun prepareFailsOnBadCode() = runTest {
         server.enqueue(MockResponse().setResponseCode(400))
-        val result = runBlocking {
-            MemfaultFileUploader(
-                preparedUploader = createUploader(server),
-            ).upload(file, fileUploadPayload(), shouldCompress = true)
-        }
+        val result = MemfaultFileUploader(
+            preparedUploader = createUploader(server),
+        ).upload(file, fileUploadPayload(), shouldCompress = true)
         assert(result == TaskResult.FAILURE)
     }
 
     @Test
-    fun prepareRetriesOn500() {
+    fun prepareRetriesOn500() = runTest {
         server.enqueue(MockResponse().setResponseCode(500))
-        val result = runBlocking {
-            MemfaultFileUploader(
-                preparedUploader = createUploader(server),
-            ).upload(file, fileUploadPayload(), shouldCompress = true)
-        }
+        val result = MemfaultFileUploader(
+            preparedUploader = createUploader(server),
+        ).upload(file, fileUploadPayload(), shouldCompress = true)
+
         assert(result == TaskResult.RETRY)
     }
 
     @Test
-    fun prepareWithNoResponseBodyRetries() {
+    fun prepareWithNoResponseBodyRetries() = runTest {
         server.enqueue(MockResponse())
-        val result = runBlocking {
-            MemfaultFileUploader(
-                preparedUploader = createUploader(server),
-            ).upload(file, fileUploadPayload(), shouldCompress = true)
-        }
+        val result = MemfaultFileUploader(
+            preparedUploader = createUploader(server),
+        ).upload(file, fileUploadPayload(), shouldCompress = true)
+
         assert(result == TaskResult.RETRY)
     }
 }

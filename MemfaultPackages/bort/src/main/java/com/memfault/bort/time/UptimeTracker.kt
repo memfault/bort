@@ -3,7 +3,7 @@ package com.memfault.bort.time
 import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
-import com.memfault.bort.LinuxBootId
+import com.memfault.bort.boot.LinuxBootId
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.tokenbucket.realElapsedRealtime
 import kotlinx.serialization.Serializable

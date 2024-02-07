@@ -6,7 +6,6 @@ import androidx.preference.PreferenceManager
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.logcat.LogcatCollectionTask
 import com.memfault.bort.logcat.RealNextLogcatCidProvider
 import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
@@ -62,7 +61,6 @@ internal fun restartPeriodicLogcatCollection(
 class LogcatCollectionRequester @Inject constructor(
     private val application: Application,
     private val logcatSettings: LogcatSettings,
-    private val bortSystemCapabilities: BortSystemCapabilities,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         val collectionInterval = maxOf(MINIMUM_COLLECTION_INTERVAL, logcatSettings.collectionInterval)
@@ -85,8 +83,7 @@ class LogcatCollectionRequester @Inject constructor(
 
     override suspend fun enabled(settings: SettingsProvider): Boolean {
         return settings.logcatSettings.dataSourceEnabled &&
-            settings.logcatSettings.collectionMode == LogcatCollectionMode.PERIODIC &&
-            bortSystemCapabilities.supportsCaliperLogcatCollection()
+            settings.logcatSettings.collectionMode == LogcatCollectionMode.PERIODIC
     }
 
     override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =

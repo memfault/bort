@@ -1,5 +1,9 @@
 package com.memfault.bort.reporting;
 
+import android.annotation.SuppressLint;
+import android.content.ContentValues;
+import android.content.Context;
+import android.net.Uri;
 import android.os.RemoteException;
 import android.util.Log;
 import com.memfault.bort.internal.ILogger;
@@ -10,6 +14,12 @@ import org.json.JSONObject;
 public class RemoteMetricsService {
 
   private static final String TAG = "RemoteMetricsService";
+  private static final String AUTHORITY_CUSTOM_METRIC = "com.memfault.bort.metrics";
+  public static final Uri URI_ADD_CUSTOM_METRIC =
+      Uri.parse("content://" + AUTHORITY_CUSTOM_METRIC + "/add");
+  public static final String KEY_CUSTOM_METRIC = "custom_metric";
+  @SuppressLint("StaticFieldLeak")
+  static Context context = null;
 
   /**
    * Record the MetricValue.
@@ -27,6 +37,8 @@ public class RemoteMetricsService {
       Log.w(TAG,
           String.format("Logger is not ready, is memfault_structured enabled? %s was not recorded!",
               event.eventName));
+      // Fall back to using Bort ContentProvider (if it exists).
+      recordToBort(event);
     }
   }
 
@@ -49,6 +61,22 @@ public class RemoteMetricsService {
           finishReport.reportType));
     }
     return false;
+  }
+
+  private static void recordToBort(MetricValue event) {
+    if (context == null) {
+      android.util.Log.w(TAG, "No context to send metric: " + event);
+      return;
+    }
+
+    try {
+      android.util.Log.w(TAG, "Sending metric: " + event);
+      ContentValues values = new ContentValues();
+      values.put(KEY_CUSTOM_METRIC, event.toJson());
+      context.getContentResolver().insert(URI_ADD_CUSTOM_METRIC, values);
+    } catch (Exception e) {
+      android.util.Log.w(TAG, "Error sending metric: " + event, e);
+    }
   }
 
   static class FinishReport {

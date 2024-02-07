@@ -1,11 +1,13 @@
 package com.memfault.bort.logcat
 
+import android.os.Build
 import android.os.Process
 import android.os.RemoteException
 import com.github.michaelbull.result.andThen
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.toErrorIf
+import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.DataScrubber
 import com.memfault.bort.LogcatCollectionId
 import com.memfault.bort.PackageManagerClient
@@ -15,6 +17,7 @@ import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.parsers.LogcatLine
 import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.parsers.toLogcatLines
+import com.memfault.bort.process.ProcessExecutor
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.shared.LogcatBufferId
 import com.memfault.bort.shared.LogcatCommand
@@ -47,8 +50,17 @@ data class LogcatCollectorResult(
 
 class LogcatRunner @Inject constructor(
     private val reporterServiceConnector: ReporterServiceConnector,
+    private val processExecutor: ProcessExecutor,
+    private val bortSystemCapabilities: BortSystemCapabilities,
 ) {
-    suspend fun runLogcat(
+    private suspend fun runLogcatLocally(
+        outputStream: OutputStream,
+        command: LogcatCommand,
+    ) {
+        processExecutor.execute(command.toList()) { it.copyTo(outputStream) }
+    }
+
+    suspend fun runLogcatUsingReporter(
         outputStream: OutputStream,
         command: LogcatCommand,
         timeout: Duration,
@@ -68,6 +80,27 @@ class LogcatRunner @Inject constructor(
         } onFailure {
             throw it
         }
+    }
+
+    suspend fun runLogcat(
+        outputStream: OutputStream,
+        command: LogcatCommand,
+        timeout: Duration,
+        sdkVersion: Int,
+    ) {
+        if (sdkVersion >= SDK_VERSION_LOGCAT_NEEDS_SYSTEM_UID &&
+            bortSystemCapabilities.reporterServiceVersion.get() != null
+        ) {
+            Logger.d("Running logcat using reporter")
+            runLogcatUsingReporter(outputStream, command, timeout)
+        } else {
+            Logger.d("Running logcat using local")
+            runLogcatLocally(outputStream, command)
+        }
+    }
+
+    companion object {
+        private const val SDK_VERSION_LOGCAT_NEEDS_SYSTEM_UID = 33
     }
 }
 
@@ -115,7 +148,10 @@ class LogcatCollector @Inject constructor(
         }
     }
 
-    private fun logcatCommand(since: BaseAbsoluteTime, filterSpecs: List<LogcatFilterSpec>) =
+    private fun logcatCommand(
+        since: BaseAbsoluteTime,
+        filterSpecs: List<LogcatFilterSpec>,
+    ) =
         LogcatCommand(
             dumpAndExit = true,
             dividers = true,
@@ -154,7 +190,7 @@ class LogcatCollector @Inject constructor(
 
         val lastLogTime = try {
             outputFile.outputStream().use {
-                logcatRunner.runLogcat(it, command, logcatSettings.commandTimeout)
+                logcatRunner.runLogcat(it, command, logcatSettings.commandTimeout, Build.VERSION.SDK_INT)
             }
 
             outputFile.bufferedReader().useLines { lines ->
@@ -208,11 +244,15 @@ internal fun PackageManagerReport.toAllowedUids(allowList: PackageNameAllowList)
         .mapNotNull { it.userId }
         .toSet()
 
-internal fun LogcatLine.scrub(scrubber: DataScrubber, allowedUids: Set<Int>) = copy(
+internal fun LogcatLine.scrub(
+    scrubber: DataScrubber,
+    allowedUids: Set<Int>,
+) = copy(
     message = message?.let { msg ->
         when {
             uid != null && uid >= Process.FIRST_APPLICATION_UID && allowedUids.isNotEmpty() && uid !in allowedUids ->
                 scrubber.scrubEntirely(msg)
+
             else -> scrubber(msg)
         }
     },

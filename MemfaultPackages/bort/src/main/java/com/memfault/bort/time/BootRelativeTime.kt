@@ -3,7 +3,7 @@ package com.memfault.bort.time
 import android.content.ContentResolver
 import android.os.SystemClock
 import android.provider.Settings
-import com.memfault.bort.LinuxBootId
+import com.memfault.bort.boot.LinuxBootId
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.SerialName

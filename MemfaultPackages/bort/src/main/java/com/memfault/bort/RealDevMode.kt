@@ -6,6 +6,8 @@ import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBa
 import com.memfault.bort.receivers.DropBoxEntryAddedReceiver
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.reporting.StateAgg
+import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
+import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.shared.CachedPreferenceKeyProvider
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
@@ -26,8 +28,13 @@ import javax.inject.Singleton
 class RealDevMode @Inject constructor(
     private val devModePreferenceProvider: DevModePreferenceProvider,
     private val dropBoxEntryAddedReceiver: Lazy<DropBoxEntryAddedReceiver>,
+    private val periodicWorkManager: Lazy<PeriodicWorkManager>,
+    private val bortEnabledProvider: Lazy<BortEnabledProvider>,
 ) : DevMode {
-    fun setEnabled(newEnabled: Boolean, context: Context) {
+    suspend fun setEnabled(
+        newEnabled: Boolean,
+        context: Context,
+    ) {
         Logger.d("Dev mode = $newEnabled")
         devModePreferenceProvider.setValue(newEnabled)
         updateMetric()
@@ -36,6 +43,11 @@ class RealDevMode @Inject constructor(
             // mode is enabled).
             enqueueOneTimeBatchMarFiles(context = context)
         }
+        // Ensure that the mar batching task is rescheduled, if required.
+        periodicWorkManager.get().scheduleTasksAfterBootOrEnable(
+            bortEnabled = bortEnabledProvider.get().isEnabled(),
+            justBooted = false,
+        )
         dropBoxEntryAddedReceiver.get().initialize()
     }
 

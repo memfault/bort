@@ -1,7 +1,10 @@
 package com.memfault.bort
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.memfault.bort.connectivity.BortFallbackConnectivityMetrics
+import com.memfault.bort.dropbox.DropBoxTagEnabler
 import com.memfault.bort.metrics.BORT_CRASH
 import com.memfault.bort.metrics.BORT_STARTED
 import com.memfault.bort.metrics.BuiltinMetricsStore
@@ -29,7 +32,7 @@ open class Bort : Application(), Configuration.Provider {
 
     @Inject lateinit var settingsProvider: SettingsProvider
 
-    @Inject lateinit var workerFactory: Provider<BortWorkerFactory>
+    @Inject lateinit var hiltWorkerFactory: HiltWorkerFactory
 
     @Inject lateinit var installationIdProvider: InstallationIdProvider
 
@@ -42,6 +45,10 @@ open class Bort : Application(), Configuration.Provider {
     @Inject lateinit var dropBoxEntryAddedReceiver: DropBoxEntryAddedReceiver
 
     @Inject lateinit var projectKeySysprop: ProjectKeySysprop
+
+    @Inject lateinit var bortFallbackConnectivityMetrics: BortFallbackConnectivityMetrics
+
+    @Inject lateinit var dropBoxTagEnabler: DropBoxTagEnabler
 
     override fun onCreate() {
         super.onCreate()
@@ -71,12 +78,15 @@ open class Bort : Application(), Configuration.Provider {
             projectKeySysprop.loadFromSysprop()
         }
 
+        bortFallbackConnectivityMetrics.start()
+
         if (!bortEnabledProvider.isEnabled()) {
             Logger.test("Bort not enabled, not running app")
             return
         }
 
         appUpgrade.handleUpgrade(this)
+        dropBoxTagEnabler.enableTagsIfRequired()
         dropBoxEntryAddedReceiver.initialize()
     }
 
@@ -113,11 +123,7 @@ open class Bort : Application(), Configuration.Provider {
 
     override fun getWorkManagerConfiguration(): Configuration =
         Configuration.Builder()
-            .setWorkerFactory(
-                // Create a WorkerFactory provider that provides a fresh WorkerFactory. This
-                // ensures the WorkerFactory is always using fresh app components.
-                workerFactory.get(),
-            )
+            .setWorkerFactory(hiltWorkerFactory)
             .setMinimumLoggingLevel(workManagerConfiguration.logLevel)
             .build()
 }

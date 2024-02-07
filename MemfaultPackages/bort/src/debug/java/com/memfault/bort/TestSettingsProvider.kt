@@ -2,6 +2,7 @@ package com.memfault.bort
 
 import android.content.SharedPreferences
 import com.memfault.bort.settings.DataScrubbingSettings
+import com.memfault.bort.settings.DeviceInfoSettings
 import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.settings.DynamicSettingsProvider
 import com.memfault.bort.settings.HttpApiSettings
@@ -42,6 +43,12 @@ class TestSettingsProvider @Inject constructor(
     override val httpApiSettings = object : HttpApiSettings by settings.httpApiSettings {
         override val batchMarUploads: Boolean
             get() = if (override()) false else settings.httpApiSettings.batchMarUploads
+
+        // Specifically for Bort Lite tests, where the apk is targeting prod:
+        override val deviceBaseUrl: String
+            get() = "http://localhost:8000"
+        override val filesBaseUrl: String
+            get() = "http://localhost:8000"
     }
 
     // TODO: review this, the backend will override settings through dynamic settings update
@@ -82,5 +89,11 @@ class TestSettingsProvider @Inject constructor(
             } else {
                 settings.dataScrubbingSettings.rules
             }
+    }
+
+    override val deviceInfoSettings = object : DeviceInfoSettings by settings.deviceInfoSettings {
+        // ro.product.board doesn't exist on android 8 base image (we added it on bort image)
+        override val androidHardwareVersionKey: String
+            get() = if (override()) "ro.product.cpu.abi" else settings.deviceInfoSettings.androidHardwareVersionKey
     }
 }

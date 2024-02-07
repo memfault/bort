@@ -78,7 +78,7 @@ private var cachedReporterVersion: Package? = null
 private var cachedDumpsterVersion: Int? = null
 
 private suspend fun PackageManagerClient.getUsageReporterVersion(): Package? = cachedReporterVersion
-    ?: findPackageByApplicationId(APPLICATION_ID_MEMFAULT_USAGE_REPORTER)?.also {
+    ?: getPackageManagerReport().findByPackage(APPLICATION_ID_MEMFAULT_USAGE_REPORTER)?.also {
         cachedReporterVersion = it
     }
 

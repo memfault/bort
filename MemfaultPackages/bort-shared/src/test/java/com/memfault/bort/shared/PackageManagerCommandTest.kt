@@ -7,9 +7,9 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.EnumSource
 
 class PackageManagerCommandTest {
     lateinit var bundleFactory: () -> Bundle
@@ -31,25 +31,32 @@ class PackageManagerCommandTest {
             every { getString("CMD") } returns cmd
         }
 
-    @TestFactory
-    fun flags() = listOf(
-        "--checkin" to PackageManagerCommand(checkin = true, bundleFactory = bundleFactory),
-        "-f" to PackageManagerCommand(filters = true, bundleFactory = bundleFactory),
-        "--all-components" to PackageManagerCommand(allComponents = true, bundleFactory = bundleFactory),
-        "-h" to PackageManagerCommand(help = true, bundleFactory = bundleFactory),
-    ).map { (flag, cmd) ->
-        DynamicTest.dynamicTest("test flag '$flag'") {
-            assertEquals(listOf("dumpsys", "package", flag), cmd.toList())
-            cmd.toBundle()
-            verify { outBundle.putBoolean(flag, true) }
-            assertEquals(
-                cmd,
-                PackageManagerCommand.fromBundle(
-                    mockDeserializationBundle(flag = flag),
-                    bundleFactory = bundleFactory,
-                ),
-            )
-        }
+    enum class FlagsTestCase(
+        val flag: String,
+        val cmd: PackageManagerCommand,
+    ) {
+        CHECKIN("--checkin", PackageManagerCommand(checkin = true)),
+        FILTERS("-f", PackageManagerCommand(filters = true)),
+        ALL_COMPONENTS("--all-components", PackageManagerCommand(allComponents = true)),
+        HELP("-h", PackageManagerCommand(help = true)),
+    }
+
+    @ParameterizedTest
+    @EnumSource
+    fun flags(testCase: FlagsTestCase) {
+        val flag = testCase.flag
+        val cmd = testCase.cmd.copy(bundleFactory = bundleFactory)
+
+        assertEquals(listOf("dumpsys", "package", flag), cmd.toList())
+        cmd.toBundle()
+        verify { outBundle.putBoolean(flag, true) }
+        assertEquals(
+            cmd,
+            PackageManagerCommand.fromBundle(
+                mockDeserializationBundle(flag = flag),
+                bundleFactory = bundleFactory,
+            ),
+        )
     }
 
     @Test
@@ -85,5 +92,8 @@ class PackageManagerCommandTest {
         assertEquals(false, "myapp".isValidAndroidApplicationId())
         assertEquals(false, "com myapp".isValidAndroidApplicationId())
         assertEquals(true, "com.myapp".isValidAndroidApplicationId())
+    }
+
+    companion object {
     }
 }

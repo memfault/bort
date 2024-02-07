@@ -1,6 +1,6 @@
 package com.memfault.bort.ingress
 
-import com.memfault.bort.AndroidBootReason
+import com.memfault.bort.boot.AndroidBootReason
 import kotlinx.serialization.Serializable
 
 @Serializable

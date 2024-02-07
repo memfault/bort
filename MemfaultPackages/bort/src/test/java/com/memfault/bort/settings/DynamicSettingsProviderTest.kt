@@ -239,6 +239,7 @@ internal val EXPECTED_SETTINGS_DEFAULT = FetchedSettings(
         maxBuckets = 1,
     ),
     metricReportEnabled = true,
+    metricsCachePackages = true,
 )
 
 private val EXPECTED_SETTINGS = EXPECTED_SETTINGS_DEFAULT.copy(

@@ -2,7 +2,7 @@ package com.memfault.bort.dropbox
 
 import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.LogcatCollectionId
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.assertThrows
@@ -25,7 +25,7 @@ import java.util.UUID
 @Config(manifest = Config.NONE)
 class StructuredLogStreamingParserTest {
     @Test
-    fun happyPath() {
+    fun happyPath() = runTest {
         val input = VALID_STRUCTURED_LOG_FIXTURE
 
         val (output, metadata) = parse(input)
@@ -59,18 +59,18 @@ class StructuredLogStreamingParserTest {
     }
 
     @Test
-    fun emptyThrows() {
+    fun emptyThrows() = runTest {
         assertThrows<StructuredLogParseException> { parse("{}") }
     }
 
     @Test
-    fun invalidThrows() {
+    fun invalidThrows() = runTest {
         assertThrows<StructuredLogParseException> { parse("shall not pass") }
     }
 
-    private fun parse(json: String): Pair<String, StructuredLogMetadata> {
+    private suspend fun parse(json: String): Pair<String, StructuredLogMetadata> {
         val output = ByteArrayOutputStream()
-        val deviceInfo = runBlocking { FakeDeviceInfoProvider().getDeviceInfo() }
+        val deviceInfo = FakeDeviceInfoProvider().getDeviceInfo()
         val metadata = StructuredLogStreamingParser(json.byteInputStream(), output, deviceInfo)
             .parse()
         return Pair(output.toString(), metadata)

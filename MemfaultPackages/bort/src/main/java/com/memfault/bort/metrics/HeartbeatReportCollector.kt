@@ -1,11 +1,14 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.dropbox.MetricReport
 import com.memfault.bort.dropbox.MetricReportWithHighResFile
 import com.memfault.bort.fileExt.deleteSilently
+import com.memfault.bort.metrics.custom.CustomMetrics
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.settings.StructuredLogSettings
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.time.CombinedTimeProvider
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CompletableDeferred
@@ -29,6 +32,9 @@ import kotlin.time.toKotlinDuration
 class HeartbeatReportCollector @Inject constructor(
     private val settings: StructuredLogSettings,
     private val reportFinisher: ReportFinisher,
+    private val customMetrics: CustomMetrics,
+    private val bortSystemCapabilities: BortSystemCapabilities,
+    private val combinedTimeProvider: CombinedTimeProvider,
 ) {
     private var receivedReport: CompletableDeferred<MetricReport>? = null
     private var receivedHighResFile: CompletableDeferred<File>? = null
@@ -36,14 +42,24 @@ class HeartbeatReportCollector @Inject constructor(
 
     suspend fun finishAndCollectHeartbeatReport(
         timeout: Duration = FINISH_REPORT_TIMEOUT,
-    ): MetricReportWithHighResFile? = try {
-        // Lock report collecting: this will throw an IllegalStateException if already locked.
-        mutex.withLock(owner = "collector") {
-            finishAndCollectHeartbeatReportLocked(timeout)
+    ): MetricReportWithHighResFile? {
+        if (bortSystemCapabilities.useBortMetricsDb()) {
+            val report = customMetrics.finishReport(
+                reportType = HEARTBEAT_REPORT_TYPE,
+                endTimestampMs = combinedTimeProvider.now().timestamp.toEpochMilli(),
+            )
+            return MetricReportWithHighResFile(report.report, report.hrt)
+        } else {
+            return try {
+                // Lock report collecting: this will throw an IllegalStateException if already locked.
+                mutex.withLock(owner = "collector") {
+                    finishAndCollectHeartbeatReportLocked(timeout)
+                }
+            } catch (e: IllegalStateException) {
+                Logger.w("Couldn't get HeartbeatReportCollector lock!")
+                null
+            }
         }
-    } catch (e: IllegalStateException) {
-        Logger.w("Couldn't get HeartbeatReportCollector lock!")
-        null
     }
 
     private suspend fun finishAndCollectHeartbeatReportLocked(timeout: Duration): MetricReportWithHighResFile? {

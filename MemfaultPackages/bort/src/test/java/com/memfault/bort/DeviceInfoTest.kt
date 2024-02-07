@@ -1,6 +1,8 @@
 package com.memfault.bort
 
+import android.content.Context
 import com.memfault.bort.settings.AndroidBuildFormat
+import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -9,6 +11,8 @@ val fakeGetBuildFingerprint = { TEST_BUILD_FINGERPRINT }
 
 class DeviceInfoFromSettingsAndProperties {
     private var settings = deviceInfoParams(AndroidBuildFormat.SYSTEM_PROPERTY_ONLY)
+    private val context: Context = mockk()
+    private val fallbackAndroidId = { "fallback" }
 
     private fun deviceInfoParams(buildFormat: AndroidBuildFormat) = DeviceInfoParams(
         androidBuildFormat = buildFormat,
@@ -23,7 +27,12 @@ class DeviceInfoFromSettingsAndProperties {
             "ro.serialno" to "SERIAL",
             "ro.product.board" to "HARDWARE-XYZ",
         )
-        val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(settings, props)
+        val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(
+            settings,
+            props,
+            context,
+            getFallbackAndroidId = fallbackAndroidId,
+        )
         assertEquals("SERIAL", deviceInfo.deviceSerial)
         assertEquals("HARDWARE-XYZ", deviceInfo.hardwareVersion)
     }
@@ -34,7 +43,12 @@ class DeviceInfoFromSettingsAndProperties {
         val props = mapOf(
             "ro.build.version.incremental" to "123",
         )
-        val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(settings, props)
+        val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(
+            settings,
+            props,
+            context,
+            getFallbackAndroidId = fallbackAndroidId,
+        )
         assertEquals("123", deviceInfo.softwareVersion)
     }
 
@@ -44,7 +58,9 @@ class DeviceInfoFromSettingsAndProperties {
         val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(
             settings,
             mapOf(),
+            context,
             getBuildFingerprint = fakeGetBuildFingerprint,
+            getFallbackAndroidId = fallbackAndroidId,
         )
         assertEquals(TEST_BUILD_FINGERPRINT, deviceInfo.softwareVersion)
     }
@@ -58,7 +74,9 @@ class DeviceInfoFromSettingsAndProperties {
         val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(
             settings,
             props,
+            context,
             getBuildFingerprint = fakeGetBuildFingerprint,
+            getFallbackAndroidId = fallbackAndroidId,
         )
         assertEquals(
             "$TEST_BUILD_FINGERPRINT::123",
@@ -68,8 +86,13 @@ class DeviceInfoFromSettingsAndProperties {
 
     @Test
     fun missingValues() {
-        val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(settings, mapOf())
-        assertEquals("unknown", deviceInfo.deviceSerial)
+        val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(
+            settings,
+            mapOf(),
+            context,
+            getFallbackAndroidId = fallbackAndroidId,
+        )
+        assertEquals("fallback", deviceInfo.deviceSerial)
         assertEquals("unknown", deviceInfo.hardwareVersion)
         assertEquals("unknown", deviceInfo.softwareVersion)
     }

@@ -5,7 +5,6 @@ import android.content.Context
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.clientserver.CachedClientServerMode
 import com.memfault.bort.clientserver.isClient
 import com.memfault.bort.periodicWorkRequest
@@ -66,7 +65,6 @@ class SettingsUpdateRequester @Inject constructor(
     private val application: Application,
     private val settings: SettingsProvider,
     private val jitterDelayProvider: JitterDelayProvider,
-    private val bortSystemCapabilities: BortSystemCapabilities,
     private val cachedClientServerMode: CachedClientServerMode,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
@@ -89,9 +87,8 @@ class SettingsUpdateRequester @Inject constructor(
     }
 
     override suspend fun enabled(settings: SettingsProvider): Boolean {
-        return bortSystemCapabilities.supportsDynamicSettings() &&
-            // Client does not fetch settings - server will forward them.
-            !cachedClientServerMode.isClient()
+        // Client does not fetch settings - server will forward them
+        return !cachedClientServerMode.isClient()
     }
 
     override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
