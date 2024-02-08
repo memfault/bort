@@ -5,7 +5,7 @@
 ### :boom: Breaking Changes
 
 - This release contains more features inside the Bort app which rely on the
-  peermission whitelist changes made in 4.10.0. This release itself isn't
+  permission whitelist changes made in 4.10.0. This release itself isn't
   breaking, but the Bort app v4.13.0 will not work with a base Bort SDK prior to
   4.10.0 - this will only be an issue if updating the Bort apk separately from
   the rest of the Bort SDK.
