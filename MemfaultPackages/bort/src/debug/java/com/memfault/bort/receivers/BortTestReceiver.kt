@@ -3,7 +3,6 @@ package com.memfault.bort.receivers
 import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
-import androidx.preference.PreferenceManager
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -13,8 +12,10 @@ import com.memfault.bort.TestOverrideSettings
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
 import com.memfault.bort.clientserver.MarMetadata
 import com.memfault.bort.dropbox.DropBoxLastProcessedEntryProvider
-import com.memfault.bort.logcat.RealNextLogcatCidProvider
+import com.memfault.bort.logcat.NextLogcatCidProvider
+import com.memfault.bort.logcat.NextLogcatStartTimeProvider
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger
+import com.memfault.bort.metrics.LastHeartbeatEndTimeProvider
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.restartPeriodicLogcatCollection
 import com.memfault.bort.requester.restartPeriodicMetricsCollection
@@ -93,6 +94,14 @@ class BortTestReceiver : FilteringReceiver(
 
     @Inject lateinit var crashFreeHoursMetricLogger: CrashFreeHoursMetricLogger
 
+    @Inject lateinit var nextLogcatCidProvider: NextLogcatCidProvider
+
+    @Inject lateinit var nextLogcatStartTimeProvider: NextLogcatStartTimeProvider
+
+    @Inject lateinit var lastHeartbeatEndTimeProvider: LastHeartbeatEndTimeProvider
+
+    @Inject lateinit var testOverrideSettings: TestOverrideSettings
+
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {
         when (action) {
             "com.memfault.intent.action.TEST_BORT_ECHO" -> {
@@ -123,6 +132,8 @@ class BortTestReceiver : FilteringReceiver(
                 if (settingsProvider.logcatSettings.collectionMode == LogcatCollectionMode.PERIODIC) {
                     restartPeriodicLogcatCollection(
                         context = context,
+                        nextLogcatCidProvider = nextLogcatCidProvider,
+                        nextLogcatStartTimeProvider = nextLogcatStartTimeProvider,
                         // Something long to ensure it does not re-run & interfere with tests:
                         collectionInterval = 1.days,
                         // Pretend the logcat started an hour ago:
@@ -131,15 +142,12 @@ class BortTestReceiver : FilteringReceiver(
                     )
                 }
 
-                PreferenceManager.getDefaultSharedPreferences(context).let {
-                    RealNextLogcatCidProvider(it).cid
-                }.also {
-                    Logger.test("cid=${it.uuid}")
-                }
+                Logger.test("cid=${nextLogcatCidProvider.cid.uuid}")
             }
             "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION" -> {
                 restartPeriodicMetricsCollection(
                     context = context,
+                    lastHeartbeatEndTimeProvider = lastHeartbeatEndTimeProvider,
                     // Something long to ensure it does not re-run & interfere with tests:
                     collectionInterval = 1.days,
                     // Pretend the heartbeat started an hour ago:
@@ -185,13 +193,13 @@ class BortTestReceiver : FilteringReceiver(
             }
             // Sent before each E2E test:
             "com.memfault.intent.action.TEST_SETUP" -> {
-                useTestOverrides(true, context)
+                useTestOverrides(true)
                 resetDynamicSettings()
                 resetRateLimits()
                 resetDropboxCursor()
             }
             "com.memfault.intent.action.TEST_TEARDOWN" -> {
-                useTestOverrides(false, context)
+                useTestOverrides(false)
             }
             "com.memfault.intent.action.TEST_UPLOAD_MAR" -> enqueueOneTimeBatchMarFiles(
                 context = context,
@@ -203,11 +211,9 @@ class BortTestReceiver : FilteringReceiver(
         }
     }
 
-    private fun useTestOverrides(useTestOverrides: Boolean, context: Context) {
+    private fun useTestOverrides(useTestOverrides: Boolean) {
         Logger.test("use_test_overrides: $useTestOverrides")
-        TestOverrideSettings(
-            PreferenceManager.getDefaultSharedPreferences(context),
-        ).also {
+        testOverrideSettings.also {
             Logger.test("use_test_overrides was: ${it.useTestSettingOverrides.getValue()}")
             it.useTestSettingOverrides.setValue(useTestOverrides)
             // Logger.test() needs to start working immediately.

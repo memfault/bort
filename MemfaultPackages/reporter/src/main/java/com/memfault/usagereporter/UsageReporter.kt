@@ -1,7 +1,6 @@
 package com.memfault.usagereporter
 
 import android.app.Application
-import android.content.SharedPreferences
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
@@ -37,9 +36,9 @@ class UsageReporter : Application(), Configuration.Provider {
 
     @Inject lateinit var reporterMetrics: ReporterMetrics
 
-    @Inject lateinit var sharedPreferences: SharedPreferences
-
     @Inject lateinit var configureStrictMode: ConfigureStrictMode
+
+    @Inject lateinit var logLevelPreferenceProvider: LogLevelPreferenceProvider
 
     @Main @Inject
     lateinit var mainCoroutineContext: CoroutineContext
@@ -50,7 +49,7 @@ class UsageReporter : Application(), Configuration.Provider {
         super.onCreate()
 
         // Reads a previously-set log level
-        val minLogcatLevel = RealLogLevelPreferenceProvider(sharedPreferences).getLogLevel()
+        val minLogcatLevel = logLevelPreferenceProvider.getLogLevel()
 
         Logger.initTags(tag = "mflt-report", testTag = "mflt-report-test")
         Logger.initSettings(

@@ -1,5 +1,26 @@
 # Memfault Bort Changelog
 
+## v4.14.0 - March 1, 2024
+
+### :rocket: New Features
+
+- Added a windows batch script to install Bort Lite.
+
+### :chart_with_upwards_trend: Improvements
+
+- Fixed an issue where Android 8 build could fail because of missing
+  `seapp_contexts`.
+- Updated Bort logs when not enabled to be clearer.
+- Remove manual SharedPreferences construction.
+- Don't add core battery metrics when there is no discharge (including on
+  devices with no battery).
+- Enable Dev Mode automatically when installing Bort Lite (and collect metrics
+  immediately).
+
+### :house: Internal
+
+- Updated to Gradle 8.3, and Kotlin 1.9.21.
+
 ## v4.13.0 - February 7, 2024
 
 ### :boom: Breaking Changes

@@ -3,7 +3,6 @@ package com.memfault.usagereporter
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.os.DropBoxManager
 import android.os.Handler
 import android.os.HandlerThread
@@ -13,12 +12,10 @@ import android.os.Messenger
 import android.os.ParcelFileDescriptor
 import android.os.Process.THREAD_PRIORITY_BACKGROUND
 import android.os.RemoteException
-import androidx.preference.PreferenceManager
 import com.memfault.bort.shared.CommandRunnerOptions
 import com.memfault.bort.shared.ErrorResponse
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.shared.REPORTER_SERVICE_VERSION
 import com.memfault.bort.shared.ReporterServiceMessage
 import com.memfault.bort.shared.RunCommandContinue
@@ -48,11 +45,6 @@ private const val COMMAND_EXECUTOR_MAX_THREADS = 2
 private const val COMMAND_EXECUTOR_TERMINATION_WAIT_SECS: Long = 30
 
 typealias SendReply = (reply: ServiceMessage) -> Unit
-
-interface LogLevelPreferenceProvider {
-    fun setLogLevel(logLevel: LogLevel)
-    fun getLogLevel(): LogLevel
-}
 
 // android.os.Message cannot be instantiated in unit tests. The odd code splitting & injecting is
 // done to keep the toMessage() and fromMessage() out of the main body of code.
@@ -165,6 +157,8 @@ class ReporterService : Service() {
 
     @Inject lateinit var reporterSettingsPreferenceProvider: ReporterSettingsPreferenceProvider
 
+    @Inject lateinit var logLevelPreferenceProvider: LogLevelPreferenceProvider
+
     private var messenger: Messenger? = null
     private lateinit var commandExecutor: TimeoutThreadPoolExecutor
     private lateinit var handlerThread: HandlerThread
@@ -177,9 +171,6 @@ class ReporterService : Service() {
             start()
         }
         commandExecutor = TimeoutThreadPoolExecutor(COMMAND_EXECUTOR_MAX_THREADS)
-
-        val preferenceManager = PreferenceManager.getDefaultSharedPreferences(this)
-        val logLevelPreferenceProvider = RealLogLevelPreferenceProvider(preferenceManager)
 
         messageHandler = ReporterServiceMessageHandler(
             enqueueCommand = ::enqueueCommand,
@@ -249,20 +240,3 @@ class ReporterService : Service() {
 
 fun Context.getDropBoxManager(): DropBoxManager? =
     getSystemService(Service.DROPBOX_SERVICE) as DropBoxManager?
-
-class RealLogLevelPreferenceProvider(
-    sharedPreferences: SharedPreferences,
-) : LogLevelPreferenceProvider, PreferenceKeyProvider<Int>(
-    sharedPreferences = sharedPreferences,
-    // Defaults to test (just until updated level is received + persisted) - otherwise we might miss logs when
-    // restarting the process during E2E tests.
-    defaultValue = LogLevel.TEST.level,
-    preferenceKey = PREFERENCE_LOG_LEVEL,
-) {
-    override fun setLogLevel(logLevel: LogLevel) {
-        super.setValue(logLevel.level)
-    }
-
-    override fun getLogLevel(): LogLevel =
-        LogLevel.fromInt(super.getValue()) ?: LogLevel.TEST
-}

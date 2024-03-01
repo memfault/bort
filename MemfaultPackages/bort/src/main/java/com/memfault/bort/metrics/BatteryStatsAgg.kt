@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.parsers.BatteryStatsHistoryParser.Companion.BATTERY_DROP_METRIC
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import kotlin.time.Duration.Companion.hours
@@ -161,7 +162,7 @@ sealed class BatteryStatsAgg {
                 )
             }
             runningSocDischargePct?.let {
-                results.add(Pair("battery_soc_pct_drop", JsonPrimitive(it)))
+                results.add(Pair(BATTERY_DROP_METRIC, JsonPrimitive(it)))
             }
             return results
         }

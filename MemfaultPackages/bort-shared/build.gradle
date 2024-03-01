@@ -65,6 +65,7 @@ kapt {
 }
 
 dependencies {
+    api project(':reporting-libs:reporting-lib-common')
     api project(':reporting-libs:reporting-lib-kotlin')
 
     implementation deps.android.preference

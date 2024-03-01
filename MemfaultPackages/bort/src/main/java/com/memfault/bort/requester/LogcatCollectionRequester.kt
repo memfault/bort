@@ -2,13 +2,12 @@ package com.memfault.bort.requester
 
 import android.app.Application
 import android.content.Context
-import androidx.preference.PreferenceManager
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.memfault.bort.logcat.LogcatCollectionTask
-import com.memfault.bort.logcat.RealNextLogcatCidProvider
-import com.memfault.bort.logcat.RealNextLogcatStartTimeProvider
+import com.memfault.bort.logcat.NextLogcatCidProvider
+import com.memfault.bort.logcat.NextLogcatStartTimeProvider
 import com.memfault.bort.periodicWorkRequest
 import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.LogcatSettings
@@ -30,14 +29,14 @@ private val MINIMUM_COLLECTION_INTERVAL = 15.minutes
 
 internal fun restartPeriodicLogcatCollection(
     context: Context,
+    nextLogcatCidProvider: NextLogcatCidProvider,
+    nextLogcatStartTimeProvider: NextLogcatStartTimeProvider,
     collectionInterval: Duration,
     lastLogcatEnd: AbsoluteTime,
     collectImmediately: Boolean = false, // for testing
 ) {
-    PreferenceManager.getDefaultSharedPreferences(context).let {
-        RealNextLogcatCidProvider(it).rotate()
-        RealNextLogcatStartTimeProvider(it).nextStart = lastLogcatEnd
-    }
+    nextLogcatCidProvider.rotate()
+    nextLogcatStartTimeProvider.nextStart = lastLogcatEnd
 
     periodicWorkRequest<LogcatCollectionTask>(
         collectionInterval,
@@ -61,6 +60,8 @@ internal fun restartPeriodicLogcatCollection(
 class LogcatCollectionRequester @Inject constructor(
     private val application: Application,
     private val logcatSettings: LogcatSettings,
+    private val nextLogcatCidProvider: NextLogcatCidProvider,
+    private val nextLogcatStartTimeProvider: NextLogcatStartTimeProvider,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         val collectionInterval = maxOf(MINIMUM_COLLECTION_INTERVAL, logcatSettings.collectionInterval)
@@ -70,6 +71,8 @@ class LogcatCollectionRequester @Inject constructor(
 
         restartPeriodicLogcatCollection(
             context = application,
+            nextLogcatCidProvider = nextLogcatCidProvider,
+            nextLogcatStartTimeProvider = nextLogcatStartTimeProvider,
             collectionInterval = collectionInterval,
             lastLogcatEnd = if (justBooted) 0L.toAbsoluteTime() else AbsoluteTime.now(),
         )
