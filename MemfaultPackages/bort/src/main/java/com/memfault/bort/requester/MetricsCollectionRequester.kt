@@ -2,12 +2,11 @@ package com.memfault.bort.requester
 
 import android.app.Application
 import android.content.Context
-import androidx.preference.PreferenceManager
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.memfault.bort.metrics.LastHeartbeatEndTimeProvider
 import com.memfault.bort.metrics.MetricsCollectionTask
-import com.memfault.bort.metrics.RealLastHeartbeatEndTimeProvider
 import com.memfault.bort.periodicWorkRequest
 import com.memfault.bort.settings.MetricsSettings
 import com.memfault.bort.settings.SettingsProvider
@@ -28,14 +27,13 @@ private val MINIMUM_COLLECTION_INTERVAL = 15.minutes
 
 internal fun restartPeriodicMetricsCollection(
     context: Context,
+    lastHeartbeatEndTimeProvider: LastHeartbeatEndTimeProvider,
     collectionInterval: Duration,
     lastHeartbeatEnd: BootRelativeTime? = null,
     collectImmediately: Boolean = false,
 ) {
     lastHeartbeatEnd?.let {
-        RealLastHeartbeatEndTimeProvider(
-            PreferenceManager.getDefaultSharedPreferences(context),
-        ).lastEnd = lastHeartbeatEnd
+        lastHeartbeatEndTimeProvider.lastEnd = lastHeartbeatEnd
     }
 
     periodicWorkRequest<MetricsCollectionTask>(
@@ -59,6 +57,7 @@ internal fun restartPeriodicMetricsCollection(
 @ContributesMultibinding(SingletonComponent::class)
 class MetricsCollectionRequester @Inject constructor(
     private val application: Application,
+    private val lastHeartbeatEndTimeProvider: LastHeartbeatEndTimeProvider,
     private val metricsSettings: MetricsSettings,
     private val bootRelativeTimeProvider: BootRelativeTimeProvider,
 ) : PeriodicWorkRequester() {
@@ -72,6 +71,7 @@ class MetricsCollectionRequester @Inject constructor(
 
         restartPeriodicMetricsCollection(
             context = application,
+            lastHeartbeatEndTimeProvider = lastHeartbeatEndTimeProvider,
             collectionInterval = collectionInterval,
             lastHeartbeatEnd = if (resetLastHeartbeatTime) bootRelativeTimeProvider.now() else null,
             collectImmediately = collectImmediately,

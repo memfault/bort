@@ -308,7 +308,7 @@ class BatteryStatsHistoryParserTest {
         val parser = BatteryStatsHistoryParser(createFile(SOC_FILE_NO_DISCHARGE))
         runTest {
             val result = parser.parseToCustomMetrics()
-            assertEquals(JsonPrimitive(0.0), result.aggregatedMetrics["battery_discharge_duration_ms"])
+            assertFalse(result.aggregatedMetrics.containsKey("battery_discharge_duration_ms"))
             assertFalse(result.aggregatedMetrics.containsKey("battery_soc_pct_drop"))
         }
     }
@@ -326,7 +326,7 @@ class BatteryStatsHistoryParserTest {
         runTest {
             val result = parser.parseToCustomMetrics()
             assertEquals(JsonPrimitive(50000.0), result.aggregatedMetrics["battery_discharge_duration_ms"])
-            assertFalse(result.aggregatedMetrics.containsKey("battery_soc_pct_drop"))
+            assertEquals(JsonPrimitive(0.0), result.aggregatedMetrics["battery_soc_pct_drop"])
         }
     }
 }

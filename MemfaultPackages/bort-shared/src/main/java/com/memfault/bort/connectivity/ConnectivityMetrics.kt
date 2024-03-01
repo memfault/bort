@@ -168,7 +168,7 @@ class ConnectivityMetrics
         captivePortal: Boolean,
     ) {
         Logger.test(
-            """{"json_log": "connectivity", "state": "$state"""" +
+            """{"json_log": "connectivity", "state": "$state", """ +
                 """"validated": $validated, "captive_portal": $captivePortal}""",
         )
     }

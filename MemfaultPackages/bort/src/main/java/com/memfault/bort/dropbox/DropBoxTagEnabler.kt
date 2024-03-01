@@ -3,6 +3,7 @@ package com.memfault.bort.dropbox
 import android.content.ContentResolver
 import android.os.Build
 import android.provider.Settings
+import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.DropBoxForceEnableWtfTags
 import com.memfault.bort.shared.Logger
 import javax.inject.Inject
@@ -15,10 +16,14 @@ import javax.inject.Inject
  * See https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android14-release/services/core/java/com/android/server/DropBoxManagerService.java#110
  */
 class DropBoxTagEnabler @Inject constructor(
+    private val bortEnabledProvider: BortEnabledProvider,
     private val contentResolver: ContentResolver,
     private val dropBoxForceEnableWtfTags: DropBoxForceEnableWtfTags,
 ) {
     fun enableTagsIfRequired() {
+        if (!bortEnabledProvider.isEnabled()) {
+            return
+        }
         if (!dropBoxForceEnableWtfTags()) {
             return
         }

@@ -84,6 +84,7 @@ import com.memfault.bort.parsers.BatteryStatsConstants.enumNames
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.Logger
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
 import java.io.File
 import java.lang.IllegalStateException
 import java.lang.NumberFormatException
@@ -159,7 +160,7 @@ class BatteryStatsHistoryParser(
             dataType = StringType,
             aggregations = listOf(
                 TimeByNominalAggregator(
-                    metricName = "battery_discharge_duration_ms",
+                    metricName = DISCHARGE_DURATION_METRIC,
                     states = enumNames(listOf(BatteryStatus.Discharging)),
                     useRawElapsedMs = true,
                 ),
@@ -400,6 +401,21 @@ class BatteryStatsHistoryParser(
         val aggregateMetrics = mutableMapOf<String, JsonPrimitive>()
         metrics.forEach { aggregateMetrics.putAll(it.aggregates()) }
 
+        val dischargeDurationMetric = aggregateMetrics[DISCHARGE_DURATION_METRIC]
+        val dischargeDurationOrZero = dischargeDurationMetric?.doubleOrNull ?: 0.0
+        val socDropMetric = aggregateMetrics[BATTERY_DROP_METRIC]
+        if (dischargeDurationMetric != null && dischargeDurationOrZero > 0.0 && socDropMetric == null) {
+            // If there is a discharge duration, but no discharge (i.e. less than a hole percent), then ensure we
+            // populate the discharge with a zero.
+            aggregateMetrics[BATTERY_DROP_METRIC] = JsonPrimitive(0.0)
+        } else if (dischargeDurationMetric == null || socDropMetric == null || dischargeDurationOrZero == 0.0) {
+            // Only include the core battery metrics if:
+            // - They are both populated.
+            // - The discharge duration is non-zero.
+            aggregateMetrics.remove(DISCHARGE_DURATION_METRIC)
+            aggregateMetrics.remove(BATTERY_DROP_METRIC)
+        }
+
         // Add some of the aggregate metrics as HRT, so that they appear on timeline
         val extraHrtRollups = mutableSetOf<Rollup>()
         timeMs?.let { timeMs ->
@@ -418,11 +434,11 @@ class BatteryStatsHistoryParser(
                 )
                 extraHrtRollups.add(rollup)
             }
-            aggregateMetrics["battery_discharge_duration_ms"]?.let {
-                addHrtRollup("battery_discharge_duration_ms", it)
+            aggregateMetrics[DISCHARGE_DURATION_METRIC]?.let {
+                addHrtRollup(DISCHARGE_DURATION_METRIC, it)
             }
-            aggregateMetrics["battery_soc_pct_drop"]?.let {
-                addHrtRollup("battery_soc_pct_drop", it)
+            aggregateMetrics[BATTERY_DROP_METRIC]?.let {
+                addHrtRollup(BATTERY_DROP_METRIC, it)
             }
         }
 
@@ -628,5 +644,7 @@ class BatteryStatsHistoryParser(
     companion object {
         private val BATTERYSTATS_PARSE_ERROR_METRIC =
             Reporting.report().counter(name = "batterystats_parse_error", internal = true)
+        private const val DISCHARGE_DURATION_METRIC = "battery_discharge_duration_ms"
+        const val BATTERY_DROP_METRIC = "battery_soc_pct_drop"
     }
 }

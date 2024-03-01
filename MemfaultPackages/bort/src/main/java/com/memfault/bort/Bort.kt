@@ -21,6 +21,7 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Provider
+import kotlin.system.exitProcess
 
 @HiltAndroidApp
 open class Bort : Application(), Configuration.Provider {
@@ -59,7 +60,7 @@ open class Bort : Application(), Configuration.Provider {
         if (!isPrimaryUser()) {
             Logger.w("bort disabled for secondary user")
             disableAppComponents(applicationContext)
-            System.exit(0)
+            exitProcess(0)
         }
 
         val defaultExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
@@ -79,15 +80,15 @@ open class Bort : Application(), Configuration.Provider {
         }
 
         bortFallbackConnectivityMetrics.start()
-
-        if (!bortEnabledProvider.isEnabled()) {
-            Logger.test("Bort not enabled, not running app")
-            return
-        }
-
         appUpgrade.handleUpgrade(this)
         dropBoxTagEnabler.enableTagsIfRequired()
         dropBoxEntryAddedReceiver.initialize()
+
+        if (bortEnabledProvider.isEnabled()) {
+            Logger.test("Bort app running with Bort enabled")
+        } else {
+            Logger.test("Bort app running with Bort not enabled")
+        }
     }
 
     private fun logDebugInfo(

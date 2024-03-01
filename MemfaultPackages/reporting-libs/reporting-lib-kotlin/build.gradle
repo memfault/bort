@@ -1,9 +1,12 @@
+import  org.gradle.api.publish.tasks.GenerateModuleMetadata
+
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlinx-serialization'
 apply plugin: 'maven-publish'
 apply plugin: 'signing'
-apply plugin: 'common-android'
+apply plugin: 'common-android-java'
+apply plugin: 'sh.christian.aaraar'
 
 android {
     defaultConfig {
@@ -12,17 +15,40 @@ android {
     }
 
     kotlinOptions {
-        freeCompilerArgs += '-Xexplicit-api=warning'
+        jvmTarget = JavaVersion.VERSION_17.toString()
+        freeCompilerArgs += "-opt-in=kotlin.RequiresOptIn"
+        freeCompilerArgs += "-opt-in=kotlin.time.ExperimentalTime"
+        freeCompilerArgs += "-Xjvm-default=all"
+        freeCompilerArgs += "-Xexplicit-api=warning"
+        freeCompilerArgs += "-Xno-call-assertions"
+        freeCompilerArgs += "-Xno-receiver-assertions"
+        freeCompilerArgs += "-Xno-param-assertions"
+        allWarningsAsErrors = true
     }
 
     namespace 'com.memfault.bort.reporting'
+
+    publishing {
+        singleVariant("release")
+    }
 }
 
 dependencies {
-    api project(':reporting-libs:reporting-lib-common')
-    implementation project(':structured-logd-aidl')
+    embed project(':reporting-libs:reporting-lib-common')
+    embed project(':structured-logd-aidl')
+    compileOnly project(':reporting-libs:reporting-lib-common')
+    compileOnly project(':structured-logd-aidl')
+}
 
-    implementation deps.serialization.json
+aaraar {
+    isEnabledForVariant { variant ->
+        variant.name == "release"
+    }
+    keepMetaFiles.set(false)
+}
+
+tasks.withType(GenerateModuleMetadata.class).configureEach {
+    enabled = false
 }
 
 def getRepositoryUsername() {
@@ -33,56 +59,68 @@ def getRepositoryPassword() {
     return hasProperty('NEXUS_PASSWORD') ? NEXUS_PASSWORD : ""
 }
 
-publishing {
-    publications {
-        release(MavenPublication) {
-            groupId = 'com.memfault.bort'
-            artifactId = 'reporting-lib'
-            version = '1.3'
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                groupId = 'com.memfault.bort'
+                artifactId = 'reporting-lib'
+                version = '1.4'
 
-            afterEvaluate {
                 from components.release
-            }
 
-            pom {
-                name = 'Bort Reporting'
-                description = 'Metric and event reporting for Memfault Bort SDK'
-                url = 'https://github.com/memfault/bort'
-                licenses {
-                    license {
-                        name = 'Memfault SDK License'
-                        url = 'https://github.com/memfault/bort/blob/master/LICENSE'
-                    }
-                }
-                developers {
-                    developer {
-                        id = 'memfault'
-                        name = 'Memfault, Inc.'
-                    }
-                }
-                scm {
-                    connection = 'scm:git:git://github.com/memfault/bort.git'
+                pom {
+                    name = 'Bort Reporting'
+                    description = 'Metric and event reporting for Memfault Bort SDK'
                     url = 'https://github.com/memfault/bort'
+                    licenses {
+                        license {
+                            name = 'Memfault SDK License'
+                            url = 'https://github.com/memfault/bort/blob/master/LICENSE'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = 'memfault'
+                            name = 'Memfault, Inc.'
+                        }
+                    }
+                    scm {
+                        connection = 'scm:git:git://github.com/memfault/bort.git'
+                        url = 'https://github.com/memfault/bort'
+                    }
+                    // Deletes the dependencies pom. The embed/compileOnly configurations above
+                    // hides most dependencies, but we suspect that the Kotlin Android plugin
+                    // adds a kotlin-stdlib dependency that we can't elide manually.
+                    withXml {
+                        def root = asNode()
+                        for (child in root.children()) {
+                            if (child.name().getLocalPart() == "dependencies") {
+                                root.remove(child)
+                                break
+                            }
+                        }
+                    }
                 }
             }
         }
-    }
-    repositories {
-        maven {
-            def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
-            def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
-            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-            credentials {
-                username getRepositoryUsername()
-                password getRepositoryPassword()
+        repositories {
+            maven {
+                def releasesRepoUrl = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+                def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
+                url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+                credentials {
+                    username getRepositoryUsername()
+                    password getRepositoryPassword()
+                }
             }
         }
-    }
-    signing {
-        required {
-            // signing is only required if the artifacts are to be published
-            gradle.taskGraph.hasTask("publishToMavenRepository")
+        signing {
+            required {
+                // signing is only required if the artifacts are to be published
+                gradle.taskGraph.hasTask("publishToMavenRepository")
+            }
+            sign publishing.publications.release
         }
-        sign publishing.publications.release
     }
 }
