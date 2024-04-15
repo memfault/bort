@@ -2,8 +2,8 @@ package com.memfault.bort.requester
 
 import com.memfault.bort.DevMode
 import com.memfault.bort.DumpsterCapabilities
-import com.memfault.bort.InjectSet
 import com.memfault.bort.clientserver.CachedClientServerMode
+import com.memfault.bort.dagger.InjectSet
 import com.memfault.bort.settings.DynamicSettingsProvider
 import com.memfault.bort.settings.FetchedSettingsUpdate
 import com.memfault.bort.settings.ProjectKeyProvider

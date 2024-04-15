@@ -9,18 +9,18 @@ object OtaRules {
         ota: Ota,
         otaRulesProvider: OtaRulesProvider,
     ): Boolean {
-        Logger.d("shouldAutoDownloadOtaUpdate: $ota")
-        // isForced is optional in OTA response - fall back to default if not set.
-        return otaRulesProvider.downloadRules(ota).canDownloadNowAfterConstraintsSatisfied(ota)
+        val canDownloadNow = otaRulesProvider.downloadRules(ota).canDownloadNowAfterConstraintsSatisfied(ota)
+        Logger.d("shouldAutoDownloadOtaUpdate: $ota canDownloadNow = $canDownloadNow")
+        return canDownloadNow
     }
 
     internal fun shouldAutoInstallOtaUpdate(
         ota: Ota,
         otaRulesProvider: OtaRulesProvider,
     ): Boolean {
-        Logger.d("shouldAutoInstallOtaUpdate: $ota")
-        // isForced is optional in OTA response - fall back to default if not set.
-        return otaRulesProvider.installRules(ota).canInstallNowAfterConstraintsSatisfied(ota)
+        val canInstallNow = otaRulesProvider.installRules(ota).canInstallNowAfterConstraintsSatisfied(ota)
+        Logger.d("shouldAutoInstallOtaUpdate: $ota calInstallNow = $canInstallNow")
+        return canInstallNow
     }
 }
 

@@ -49,6 +49,8 @@ class Updater @Inject constructor(
 
     // Do all state machine operations on main thread, avoiding race conditions between threads causing bugs.
     suspend fun setState(state: State) = withContext(Dispatchers.Main) {
+        val currentState = badCurrentUpdateState()
+        Logger.d("setState: $state (in state: $currentState)")
         stateStore.store(state)
         _updateState.emit(state)
     }

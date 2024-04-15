@@ -80,9 +80,8 @@ class OtaInstallWorker @AssistedInject constructor(
         }
 
         fun schedule(context: Context, rulesProvider: OtaRulesProvider, ota: Ota) {
-            Logger.d("schedule OtaInstallWorker")
-
             val rules = rulesProvider.installRules(ota)
+            Logger.d("schedule OtaInstallWorker: rule = $rules")
 
             // Note: we can't use a setRequiresDeviceIdle() constraint - this is incompatible with using a backoff
             // policy.

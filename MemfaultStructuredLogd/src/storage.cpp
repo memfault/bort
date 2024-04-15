@@ -264,7 +264,7 @@ std::pair<std::string, std::string> Sqlite3StorageBackend::getCidPair() {
     return std::make_pair(cid, nextCid);
 }
 
-void Sqlite3StorageBackend::addStorageEmtpyListener(OnStorageEmptyListener listener) {
+void Sqlite3StorageBackend::addStorageEmptyListener(OnStorageEmptyListener listener) {
     storageEmptyListeners.emplace_back(listener);
 }
 

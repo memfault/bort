@@ -88,9 +88,14 @@ data class DbMetricValue(
     val newField: Boolean? = null,
 )
 
+// Unfortunately, our native service writes booleans as 1 or 0 for true or false, meaning to
+// retain backwards compatibility we'll also want to write booleans in the same way, especially
+// once we migrate to only using the Room metrics database.
 fun DbMetricValue.jsonValue(): JsonPrimitive =
-    boolVal?.let { JsonPrimitive(it) } ?: numberVal?.let { JsonPrimitive(it) }
-        ?: stringVal?.let { JsonPrimitive(it) } ?: JsonNull
+    boolVal?.let { JsonPrimitive(if (it) "1" else "0") }
+        ?: numberVal?.let { JsonPrimitive(it) }
+        ?: stringVal?.let { JsonPrimitive(it) }
+        ?: JsonNull
 
 data class DbNumericAggs(
     val min: Long,

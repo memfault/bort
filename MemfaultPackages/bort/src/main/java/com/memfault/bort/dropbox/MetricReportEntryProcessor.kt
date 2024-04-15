@@ -57,7 +57,7 @@ class MetricReportEntryProcessor @Inject constructor(
                         tempFile.readText(),
                     )
                 } catch (ex: SerializationException) {
-                    Logger.w("Received an unparseable metric report, ignoring")
+                    Logger.w("Received an unparsable metric report, ignoring")
                     return@useFile
                 }
 

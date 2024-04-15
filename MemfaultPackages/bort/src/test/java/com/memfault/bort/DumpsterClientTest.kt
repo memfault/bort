@@ -47,7 +47,7 @@ class DumpsterClientTest {
     }
 
     @Test
-    fun binderRemoteExeption() = runTest {
+    fun binderRemoteException() = runTest {
         val service = mockk<IDumpster> {
             every { version } returns 1
             every { runBasicCommand(any(), any()) } throws RemoteException()

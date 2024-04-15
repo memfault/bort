@@ -41,7 +41,7 @@ abstract class ServiceConnector<S>(val context: Context, val componentName: Comp
         }
 
         override fun onServiceDisconnected(className: ComponentName) {
-            Logger.e("onServiceDisonnected: $className")
+            Logger.e("onServiceDisconnected: $className")
 
             // Should not happen, but just in case onServiceDisconnected got called before onServiceConnected,
             // ensure the Deferred is completed:

@@ -3,12 +3,12 @@ package com.memfault.bort
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
-import com.memfault.bort.connectivity.BortFallbackConnectivityMetrics
 import com.memfault.bort.dropbox.DropBoxTagEnabler
 import com.memfault.bort.metrics.BORT_CRASH
 import com.memfault.bort.metrics.BORT_STARTED
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.receivers.DropBoxEntryAddedReceiver
+import com.memfault.bort.scopes.RootScopeBuilder
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.WorkManagerConfiguration
@@ -20,7 +20,6 @@ import com.memfault.bort.time.UptimeTracker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
-import javax.inject.Provider
 import kotlin.system.exitProcess
 
 @HiltAndroidApp
@@ -39,15 +38,13 @@ open class Bort : Application(), Configuration.Provider {
 
     @Inject lateinit var appUpgrade: AppUpgrade
 
-    @Inject lateinit var configureStrictMode: ConfigureStrictMode
-
     @Inject lateinit var workManagerConfiguration: WorkManagerConfiguration
+
+    @Inject lateinit var rootScopeBuilder: RootScopeBuilder
 
     @Inject lateinit var dropBoxEntryAddedReceiver: DropBoxEntryAddedReceiver
 
     @Inject lateinit var projectKeySysprop: ProjectKeySysprop
-
-    @Inject lateinit var bortFallbackConnectivityMetrics: BortFallbackConnectivityMetrics
 
     @Inject lateinit var dropBoxTagEnabler: DropBoxTagEnabler
 
@@ -55,7 +52,6 @@ open class Bort : Application(), Configuration.Provider {
         super.onCreate()
 
         Logger.initTags(tag = "bort", testTag = "bort-test")
-        configureStrictMode.configure()
 
         if (!isPrimaryUser()) {
             Logger.w("bort disabled for secondary user")
@@ -79,7 +75,8 @@ open class Bort : Application(), Configuration.Provider {
             projectKeySysprop.loadFromSysprop()
         }
 
-        bortFallbackConnectivityMetrics.start()
+        rootScopeBuilder.onCreate("bort-root")
+
         appUpgrade.handleUpgrade(this)
         dropBoxTagEnabler.enableTagsIfRequired()
         dropBoxEntryAddedReceiver.initialize()
@@ -89,6 +86,11 @@ open class Bort : Application(), Configuration.Provider {
         } else {
             Logger.test("Bort app running with Bort not enabled")
         }
+    }
+
+    override fun onTerminate() {
+        rootScopeBuilder.onTerminate()
+        super.onTerminate()
     }
 
     private fun logDebugInfo(

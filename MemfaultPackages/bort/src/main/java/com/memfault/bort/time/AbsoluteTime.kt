@@ -42,10 +42,8 @@ class RealAbsoluteTimeProvider @Inject constructor() : AbsoluteTimeProvider {
     override fun invoke(): AbsoluteTime = AbsoluteTime.now()
 }
 
-fun Long.toAbsoluteTime() = AbsoluteTime(
-    Instant.ofEpochMilli(this),
-)
+fun Instant.toAbsoluteTime(): AbsoluteTime =
+    AbsoluteTime(this)
 
-fun Duration.toAbsoluteTime() = AbsoluteTime(
-    Instant.ofEpochMilli(this.inWholeMilliseconds),
-)
+fun Long.toAbsoluteTime(): AbsoluteTime =
+    Instant.ofEpochMilli(this).toAbsoluteTime()

@@ -97,7 +97,7 @@ class DropBoxGetEntriesTaskTest {
         unmockkAll()
     }
 
-    private fun mockGetNextEntryReponses(vararg entries: DropBoxManager.Entry?): () -> Unit {
+    private fun mockGetNextEntryResponses(vararg entries: DropBoxManager.Entry?): () -> Unit {
         coEvery {
             dropBoxManager.getNextEntry(any(), any())
         } returnsMany entries.toList()
@@ -120,7 +120,7 @@ class DropBoxGetEntriesTaskTest {
 
     @Test
     fun retriesOnceMoreAfterNullEntry() = runTest {
-        mockGetNextEntryReponses(null)
+        mockGetNextEntryResponses(null)
 
         val result = task.doWork()
 
@@ -132,7 +132,7 @@ class DropBoxGetEntriesTaskTest {
 
     @Test
     fun refreshesCursorBeforeRetryAfterNullEntry() = runTest {
-        mockGetNextEntryReponses(null)
+        mockGetNextEntryResponses(null)
 
         // Simulate that a time adjustment took place while waiting for the retry delay to pass:
         val changedTimeMillis = 12345L
@@ -151,7 +151,7 @@ class DropBoxGetEntriesTaskTest {
 
     @Test
     fun ignoreEntryProcessorExceptions() = runTest {
-        val verifyCloseCalled = mockGetNextEntryReponses(
+        val verifyCloseCalled = mockGetNextEntryResponses(
             mockEntry(10),
             mockEntry(20),
             null,
@@ -173,7 +173,7 @@ class DropBoxGetEntriesTaskTest {
 
     @Test
     fun ignoreEntryTagWithNoMatchingProcessor() = runTest {
-        val verifyCloseCalled = mockGetNextEntryReponses(
+        val verifyCloseCalled = mockGetNextEntryResponses(
             mockEntry(10, tag_ = "unknown"),
             null,
         )
@@ -193,7 +193,7 @@ class DropBoxGetEntriesTaskTest {
     @Test
     fun ignoreEmptyEntry() = runTest {
         val entry = mockEntry(10, tag_ = TEST_TAG)
-        val verifyCloseCalled = mockGetNextEntryReponses(entry, null)
+        val verifyCloseCalled = mockGetNextEntryResponses(entry, null)
         val result = task.doWork()
 
         coVerify(exactly = 1) {

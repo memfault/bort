@@ -167,7 +167,7 @@ TEST (Sqlite3StorageBackendTest, TestInternalTypes) {
 
 TEST (Sqlite3StorageBackendTest, TestEmptyListener) {
     Sqlite3StorageBackend backend(SQLITE3_FILE, "id");
-    backend.addStorageEmtpyListener([&backend](){
+    backend.addStorageEmptyListener([&backend](){
         backend.store(LogEntry(2, "fake.rtc.sync", "{}"));
     });
 

@@ -6,7 +6,7 @@ bort-sepolicy-canary-check: selinux_policy $(shell test $(PLATFORM_SDK_VERSION) 
 					echo "ERROR: memfault_dumpster_service not found in sepolicy contexts" 1>&2; \
 					echo "       this usually indicates an integration issue. Please ensure" 1>&2; \
 					echo "       that definitions from vendor/memfault/bort/BoardConfig.mk" 1>&2; \
-					echo "       are correctly included and not overwriten." 1>&2; \
+					echo "       are correctly included and not overwritten." 1>&2; \
 					echo "See https://mflt.io/android-sepolicy" 1>&2; \
 					exit 1; ) \
                 && grep bort_app_data_file $(TARGET_OUT_INTERMEDIATES)/ETC/*_seapp_contexts_intermediates/*_seapp_contexts > /dev/null || ( \
@@ -14,7 +14,7 @@ bort-sepolicy-canary-check: selinux_policy $(shell test $(PLATFORM_SDK_VERSION) 
 					echo "ERROR: bort_app_data_file not found in sepolicy contexts" 1>&2; \
 					echo "       this usually indicates an integration issue. Please ensure" 1>&2; \
 					echo "       that definitions from vendor/memfault/bort/BoardConfig.mk" 1>&2; \
-					echo "       are correctly included and not overwriten." 1>&2; \
+					echo "       are correctly included and not overwritten." 1>&2; \
 					echo "See https://mflt.io/android-sepolicy" 1>&2; \
 					exit 1; ))
 

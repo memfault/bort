@@ -3,7 +3,6 @@ package com.memfault.bort.logcat
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.clientserver.MarMetadata
 import com.memfault.bort.dropbox.allowedByRateLimit
-import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.parsers.LogcatLine
 import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.settings.SettingsProvider
@@ -43,7 +42,6 @@ class SelinuxViolationLogcatDetector
     private val handleEventOfInterest: HandleEventOfInterest,
     private val settingsProvider: SettingsProvider,
     @SelinuxViolations private val tokenBucketStore: TokenBucketStore,
-    private val crashHandler: CrashHandler,
 ) {
     fun process(
         line: LogcatLine,
@@ -138,7 +136,6 @@ class SelinuxViolationLogcatDetector
         selinuxViolation.timestamp?.let {
             handleEventOfInterest.handleEventOfInterest(AbsoluteTime(it))
         }
-        crashHandler.onCrash()
 
         val actor = scrubObjectString(selinuxViolation.app ?: selinuxViolation.sourceContext).orEmpty()
         val actorHint = scrubObjectString(selinuxViolation.name ?: selinuxViolation.comm)

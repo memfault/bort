@@ -12,6 +12,7 @@ import com.memfault.bort.android.NetworkCallbackEvent.OnCapabilitiesChanged
 import com.memfault.bort.android.NetworkCallbackEvent.OnLost
 import com.memfault.bort.android.registerForDefaultNetworkCallback
 import com.memfault.bort.android.registerForIntents
+import com.memfault.bort.connectivity.ConnectivityState.BLUETOOTH
 import com.memfault.bort.connectivity.ConnectivityState.CELLULAR
 import com.memfault.bort.connectivity.ConnectivityState.ETHERNET
 import com.memfault.bort.connectivity.ConnectivityState.NONE
@@ -20,6 +21,9 @@ import com.memfault.bort.connectivity.ConnectivityState.WIFI
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.reporting.StateAgg.TIME_PER_HOUR
 import com.memfault.bort.reporting.StateAgg.TIME_TOTALS
+import com.memfault.bort.scopes.Scope
+import com.memfault.bort.scopes.Scoped
+import com.memfault.bort.scopes.coroutineScope
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.shared.Logger
 import kotlinx.coroutines.CoroutineScope
@@ -32,16 +36,19 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
+// Don't automatically include this in all apps using @ContributesMultibinding (it'll be included in OTA,
+// and Bort has to conditionally enable it only if UsageReporter is not installed).
 @Singleton
 class ConnectivityMetrics
 @Inject constructor(
     private val application: Application,
     private val bortEnabledProvider: BortEnabledProvider,
     private val connectivityManager: ConnectivityManager,
-) {
+) : Scoped {
     private val connectivityMetric = Reporting.report()
         .stateTracker<ConnectivityState>(
             name = "connectivity.type",
@@ -53,10 +60,14 @@ class ConnectivityMetrics
 
     private val replaySettingsFlow = MutableSharedFlow<Unit>()
 
-    fun start(scope: CoroutineScope) {
-        scope.registerAirplaneMode()
-        scope.registerConnectivity()
+    override fun onEnterScope(scope: Scope) {
+        scope.coroutineScope().launch {
+            registerAirplaneMode()
+            registerConnectivity()
+        }
     }
+
+    override fun onExitScope() = Unit
 
     /**
      * Triggers a re-emission of the latest connectivity event.
@@ -146,6 +157,7 @@ class ConnectivityMetrics
         val state = when {
             networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> WIFI
             networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> CELLULAR
+            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) -> BLUETOOTH
             networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> ETHERNET
             else -> UNKNOWN
         }
@@ -182,6 +194,7 @@ private enum class ConnectivityState {
     WIFI,
     CELLULAR,
     ETHERNET,
+    BLUETOOTH,
     UNKNOWN,
     NONE,
 }

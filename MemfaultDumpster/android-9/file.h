@@ -46,7 +46,7 @@ public:
   explicit TemporaryFile(const std::string& tmp_dir);
   ~TemporaryFile();
 
-  // Release the ownership of fd, caller is reponsible for closing the
+  // Release the ownership of fd, caller is responsible for closing the
   // fd or stream properly.
   int release();
   // Don't remove the temporary file in the destructor.

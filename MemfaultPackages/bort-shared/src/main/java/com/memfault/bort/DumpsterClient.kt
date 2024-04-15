@@ -109,11 +109,11 @@ private class WrappedService(val service: IDumpster, val basicCommandTimeout: Lo
 @Qualifier
 @Retention(RUNTIME)
 @Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
-annotation class BasicCommandTimout
+annotation class BasicCommandTimeout
 
 class DumpsterClient @Inject constructor(
     private val serviceProvider: DumpsterServiceProvider,
-    @BasicCommandTimout private val basicCommandTimeout: Long,
+    @BasicCommandTimeout private val basicCommandTimeout: Long,
     private val processExecutor: ProcessExecutor,
 ) {
     private fun getServiceSilently(): IDumpster? = serviceProvider.get(logIfMissing = false)

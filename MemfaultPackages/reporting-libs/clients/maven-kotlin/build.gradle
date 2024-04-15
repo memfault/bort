@@ -1,0 +1,33 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply from: rootProject.file('properties.gradle')
+apply plugin: 'common-android'
+
+android {
+    namespace 'com.memfault.bort.reporting.maven.kotlin'
+
+    defaultConfig {
+        applicationId 'com.memfault.bort.reporting.maven.kotlin'
+
+        versionCode loadVersionCode() as Integer
+        versionName loadVersionName() as String
+
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    variantFilter { variant ->
+        if (variant.buildType.name.endsWith('release')) {
+            variant.setIgnore(true);
+        }
+    }
+}
+
+dependencies {
+    api deps.memfault.reporting.lib.kotlin
+}

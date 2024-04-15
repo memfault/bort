@@ -25,9 +25,16 @@ if ((includeOta ?: "0").toBoolean()) {
     include ':bort-ota-lib'
 }
 
-// Conditionally include the end-to-end test helper application (not published as part of the SDK):
+// Conditionally include the end-to-end test helper apps (not published as part of the SDK):
 if ((properties["BORT_INCLUDE_E2E_HELPER"] ?: "0").toBoolean()) {
     include ':e2e-helper'
+    include ':reporting-libs:clients:maven-kotlin'
+}
+
+// Conditionally include the Maven Local reporting client because it has some annoying interactions
+// with Maven Local during Gradle configuration.
+if ((properties["BORT_INCLUDE_REPORTING_CLIENTS"] ?: "0").toBoolean()) {
+  include ':reporting-libs:clients:maven-local-java'
 }
 
 dependencyResolutionManagement {

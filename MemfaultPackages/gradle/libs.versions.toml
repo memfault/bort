@@ -4,6 +4,7 @@ hilt = "2.46"
 kotlin = "1.9.21"
 kotlinx-coroutines = "1.7.3"
 room = "2.6.1"
+memfault-reporting = "1.4"
 
 
 [libraries]
@@ -43,6 +44,8 @@ serialization-converter = { module = "com.jakewharton.retrofit:retrofit2-kotlinx
 
 # memfault
 memfault-cloud = { module = "com.memfault.cloud:cloud-android", version = "2.0.5" }
+memfault-reporting-lib-java = { module = "com.memfault.bort:reporting-lib-java", version.ref = "memfault-reporting" }
+memfault-reporting-lib-kotlin = { module = "com.memfault.bort:reporting-lib", version.ref = "memfault-reporting" }
 
 # room
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }

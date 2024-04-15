@@ -2,7 +2,7 @@ package com.memfault.bort.ota.lib
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
+import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
@@ -36,9 +36,7 @@ class TestUpdateEngine @Inject constructor(
     override fun applyPayload(url: String, offset: Long, size: Long, metadata: Array<String>) {
         // simulate the happy path of a payload applying, a real device would download, verify and then
         // reach this state
-        testLog("applyPayload: url=$url offset=$offset size=$size metadata=${metadata.joinToString()}")
+        Logger.test("applyPayload: url=$url offset=$offset size=$size metadata=${metadata.joinToString()}")
         callback?.onStatusUpdate(UPDATE_ENGINE_STATUS_DOWNLOADING, 50f)
     }
 }
-
-fun testLog(msg: String, tag: String = "bort-ota-test") = Log.v(tag, msg)

@@ -1,16 +1,83 @@
+import  org.gradle.api.publish.tasks.GenerateModuleMetadata
+
 apply plugin: 'com.android.library'
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
 apply plugin: 'common-android-java'
+apply plugin: 'sh.christian.aaraar'
 
 android {
     defaultConfig {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        minSdkVersion versions.minSdk
     }
 
-  namespace 'com.memfault.bort.reporting.java'
+    sourceSets {
+        main {
+            manifest.srcFile 'src/30andup/AndroidManifest.xml'
+        }
+    }
+
+    namespace 'com.memfault.bort.reporting.java'
+
+    publishing {
+       singleVariant("release")
+    }
 }
 
 dependencies {
-    api project(':reporting-libs:reporting-lib-common')
+    embed project(':reporting-libs:reporting-lib-common')
+    embed project(':structured-logd-aidl')
+    compileOnly project(':reporting-libs:reporting-lib-common')
+    compileOnly project(':structured-logd-aidl')
 
+    testImplementation project(':reporting-libs:reporting-lib-common')
     testImplementation deps.test.mockito.java
+}
+
+aaraar {
+    isEnabledForVariant { variant ->
+        variant.name == "release"
+    }
+    keepMetaFiles.set(false)
+}
+
+tasks.withType(GenerateModuleMetadata.class).configureEach {
+    enabled = false
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                groupId = 'com.memfault.bort'
+                artifactId = 'reporting-lib-java'
+                version = deps.versions.memfault.reporting.get()
+
+                from components.release
+
+                pom {
+                    name = 'Bort Reporting for Java consumers'
+                    description = 'Metric and event reporting for Memfault Bort SDK'
+                    url = 'https://github.com/memfault/bort'
+                    licenses {
+                        license {
+                            name = 'Memfault SDK License'
+                            url = 'https://github.com/memfault/bort/blob/master/LICENSE'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = 'memfault'
+                            name = 'Memfault, Inc.'
+                        }
+                    }
+                    scm {
+                        connection = 'scm:git:git://github.com/memfault/bort.git'
+                        url = 'https://github.com/memfault/bort'
+                    }
+                }
+            }
+        }
+    }
 }

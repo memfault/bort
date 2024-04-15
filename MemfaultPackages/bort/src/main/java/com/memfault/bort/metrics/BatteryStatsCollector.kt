@@ -49,6 +49,8 @@ class BatteryStatsCollector @Inject constructor(
             batteryStatsFileToUpload = historyResult.batteryStatsFileToUpload,
             batteryStatsHrt = historyResult.batteryStatsHrt + summaryResult.batteryStatsHrt,
             aggregatedMetrics = historyResult.aggregatedMetrics + summaryResult.aggregatedMetrics,
+            internalAggregatedMetrics = historyResult.internalAggregatedMetrics +
+                summaryResult.internalAggregatedMetrics,
         )
     }
 }

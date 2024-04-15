@@ -1,5 +1,17 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.memfault.bort.reporting.java">
-    <queries>
-        <provider android:authorities="com.memfault.bort.metrics" android:name="junk" />
-    </queries>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.memfault.bort.reporting.java">
+
+  <application>
+    <provider
+        android:name="com.memfault.bort.reporting.MetricsInitProvider"
+        android:authorities="${applicationId}.com.memfault.metrics.init"
+        android:exported="false" />
+  </application>
+  <queries>
+    <provider
+        android:name="junk"
+        android:authorities="com.memfault.bort.metrics"
+        tools:ignore="MissingClass" />
+  </queries>
 </manifest>

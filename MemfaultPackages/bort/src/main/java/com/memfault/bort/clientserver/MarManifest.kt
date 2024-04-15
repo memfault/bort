@@ -5,6 +5,7 @@ import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.LogcatCollectionId
 import com.memfault.bort.ProcessingOptions
 import com.memfault.bort.TimezoneWithId
+import com.memfault.bort.chronicler.ClientChroniclerEntry
 import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.ProjectKey
 import com.memfault.bort.settings.Resolution
@@ -87,6 +88,13 @@ sealed class MarMetadata {
         val processingOptions: ProcessingOptions,
         @SerialName("request_id")
         val requestId: String? = null,
+    ) : MarMetadata()
+
+    @Serializable
+    @SerialName("client-chronicler")
+    data class ClientChroniclerMarMetadata(
+        @SerialName("entries")
+        val entries: List<ClientChroniclerEntry>,
     ) : MarMetadata()
 
     @Serializable
@@ -188,6 +196,15 @@ sealed class MarMetadata {
                 is BugReportMarMetadata -> MarManifest(
                     collectionTime = collectionTime,
                     type = "android-bugreport",
+                    device = device,
+                    metadata = metadata,
+                    debuggingResolution = Resolution.NORMAL,
+                    loggingResolution = Resolution.NOT_APPLICABLE,
+                    monitoringResolution = Resolution.NOT_APPLICABLE,
+                )
+                is ClientChroniclerMarMetadata -> MarManifest(
+                    collectionTime = collectionTime,
+                    type = "client-chronicler",
                     device = device,
                     metadata = metadata,
                     debuggingResolution = Resolution.NORMAL,

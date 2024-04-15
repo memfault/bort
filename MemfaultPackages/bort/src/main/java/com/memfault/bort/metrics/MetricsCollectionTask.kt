@@ -9,6 +9,7 @@ import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskRunnerWorker
+import com.memfault.bort.chronicler.ClientRateLimitCollector
 import com.memfault.bort.clientserver.MarMetadata.CustomDataRecordingMarMetadata
 import com.memfault.bort.clientserver.MarMetadata.HeartbeatMarMetadata
 import com.memfault.bort.connectivity.ConnectivityTimeCalculator
@@ -18,6 +19,7 @@ import com.memfault.bort.networkstats.NetworkStatsCollector
 import com.memfault.bort.settings.MetricsSettings
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.storage.AppStorageStatsCollector
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.CombinedTimeProvider
@@ -51,6 +53,8 @@ class MetricsCollectionTask @Inject constructor(
     private val metricsSettings: MetricsSettings,
     private val crashHandler: CrashHandler,
     private val connectivityTimeCalculator: ConnectivityTimeCalculator,
+    private val clientRateLimitCollector: ClientRateLimitCollector,
+    private val appStorageStatsCollector: AppStorageStatsCollector,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -103,6 +107,15 @@ class MetricsCollectionTask @Inject constructor(
                 heartbeatReportMetrics = heartbeatReportMetrics,
             )
 
+        clientRateLimitCollector.collect(
+            collectionTime = collectionTime,
+            internalHeartbeatReportMetrics = heartbeatReportInternalMetrics,
+        )
+
+        val appStorageStatsResult = appStorageStatsCollector.collect(
+            collectionTime = collectionTime,
+        )
+
         // If there were no heartbeat internal metrics, then fallback to include some core values.
         val internalMetrics = heartbeatReportInternalMetrics.ifEmpty { fallbackInternalMetrics }
         uploadHeartbeat(
@@ -111,11 +124,13 @@ class MetricsCollectionTask @Inject constructor(
             heartbeatInterval = heartbeatInterval,
             heartbeatReportMetrics = heartbeatReportMetrics +
                 batteryStatsResult.aggregatedMetrics +
+                appStorageStatsResult.heartbeatMetrics +
                 networkStatsResult.heartbeatMetrics +
                 connectivityTimeResults.heartbeatMetrics +
                 propertiesStoreMetrics,
             heartbeatReportInternalMetrics = internalMetrics +
                 networkStatsResult.internalHeartbeatMetrics +
+                appStorageStatsResult.internalHeartbeatMetrics +
                 propertiesStoreInternalMetrics,
         )
         // Add batterystats and others to the HRT file.
@@ -123,6 +138,7 @@ class MetricsCollectionTask @Inject constructor(
             val hrtMetricsToAdd = batteryStatsResult.batteryStatsHrt +
                 networkStatsResult.hrtRollup +
                 connectivityTimeResults.hrtRollup +
+                appStorageStatsResult.hrtRollup +
                 propertiesStore.hrtRollups(timestampMs = collectionTime.timestamp.toEpochMilli())
             if (hrtMetricsToAdd.isNotEmpty()) {
                 mergeHrtIntoFile(hrtFile, hrtMetricsToAdd)

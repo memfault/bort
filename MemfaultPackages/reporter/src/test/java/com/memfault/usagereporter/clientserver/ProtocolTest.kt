@@ -143,7 +143,7 @@ internal class ProtocolTest {
             }
             val delayingHandler = object : CompletionHandler<Int, A> {
                 override fun completed(result: Int, attachment: A) {
-                    // Delay sending the result back to caller, accordng to config.
+                    // Delay sending the result back to caller, according to config.
                     CoroutineScope(Dispatchers.Default).launch {
                         delay(testConfig.delayFor)
                         handler.completed(result, attachment)

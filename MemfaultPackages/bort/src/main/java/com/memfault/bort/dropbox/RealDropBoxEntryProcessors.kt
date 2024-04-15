@@ -1,6 +1,6 @@
 package com.memfault.bort.dropbox
 
-import com.memfault.bort.InjectSet
+import com.memfault.bort.dagger.InjectSet
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn

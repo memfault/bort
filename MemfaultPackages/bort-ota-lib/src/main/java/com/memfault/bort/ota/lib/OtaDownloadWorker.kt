@@ -124,10 +124,9 @@ class OtaDownloadWorker @AssistedInject constructor(
             rulesProvider: OtaRulesProvider,
             ota: Ota,
         ) {
-            Logger.d("schedule OtaDownloadWorker")
-
             val rules = rulesProvider.downloadRules(ota)
             val networkConstraint = rules.overrideNetworkConstraint ?: settings.get().downloadNetworkTypeConstraint
+            Logger.d("schedule OtaDownloadWorker: rules = $rules networkConstraint = $networkConstraint")
 
             // Note: we can't use a setRequiresDeviceIdle() constraint - this is incompatible with using a backoff
             // policy.

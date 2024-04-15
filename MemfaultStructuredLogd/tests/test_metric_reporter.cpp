@@ -13,7 +13,7 @@ TEST_F (MetricTest, HappyPathNumerics) {
     );
     reporter->addValue(
             1, "heartbeat", 3000, "cpu_load", false, NUMERIC_MIN | NUMERIC_MAX | NUMERIC_SUM | NUMERIC_MEAN |
-                NUMERIC_COUNT | STATE_LATEST_VALUE, "2", Int64, "dobule", "gauge", false
+                NUMERIC_COUNT | STATE_LATEST_VALUE, "2", Int64, "double", "gauge", false
     );
     reporter->finishReport(1u, "heartbeat", 6789, false);
 
@@ -52,7 +52,7 @@ TEST_F (MetricTest, TimePerHour) {
     );
     reporter->addValue(
             1, "heartbeat", 1634074357043 + 3 * hour, "screen", false, STATE_TIME_PER_HOUR, "off", String, "string",
-            "proeprty", false
+            "property", false
     );
     reporter->addValue(
             1, "heartbeat", 1634074357043 + hour, "gps", false, STATE_TIME_PER_HOUR, "on", String, "string",

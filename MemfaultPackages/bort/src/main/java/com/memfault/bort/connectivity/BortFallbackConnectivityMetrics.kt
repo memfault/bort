@@ -2,9 +2,12 @@ package com.memfault.bort.connectivity
 
 import android.content.pm.PackageManager
 import com.memfault.bort.IO
-import com.memfault.bort.Main
+import com.memfault.bort.scopes.Scope
+import com.memfault.bort.scopes.Scoped
+import com.memfault.bort.scopes.coroutineScope
 import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
-import kotlinx.coroutines.CoroutineScope
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -21,21 +24,23 @@ import kotlin.coroutines.CoroutineContext
  * In the future, we could additionally schedule a WorkManager task that simply waits for a validated Network,
  * using [androidx.work.Constraints.requiredNetworkType], which would at least log when we gain Network connectivity.
  */
+@ContributesMultibinding(SingletonComponent::class)
 class BortFallbackConnectivityMetrics
 @Inject constructor(
     private val packageManager: PackageManager,
-    @Main private val mainCoroutineContext: CoroutineContext,
     @IO private val ioCoroutineContext: CoroutineContext,
     private val connectivityMetrics: ConnectivityMetrics,
-) {
-    fun start() {
-        CoroutineScope(mainCoroutineContext)
+) : Scoped {
+    override fun onEnterScope(scope: Scope) {
+        scope.coroutineScope()
             .launch {
                 if (!isUsageReporterInstalled()) {
-                    connectivityMetrics.start(this)
+                    scope.register(connectivityMetrics)
                 }
             }
     }
+
+    override fun onExitScope() = Unit
 
     private suspend fun isUsageReporterInstalled(): Boolean = withContext(ioCoroutineContext) {
         try {

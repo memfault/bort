@@ -12,10 +12,10 @@ TEST (ConfigTest, InitialDefaults) {
     StorageBackend::SharedPtr storage = std::make_shared<Sqlite3StorageBackend>(SQLITE3_FILE, "id");
     Config::SharedPtr config = std::make_shared<StoredConfig>(storage);
 
-    // Check that defaults (i.e. document empty) or unparseable document return defaults
+    // Check that defaults (i.e. document empty) or unparsable document return defaults
     for (int i = 0; i < 2; i++) {
         if (i == 1) {
-            config->updateConfig("{[unparseable");
+            config->updateConfig("{[unparsable");
         }
         ASSERT_EQ(config->getDumpPeriodMs(), uint64_t(DUMP_PERIOD_MS));
         ASSERT_EQ(config->getRateLimiterConfig().msPerToken, uint64_t(RATE_LIMIT_PERIOD_MS));

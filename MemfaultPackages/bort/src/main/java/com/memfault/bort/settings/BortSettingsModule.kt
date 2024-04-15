@@ -108,7 +108,16 @@ abstract class BortSettingsModule {
         fun fleetSamplingSettings(settingsProvider: SettingsProvider) = settingsProvider.fleetSamplingSettings
 
         @Provides
+        fun chroniclerSettings(settingsProvider: SettingsProvider) = settingsProvider.chroniclerSettings
+
+        @Provides
+        fun significantAppsSettings(settingsProvider: SettingsProvider) = settingsProvider.significantAppsSettings
+
+        @Provides
         fun storageSettings(settingsProvider: SettingsProvider) = settingsProvider.storageSettings
+
+        @Provides
+        fun networkUsageSettings(settingsProvider: SettingsProvider) = settingsProvider.networkUsageSettings
 
         @Provides
         fun maxMarStorage(settings: SettingsProvider) =
