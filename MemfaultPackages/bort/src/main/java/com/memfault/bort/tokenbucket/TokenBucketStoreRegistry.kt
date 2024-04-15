@@ -1,6 +1,6 @@
 package com.memfault.bort.tokenbucket
 
-import com.memfault.bort.InjectSet
+import com.memfault.bort.dagger.InjectSet
 import com.memfault.bort.time.UptimeTracker
 import javax.inject.Inject
 import javax.inject.Singleton

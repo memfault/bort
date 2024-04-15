@@ -39,11 +39,19 @@ class ConnectivityTimeCalculator
         val wifiSecs = heartbeatReportMetrics["connectivity.type_WIFI.total_secs"]?.doubleOrNull
         val cellSecs = heartbeatReportMetrics["connectivity.type_CELLULAR.total_secs"]?.doubleOrNull
         val ethSecs = heartbeatReportMetrics["connectivity.type_ETHERNET.total_secs"]?.doubleOrNull
+        val bluetoothSecs = heartbeatReportMetrics["connectivity.type_BLUETOOTH.total_secs"]?.doubleOrNull
 
-        val totalSecs = listOfNotNull(noneSecs, unknownSecs, wifiSecs, cellSecs, ethSecs).sum().seconds
+        val totalSecs = listOfNotNull(
+            noneSecs,
+            unknownSecs,
+            wifiSecs,
+            cellSecs,
+            ethSecs,
+            bluetoothSecs,
+        ).sum().seconds
 
         return if (totalSecs >= 1.seconds) {
-            val connectedSecs = listOfNotNull(wifiSecs, cellSecs, ethSecs).sum().seconds
+            val connectedSecs = listOfNotNull(wifiSecs, cellSecs, ethSecs, bluetoothSecs).sum().seconds
 
             return ConnectivityTimeResults(
                 hrtRollup = setOf(

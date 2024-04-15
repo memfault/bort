@@ -446,6 +446,7 @@ class BatteryStatsHistoryParser(
             batteryStatsFileToUpload = null,
             batteryStatsHrt = hrt + extraHrtRollups,
             aggregatedMetrics = aggregateMetrics,
+            internalAggregatedMetrics = emptyMap(),
         )
     }
 

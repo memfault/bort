@@ -12,10 +12,5 @@
                 <action android:name="com.memfault.intent.action.JAVA_METRIC" />
             </intent-filter>
         </receiver>
-
-        <provider
-            android:name="com.memfault.bort.reporting.MetricsInitProvider"
-            android:authorities="java.test.app.init"
-            android:exported="false" />
     </application>
 </manifest>

@@ -91,7 +91,7 @@ class StorageBackend {
     virtual std::string getConfig() = 0;
     virtual void setConfig(const std::string &config) = 0;
     virtual ~StorageBackend() = default;
-    virtual void addStorageEmtpyListener(OnStorageEmptyListener listener) = 0;
+    virtual void addStorageEmptyListener(OnStorageEmptyListener listener) = 0;
     virtual uint64_t getAvailableSpace() = 0;
 
     virtual std::unique_ptr<Report> finishReport(uint8_t version, const std::string &name, int64_t endTimestamp,
@@ -184,7 +184,7 @@ class Sqlite3StorageBackend: public StorageBackend {
 
     void store(const LogEntry &entry) override;
     void dump(bool skipLatest, std::function<void(BootIdDumpView&)> callback) override;
-    void addStorageEmtpyListener(OnStorageEmptyListener listener) override;
+    void addStorageEmptyListener(OnStorageEmptyListener listener) override;
     std::string getConfig() override;
     void setConfig(const std::string &config) override;
     uint64_t getAvailableSpace() override;

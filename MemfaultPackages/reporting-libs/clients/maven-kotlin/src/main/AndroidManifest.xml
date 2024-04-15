@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application
+        android:allowBackup="false"
+        android:label="Maven Kotlin"
+        android:supportsRtl="true"
+        tools:ignore="MissingApplicationIcon">
+        <receiver android:name="com.memfault.bort.reporting.TestReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.memfault.intent.action.LOG_METRIC"/>
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

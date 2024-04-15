@@ -2,12 +2,14 @@ package com.memfault.bort.android
 
 import android.app.Application
 import android.app.usage.NetworkStatsManager
+import android.app.usage.StorageStatsManager
 import android.content.ContentResolver
 import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.net.ConnectivityManager
 import android.os.DropBoxManager
 import android.os.Looper
+import com.memfault.bort.Default
 import com.memfault.bort.IO
 import com.memfault.bort.Main
 import com.squareup.anvil.annotations.ContributesTo
@@ -45,6 +47,10 @@ class SharedAndroidModule {
     fun ioCoroutineContext(): CoroutineContext = Dispatchers.IO
 
     @Provides
+    @Default
+    fun defaultCoroutineContext(): CoroutineContext = Dispatchers.Default
+
+    @Provides
     fun dropBoxManager(application: Application): DropBoxManager? =
         application.getSystemService(DropBoxManager::class.java)
 
@@ -55,4 +61,8 @@ class SharedAndroidModule {
     @Provides
     fun connectivityManager(application: Application): ConnectivityManager =
         application.getSystemService(ConnectivityManager::class.java)
+
+    @Provides
+    fun storageStatsManager(application: Application): StorageStatsManager =
+        application.getSystemService(StorageStatsManager::class.java)
 }

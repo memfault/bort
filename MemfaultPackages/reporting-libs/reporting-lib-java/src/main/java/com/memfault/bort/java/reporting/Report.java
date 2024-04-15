@@ -32,6 +32,62 @@ public class Report {
   }
 
   /**
+   * All-purpose success and failure counter for any sync-like events.
+   * <p>
+   * See <a href="https://mflt.io/connectivity-sync">Memfault Core Metrics -
+   * Periodic Connectivity</a>.
+   * </p>
+   */
+  public SuccessOrFailure sync() {
+    return sync(true);
+  }
+
+  /**
+   * All-purpose success and failure counter for any sync-like events.
+   * <p>
+   * See <a href="https://mflt.io/connectivity-sync">Memfault Core Metrics -
+   * Periodic Connectivity</a>.
+   * </p>
+   *
+   * @param sumInReport if true, includes the sum of all counts in the heartbeat report.
+   */
+  public SuccessOrFailure sync(boolean sumInReport) {
+    return successOrFailure("sync", sumInReport);
+  }
+
+  /**
+   * Counts the number of success and failures of a custom metric type in the period.
+   * <p>
+   * Prefer using underscores as separators in the metric name and avoiding spaces.
+   * </p>
+   *
+   * @param name the name of the metric.
+   */
+  public SuccessOrFailure successOrFailure(String name) {
+    return successOrFailure(name, true);
+  }
+
+  /**
+   * Counts the number of success and failures of a custom metric type in the period.
+   * <p>
+   * Prefer using underscores as separators in the metric name and avoiding spaces.
+   * </p>
+   *
+   * @param name the name of the metric.
+   * @param sumInReport if true, includes the sum of successes and failures in the heartbeat report.
+   */
+  public SuccessOrFailure successOrFailure(String name, boolean sumInReport) {
+    if (name.trim().isEmpty()) {
+      throw new IllegalArgumentException(String.format("Name '%s' must not be blank.", name));
+    }
+
+    Counter successCounter = counter(String.format("%s_successful", name), sumInReport);
+    Counter failureCounter = counter(String.format("%s_failure", name), sumInReport);
+
+    return new SuccessOrFailure(successCounter, failureCounter);
+  }
+
+  /**
    * Keeps track of a distribution of the values recorded during the period.
    *
    * @param name the name of the metric.
@@ -52,7 +108,7 @@ public class Report {
    * @param aggregations a list of state aggregations to perform on the values recorded
    *                     during the heartbeat period, included as metrics in the heartbeat report.
    */
-  private StateTracker stateTracker(String name, List<StateAgg> aggregations) {
+  public StateTracker stateTracker(String name, List<StateAgg> aggregations) {
     return new StateTracker(name, reportType, aggregations);
   }
 
@@ -125,7 +181,7 @@ public class Report {
    * @param countInReport if true, includes a count of the number of events reported during
    *                      the heartbeat period, in the the heartbeat report.
    */
-  public Event event(String name, Boolean countInReport) {
+  public Event event(String name, boolean countInReport) {
     return new Event(name, reportType, countInReport);
   }
 }

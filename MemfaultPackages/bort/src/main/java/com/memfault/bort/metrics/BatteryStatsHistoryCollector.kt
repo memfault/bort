@@ -34,9 +34,15 @@ data class BatteryStatsResult(
     val batteryStatsFileToUpload: File?,
     val batteryStatsHrt: Set<HighResTelemetry.Rollup>,
     val aggregatedMetrics: Map<String, JsonPrimitive>,
+    val internalAggregatedMetrics: Map<String, JsonPrimitive>,
 ) {
     companion object {
-        val EMPTY = BatteryStatsResult(null, emptySet(), emptyMap())
+        val EMPTY = BatteryStatsResult(
+            batteryStatsFileToUpload = null,
+            batteryStatsHrt = emptySet(),
+            aggregatedMetrics = emptyMap(),
+            internalAggregatedMetrics = emptyMap(),
+        )
     }
 }
 
@@ -66,6 +72,7 @@ class BatteryStatsHistoryCollector @Inject constructor(
                     batteryStatsFileToUpload = batteryStatsFile,
                     batteryStatsHrt = emptySet(),
                     aggregatedMetrics = emptyMap(),
+                    internalAggregatedMetrics = emptyMap(),
                 )
             }
         }

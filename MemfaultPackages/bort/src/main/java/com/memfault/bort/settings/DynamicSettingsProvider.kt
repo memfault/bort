@@ -195,6 +195,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.highResTelemetryEnabled && settings.batteryStatsUseHrt
         override val collectSummary: Boolean
             get() = settings.batteryStatsCollectSummary
+        override val componentMetrics: List<String>
+            get() = settings.batteryStatsComponentMetrics
     }
 
     override val logcatSettings = object : LogcatSettings {
@@ -247,6 +249,13 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.rebootEventsRateLimitingSettings
     }
 
+    override val significantAppsSettings = object : SignificantAppsSettings {
+        override val collectionEnabled: Boolean
+            get() = settings.significantAppsCollectionEnabled
+        override val packages: List<String>
+            get() = settings.significantAppsPackages
+    }
+
     override val selinuxViolationSettings = object : SelinuxViolationSettings {
         override val dataSourceEnabled: Boolean
             get() = settings.selinuxViolationEventsDataSourceEnabled
@@ -295,6 +304,8 @@ open class DynamicSettingsProvider @Inject constructor(
     }
 
     override val storageSettings = object : StorageSettings {
+        override val appsSizeDataSourceEnabled: Boolean
+            get() = settings.storageAppsSizeDataSourceEnabled
         override val maxClientServerFileTransferStorageBytes: Long
             get() = settings.storageMaxClientServerFileTransferStorageBytes
         override val maxClientServerFileTransferStorageAge: Duration
@@ -316,6 +327,11 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.fleetSamplingDebuggingActive
         override val monitoringActive: Boolean
             get() = settings.fleetSamplingMonitroringActive
+    }
+
+    override val chroniclerSettings: ChroniclerSettings = object : ChroniclerSettings {
+        override val marEnabled: Boolean
+            get() = settings.chroniclerMarEnabled
     }
 
     override fun invalidate() {

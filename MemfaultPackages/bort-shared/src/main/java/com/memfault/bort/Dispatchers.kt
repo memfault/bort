@@ -16,3 +16,13 @@ annotation class Main
 @Retention(AnnotationRetention.RUNTIME)
 @Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 annotation class IO
+
+@Qualifier
+@Retention(AnnotationRetention.RUNTIME)
+@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
+/*
+ * You probably want the IO or Main dispatcher instead of the Default dispatcher. For one-off longer computation
+ * tasks, we should use the IO dispatcher, which will run the task on a large pool of threads. For short tasks that
+ * might hop between several threads, the Main dispatcher should be preferred
+ */
+annotation class Default

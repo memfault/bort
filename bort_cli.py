@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from string import Template
 from typing import Any, Iterable, List, Optional, Tuple
 
 LOG_FILE = "validate-sdk-integration.log"
@@ -62,6 +63,16 @@ def readable_dir_type(path):
         return path
 
     raise argparse.ArgumentTypeError("Couldn't find/access directory %r" % path)
+
+
+def executable_bin_type(path):
+    """
+    Arg parser for binary paths
+    """
+    if os.path.isfile(path) and os.access(path, os.X_OK):
+        return path
+
+    raise argparse.ArgumentTypeError("Couldn't find/access binary at %s" % path)
 
 
 def shell_command_type(arg):
@@ -934,6 +945,9 @@ class ValidateConnectedDevice(Command):
             ("android.permission.ACCESS_NETWORK_STATE", 1),
             ("android.permission.DUMP", 1),
             ("android.permission.WAKE_LOCK", 1),
+            ("android.permission.READ_LOGS", 1),
+            ("android.permission.PACKAGE_USAGE_STATS", 1),
+            ("android.permission.INTERACT_ACROSS_USERS", 1),
         ):
             if sdk_version < min_sdk_version:
                 logging.info(
@@ -1076,6 +1090,115 @@ class ValidateConnectedDevice(Command):
         logging.info("Results written to %s", LOG_FILE)
 
 
+class GenerateKeystore(Command):
+    """Generate a keystore for bort applications"""
+
+    KEYSTORE_PROPERTIES_TEMPLATE = Template(
+        """keyAlias=release_key
+keyPassword=$password
+storeFile=$store_file
+storePassword=$password"""
+    )
+
+    def __init__(self, path, keytool_path, ota_keystore, password):
+        self._path = path
+        self._keytool_path = keytool_path
+        self._is_ota_keystore = ota_keystore
+        self._keystore_name = "ota_keystore" if ota_keystore else "bort_keystore"
+        self._bort_properties_key = (
+            "BORT_OTA_KEYSTORE_PROPERTIES_PATH" if ota_keystore else "BORT_KEYSTORE_PROPERTIES_PATH"
+        )
+        self._password = password
+
+    @classmethod
+    def register(cls, create_parser):
+        parser = create_parser(cls, "generate-keystore")
+
+        parser.add_argument(
+            "path",
+            type=readable_dir_type,
+            help="The path to the MemfaultPackages folder from the SDK",
+        )
+
+        parser.add_argument(
+            "--keytool-path",
+            type=executable_bin_type,
+            help="Path to the Java Keytool binary, defaults to $JAVA_HOME/bin/keytool",
+            default=f"{os.environ.get('JAVA_HOME', None)}/bin/keytool",
+        )
+
+        parser.add_argument(
+            "--ota-keystore",
+            type=bool,
+            help="Generates a keystore for the OTA application",
+            default=False,
+            action=argparse.BooleanOptionalAction,
+        )
+
+        parser.add_argument(
+            "--password",
+            type=str,
+            help="String to set as the password for the keystore and key",
+            required=True,
+        )
+
+    def run(self):
+        if os.path.exists(f"{self._path}/{self._keystore_name}.jks"):
+            raise FileExistsError(
+                f"Can't create {self._path}/{self._keystore_name}.jks as it already exists. Please delete it and rerun if you want to make a new keystore."
+            )
+        cmd = [
+            self._keytool_path,
+            "-genkeypair",
+            "-alias",
+            "release_key",
+            "-keypass",
+            self._password,
+            "-keystore",
+            f"{self._keystore_name}.jks",
+            "-storepass",
+            self._password,
+            "-validity",
+            "10000",
+            "-keyalg",
+            "rsa",
+        ]
+        subprocess.check_output(
+            cmd,
+            cwd=os.path.join(self._path),
+            stderr=sys.stderr,
+        )
+        logging.info("Keystore generated at %s", f"{self._path}/{self._keystore_name}.jks")
+
+        keystore_properties = self.KEYSTORE_PROPERTIES_TEMPLATE.substitute(
+            password=self._password,
+            store_file=f"{self._keystore_name}.jks",
+        )
+        keystore_properties_file = f"{self._path}/{self._keystore_name}.properties"
+        with open(keystore_properties_file, "w") as properties_file:
+            properties_file.write(keystore_properties)
+
+        logging.info(
+            "Updating %s/bort.properties key %s with %s",
+            self._path,
+            self._bort_properties_key,
+            keystore_properties_file,
+        )
+
+        with open(f"{self._path}/bort.properties", "r+") as bort_prop_file:
+            lines = bort_prop_file.readlines()
+            for line_no, _ in enumerate(lines):
+                if lines[line_no].startswith(self._bort_properties_key):
+                    logging.info("replacing line %s: %s", line_no, lines[line_no])
+                    lines[line_no] = (
+                        f"{self._bort_properties_key}={self._keystore_name}.properties\n"
+                    )
+                    break
+            bort_prop_file.seek(0)
+            bort_prop_file.truncate()
+            bort_prop_file.writelines(lines)
+
+
 class CommandLineInterface:
     def __init__(self):
         self._root_parser = argparse.ArgumentParser(
@@ -1097,6 +1220,7 @@ class CommandLineInterface:
         RequestMetricCollection.register(create_parser)
         RequestUpdateConfig.register(create_parser)
         DevMode.register(create_parser)
+        GenerateKeystore.register(create_parser)
 
     def run(self):
         if tuple(int(i) for i in platform.python_version_tuple()) < PYTHON_MIN_VERSION:

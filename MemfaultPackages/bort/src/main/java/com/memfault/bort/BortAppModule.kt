@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.Resources
 import androidx.preference.PreferenceManager
+import com.memfault.bort.dagger.InjectSet
 import com.memfault.bort.http.RetrofitInterceptor
 import com.memfault.bort.logcat.KernelOopsDetector
 import com.memfault.bort.logcat.NoopLogcatLineProcessor
@@ -132,7 +133,7 @@ abstract class BortAppModule {
         }
 
         @Provides
-        @BasicCommandTimout
+        @BasicCommandTimeout
         fun basicTimeout(): Long = BASIC_COMMAND_TIMEOUT_MS
 
         @Provides
@@ -604,11 +605,3 @@ annotation class MarFileSampledHoldingDir
 @Retention(RUNTIME)
 @Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 annotation class MarFileUnsampledHoldingDir
-
-/**
- * Injecting Set<T> for multibinding doesn't work in Kotlin, because the kotlin set is typed Set<out T>, so we get
- * a missing binding error. Always use this alias e.g. InjectSet<T> to inject multibinding values, instead.
- */
-typealias InjectSet<T> = Set<@JvmSuppressWildcards T>
-
-// typealias InjectMap<K, V> = Map<@JvmSuppressWildcards K, @JvmSuppressWildcards V>

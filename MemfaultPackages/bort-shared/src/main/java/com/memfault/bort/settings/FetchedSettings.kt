@@ -29,6 +29,9 @@ data class FetchedSettings(
     @SerialName("battery_stats.use_hrt")
     val batteryStatsUseHrt: Boolean = true,
 
+    @SerialName("battery_stats.component_metrics")
+    val batteryStatsComponentMetrics: List<String> = listOf(),
+
     @SerialName("bort.min_log_level")
     val bortMinLogcatLevel: Int,
 
@@ -74,6 +77,9 @@ data class FetchedSettings(
 
     @SerialName("bug_report.periodic_rate_limiting_percent")
     val bugReportPeriodicRateLimitingPercentOfPeriod: Int = 50,
+
+    @SerialName("chronicler.mar_enabled")
+    val chroniclerMarEnabled: Boolean = true,
 
     @SerialName("data_scrubbing.rules")
     val dataScrubbingRules: List<DataScrubbingRule>,
@@ -309,6 +315,12 @@ data class FetchedSettings(
     @SerialName("reboot_events.rate_limiting_settings")
     val rebootEventsRateLimitingSettings: RateLimitingSettings,
 
+    @SerialName("significant_apps.collection_enabled")
+    val significantAppsCollectionEnabled: Boolean = false,
+
+    @SerialName("significant_apps.packages")
+    val significantAppsPackages: List<String> = listOf(),
+
     @SerialName("selinux_violation_events.data_source_enabled")
     val selinuxViolationEventsDataSourceEnabled: Boolean = false,
 
@@ -368,6 +380,9 @@ data class FetchedSettings(
 
     @SerialName("metric_report.high_res_telemetry")
     val highResTelemetryEnabled: Boolean = true,
+
+    @SerialName("storage.apps_size_data_source_enabled")
+    val storageAppsSizeDataSourceEnabled: Boolean = true,
 
     @SerialName("storage.max_client_server_file_transfer_storage_bytes")
     val storageMaxClientServerFileTransferStorageBytes: Long = 50_000_000,

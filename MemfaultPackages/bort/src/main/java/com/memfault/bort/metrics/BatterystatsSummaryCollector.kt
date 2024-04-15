@@ -33,7 +33,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * To make this data useful, we persist the last result (using [batteryStatsSummaryProvider]) and subtract the values
  * from that to see the delta in all values since we last collected.
  *
- * These metrics are all accrued while [batteryRealtimeMs]/[totalRealtimeMs] increases, including accross reboots (when
+ * These metrics are all accrued while [batteryRealtimeMs]/[totalRealtimeMs] increases, including across reboots (when
  * [startCount] increases). When the device comes *off* charge, all stats are reset, and the battery/total timestamps
  * are reset. When this happens, we ignore the previous persisted summary.
  *
@@ -53,6 +53,7 @@ class BatterystatsSummaryCollector @Inject constructor(
     private val settings: BatteryStatsSettings,
     private val batteryStatsSummaryParser: BatteryStatsSummaryParser,
     private val batteryStatsSummaryProvider: BatteryStatsSummaryProvider,
+    private val significantAppsProvider: SignificantAppsProvider,
 ) {
     suspend fun collectSummaryCheckin(): BatteryStatsResult {
         temporaryFileFactory.createTemporaryFile(
@@ -80,6 +81,7 @@ class BatterystatsSummaryCollector @Inject constructor(
 
             val hrt = mutableSetOf<Rollup>()
             val report = mutableMapOf<String, JsonPrimitive>()
+            val internalReport = mutableMapOf<String, JsonPrimitive>()
 
             fun addHrtRollup(
                 name: String,
@@ -162,14 +164,36 @@ class BatterystatsSummaryCollector @Inject constructor(
             }
 
             if (reportBatteryDuration.isPositive()) {
+                val componentMetricsApps = settings.componentMetrics
+                val significantApps = significantAppsProvider.apps()
+
                 // Per-component power usage summary (only HRT, because we can't store per-app metrics).
                 diff.componentPowerUse.forEach { component ->
+                    val componentName = component.name
                     val componentDrainPercent = component.totalPowerPercent.proRataValuePerHour(reportBatteryDuration)
                     if (componentDrainPercent > 0) {
+                        val componentUsePerHourName = "$COMPONENT_USE_PER_HOUR$componentName"
                         addHrtRollup(
-                            name = "$COMPONENT_USE_PER_HOUR${component.name}",
+                            name = componentUsePerHourName,
                             value = JsonPrimitive(componentDrainPercent),
                         )
+
+                        componentMetricsApps.firstOrNull { it == componentName }
+                            ?.let {
+                                val key = "$COMPONENT_USE_PER_HOUR$componentName"
+                                report[key] = JsonPrimitive(componentDrainPercent)
+                            }
+
+                        significantApps.firstOrNull { it.packageName == componentName }
+                            ?.let { match ->
+                                val name = match.identifier
+                                val key = "$COMPONENT_USE_PER_HOUR$name"
+                                if (match.internal) {
+                                    internalReport[key] = JsonPrimitive(componentDrainPercent)
+                                } else {
+                                    report[key] = JsonPrimitive(componentDrainPercent)
+                                }
+                            }
                     }
                 }
             }
@@ -178,6 +202,7 @@ class BatterystatsSummaryCollector @Inject constructor(
                 batteryStatsFileToUpload = null,
                 batteryStatsHrt = hrt,
                 aggregatedMetrics = report,
+                internalAggregatedMetrics = internalReport,
             )
         }
     }

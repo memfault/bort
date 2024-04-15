@@ -70,7 +70,7 @@ void StoredConfig::_reloadLocked() {
         this->rateLimiterConfig = defaultRateLimiterConfig;
         this->numEventsBeforeDump = NUM_EVENTS_BEFORE_DUMP;
         this->dumpPeriodMs = DUMP_PERIOD_MS;
-        this->minStorageTreshold = MIN_STORAGE_THRESHOLD_BYTES;
+        this->minStorageThreshold = MIN_STORAGE_THRESHOLD_BYTES;
         this->maxMessageSize = MAX_MESSAGE_SIZE_BYTES;
         this->metricReportEnabled = METRIC_REPORTS_ENABLED;
         this->highResMetricsEnabled = HIGH_RES_METRICS_ENABLED;
@@ -81,7 +81,7 @@ void StoredConfig::_reloadLocked() {
         this->dumpPeriodMs = _get_config_num(configDocument, kDumpPeriodMs, uint64_t(DUMP_PERIOD_MS));
         this->numEventsBeforeDump = _get_config_num(configDocument, kNumEventsBeforeDump,
                                                     NUM_EVENTS_BEFORE_DUMP);
-        this->minStorageTreshold = _get_config_num(configDocument, kMinStorageThresholdBytes,
+        this->minStorageThreshold = _get_config_num(configDocument, kMinStorageThresholdBytes,
                                               uint64_t(MIN_STORAGE_THRESHOLD_BYTES));
         this->maxMessageSize = _get_config_num(configDocument, kMaxMessageSizeBytes,
                                                MAX_MESSAGE_SIZE_BYTES);
@@ -130,7 +130,7 @@ uint32_t StoredConfig::getMaxMessageSize() {
 
 uint64_t StoredConfig::getMinStorageThreshold() {
     std::unique_lock<std::mutex> lock(mutex);
-    return minStorageTreshold;
+    return minStorageThreshold;
 }
 
 bool StoredConfig::isMetricReportEnabled() {

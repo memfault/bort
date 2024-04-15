@@ -52,6 +52,7 @@ class BatteryStatsHistoryCollectorTest {
             override val commandTimeout = 1.minutes
             override val useHighResTelemetry: Boolean = false
             override val collectSummary: Boolean = false
+            override val componentMetrics: List<String> = emptyList()
         }
         collector = BatteryStatsHistoryCollector(
             TestTemporaryFileFactory,

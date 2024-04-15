@@ -2,15 +2,29 @@ package com.memfault.bort
 
 import android.os.Build
 import android.os.StrictMode
+import com.memfault.bort.scopes.ForScope
+import com.memfault.bort.scopes.Scope
+import com.memfault.bort.scopes.Scoped
+import com.memfault.bort.scopes.Scoped.ScopedPriority
 import com.memfault.bort.shared.Logger
-import com.squareup.anvil.annotations.ContributesBinding
+import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.Executors
 import javax.inject.Inject
 
-@ContributesBinding(SingletonComponent::class)
-class DebugConfigureStrictMode @Inject constructor() : ConfigureStrictMode {
-    override fun configure() {
+@ForScope(SingletonComponent::class)
+@ContributesMultibinding(SingletonComponent::class)
+class DebugConfigureStrictMode
+@Inject constructor() : Scoped {
+    override fun priority(): ScopedPriority = ScopedPriority.STRICT_MODE
+
+    override fun onEnterScope(scope: Scope) {
+        configure()
+    }
+
+    override fun onExitScope() = Unit
+
+    private fun configure() {
         StrictMode.setVmPolicy(
             StrictMode.VmPolicy.Builder().apply {
                 detectLeakedClosableObjects()

@@ -29,7 +29,7 @@ namespace structured {
 
 static void signal_handler(int signal) {
     if (signal == SIGTERM || signal == SIGINT) {
-        ALOGI("Attempting to gracefuly exit due to SIGTERM/SIGINT");
+        ALOGI("Attempting to gracefully exit due to SIGTERM/SIGINT");
         IPCThreadState::self()->stopProcess();
     }
 }
@@ -108,7 +108,7 @@ static uint64_t getElapsedRealtime() {
 void createService(const char* storagePath) {
     StorageBackend::SharedPtr storage = std::make_shared<Sqlite3StorageBackend>(storagePath, readBootId());
     Config::SharedPtr config = std::make_shared<StoredConfig>(storage);
-    storage->addStorageEmtpyListener([&storage]() { logRtcSync(storage, getTimeInMsSinceEpoch()); });
+    storage->addStorageEmptyListener([&storage]() { logRtcSync(storage, getTimeInMsSinceEpoch()); });
     logRtcSync(storage, getTimeInMsSinceEpoch());
 
     std::shared_ptr<Dumper> dumper = std::make_shared<Dumper>(STRUCTURED_DUMP_FILE, config, storage, sendToDropBox,

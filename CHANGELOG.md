@@ -1,5 +1,36 @@
 # Memfault Bort Changelog
 
+## v4.15.0 - April 12, 2024
+
+### :rocket: New Features
+
+- Bort rate-limiting events are uploaded, to be displayed in the Processing Log.
+- Added a `bort-cli` command (`generate-keystore`) to generate Bort keystores.
+  [See documentation](https://mflt.io/android-keystore).
+
+### :chart_with_upwards_trend: Improvements
+
+- Updated `reporting-lib-java` to match latest kotlin `reporting-lib` APIs
+  (added `sync`, `successOrFailure`).
+- Catch `SecurityException` gathering network stats when permission is not
+  granted, so that metric collection task does not fail.
+- Added more logging around custom OTA logic.
+- Update Bort Lite's metrics implementation to match the full SDK in reporting
+  boolean vales as `0`/`1`.
+- Added more Bort permission checks to the SDK validation tool.
+- Removed SELinux violations from Stability Device Vital calculation.
+- Bort will now always report an `all` network usage metric, even if there was
+  no usage during the heartbeat.
+- Added Bluetooth as a possible network usage metric type.
+
+### :house: Internal
+
+- Capture Bort battery usage as internal heartbeat metrics.
+- Fixed some typos in code.
+- Refactored how Bort registers scoped services.
+- Bort can capture per-app heartbeat metrics for storage/network/battery usage.
+  This is not enabled yet, pending backend changes.
+
 ## v4.14.0 - March 1, 2024
 
 ### :rocket: New Features
@@ -56,7 +87,7 @@
 
 ### :chart_with_upwards_trend: Improvements
 
-- Disabled setting the project key via broacast if `PROJECT_KEY_SYSPROP` is
+- Disabled setting the project key via broadcast if `PROJECT_KEY_SYSPROP` is
   configured. See
   [documentation](https://mflt.io/android-setting-project-key-at-runtime).
 - Use `successOrFailure` to generate the
@@ -512,7 +543,7 @@
   to check that the `MemfaultStructuredLogD` (Bort's metric collection service)
   is correctly configured.
 - In a client/server configuration, Bort SDK settings are now forwarded from the
-  server ot the client.
+  server to the client.
 - Added a maximum file storage limit on the client, in client/server mode.
 - Updated several tool versions (Gradle, AGP, Dagger, etc).
 - Fixed a potential crash in the metric reporting service, when using State
@@ -651,7 +682,7 @@ documentation.
 
 ### :chart_with_upwards_trend: Improvements
 
-- In 3.6.0, the OTA app had ot be configured with an application ID and
+- In 3.6.0, the OTA app had to be configured with an application ID and
   certificate (even though not being included in the build). This is fixed - OTA
   app configuration is no longer required when not being used.
 
@@ -766,8 +797,8 @@ documentation.
   replaced with remotely configurable timeouts.
 - DropBoxEntry tags can be excluded entirely from uploading. The list of tags to
   exclude can be configured in the Memfault Settings / Data Sources UI.
-- Fixed/avoided a problem relevant to Android 8.x, where Bort would
-  occassionally crash due to bugs in the AOSP platform code.
+- Fixed/avoided a problem relevant to Android 8.x, where Bort would occasionally
+  crash due to bugs in the AOSP platform code.
 
 ## v3.3.1 - February 19, 2021
 

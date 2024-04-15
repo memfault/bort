@@ -61,7 +61,7 @@ class MarFileWriter @Inject constructor(
     @VisibleForTesting
     internal fun splitFilesIntoBatchesForMaxSize(inputMarFiles: List<File>): List<List<File>> {
         // We can't know for sure exactly how much storage will be used when adding a file to a compressed zip - however
-        // we do know the compressed size of each inidividual input mar file; it is unlikely to take more space in the
+        // we do know the compressed size of each individual input mar file; it is unlikely to take more space in the
         // merged mar file (assuming the same compression rate is used).
         // To be safe, we add a tolerance to the size limit.
         val maxMarSize = (httpSettings.maxMarFileSizeBytes - MAR_SIZE_TOLERANCE_BYTES).coerceAtLeast(0)

@@ -53,6 +53,7 @@ interface BatteryStatsSettings {
     val commandTimeout: Duration
     val useHighResTelemetry: Boolean
     val collectSummary: Boolean
+    val componentMetrics: List<String>
 }
 
 interface MetricsSettings {
@@ -123,6 +124,11 @@ interface RebootEventsSettings {
     val rateLimitingSettings: RateLimitingSettings
 }
 
+interface SignificantAppsSettings {
+    val collectionEnabled: Boolean
+    val packages: List<String>
+}
+
 interface SelinuxViolationSettings {
     val dataSourceEnabled: Boolean
     val rateLimitingSettings: RateLimitingSettings
@@ -153,6 +159,7 @@ interface OtaSettings {
 }
 
 interface StorageSettings {
+    val appsSizeDataSourceEnabled: Boolean
     val maxClientServerFileTransferStorageBytes: Long
     val maxClientServerFileTransferStorageAge: Duration
     val usageReporterTempMaxStorageBytes: Long
@@ -170,6 +177,10 @@ interface FleetSamplingSettings {
 
     /** Is this aspect enabled for the project? (does not determine what the resolution should be) */
     val monitoringActive: Boolean
+}
+
+interface ChroniclerSettings {
+    val marEnabled: Boolean
 }
 
 interface SettingsProvider {
@@ -191,6 +202,7 @@ interface SettingsProvider {
     val fileUploadHoldingAreaSettings: FileUploadHoldingAreaSettings
     val networkUsageSettings: NetworkUsageSettings
     val rebootEventsSettings: RebootEventsSettings
+    val significantAppsSettings: SignificantAppsSettings
     val selinuxViolationSettings: SelinuxViolationSettings
     val dataScrubbingSettings: DataScrubbingSettings
     val packageManagerSettings: PackageManagerSettings
@@ -198,6 +210,7 @@ interface SettingsProvider {
     val otaSettings: OtaSettings
     val storageSettings: StorageSettings
     val fleetSamplingSettings: FleetSamplingSettings
+    val chroniclerSettings: ChroniclerSettings
 
     fun invalidate()
 }
@@ -244,6 +257,9 @@ fun SettingsProvider.selectSettingsToMap(): Map<String, Any> = mapOf(
     ),
     "Selinux Violation Settings" to mapOf(
         "dataSourceEnabled" to selinuxViolationSettings.dataSourceEnabled,
+    ),
+    "Chronicler Settings" to mapOf(
+        "marEnabled" to chroniclerSettings.marEnabled,
     ),
 )
 

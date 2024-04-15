@@ -1,2 +1,10 @@
-<manifest package="com.memfault.bort.reporting.java">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.memfault.bort.reporting.java">
+
+  <application>
+    <provider
+        android:name="com.memfault.bort.reporting.MetricsInitProvider"
+        android:authorities="${applicationId}.com.memfault.metrics.init"
+        android:exported="false" />
+  </application>
 </manifest>

@@ -1,6 +1,8 @@
 package com.memfault.bort.logcat
 
-import com.memfault.bort.metrics.CrashHandler
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.settings.RateLimitingSettings
@@ -13,9 +15,6 @@ import com.memfault.bort.uploader.EnqueueUpload
 import com.memfault.bort.uploader.HandleEventOfInterest
 import io.mockk.coEvery
 import io.mockk.mockk
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -26,44 +25,30 @@ import java.util.stream.Stream
 import kotlin.time.Duration.Companion.days
 
 class SelinuxViolationLogcatDetectorTest {
-    lateinit var combinedTimeProvider: CombinedTimeProvider
-    lateinit var enqueueUpload: EnqueueUpload
-    lateinit var handleEventOfInterest: HandleEventOfInterest
-    lateinit var settingsProvider: SettingsProvider
-    lateinit var tokenBucketStore: TokenBucketStore
-    lateinit var crashHandler: CrashHandler
-
-    lateinit var detector: SelinuxViolationLogcatDetector
-
-    @BeforeEach
-    fun setUp() {
-        combinedTimeProvider = mockk()
-        enqueueUpload = mockk()
-        handleEventOfInterest = mockk()
-        crashHandler = mockk()
-        settingsProvider = mockk {
-            coEvery { selinuxViolationSettings } answers {
-                object : SelinuxViolationSettings {
-                    override val dataSourceEnabled: Boolean = true
-                    override val rateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
-                        defaultCapacity = 25,
-                        defaultPeriod = 1.days.boxed(),
-                        maxBuckets = 1,
-                    )
-                }
+    private val combinedTimeProvider: CombinedTimeProvider = mockk()
+    private val enqueueUpload: EnqueueUpload = mockk()
+    private val handleEventOfInterest: HandleEventOfInterest = mockk()
+    private val settingsProvider: SettingsProvider = mockk {
+        coEvery { selinuxViolationSettings } answers {
+            object : SelinuxViolationSettings {
+                override val dataSourceEnabled: Boolean = true
+                override val rateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+                    defaultCapacity = 25,
+                    defaultPeriod = 1.days.boxed(),
+                    maxBuckets = 1,
+                )
             }
         }
-        tokenBucketStore = mockk()
-
-        detector = SelinuxViolationLogcatDetector(
-            combinedTimeProvider = combinedTimeProvider,
-            enqueueUpload = enqueueUpload,
-            handleEventOfInterest = handleEventOfInterest,
-            settingsProvider = settingsProvider,
-            tokenBucketStore = tokenBucketStore,
-            crashHandler = crashHandler,
-        )
     }
+    private val tokenBucketStore: TokenBucketStore = mockk()
+
+    private val detector = SelinuxViolationLogcatDetector(
+        combinedTimeProvider = combinedTimeProvider,
+        enqueueUpload = enqueueUpload,
+        handleEventOfInterest = handleEventOfInterest,
+        settingsProvider = settingsProvider,
+        tokenBucketStore = tokenBucketStore,
+    )
 
     @ParameterizedTest
     @ArgumentsSource(TestCaseArgumentsProvider::class)
@@ -75,17 +60,17 @@ class SelinuxViolationLogcatDetectorTest {
             packageManagerReport = PackageManagerReport(testCase.packages),
         )
 
-        assertNotNull(selinuxViolation)
-        assertEquals(testCase.expectedAction, selinuxViolation?.action)
-        assertEquals(testCase.expectedSourceContext, selinuxViolation?.sourceContext)
-        assertEquals(testCase.expectedTargetContext, selinuxViolation?.targetContext)
-        assertEquals(testCase.expectedTargetClass, selinuxViolation?.targetClass)
-        assertEquals(testCase.expectedApp, selinuxViolation?.app)
-        assertEquals(testCase.expectedComm, selinuxViolation?.comm)
-        assertEquals(testCase.expectedName, selinuxViolation?.name)
-        assertEquals(testCase.expectedPackageName, selinuxViolation?.packageName)
-        assertEquals(testCase.expectedPackageVersionName, selinuxViolation?.packageVersionName)
-        assertEquals(testCase.expectedPackageVersionCode, selinuxViolation?.packageVersionCode)
+        assertThat(selinuxViolation).isNotNull()
+        assertThat(testCase.expectedAction).isEqualTo(selinuxViolation?.action)
+        assertThat(testCase.expectedSourceContext).isEqualTo(selinuxViolation?.sourceContext)
+        assertThat(testCase.expectedTargetContext).isEqualTo(selinuxViolation?.targetContext)
+        assertThat(testCase.expectedTargetClass).isEqualTo(selinuxViolation?.targetClass)
+        assertThat(testCase.expectedApp).isEqualTo(selinuxViolation?.app)
+        assertThat(testCase.expectedComm).isEqualTo(selinuxViolation?.comm)
+        assertThat(testCase.expectedName).isEqualTo(selinuxViolation?.name)
+        assertThat(testCase.expectedPackageName).isEqualTo(selinuxViolation?.packageName)
+        assertThat(testCase.expectedPackageVersionName).isEqualTo(selinuxViolation?.packageVersionName)
+        assertThat(testCase.expectedPackageVersionCode).isEqualTo(selinuxViolation?.packageVersionCode)
     }
 
     class TestCaseArgumentsProvider : ArgumentsProvider {

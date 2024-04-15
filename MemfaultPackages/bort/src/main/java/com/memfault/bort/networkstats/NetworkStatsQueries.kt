@@ -5,6 +5,7 @@ import android.app.usage.NetworkStatsManager
 import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Process
+import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
@@ -64,6 +65,7 @@ enum class NetworkStatsConnectivity(
     MOBILE(ConnectivityManager.TYPE_MOBILE, "mobile"),
     ETHERNET(ConnectivityManager.TYPE_ETHERNET, "eth"),
     WIFI(ConnectivityManager.TYPE_WIFI, "wifi"),
+    BLUETOOTH(ConnectivityManager.TYPE_BLUETOOTH, "bt"),
 }
 
 enum class NetworkStatsState {
@@ -165,13 +167,18 @@ class RealNetworkStatsQueries
         end: Instant,
         connectivity: NetworkStatsConnectivity,
     ): NetworkStatsSummary? = withContext(Dispatchers.IO) {
-        networkStatsManager.querySummaryForDevice(
-            connectivity.connectivityManagerNetworkType,
-            null,
-            start.toEpochMilli(),
-            end.toEpochMilli(),
-        )?.let { bucket ->
-            NetworkStatsSummary.fromBucket(bucket, connectivity)
+        try {
+            networkStatsManager.querySummaryForDevice(
+                connectivity.connectivityManagerNetworkType,
+                null,
+                start.toEpochMilli(),
+                end.toEpochMilli(),
+            )?.let { bucket ->
+                NetworkStatsSummary.fromBucket(bucket, connectivity)
+            }
+        } catch (e: SecurityException) {
+            Logger.w("Error getting network stats", e)
+            null
         }
     }
 

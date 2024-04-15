@@ -1,0 +1,36 @@
+apply plugin: 'com.android.application'
+apply from: rootProject.file('properties.gradle')
+apply plugin: 'common-android-java'
+
+repositories {
+    mavenLocal()
+}
+
+android {
+    namespace 'com.memfault.bort.reporting.maven.local.java'
+
+    defaultConfig {
+        applicationId 'com.memfault.bort.reporting.maven.local.java'
+
+        versionCode loadVersionCode() as Integer
+        versionName loadVersionName() as String
+
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    variantFilter { variant ->
+        if (variant.buildType.name.endsWith('release')) {
+            variant.setIgnore(true);
+        }
+    }
+}
+
+dependencies {
+    api deps.memfault.reporting.lib.java
+}

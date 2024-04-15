@@ -50,7 +50,7 @@ object AggregateMetricFilter {
             return metric.key.removeSuffix(".sum") to metric.value
         }
 
-        // Sepcial case: bort_lite
+        // Special case: bort_lite
         if (metric.key == "$BORT_LITE_METRIC_KEY.latest") {
             return BORT_LITE_METRIC_KEY to metric.value
         }

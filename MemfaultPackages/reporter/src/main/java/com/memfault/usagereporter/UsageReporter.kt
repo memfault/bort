@@ -4,10 +4,8 @@ import android.app.Application
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
-import com.memfault.bort.ConfigureStrictMode
-import com.memfault.bort.Main
 import com.memfault.bort.android.SystemPropertiesProxy
-import com.memfault.bort.connectivity.ConnectivityMetrics
+import com.memfault.bort.scopes.RootScopeBuilder
 import com.memfault.bort.shared.BuildConfigSdkVersionInfo
 import com.memfault.bort.shared.ClientServerMode
 import com.memfault.bort.shared.LogLevel
@@ -17,33 +15,20 @@ import com.memfault.bort.shared.disableAppComponents
 import com.memfault.bort.shared.isPrimaryUser
 import com.memfault.usagereporter.clientserver.B2BClientServer
 import com.memfault.usagereporter.clientserver.B2BClientServer.Companion.create
-import com.memfault.usagereporter.metrics.ReporterMetrics
 import dagger.hilt.android.HiltAndroidApp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.cancel
 import javax.inject.Inject
-import kotlin.coroutines.CoroutineContext
 import kotlin.system.exitProcess
 
 @HiltAndroidApp
 class UsageReporter : Application(), Configuration.Provider {
 
-    @Inject lateinit var connectivityMetrics: ConnectivityMetrics
-
     @Inject lateinit var hiltWorkerFactory: HiltWorkerFactory
 
     @Inject lateinit var reporterSettingsPreferenceProvider: ReporterSettingsPreferenceProvider
 
-    @Inject lateinit var reporterMetrics: ReporterMetrics
-
-    @Inject lateinit var configureStrictMode: ConfigureStrictMode
-
     @Inject lateinit var logLevelPreferenceProvider: LogLevelPreferenceProvider
 
-    @Main @Inject
-    lateinit var mainCoroutineContext: CoroutineContext
-
-    private var appCoroutineScope: CoroutineScope? = null
+    @Inject lateinit var rootScopeBuilder: RootScopeBuilder
 
     override fun onCreate() {
         super.onCreate()
@@ -68,12 +53,6 @@ class UsageReporter : Application(), Configuration.Provider {
             exitProcess(0)
         }
 
-        appCoroutineScope?.cancel()
-        val coroutineScope = CoroutineScope(mainCoroutineContext)
-        appCoroutineScope = coroutineScope
-
-        configureStrictMode.configure()
-
         with(BuildConfigSdkVersionInfo) {
             Logger.v(
                 """
@@ -91,6 +70,8 @@ class UsageReporter : Application(), Configuration.Provider {
             )
         }
 
+        rootScopeBuilder.onCreate("reporter-root")
+
         val sysProp = SystemPropertiesProxy.get(ClientServerMode.SYSTEM_PROP)
         val clientServerMode = ClientServerMode.decode(sysProp)
         Logger.test("UsageReporter started, clientServerMode=$clientServerMode")
@@ -99,17 +80,12 @@ class UsageReporter : Application(), Configuration.Provider {
         // unbinds.
         _b2bClientServer = create(clientServerMode, this, reporterSettingsPreferenceProvider)
 
-        connectivityMetrics.start(coroutineScope)
-        reporterMetrics.init()
-
         ReporterFileCleanupTask.schedule(this)
     }
 
     override fun onTerminate() {
+        rootScopeBuilder.onTerminate()
         super.onTerminate()
-
-        appCoroutineScope?.cancel()
-        appCoroutineScope = null
     }
 
     override fun getWorkManagerConfiguration(): Configuration = Configuration.Builder()

@@ -3,7 +3,11 @@ package com.memfault.usagereporter.metrics
 import android.app.Application
 import android.os.Handler
 import android.os.HandlerThread
+import com.memfault.bort.scopes.Scope
+import com.memfault.bort.scopes.Scoped
 import com.memfault.bort.shared.Logger
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration
@@ -11,11 +15,12 @@ import kotlin.time.Duration
 /**
  * Manages regular metric collection.
  */
+@ContributesMultibinding(SingletonComponent::class)
 @Singleton
 class ReporterMetrics @Inject constructor(
     application: Application,
     private val reporterMetricsPreferenceProvider: ReporterMetricsPreferenceProvider,
-) {
+) : Scoped {
     private val handlerThread = HandlerThread("metrics").also { it.start() }
     private val handler: Handler = Handler(handlerThread.looper)
 
@@ -25,8 +30,12 @@ class ReporterMetrics @Inject constructor(
 
     private var collectionInterval = reporterMetricsPreferenceProvider.getDurationValue()
 
-    fun init() {
+    override fun onEnterScope(scope: Scope) {
         if (collectionInterval.isPositive()) startCollection()
+    }
+
+    override fun onExitScope() {
+        stopCollection()
     }
 
     fun setCollectionInterval(interval: Duration) {

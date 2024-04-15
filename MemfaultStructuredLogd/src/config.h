@@ -58,7 +58,7 @@ private:
     uint64_t dumpPeriodMs;
     uint32_t numEventsBeforeDump;
     uint32_t maxMessageSize;
-    uint64_t minStorageTreshold;
+    uint64_t minStorageThreshold;
     bool metricReportEnabled;
     bool highResMetricsEnabled;
 

@@ -1,8 +1,8 @@
 package com.memfault.bort.metrics
 
 import com.memfault.bort.PackageManagerClient
+import com.memfault.bort.regex.toGlobRegex
 import com.memfault.bort.settings.MetricsSettings
-import com.memfault.bort.toGlobRegex
 import javax.inject.Inject
 
 /**
