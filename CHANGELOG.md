@@ -1,5 +1,12 @@
 # Memfault Bort Changelog
 
+## v4.15.1 - April 16, 2024
+
+### :chart_with_upwards_trend: Improvements
+
+- Fix an exception when parsing batterystats files with lines that have trailing
+  commas.
+
 ## v4.15.0 - April 12, 2024
 
 ### :rocket: New Features

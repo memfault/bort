@@ -329,4 +329,36 @@ class BatteryStatsHistoryParserTest {
             assertEquals(JsonPrimitive(0.0), result.aggregatedMetrics["battery_soc_pct_drop"])
         }
     }
+
+    private val TRAILING_COMMAS_EMPTY_EVENTS = """
+9,hsp,0,1000,"android"
+9,h,0:RESET:TIME:1712915952498
+9,h,0,Bl=100
+9,h,0,Dpst=13940,13680,-48280,1940,890,-25366700,
+9,0,i,dsd,1506595,87,,p-,
+9,h,1,,Bl=99
+    """.trimIndent()
+
+    @Test
+    fun handlesEmptyEvents() {
+        val parser = BatteryStatsHistoryParser(createFile(TRAILING_COMMAS_EMPTY_EVENTS))
+        runTest {
+            val result = parser.parseToCustomMetrics()
+            assertEquals(1, result.batteryStatsHrt.size)
+            val batteryLevelHrt = result.batteryStatsHrt.first()
+            val expectedHrt = Rollup(
+                RollupMetadata(
+                    stringKey = "battery_level",
+                    metricType = Gauge,
+                    dataType = DoubleType,
+                    internal = false,
+                ),
+                listOf(
+                    Datum(t = 1712915952498, value = JsonPrimitive(100)),
+                    Datum(t = 1712915952499, value = JsonPrimitive(99)),
+                ),
+            )
+            assertEquals(expectedHrt, batteryLevelHrt)
+        }
+    }
 }
