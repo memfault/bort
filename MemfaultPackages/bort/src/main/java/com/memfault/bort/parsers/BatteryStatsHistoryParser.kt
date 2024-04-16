@@ -531,6 +531,9 @@ class BatteryStatsHistoryParser(
         entries.forEach { event ->
             // Separate try/catch for each entry within the line, so that we don't wipe out every entry if we see one
             // parsing error.
+            if (event.isEmpty()) {
+                return@forEach
+            }
             try {
                 val transition = when (event[0]) {
                     '+' -> Transition.ON
@@ -630,6 +633,9 @@ class BatteryStatsHistoryParser(
                 Logger.i("parseEvent $event", e)
                 reportErrorMetric()
             } catch (e: NullPointerException) {
+                Logger.i("parseEvent $event", e)
+                reportErrorMetric()
+            } catch (e: StringIndexOutOfBoundsException) {
                 Logger.i("parseEvent $event", e)
                 reportErrorMetric()
             }
