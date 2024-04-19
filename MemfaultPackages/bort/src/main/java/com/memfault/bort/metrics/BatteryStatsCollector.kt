@@ -26,11 +26,11 @@ class BatteryStatsCollector @Inject constructor(
             batteryStatsHistoryCollector.collect(limit = batteryStatsLimit)
         } catch (e: RemoteException) {
             Logger.w("Unable to connect to ReporterService to run batterystats")
-            return BatteryStatsResult.EMPTY
+            BatteryStatsResult.EMPTY
         } catch (e: Exception) {
-            Logger.e("Failed to collect batterystats", mapOf(), e)
+            Logger.e("Failed to collect batterystats history", mapOf(), e)
             metrics.increment(BATTERYSTATS_FAILED)
-            return BatteryStatsResult.EMPTY
+            BatteryStatsResult.EMPTY
         }
 
         // Summary is only collected if we're using HRt, and successfully collected history.
@@ -39,6 +39,10 @@ class BatteryStatsCollector @Inject constructor(
                 batterystatsSummaryCollector.collectSummaryCheckin()
             } catch (e: RemoteException) {
                 Logger.w("Unable to connect to ReporterService to run batterystats")
+                BatteryStatsResult.EMPTY
+            } catch (e: Exception) {
+                Logger.e("Failed to collect batterystats summary", mapOf(), e)
+                metrics.increment(BATTERYSTATS_FAILED)
                 BatteryStatsResult.EMPTY
             }
         } else {
