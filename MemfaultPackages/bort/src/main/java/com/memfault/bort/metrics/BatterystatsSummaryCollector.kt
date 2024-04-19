@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.float
+import java.math.RoundingMode
 import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -313,5 +314,5 @@ private fun Double.proRataValuePerHour(period: Duration, dp: Int = 2) =
     ((this / period.inWholeMilliseconds.toDouble()) * 1.hours.inWholeMilliseconds.toDouble()).roundTo(dp)
 
 fun Double.roundTo(n: Int): Double {
-    return "%.${n}f".format(this).toDouble()
+    return this.toBigDecimal().setScale(n, RoundingMode.HALF_UP).toDouble()
 }

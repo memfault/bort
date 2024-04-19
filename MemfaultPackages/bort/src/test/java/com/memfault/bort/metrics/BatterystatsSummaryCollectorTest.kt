@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertEquals
+import java.util.Locale
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -110,6 +111,7 @@ internal class BatterystatsSummaryCollectorTest {
     @Test
     fun initialRunNotCompared() {
         runTest {
+            Locale.setDefault(Locale("fr", "FR"))
             lastSummary = null
             batteryStatsSummary = CHECKIN_1_DISCHARGING
             val result = summaryCollector.collectSummaryCheckin()
@@ -160,6 +162,7 @@ internal class BatterystatsSummaryCollectorTest {
 
     @Test
     fun subsequentRunComparedToPrevious() = runTest {
+        Locale.setDefault(Locale("fr", "FR"))
         lastSummary = CHECKIN_1_DISCHARGING
         batteryStatsSummary = CHECKIN_2_DISCHARGING
         val result = summaryCollector.collectSummaryCheckin() // .filterComponents()
@@ -305,6 +308,7 @@ internal class BatterystatsSummaryCollectorTest {
 
     @Test
     fun newChargeCycle() = runTest {
+        Locale.setDefault(Locale("fr", "FR"))
         lastSummary = CHECKIN_CHARGING
         batteryStatsSummary = CHECKIN_DISCHARGING
         val result = summaryCollector.collectSummaryCheckin()
@@ -349,6 +353,7 @@ internal class BatterystatsSummaryCollectorTest {
     fun lowComponentUsageNotReported() {
         // "android" usage is too low (would report 0%, so is not included in output).
         runTest {
+            Locale.setDefault(Locale("fr", "FR"))
             lastSummary = null
             batteryStatsSummary = CHECKIN_LOW_USAGE
             val result = summaryCollector.collectSummaryCheckin()

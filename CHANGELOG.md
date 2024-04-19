@@ -1,5 +1,11 @@
 # Memfault Bort Changelog
 
+## v4.15.2 - April 19, 2024
+
+### :chart_with_upwards_trend: Improvements
+
+- Improve rounding numbers when parsing battery stats.
+
 ## v4.15.1 - April 16, 2024
 
 ### :chart_with_upwards_trend: Improvements
