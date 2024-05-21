@@ -1,6 +1,6 @@
 package com.memfault.bort.settings
 
-interface WorkManagerConfiguration {
+interface BortWorkManagerConfiguration {
     /**
      * Configuration for [androidx.work.Configuration.Builder.setMinimumLoggingLevel].
      *

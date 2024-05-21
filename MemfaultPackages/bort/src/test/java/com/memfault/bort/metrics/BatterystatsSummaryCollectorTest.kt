@@ -68,7 +68,7 @@ internal class BatterystatsSummaryCollectorTest {
         batteryState = BatteryState(
             batteryRealtimeMs = 27768496,
             startClockTimeMs = 1681397881665,
-            estimatedBatteryCapacity = 3777,
+            estimatedBatteryCapacity = 3777.0,
             screenOffRealtimeMs = 13884248,
         ),
         dischargeData = DischargeData(totalMaH = 1128, totalMaHScreenOff = 611),
@@ -79,10 +79,10 @@ internal class BatterystatsSummaryCollectorTest {
         ),
         timestampMs = timeMs,
         powerUseSummary = PowerUseSummary(
-            originalBatteryCapacity = 3900,
-            computedCapacityMah = 3700,
-            minCapacityMah = 3600,
-            maxCapacityMah = 3800,
+            originalBatteryCapacity = 3900.0,
+            computedCapacityMah = 3700.0,
+            minCapacityMah = 3600.0,
+            maxCapacityMah = 3800.0,
         ),
     )
 
@@ -90,7 +90,7 @@ internal class BatterystatsSummaryCollectorTest {
         batteryState = BatteryState(
             batteryRealtimeMs = 30145036, // 2376540 diff from 1st
             startClockTimeMs = 1681397881665,
-            estimatedBatteryCapacity = 3777,
+            estimatedBatteryCapacity = 3777.0,
             screenOffRealtimeMs = 14478383, // 594135 diff from 1st
         ),
         dischargeData = DischargeData(totalMaH = 1233, totalMaHScreenOff = 686),
@@ -101,10 +101,10 @@ internal class BatterystatsSummaryCollectorTest {
         ),
         timestampMs = timeMs,
         powerUseSummary = PowerUseSummary(
-            originalBatteryCapacity = 3900,
-            computedCapacityMah = 3300,
-            minCapacityMah = 3200,
-            maxCapacityMah = 3700,
+            originalBatteryCapacity = 3900.0,
+            computedCapacityMah = 3300.0,
+            minCapacityMah = 3200.0,
+            maxCapacityMah = 3700.0,
         ),
     )
 
@@ -127,15 +127,15 @@ internal class BatterystatsSummaryCollectorTest {
                         createRollup(name = "screen_off_battery_drain_%/hour", value = 4.19),
                         // (1128-611=517)/3777*100 / 7.713471111111111 / 0.5 = 3.5491446227597
                         createRollup(name = "screen_on_battery_drain_%/hour", value = 3.55),
-                        createRollup(name = "estimated_battery_capacity_mah", value = 3777),
-                        createRollup(name = "original_battery_capacity_mah", value = 3900),
+                        createRollup(name = "estimated_battery_capacity_mah", value = 3777f),
+                        createRollup(name = "original_battery_capacity_mah", value = 3900f),
                         createRollup(
                             name = "computed_battery_capacity_mah",
-                            value = 3700,
+                            value = 3700f,
                             internal = true,
                         ),
-                        createRollup(name = "min_battery_capacity_mah", value = 3600),
-                        createRollup(name = "max_battery_capacity_mah", value = 3800),
+                        createRollup(name = "min_battery_capacity_mah", value = 3600f),
+                        createRollup(name = "max_battery_capacity_mah", value = 3800f),
                         createRollup(name = "battery_state_of_health_%", value = 96.84615),
                         // (217.059 / 3777 * 100) / 7.713471111111111 = 0.745042343009282
                         createRollup(name = "battery_use_%/hour_android", value = 0.75),
@@ -147,10 +147,10 @@ internal class BatterystatsSummaryCollectorTest {
                     aggregatedMetrics = mapOf(
                         "screen_off_battery_drain_%/hour" to JsonPrimitive(4.19),
                         "screen_on_battery_drain_%/hour" to JsonPrimitive(3.55),
-                        "estimated_battery_capacity_mah" to JsonPrimitive(3777),
-                        "original_battery_capacity_mah" to JsonPrimitive(3900),
-                        "min_battery_capacity_mah" to JsonPrimitive(3600),
-                        "max_battery_capacity_mah" to JsonPrimitive(3800),
+                        "estimated_battery_capacity_mah" to JsonPrimitive(3777f),
+                        "original_battery_capacity_mah" to JsonPrimitive(3900f),
+                        "min_battery_capacity_mah" to JsonPrimitive(3600f),
+                        "max_battery_capacity_mah" to JsonPrimitive(3800f),
                         "battery_state_of_health_%" to JsonPrimitive(96.84615),
                     ),
                     internalAggregatedMetrics = emptyMap(),
@@ -179,10 +179,10 @@ internal class BatterystatsSummaryCollectorTest {
                     // (1233-1128-(686-611)=30)/3777*100 / 0.66015 / 0.75 = 1.604243834555055
                     createRollup(name = "screen_on_battery_drain_%/hour", value = 1.60),
 
-                    createRollup(name = "estimated_battery_capacity_mah", value = 3777),
-                    createRollup(name = "original_battery_capacity_mah", value = 3900),
+                    createRollup(name = "estimated_battery_capacity_mah", value = 3777f),
+                    createRollup(name = "original_battery_capacity_mah", value = 3900f),
                     createRollup(
-                        value = 3300,
+                        value = 3300f,
                         RollupMetadata(
                             stringKey = "computed_battery_capacity_mah",
                             metricType = Gauge,
@@ -190,10 +190,10 @@ internal class BatterystatsSummaryCollectorTest {
                             internal = true,
                         ),
                     ),
-                    createRollup(name = "min_battery_capacity_mah", value = 3200),
-                    createRollup(name = "max_battery_capacity_mah", value = 3700),
+                    createRollup(name = "min_battery_capacity_mah", value = 3200f),
+                    createRollup(name = "max_battery_capacity_mah", value = 3700f),
                     createRollup(name = "battery_state_of_health_%", value = 96.84615),
-                    createRollup(name = "estimated_battery_capacity_mah", value = 3777),
+                    createRollup(name = "estimated_battery_capacity_mah", value = 3777f),
                     // ((247.08 - 217.05899999999997=30.021) / 3777 * 100) / 0.66015 = 1.204025103929433
                     createRollup(name = "battery_use_%/hour_android", value = 1.20),
                     // ((58.5 - 0) / 3777 * 100) / 0.66015 = 2.346206608036768
@@ -204,10 +204,10 @@ internal class BatterystatsSummaryCollectorTest {
                 aggregatedMetrics = mapOf(
                     "screen_off_battery_drain_%/hour" to JsonPrimitive(12.03),
                     "screen_on_battery_drain_%/hour" to JsonPrimitive(1.60),
-                    "estimated_battery_capacity_mah" to JsonPrimitive(3777),
-                    "original_battery_capacity_mah" to JsonPrimitive(3900),
-                    "min_battery_capacity_mah" to JsonPrimitive(3200),
-                    "max_battery_capacity_mah" to JsonPrimitive(3700),
+                    "estimated_battery_capacity_mah" to JsonPrimitive(3777f),
+                    "original_battery_capacity_mah" to JsonPrimitive(3900f),
+                    "min_battery_capacity_mah" to JsonPrimitive(3200f),
+                    "max_battery_capacity_mah" to JsonPrimitive(3700f),
                     "battery_state_of_health_%" to JsonPrimitive(96.84615),
                 ),
                 internalAggregatedMetrics = emptyMap(),
@@ -220,17 +220,17 @@ internal class BatterystatsSummaryCollectorTest {
         batteryState = BatteryState(
             batteryRealtimeMs = 0,
             startClockTimeMs = 1683752599879,
-            estimatedBatteryCapacity = 0,
+            estimatedBatteryCapacity = 0.0,
             screenOffRealtimeMs = 0,
         ),
         dischargeData = DischargeData(totalMaH = 0, totalMaHScreenOff = 0),
         powerUseItemData = setOf(),
         timestampMs = timeMs,
         powerUseSummary = PowerUseSummary(
-            originalBatteryCapacity = 3900,
-            computedCapacityMah = 3700,
-            minCapacityMah = 3600,
-            maxCapacityMah = 3800,
+            originalBatteryCapacity = 3900.0,
+            computedCapacityMah = 3700.0,
+            minCapacityMah = 3600.0,
+            maxCapacityMah = 3800.0,
         ),
     )
 
@@ -254,17 +254,17 @@ internal class BatterystatsSummaryCollectorTest {
         batteryState = BatteryState(
             batteryRealtimeMs = 3600000,
             startClockTimeMs = 1683752599879,
-            estimatedBatteryCapacity = 1000,
+            estimatedBatteryCapacity = 1000.0,
             screenOffRealtimeMs = 0,
         ),
         dischargeData = DischargeData(totalMaH = 0, totalMaHScreenOff = 0),
         powerUseItemData = setOf(),
         timestampMs = timeMs,
         powerUseSummary = PowerUseSummary(
-            originalBatteryCapacity = 0,
-            computedCapacityMah = 0,
-            minCapacityMah = 0,
-            maxCapacityMah = 0,
+            originalBatteryCapacity = 0.0,
+            computedCapacityMah = 0.0,
+            minCapacityMah = 0.0,
+            maxCapacityMah = 0.0,
         ),
     )
 
@@ -277,10 +277,10 @@ internal class BatterystatsSummaryCollectorTest {
             BatteryStatsResult(
                 batteryStatsFileToUpload = null,
                 batteryStatsHrt = setOf(
-                    createRollup(name = "estimated_battery_capacity_mah", value = 1000),
+                    createRollup(name = "estimated_battery_capacity_mah", value = 1000f),
                 ),
                 aggregatedMetrics = mapOf(
-                    "estimated_battery_capacity_mah" to JsonPrimitive(1000),
+                    "estimated_battery_capacity_mah" to JsonPrimitive(1000f),
                 ),
                 internalAggregatedMetrics = emptyMap(),
             ),
@@ -292,17 +292,17 @@ internal class BatterystatsSummaryCollectorTest {
         batteryState = BatteryState(
             batteryRealtimeMs = 3600001,
             startClockTimeMs = CHECKIN_CHARGING.batteryState.startClockTimeMs + 1000,
-            estimatedBatteryCapacity = 1000,
+            estimatedBatteryCapacity = 1000.0,
             screenOffRealtimeMs = 0,
         ),
         dischargeData = DischargeData(totalMaH = 100, totalMaHScreenOff = 60),
         powerUseItemData = setOf(),
         timestampMs = timeMs,
         powerUseSummary = PowerUseSummary(
-            originalBatteryCapacity = 0,
-            computedCapacityMah = 0,
-            minCapacityMah = 0,
-            maxCapacityMah = 0,
+            originalBatteryCapacity = 0.0,
+            computedCapacityMah = 0.0,
+            minCapacityMah = 0.0,
+            maxCapacityMah = 0.0,
         ),
     )
 
@@ -317,11 +317,11 @@ internal class BatterystatsSummaryCollectorTest {
                 batteryStatsFileToUpload = null,
                 batteryStatsHrt = setOf(
                     createRollup(name = "screen_on_battery_drain_%/hour", value = 4.0),
-                    createRollup(name = "estimated_battery_capacity_mah", value = 1000),
+                    createRollup(name = "estimated_battery_capacity_mah", value = 1000f),
                 ),
                 aggregatedMetrics = mapOf(
                     "screen_on_battery_drain_%/hour" to JsonPrimitive(4.0),
-                    "estimated_battery_capacity_mah" to JsonPrimitive(1000),
+                    "estimated_battery_capacity_mah" to JsonPrimitive(1000f),
                 ),
                 internalAggregatedMetrics = emptyMap(),
             ),
@@ -333,7 +333,7 @@ internal class BatterystatsSummaryCollectorTest {
         batteryState = BatteryState(
             batteryRealtimeMs = 3600000,
             startClockTimeMs = 0,
-            estimatedBatteryCapacity = 1000,
+            estimatedBatteryCapacity = 1000.0,
             screenOffRealtimeMs = 1800000,
         ),
         dischargeData = DischargeData(totalMaH = 100, totalMaHScreenOff = 50),
@@ -342,10 +342,10 @@ internal class BatterystatsSummaryCollectorTest {
         ),
         timestampMs = timeMs,
         powerUseSummary = PowerUseSummary(
-            originalBatteryCapacity = 3900,
-            computedCapacityMah = 3700,
-            minCapacityMah = 3600,
-            maxCapacityMah = 3800,
+            originalBatteryCapacity = 3900.0,
+            computedCapacityMah = 3700.0,
+            minCapacityMah = 3600.0,
+            maxCapacityMah = 3800.0,
         ),
     )
 
@@ -363,10 +363,10 @@ internal class BatterystatsSummaryCollectorTest {
                     batteryStatsHrt = setOf(
                         createRollup(name = "screen_off_battery_drain_%/hour", value = 10.0),
                         createRollup(name = "screen_on_battery_drain_%/hour", value = 10.0),
-                        createRollup(name = "estimated_battery_capacity_mah", value = 1000),
-                        createRollup(name = "original_battery_capacity_mah", value = 3900),
+                        createRollup(name = "estimated_battery_capacity_mah", value = 1000f),
+                        createRollup(name = "original_battery_capacity_mah", value = 3900f),
                         createRollup(
-                            value = 3700,
+                            value = 3700f,
                             RollupMetadata(
                                 stringKey = "computed_battery_capacity_mah",
                                 metricType = Gauge,
@@ -374,17 +374,17 @@ internal class BatterystatsSummaryCollectorTest {
                                 internal = true,
                             ),
                         ),
-                        createRollup(name = "min_battery_capacity_mah", value = 3600),
-                        createRollup(name = "max_battery_capacity_mah", value = 3800),
+                        createRollup(name = "min_battery_capacity_mah", value = 3600f),
+                        createRollup(name = "max_battery_capacity_mah", value = 3800f),
                         createRollup(name = "battery_state_of_health_%", value = 25.641027),
                     ),
                     aggregatedMetrics = mapOf(
                         "screen_off_battery_drain_%/hour" to JsonPrimitive(10.0),
                         "screen_on_battery_drain_%/hour" to JsonPrimitive(10.0),
-                        "estimated_battery_capacity_mah" to JsonPrimitive(1000),
-                        "original_battery_capacity_mah" to JsonPrimitive(3900),
-                        "min_battery_capacity_mah" to JsonPrimitive(3600),
-                        "max_battery_capacity_mah" to JsonPrimitive(3800),
+                        "estimated_battery_capacity_mah" to JsonPrimitive(1000f),
+                        "original_battery_capacity_mah" to JsonPrimitive(3900f),
+                        "min_battery_capacity_mah" to JsonPrimitive(3600f),
+                        "max_battery_capacity_mah" to JsonPrimitive(3800f),
                         "battery_state_of_health_%" to JsonPrimitive(25.641027),
                     ),
                     internalAggregatedMetrics = emptyMap(),
@@ -398,7 +398,7 @@ internal class BatterystatsSummaryCollectorTest {
         batteryState = BatteryState(
             batteryRealtimeMs = 27768496,
             startClockTimeMs = 1681397881665,
-            estimatedBatteryCapacity = 3777,
+            estimatedBatteryCapacity = 3777.0,
             screenOffRealtimeMs = 13884248,
         ),
         dischargeData = DischargeData(totalMaH = 1128, totalMaHScreenOff = 611),
@@ -410,10 +410,10 @@ internal class BatterystatsSummaryCollectorTest {
         ),
         timestampMs = timeMs,
         powerUseSummary = PowerUseSummary(
-            originalBatteryCapacity = 0,
-            computedCapacityMah = 0,
-            minCapacityMah = 0,
-            maxCapacityMah = 0,
+            originalBatteryCapacity = 0.0,
+            computedCapacityMah = 0.0,
+            minCapacityMah = 0.0,
+            maxCapacityMah = 0.0,
         ),
     )
 
@@ -452,7 +452,7 @@ internal class BatterystatsSummaryCollectorTest {
                         createRollup(name = "screen_off_battery_drain_%/hour", value = 4.19),
                         // (1128-611=517)/3777*100 / 7.713471111111111 / 0.5 = 3.5491446227597
                         createRollup(name = "screen_on_battery_drain_%/hour", value = 3.55),
-                        createRollup(name = "estimated_battery_capacity_mah", value = 3777),
+                        createRollup(name = "estimated_battery_capacity_mah", value = 3777f),
                         // (217.059 / 3777 * 100) / 7.713471111111111 = 0.745042343009282
                         createRollup(name = "battery_use_%/hour_screen", value = 0.75),
                         // (33 / 3777 * 100) / 7.713471111111111 = 0.113270573066799
@@ -464,7 +464,7 @@ internal class BatterystatsSummaryCollectorTest {
                     aggregatedMetrics = mapOf(
                         "screen_off_battery_drain_%/hour" to JsonPrimitive(4.19),
                         "screen_on_battery_drain_%/hour" to JsonPrimitive(3.55),
-                        "estimated_battery_capacity_mah" to JsonPrimitive(3777),
+                        "estimated_battery_capacity_mah" to JsonPrimitive(3777f),
                         "battery_use_%/hour_screen" to JsonPrimitive(0.75),
                         "battery_use_%/hour_gmaps" to JsonPrimitive(0.39),
                     ),

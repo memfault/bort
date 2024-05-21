@@ -56,7 +56,7 @@ internal class HeartbeatReportCollectorTest {
         internalMetrics = mapOf(),
     )
     private val customMetrics: CustomMetrics = mockk {
-        coEvery { finishReport(any(), any()) } answers {
+        coEvery { collectHeartbeat(any()) } answers {
             if (!useBortMetricsDb) {
                 throw IllegalStateException("Shouldn't be calling bort metrics db")
             }

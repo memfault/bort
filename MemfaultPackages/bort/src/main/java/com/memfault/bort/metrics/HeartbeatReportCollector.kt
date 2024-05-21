@@ -44,8 +44,7 @@ class HeartbeatReportCollector @Inject constructor(
         timeout: Duration = FINISH_REPORT_TIMEOUT,
     ): MetricReportWithHighResFile? {
         if (bortSystemCapabilities.useBortMetricsDb()) {
-            val report = customMetrics.finishReport(
-                reportType = HEARTBEAT_REPORT_TYPE,
+            val report = customMetrics.collectHeartbeat(
                 endTimestampMs = combinedTimeProvider.now().timestamp.toEpochMilli(),
             )
             return MetricReportWithHighResFile(report.report, report.hrt)

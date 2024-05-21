@@ -9,12 +9,12 @@ import com.memfault.bort.addZipEntry
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.settings.HttpApiSettings
 import com.memfault.bort.settings.ZipCompressionLevel
+import com.memfault.bort.zip.openZipFile
 import kotlinx.serialization.encodeToString
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
 import java.util.zip.ZipEntry
-import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 import javax.inject.Inject
 
@@ -27,7 +27,7 @@ class MarFileWriter @Inject constructor(
         file: File?,
         manifest: MarManifest,
     ): Result<MarFileWithManifest> = runCatching {
-        val marFile = createMarFile().useFile { marFile, preventDeletion ->
+        val marFile = createMarFile(manifest.type).useFile { marFile, preventDeletion ->
             writeMarFile(
                 marFile = marFile,
                 manifest = manifest,
@@ -45,7 +45,7 @@ class MarFileWriter @Inject constructor(
         if (inputMarFiles.isEmpty()) return emptyList()
         val batches = splitFilesIntoBatchesForMaxSize(inputMarFiles)
         val batchedFiles = batches.map { batch ->
-            createMarFile().useFile { file, preventDeletion ->
+            createMarFile(type = BATCHED_MAR_TYPE).useFile { file, preventDeletion ->
                 writeBatchedMarFile(
                     marFile = file,
                     inputFiles = batch,
@@ -68,11 +68,16 @@ class MarFileWriter @Inject constructor(
         return inputMarFiles.chunkByElementSize(maxMarSize.toLong()) { file -> file.length() }
     }
 
-    private fun createMarFile() = temporaryFileFactory.createTemporaryFile(suffix = ".$MAR_EXTENSION")
+    private fun createMarFile(type: String) =
+        temporaryFileFactory.createTemporaryFile(
+            prefix = "${type}_".padEnd(length = 3, padChar = '_'),
+            suffix = ".$MAR_EXTENSION",
+        )
 
     companion object {
         private const val MANIFEST_NAME = "manifest.json"
         const val MAR_EXTENSION = "mar"
+        const val BATCHED_MAR_TYPE = "batched"
 
         /** Because we can't exactly predict how much storage will be used adding to a zip file, add some margin */
         internal const val MAR_SIZE_TOLERANCE_BYTES = 1_000_000
@@ -113,29 +118,31 @@ class MarFileWriter @Inject constructor(
             inputFile: File?,
             compressionLevel: Int,
         ) {
-            ZipOutputStream(FileOutputStream(marFile)).use { out ->
-                out.setLevel(compressionLevel)
+            FileOutputStream(marFile).use { fileOut ->
+                ZipOutputStream(fileOut).use { zipOut ->
+                    zipOut.setLevel(compressionLevel)
 
-                val folderUuid = UUID.randomUUID().toString()
-                val dateString = manifest.collectionTime.timestamp.toString().replace(':', '-').replace('.', '-')
-                val folder = "${marFile.name}/$dateString-$folderUuid/"
-                out.putNextEntry(ZipEntry(folder))
-                out.closeEntry()
+                    val folderUuid = UUID.randomUUID().toString()
+                    val dateString = manifest.collectionTime.timestamp.toString().replace(':', '-').replace('.', '-')
+                    val folder = "${marFile.name}/$dateString-$folderUuid/"
+                    zipOut.putNextEntry(ZipEntry(folder))
+                    zipOut.closeEntry()
 
-                out.putNextEntry(ZipEntry("$folder$MANIFEST_NAME"))
-                val metadataBytes = BortJson.encodeToString(manifest).encodeToByteArray()
-                out.write(metadataBytes)
-                out.closeEntry()
+                    zipOut.putNextEntry(ZipEntry("$folder$MANIFEST_NAME"))
+                    val metadataBytes = BortJson.encodeToString(manifest).encodeToByteArray()
+                    zipOut.write(metadataBytes)
+                    zipOut.closeEntry()
 
-                inputFile?.apply {
-                    if (exists()) {
-                        inputStream().use { input ->
-                            out.addZipEntry("$folder$name", input)
+                    inputFile?.apply {
+                        if (exists()) {
+                            inputStream().use { input ->
+                                zipOut.addZipEntry("$folder$name", input)
+                            }
+                        } else {
+                            Reporting.report().event("mar.input_file.missing", countInReport = true, internal = true)
+                                .add(absolutePath)
+                            throw FileMissingException(absolutePath)
                         }
-                    } else {
-                        Reporting.report().event("mar.input_file.missing", countInReport = true, internal = true)
-                            .add(absolutePath)
-                        throw FileMissingException(absolutePath)
                     }
                 }
             }
@@ -147,19 +154,21 @@ class MarFileWriter @Inject constructor(
             inputFiles: List<File>,
             compressionLevel: Int,
         ) {
-            ZipOutputStream(FileOutputStream(marFile)).use { out ->
-                out.setLevel(compressionLevel)
+            FileOutputStream(marFile).use { fileOut ->
+                ZipOutputStream(fileOut).use { zipOut ->
+                    zipOut.setLevel(compressionLevel)
 
-                inputFiles.forEach { inFile ->
-                    ZipFile(inFile).use { zipIn ->
-                        for (entry in zipIn.entries()) {
-                            // The name includes the full directory structure: this includes the mar filename, so
-                            // replace with the new mar filename.
-                            val name = entry.name.replace(inFile.name, marFile.name)
-                            out.addZipEntry(name, zipIn.getInputStream(entry))
+                    inputFiles.forEach { inFile ->
+                        openZipFile(inFile)?.use { zipIn ->
+                            for (entry in zipIn.entries()) {
+                                // The name includes the full directory structure: this includes the mar filename, so
+                                // replace with the new mar filename.
+                                val name = entry.name.replace(inFile.name, marFile.name)
+                                zipOut.addZipEntry(name, zipIn.getInputStream(entry))
+                            }
                         }
+                        inFile.delete()
                     }
-                    inFile.delete()
                 }
             }
         }

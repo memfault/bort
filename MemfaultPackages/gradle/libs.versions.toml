@@ -1,8 +1,8 @@
 [versions]
-agp = "8.1.1"
-hilt = "2.46"
-kotlin = "1.9.21"
-kotlinx-coroutines = "1.7.3"
+agp = "8.3.2"
+hilt = "2.49"
+kotlin = "1.9.23"
+kotlinx-coroutines = "1.8.0"
 room = "2.6.1"
 memfault-reporting = "1.4"
 
@@ -11,22 +11,22 @@ memfault-reporting = "1.4"
 jblake2 = { module = "org.kocakosm:jblake2", version = "0.4" }
 retrofit = { module = "com.squareup.retrofit2:retrofit", version = "2.9.0" }
 okhttp = { module = "com.squareup.okhttp3:okhttp", version = "4.11.0" }
-okio = { module = "com.squareup.okio:okio", version = "3.3.0" }
+okio = { module = "com.squareup.okio:okio", version = "3.4.0" }
 result = { module = "com.michael-bull.kotlin-result:kotlin-result", version = "1.1.17" }
 jackson = { module = "com.fasterxml.jackson.core:jackson-databind", version = "2.15.0" }
 zjsonpatch = { module = "com.flipkart.zjsonpatch:zjsonpatch", version = "0.4.14" }
 
 # android
-android-activity = { module = "androidx.activity:activity-ktx", version = "1.7.2" }
+android-activity = { module = "androidx.activity:activity-ktx", version = "1.9.0" }
 android-appcompat = { module = "androidx.appcompat:appcompat", version = "1.6.1" }
-android-fragment = { module = "androidx.fragment:fragment-ktx", version = "1.6.1" }
-android-lifecycle-service = { module = "androidx.lifecycle:lifecycle-service", version = "2.6.2" }
-android-material = { module = "com.google.android.material:material", version = "1.9.0" }
+android-fragment = { module = "androidx.fragment:fragment-ktx", version = "1.6.2" }
+android-lifecycle-service = { module = "androidx.lifecycle:lifecycle-service", version = "2.7.0" }
+android-material = { module = "com.google.android.material:material", version = "1.11.0" }
 android-preference = { module = "androidx.preference:preference", version = "1.2.1" }
-android-work = { module = "androidx.work:work-runtime-ktx", version = "2.8.1" }
-android-hilt-work = { module = "androidx.hilt:hilt-work", version = "1.0.0" }
-android-hilt-compiler = { module = "androidx.hilt:hilt-compiler", version = "1.0.0" }
-android-viewmodel = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version = "2.6.2" }
+android-work = { module = "androidx.work:work-runtime-ktx", version = "2.9.0" }
+android-hilt-work = { module = "androidx.hilt:hilt-work", version = "1.2.0" }
+android-hilt-compiler = { module = "androidx.hilt:hilt-compiler", version = "1.2.0" }
+android-viewmodel = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version = "2.7.0" }
 
 # dagger
 dagger-hilt = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
@@ -39,7 +39,7 @@ kotlin-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines
 
 # serialization
 serialization-plugin = { module = "org.jetbrains.kotlin:kotlin-serialization", version.ref = "kotlin" }
-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version = "1.5.0" }
+serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version = "1.6.3" }
 serialization-converter = { module = "com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter", version = "1.0.0" }
 
 # memfault
@@ -57,10 +57,10 @@ test-assertk = { module = "com.willowtreeapps.assertk:assertk", version = "0.28.
 test-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 test-json = { module = "org.json:json", version = "20230227" }
 test-junit-bom = { module = "org.junit:junit-bom", version = "5.9.3" }
-test-junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api" }
-test-junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine" }
-test-junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params" }
-test-junit-vintage-engine = { module = "org.junit.vintage:junit-vintage-engine" }
+test-junit = { module = "junit:junit", version = "4.13.2" }
+test-junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+test-junit-jupiter-vintage-engine = { module = "org.junit.vintage:junit-vintage-engine" }
+test-junit-jupiter-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 test-mockito-java = { module = "org.mockito:mockito-core", version = "5.5.0" }
 test-mockk = { module = "io.mockk:mockk", version = "1.13.3" }
 test-mockWebServer = { module = "com.squareup.okhttp3:mockwebserver", version = "4.11.0" }
@@ -70,14 +70,13 @@ test-androidx-test = { module = "androidx.test:core", version = "1.5.0" }
 
 [bundles]
 kotlin = ["kotlin-stdlib", "kotlin-coroutines", "kotlin-coroutines-android"]
-test-jupiter = ["test-junit-bom", "test-junit-jupiter-api", "test-junit-jupiter-engine", "test-junit-vintage-engine", "test-junit-jupiter-params"]
 
 
 [plugins]
 aaraar = { id = "sh.christian.aaraar", version = "0.0.12" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-dagger-anvil = { id = "com.squareup.anvil", version = "2.4.5" }
+dagger-anvil = { id = "com.squareup.anvil", version = "2.4.9" }
 dagger-hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 gradle-versions = { id = "com.github.ben-manes.versions", version = "0.46.0" }
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

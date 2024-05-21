@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.memfault.bort.AppUpgrade.Companion.V0_PRE_VERSIONING
 import com.memfault.bort.fileExt.deleteSilently
+import com.memfault.bort.metrics.database.PREVIOUS_METRICS_DB_NAMES
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.shared.Logger
@@ -25,6 +26,8 @@ class AppUpgrade @Inject constructor(
         if (!bortEnabledProvider.isEnabled()) {
             return
         }
+
+        PREVIOUS_METRICS_DB_NAMES.forEach { context.deleteDatabase(it) }
 
         val prevVersion = bortVersionPrefProvider.getValue()
         Logger.d("AppUpgrade: migrating from $prevVersion to $CURRENT_VERSION")

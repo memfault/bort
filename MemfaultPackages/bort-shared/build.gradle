@@ -32,10 +32,6 @@ android {
         buildConfigField "Boolean", "ALLOW_PROJECT_KEY_CHANGE", bortProperty("ALLOW_PROJECT_KEY_CHANGE")
         buildConfigField "String", "MEMFAULT_PROJECT_API_KEY", "\"" + bortProperty("MEMFAULT_PROJECT_API_KEY") + "\""
         buildConfigField "String", "PROJECT_KEY_SYSPROP", "\"" + bortProperty("PROJECT_KEY_SYSPROP") + "\""
-      // This field isn't in the public bort.properties, so default to false. This will be removed
-      // in the future when the native service database is removed.
-      // This flag allows Bort Lite to use the internal metrics DB.
-        buildConfigField "Boolean", "INTERNAL_METRICS_DB", bortProperty("INTERNAL_METRICS_DB") ?: "false"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

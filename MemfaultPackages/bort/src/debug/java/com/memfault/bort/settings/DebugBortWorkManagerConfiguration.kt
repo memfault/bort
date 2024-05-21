@@ -5,6 +5,6 @@ import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 
 @ContributesBinding(SingletonComponent::class)
-object DebugWorkManagerConfiguration : WorkManagerConfiguration {
+object DebugBortWorkManagerConfiguration : BortWorkManagerConfiguration {
     override val logLevel = Log.VERBOSE
 }

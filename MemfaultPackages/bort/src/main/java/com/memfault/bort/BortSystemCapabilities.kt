@@ -1,7 +1,6 @@
 package com.memfault.bort
 
 import android.os.RemoteException
-import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.MINIMUM_VALID_VERSION
 import com.memfault.dumpster.IDumpster
 import java.io.File

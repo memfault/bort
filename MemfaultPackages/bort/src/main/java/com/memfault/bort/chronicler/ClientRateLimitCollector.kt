@@ -8,8 +8,9 @@ import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.toAbsoluteTime
 import com.memfault.bort.uploader.EnqueueUpload
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.longOrNull
+import kotlinx.serialization.json.doubleOrNull
 import javax.inject.Inject
+import kotlin.math.roundToLong
 
 class ClientRateLimitCollector
 @Inject constructor(
@@ -32,7 +33,7 @@ class ClientRateLimitCollector
                 RateLimitHit(
                     key = key,
                     tag = key.removePrefix("${RATE_LIMIT_APPLIED}_"),
-                    count = internalHeartbeatReportMetrics[key]?.longOrNull ?: return@mapNotNull null,
+                    count = internalHeartbeatReportMetrics[key]?.doubleOrNull?.roundToLong() ?: return@mapNotNull null,
                 )
             }
 
