@@ -10,8 +10,8 @@ import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.receivers.DropBoxEntryAddedReceiver
 import com.memfault.bort.scopes.RootScopeBuilder
 import com.memfault.bort.settings.BortEnabledProvider
+import com.memfault.bort.settings.BortWorkManagerConfiguration
 import com.memfault.bort.settings.SettingsProvider
-import com.memfault.bort.settings.WorkManagerConfiguration
 import com.memfault.bort.settings.asLoggerSettings
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.disableAppComponents
@@ -38,7 +38,7 @@ open class Bort : Application(), Configuration.Provider {
 
     @Inject lateinit var appUpgrade: AppUpgrade
 
-    @Inject lateinit var workManagerConfiguration: WorkManagerConfiguration
+    @Inject lateinit var bortWorkManagerConfig: BortWorkManagerConfiguration
 
     @Inject lateinit var rootScopeBuilder: RootScopeBuilder
 
@@ -124,9 +124,9 @@ open class Bort : Application(), Configuration.Provider {
         }
     }
 
-    override fun getWorkManagerConfiguration(): Configuration =
+    override val workManagerConfiguration: Configuration get() =
         Configuration.Builder()
             .setWorkerFactory(hiltWorkerFactory)
-            .setMinimumLoggingLevel(workManagerConfiguration.logLevel)
+            .setMinimumLoggingLevel(bortWorkManagerConfig.logLevel)
             .build()
 }

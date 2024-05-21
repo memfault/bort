@@ -87,7 +87,7 @@ class BatteryStatsSummaryParser @Inject constructor(
             batteryRealtimeMs = entries[BATTERY_STATS_INDEX_BATTERY_REALTIME].toLong(),
             startClockTimeMs = entries[BATTERY_STATS_INDEX_START_CLOCK_TIME].toLong(),
             screenOffRealtimeMs = entries[BATTERY_STATS_INDEX_SCREEN_OFF_REALTIME].toLong(),
-            estimatedBatteryCapacity = entries[BATTERY_STATS_INDEX_ESTIMATED_BATTERY_CAPACITY].toLong(),
+            estimatedBatteryCapacity = entries[BATTERY_STATS_INDEX_ESTIMATED_BATTERY_CAPACITY].toDouble(),
         )
     }
 
@@ -96,15 +96,15 @@ class BatteryStatsSummaryParser @Inject constructor(
         val batteryRealtimeMs: Long,
         val startClockTimeMs: Long,
         val screenOffRealtimeMs: Long,
-        val estimatedBatteryCapacity: Long,
+        val estimatedBatteryCapacity: Double,
     )
 
     @Serializable
     data class PowerUseSummary(
-        val originalBatteryCapacity: Long = 0,
-        val computedCapacityMah: Long = 0,
-        val minCapacityMah: Long = 0,
-        val maxCapacityMah: Long = 0,
+        val originalBatteryCapacity: Double = 0.0,
+        val computedCapacityMah: Double = 0.0,
+        val minCapacityMah: Double = 0.0,
+        val maxCapacityMah: Double = 0.0,
     )
 
     private fun ParserContext.parseDischarge(entries: List<String>) {
@@ -147,10 +147,10 @@ class BatteryStatsSummaryParser @Inject constructor(
     // https://github.com/google/battery-historian/blob/d2356ba4fd5f69a631fdf766b2f23494b50f6744/pb/batterystats_proto/batterystats.proto#L844C5-L852
     private fun ParserContext.parsePowerUseSummaryData(entries: List<String>) {
         powerUseSummary = PowerUseSummary(
-            originalBatteryCapacity = entries[PWS_INDEX_ORIGINAL_BATTERY_CAPACITY_MAH].toLong(),
-            computedCapacityMah = entries[PWS_INDEX_COMPUTED_CAPACITY_MAH].toLong(),
-            minCapacityMah = entries[PWS_INDEX_MIN_DRAINED_POWER_MAH].toLong(),
-            maxCapacityMah = entries[PWS_INDEX_MAX_DRAINED_POWER_MAH].toLong(),
+            originalBatteryCapacity = entries[PWS_INDEX_ORIGINAL_BATTERY_CAPACITY_MAH].toDouble(),
+            computedCapacityMah = entries[PWS_INDEX_COMPUTED_CAPACITY_MAH].toDouble(),
+            minCapacityMah = entries[PWS_INDEX_MIN_DRAINED_POWER_MAH].toDouble(),
+            maxCapacityMah = entries[PWS_INDEX_MAX_DRAINED_POWER_MAH].toDouble(),
         )
     }
 
@@ -222,7 +222,7 @@ class BatteryStatsSummaryParser @Inject constructor(
 //        private const val BATTERY_STATS_INDEX_SCREEN_OFF_UPTIME = 7
         private const val BATTERY_STATS_INDEX_ESTIMATED_BATTERY_CAPACITY = 8
 //        private const val BATTERY_STATS_INDEX_LEARNED_MIN_BATTERY_CAPACITY = 9
-//        private const val BATTERY_STATS_INDEX_LEANRED_MAX_BATTERY_CAPACITY = 10
+//        private const val BATTERY_STATS_INDEX_LEARNED_MAX_BATTERY_CAPACITY = 10
 //        private const val BATTERY_STATS_INDEX_DOZE_TIME = 11
 
         private const val PUI_INDEX_DRAIN_TYPE = 0

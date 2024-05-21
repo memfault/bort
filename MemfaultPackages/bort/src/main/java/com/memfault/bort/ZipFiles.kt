@@ -1,11 +1,11 @@
 package com.memfault.bort
 
 import com.memfault.bort.fileExt.deleteSilently
+import com.memfault.bort.zip.openZipFile
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.zip.ZipEntry
-import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 
 /**
@@ -18,15 +18,19 @@ fun addFileToZip(zipFile: File, newFile: File, newfileName: String, compressionL
     zipFile.renameTo(existingZipFile)
 
     // Create a new file, with the original name.
-    ZipOutputStream(FileOutputStream(zipFile)).use { zipOut ->
-        zipOut.setLevel(compressionLevel)
-        ZipFile(existingZipFile).use { zipIn ->
-            for (entry in zipIn.entries()) {
-                zipOut.addZipEntry(entry.name, zipIn.getInputStream(entry))
+    FileOutputStream(zipFile).use { fileOut ->
+        ZipOutputStream(fileOut).use { zipOut ->
+            zipOut.setLevel(compressionLevel)
+
+            openZipFile(existingZipFile)?.use { zipIn ->
+                for (entry in zipIn.entries()) {
+                    zipOut.addZipEntry(entry.name, zipIn.getInputStream(entry))
+                }
             }
-        }
-        newFile.inputStream().buffered().use { fileIn ->
-            zipOut.addZipEntry(newfileName, fileIn)
+
+            newFile.inputStream().buffered().use { fileIn ->
+                zipOut.addZipEntry(newfileName, fileIn)
+            }
         }
     }
 

@@ -1,5 +1,18 @@
 # Memfault Bort Changelog
 
+## v4.15.3 - May 20, 2024
+
+### :chart_with_upwards_trend: Improvements
+
+- Fixes a bug where a single possibly corrupt MAR file would prevent the upload
+  of all remaining MAR files.
+- Adds type information to each MAR filename.
+- Updates Gradle, WorkManager, Anvil, Kotlin Serialization, and various AndroidX
+  libraries. Re-organizes the internal Jupiter test setup.
+- Fixes a bug where Batterystats would fail to parse Doubles.
+- Fixes a bug where the Count aggregation for Events would incorrectly report as
+  a String instead of a Number.
+
 ## v4.15.2 - April 19, 2024
 
 ### :chart_with_upwards_trend: Improvements

@@ -436,7 +436,7 @@ Sqlite3StorageBackend::collectMetricsLocked(uint8_t version, const std::string &
             report->addMetric(eventName + MEAN_SUFFIX, internal, asString(mean), Double);
         }
         if (aggregationTypes & NUMERIC_COUNT) {
-            report->addMetric(eventName + COUNT_SUFFIX, internal, asString(count), valueType);
+          report->addMetric(eventName + COUNT_SUFFIX, internal, asString(count), Double);
         }
         if (aggregationTypes & STATE_LATEST_VALUE) {
             std::string latestValue;

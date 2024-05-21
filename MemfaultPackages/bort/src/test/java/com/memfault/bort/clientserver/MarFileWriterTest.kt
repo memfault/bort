@@ -1,5 +1,10 @@
 package com.memfault.bort.clientserver
 
+import assertk.Assert
+import assertk.assertThat
+import assertk.assertions.exists
+import assertk.assertions.isNull
+import assertk.assertions.support.expected
 import com.memfault.bort.BortJson
 import com.memfault.bort.LogcatCollectionId
 import com.memfault.bort.TemporaryFileFactory
@@ -14,20 +19,26 @@ import com.memfault.bort.settings.Resolution
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.boxed
+import org.junit.Rule
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.assertThrows
+import org.junit.rules.TemporaryFolder
 import java.io.File
 import java.io.FileInputStream
+import java.io.RandomAccessFile
 import java.time.Instant
 import java.util.UUID
 import java.util.zip.ZipInputStream
 import kotlin.time.Duration
 
 internal class MarFileWriterTest {
+    @get:Rule
+    val folder = TemporaryFolder()
+
     @Test
     fun createMarFile() {
         val manifest = heartbeat(timeMs = 123456789)
@@ -58,15 +69,70 @@ internal class MarFileWriterTest {
         val manifest2 = logcat(timeMs = 987654321)
         val marFile2 = createMarFile("mar2.mar", manifest2, FILE_CONTENT_2)
 
+        assertThat(marFile1).exists()
+        assertThat(marFile2).exists()
+
         val batchedMarFile = File.createTempFile("marfile", "batched.mar")
         writeBatchedMarFile(batchedMarFile, listOf(marFile1, marFile2), compressionLevel = 4)
 
-        assertFalse(marFile1.exists())
-        assertFalse(marFile2.exists())
-        ZipInputStream(FileInputStream(batchedMarFile)).use { zip ->
-            zip.assertNextEntry(batchedMarFile, manifest1, FILE_CONTENT)
-            zip.assertNextEntry(batchedMarFile, manifest2, FILE_CONTENT_2)
-            assertNull(zip.nextEntry)
+        assertThat(marFile1).doesNotExist()
+        assertThat(marFile2).doesNotExist()
+        FileInputStream(batchedMarFile).use { fileIn ->
+            ZipInputStream(fileIn).use { zipIn ->
+                zipIn.assertNextEntry(batchedMarFile, manifest1, FILE_CONTENT)
+                zipIn.assertNextEntry(batchedMarFile, manifest2, FILE_CONTENT_2)
+                assertThat(zipIn.nextEntry).isNull()
+            }
+        }
+    }
+
+    @Test
+    fun mergeMarFiles_oneEmpty() {
+        val manifest1 = heartbeat(timeMs = 123456789)
+        val marFile1 = createMarFile("mar1.mar", manifest1, FILE_CONTENT)
+
+        val marFile2 = folder.newFile("mar2.mar")
+
+        assertThat(marFile1).exists()
+        assertThat(marFile2).exists()
+
+        val batchedMarFile = File.createTempFile("marfile", "batched.mar")
+        writeBatchedMarFile(batchedMarFile, listOf(marFile1, marFile2), compressionLevel = 4)
+
+        assertThat(marFile1).doesNotExist()
+        assertThat(marFile2).doesNotExist()
+        FileInputStream(batchedMarFile).use { fileIn ->
+            ZipInputStream(fileIn).use { zipIn ->
+                zipIn.assertNextEntry(batchedMarFile, manifest1, FILE_CONTENT)
+                assertThat(zipIn.nextEntry).isNull()
+            }
+        }
+    }
+
+    @Test
+    fun mergeMarFiles_oneCorrupted() {
+        val manifest1 = heartbeat(timeMs = 123456789)
+        val marFile1 = createMarFile("mar1.mar", manifest1, FILE_CONTENT)
+
+        val marFile2 = createMarFile("mar1.mar", manifest1, FILE_CONTENT).also { marFile ->
+            RandomAccessFile(marFile, "rw").use { raf ->
+                raf.channel.truncate(10)
+            }
+        }
+
+        assertThat(marFile1).exists()
+        assertThat(marFile2).exists()
+
+        val batchedMarFile = File.createTempFile("marfile", "batched.mar")
+        writeBatchedMarFile(batchedMarFile, listOf(marFile1, marFile2), compressionLevel = 4)
+
+        assertThat(marFile1).doesNotExist()
+        assertThat(marFile2).doesNotExist()
+        FileInputStream(batchedMarFile).use { fileIn ->
+            ZipInputStream(fileIn).use { zipIn ->
+                zipIn.assertNextEntry(batchedMarFile, manifest1, FILE_CONTENT)
+                assertThat(zipIn.nextEntry).isNull()
+            }
         }
     }
 
@@ -252,4 +318,9 @@ internal class MarFileWriterTest {
             return file
         }
     }
+}
+
+private fun Assert<File>.doesNotExist() = given { actual ->
+    if (!actual.exists()) return
+    expected("to not exist")
 }

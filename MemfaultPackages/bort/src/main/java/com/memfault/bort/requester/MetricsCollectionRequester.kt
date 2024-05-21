@@ -2,7 +2,8 @@ package com.memfault.bort.requester
 
 import android.app.Application
 import android.content.Context
-import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE
+import androidx.work.ExistingPeriodicWorkPolicy.UPDATE
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.memfault.bort.metrics.LastHeartbeatEndTimeProvider
@@ -31,6 +32,7 @@ internal fun restartPeriodicMetricsCollection(
     collectionInterval: Duration,
     lastHeartbeatEnd: BootRelativeTime? = null,
     collectImmediately: Boolean = false,
+    cancel: Boolean,
 ) {
     lastHeartbeatEnd?.let {
         lastHeartbeatEndTimeProvider.lastEnd = lastHeartbeatEnd
@@ -48,7 +50,7 @@ internal fun restartPeriodicMetricsCollection(
         WorkManager.getInstance(context)
             .enqueueUniquePeriodicWork(
                 WORK_UNIQUE_NAME_PERIODIC,
-                ExistingPeriodicWorkPolicy.UPDATE,
+                if (cancel) CANCEL_AND_REENQUEUE else UPDATE,
                 workRequest,
             )
     }
@@ -75,6 +77,7 @@ class MetricsCollectionRequester @Inject constructor(
             collectionInterval = collectionInterval,
             lastHeartbeatEnd = if (resetLastHeartbeatTime) bootRelativeTimeProvider.now() else null,
             collectImmediately = collectImmediately,
+            cancel = true,
         )
     }
 

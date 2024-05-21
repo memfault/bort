@@ -153,6 +153,7 @@ class BortTestReceiver : FilteringReceiver(
                     // Pretend the heartbeat started an hour ago:
                     lastHeartbeatEnd = bootRelativeTimeProvider.now() - 1.hours,
                     collectImmediately = true,
+                    cancel = true,
                 )
 
                 // Kotlin based reporting library
@@ -182,6 +183,7 @@ class BortTestReceiver : FilteringReceiver(
                     httpApiSettings = settingsProvider.httpApiSettings,
                     delayAfterSettingsUpdate = false,
                     testRequest = true,
+                    cancel = true,
                     jitterDelayProvider = jitterDelayProvider,
                 )
             }

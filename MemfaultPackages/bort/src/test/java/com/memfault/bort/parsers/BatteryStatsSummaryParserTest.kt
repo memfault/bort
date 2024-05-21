@@ -30,7 +30,7 @@ class BatteryStatsSummaryParserTest {
                 batteryState = BatteryState(
                     batteryRealtimeMs = 43722106,
                     startClockTimeMs = 1661068748155,
-                    estimatedBatteryCapacity = 1000,
+                    estimatedBatteryCapacity = 1000.0,
                     screenOffRealtimeMs = 43699893,
                 ),
                 dischargeData = DischargeData(totalMaH = 0, totalMaHScreenOff = 0),
@@ -48,10 +48,10 @@ class BatteryStatsSummaryParserTest {
                 ),
                 timestampMs = timeMs,
                 powerUseSummary = PowerUseSummary(
-                    originalBatteryCapacity = 3900,
-                    computedCapacityMah = 3243,
-                    minCapacityMah = 3237,
-                    maxCapacityMah = 3354,
+                    originalBatteryCapacity = 3900.0,
+                    computedCapacityMah = 3243.2,
+                    minCapacityMah = 3237.0,
+                    maxCapacityMah = 3354.0,
                 ),
             ),
             result,
@@ -80,7 +80,7 @@ class BatteryStatsSummaryParserTest {
                     batteryRealtimeMs = 0,
                     startClockTimeMs = 1684814487593,
                     screenOffRealtimeMs = 0,
-                    estimatedBatteryCapacity = 1000,
+                    estimatedBatteryCapacity = 1000.0,
                 ),
                 dischargeData = DischargeData(
                     totalMaH = 0,
@@ -89,10 +89,10 @@ class BatteryStatsSummaryParserTest {
                 powerUseItemData = emptySet(),
                 timestampMs = 123456789,
                 powerUseSummary = PowerUseSummary(
-                    originalBatteryCapacity = 0,
-                    computedCapacityMah = 0,
-                    minCapacityMah = 0,
-                    maxCapacityMah = 0,
+                    originalBatteryCapacity = 0.0,
+                    computedCapacityMah = 0.0,
+                    minCapacityMah = 0.0,
+                    maxCapacityMah = 0.0,
                 ),
             ),
 
@@ -149,7 +149,7 @@ class BatteryStatsSummaryParserTest {
 9,0,i,dsd,89110,75,s-,p-,i-
 9,0,i,dtr,15400028000
 9,0,l,bt,2,43722106,43722106,47075263,47075263,1661068748155,43699893,43699893,1000,4000000,4000000,0
-9,0,l,pws,3900,3243,3237,3354
+9,0,l,pws,3900,3243.2,3237,3354
 9,0,l,gn,0,0,0,0,0,0,0,0,0,0
 9,0,l,gwfl,0,0,0,0,0
 9,0,l,m,22213,0,0,43699892,152811,0,19993,0,3,0,0,0,0,15,0,0,0,0,0,0,0
@@ -170,7 +170,6 @@ class BatteryStatsSummaryParserTest {
 9,0,l,kwl,"ApmAudio",0,0,-1,-1
 9,0,l,kwl,"SensorsHAL_WAKEUP",0,0,-1,-1
 9,0,l,rpm,"DefaultEntity.Sleep",0,0
-9,0,l,pws,1000,3.65,160,170
 9,0,l,pwi,unacc,156,1,0,0
 9,0,l,pwi,cell,1.22,1,0,0
 9,0,l,pwi,idle,1.21,1,0,0

@@ -17,9 +17,8 @@ class CustomMetrics @Inject constructor(
         db.dao().insert(metric)
     }
 
-    suspend fun finishReport(reportType: String, endTimestampMs: Long): CustomReport {
-        return db.dao().finishReport(
-            reportType = reportType,
+    suspend fun collectHeartbeat(endTimestampMs: Long): CustomReport {
+        return db.dao().collectHeartbeat(
             endTimestampMs = endTimestampMs,
             hrtFile = if (structuredLogSettings.highResMetricsEnabled) {
                 temporaryFileFactory.createTemporaryFile(suffix = "hrt").useFile { file, preventDeletion ->

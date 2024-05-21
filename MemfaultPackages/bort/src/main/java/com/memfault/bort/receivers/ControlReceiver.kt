@@ -200,7 +200,7 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
         }
         goAsync {
             Logger.d("Settings update requested")
-            settingsUpdateRequester.restartSettingsUpdate(delayAfterSettingsUpdate = false)
+            settingsUpdateRequester.restartSettingsUpdate(delayAfterSettingsUpdate = false, cancel = true)
         }
     }
 

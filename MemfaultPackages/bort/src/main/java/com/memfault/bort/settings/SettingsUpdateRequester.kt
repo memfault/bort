@@ -2,7 +2,8 @@ package com.memfault.bort.settings
 
 import android.app.Application
 import android.content.Context
-import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE
+import androidx.work.ExistingPeriodicWorkPolicy.UPDATE
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.memfault.bort.clientserver.CachedClientServerMode
@@ -28,8 +29,9 @@ internal fun restartPeriodicSettingsUpdate(
     httpApiSettings: HttpApiSettings,
     updateInterval: Duration,
     delayAfterSettingsUpdate: Boolean,
-    testRequest: Boolean = false,
+    cancel: Boolean,
     jitterDelayProvider: JitterDelayProvider,
+    testRequest: Boolean = false,
 ) {
     if (testRequest) {
         Logger.test("Restarting settings periodic task for testing")
@@ -54,7 +56,7 @@ internal fun restartPeriodicSettingsUpdate(
         WorkManager.getInstance(context)
             .enqueueUniquePeriodicWork(
                 WORK_UNIQUE_NAME_PERIODIC,
-                ExistingPeriodicWorkPolicy.UPDATE,
+                if (cancel) CANCEL_AND_REENQUEUE else UPDATE,
                 workRequest,
             )
     }
@@ -68,16 +70,17 @@ class SettingsUpdateRequester @Inject constructor(
     private val cachedClientServerMode: CachedClientServerMode,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
-        restartSettingsUpdate(delayAfterSettingsUpdate = settingsChanged)
+        restartSettingsUpdate(delayAfterSettingsUpdate = settingsChanged, cancel = false)
     }
 
-    suspend fun restartSettingsUpdate(delayAfterSettingsUpdate: Boolean) {
+    suspend fun restartSettingsUpdate(delayAfterSettingsUpdate: Boolean, cancel: Boolean) {
         restartPeriodicSettingsUpdate(
             context = application,
             httpApiSettings = settings.httpApiSettings,
             updateInterval = settings.sdkSettingsUpdateInterval(),
             delayAfterSettingsUpdate = delayAfterSettingsUpdate,
             jitterDelayProvider = jitterDelayProvider,
+            cancel = cancel,
         )
     }
 

@@ -88,7 +88,7 @@ class UsageReporter : Application(), Configuration.Provider {
         super.onTerminate()
     }
 
-    override fun getWorkManagerConfiguration(): Configuration = Configuration.Builder()
+    override val workManagerConfiguration: Configuration get() = Configuration.Builder()
         .setWorkerFactory(hiltWorkerFactory)
         .build()
 
