@@ -302,6 +302,9 @@ data class FetchedSettings(
     @Serializable(with = DurationAsMillisecondsLong::class)
     val otaUpdateCheckInterval: BoxedDuration = 12.hours.boxed(),
 
+    @SerialName("ota.download_network_constraint")
+    val otaDownloadNetworkConstraint: String = "UNSET",
+
     @SerialName("ota.download_network_constraint_allow_metered_connection")
     val otaDownloadNetworkConstraintAllowMeteredConnection: Boolean = false,
 

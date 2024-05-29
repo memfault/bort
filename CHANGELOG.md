@@ -1,5 +1,34 @@
 # Memfault Bort Changelog
 
+## v4.16.0 - May 28, 2024
+
+### :rocket: New Features
+
+- Added a `latestInReport` option to the `event` API in `Reporting`. This will
+  create a heartbeat metric with the latest value.
+- New Bort diagnostics - to improve diagnosing any SDK integration issues:
+  - The SDK validation tool is enhanced to check Bort's runtime state (whether
+    Bort is enabled, job execution state, recent failures, etc), and report this
+    in the validation tool output. This will also now report several key
+    compile-time configuration parameters.
+  - Bort will upload more types of error to the
+    [Integration Hub Processing Log](https://mflt.io/processing-log)
+    (`batterystats` parsing errors, file cleanup errors, and job failures).
+- Added a new [SDK Setting](https://mflt.io/sdk-settings) ("Allow OTA downloads
+  based on the Network Type") to allow configuring OTA downloads to never happen
+  on a roaming cellular network. This is unset by default, and will override the
+  existing "Allow OTA downloads on Metered Networks" setting if configured.
+
+### :chart_with_upwards_trend: Improvements
+
+- Removed usages of `launch` when calling coroutines - avoiding any potential
+  dangling work after a job/receiver has completed.
+
+### :house: Internal
+
+- Added support for V1 metrics to the Bort custom metrics database (this is not
+  used yet, outside of Bort Lite).
+
 ## v4.15.3 - May 20, 2024
 
 ### :chart_with_upwards_trend: Improvements

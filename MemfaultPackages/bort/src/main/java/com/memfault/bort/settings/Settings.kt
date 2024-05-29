@@ -155,7 +155,7 @@ interface StructuredLogSettings {
 
 interface OtaSettings {
     val updateCheckInterval: Duration
-    val downloadNetworkConstraint: NetworkConstraint
+    val downloadNetworkConstraint: NetworkType
 }
 
 interface StorageSettings {

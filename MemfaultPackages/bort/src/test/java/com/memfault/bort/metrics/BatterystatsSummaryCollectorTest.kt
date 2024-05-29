@@ -14,7 +14,7 @@ import com.memfault.bort.parsers.BatteryStatsSummaryParser.PowerUseItemData
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.PowerUseSummary
 import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.test.util.TestTemporaryFileFactory
-import io.mockk.every
+import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
@@ -27,7 +27,7 @@ import kotlin.time.Duration.Companion.seconds
 internal class BatterystatsSummaryCollectorTest {
     private val timeMs: Long = 123456789
     private val parser: BatteryStatsSummaryParser = mockk {
-        every { parse(any()) } answers { batteryStatsSummary }
+        coEvery { parse(any()) } answers { batteryStatsSummary }
     }
     private val settings = object : BatteryStatsSettings {
         override val dataSourceEnabled: Boolean = true

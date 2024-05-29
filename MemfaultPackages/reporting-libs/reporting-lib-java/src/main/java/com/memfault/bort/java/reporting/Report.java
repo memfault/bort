@@ -179,9 +179,11 @@ public class Report {
    *
    * @param name the name of the metric.
    * @param countInReport if true, includes a count of the number of events reported during
-   *                      the heartbeat period, in the the heartbeat report.
+   *                      the heartbeat period, in the heartbeat report.
+   * @param latestInReport if true, includes the latest event reported during the heartbeat period,
+   *                       in the heartbeat report.
    */
-  public Event event(String name, boolean countInReport) {
-    return new Event(name, reportType, countInReport);
+  public Event event(String name, boolean countInReport, boolean latestInReport) {
+    return new Event(name, reportType, countInReport, latestInReport);
   }
 }

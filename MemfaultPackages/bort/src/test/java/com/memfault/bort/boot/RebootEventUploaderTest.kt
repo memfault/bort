@@ -8,9 +8,8 @@ import com.memfault.bort.tokenbucket.RealTokenBucketStore
 import com.memfault.bort.tokenbucket.StoredTokenBucketMap
 import com.memfault.bort.uploader.EnqueueUpload
 import io.mockk.coEvery
-import io.mockk.every
+import io.mockk.coVerify
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
@@ -21,7 +20,7 @@ class RebootEventUploaderTest {
     @Test
     fun rateLimit() = runTest {
         val enqueueUpload = mockk<EnqueueUpload>(relaxed = true) {
-            every { enqueue(any(), any(), any()) } returns Unit
+            coEvery { enqueue(any(), any(), any()) } returns Result.success(mockk())
         }
 
         val dumpsterClient = mockk<DumpsterClient> {
@@ -49,6 +48,6 @@ class RebootEventUploaderTest {
             uploader.handleUntrackedBootCount(1)
         }
 
-        verify(exactly = TEST_BUCKET_CAPACITY) { enqueueUpload.enqueue(any(), any(), any()) }
+        coVerify(exactly = TEST_BUCKET_CAPACITY) { enqueueUpload.enqueue(any(), any(), any()) }
     }
 }

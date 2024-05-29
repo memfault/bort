@@ -4,13 +4,14 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isTrue
 import com.memfault.bort.FakeCombinedTimeProvider
-import com.memfault.bort.clientserver.MarMetadata.ClientChroniclerMarMetadata
+import com.memfault.bort.diagnostics.BortErrorType.BortRateLimit
+import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.settings.ChroniclerSettings
-import com.memfault.bort.uploader.EnqueueUpload
-import io.mockk.every
+import io.mockk.Called
+import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
-import io.mockk.verify
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.Test
 
@@ -20,17 +21,15 @@ class ClientRateLimitCollectorTest {
         override var marEnabled: Boolean = true
     }
 
-    private val enqueueUpload: EnqueueUpload = mockk {
-        every { enqueue(any(), any(), any()) } returns Unit
-    }
+    private val bortErrors: BortErrors = mockk(relaxed = true)
 
     private val collector = ClientRateLimitCollector(
         chroniclerSettings = chroniclerSettings,
-        enqueueUpload = enqueueUpload,
+        bortErrors = bortErrors,
     )
 
     @Test
-    fun `don't upload mar when mar disabled`() {
+    fun `don't upload mar when mar disabled`() = runTest {
         chroniclerSettings.marEnabled = false
 
         collector.collect(
@@ -40,21 +39,21 @@ class ClientRateLimitCollectorTest {
             ),
         )
 
-        verify(exactly = 0) { enqueueUpload.enqueue(any(), any(), any()) }
+        coVerify { bortErrors wasNot Called }
     }
 
     @Test
-    fun `don't upload mar when rate limit metric missing`() {
+    fun `don't upload mar when rate limit metric missing`() = runTest {
         collector.collect(
             collectionTime = FakeCombinedTimeProvider.now(),
             internalHeartbeatReportMetrics = emptyMap(),
         )
 
-        verify(exactly = 0) { enqueueUpload.enqueue(any(), any(), any()) }
+        coVerify { bortErrors wasNot Called }
     }
 
     @Test
-    fun `upload mar when rate limit metric present`() {
+    fun `upload mar when rate limit metric present`() = runTest {
         val now = FakeCombinedTimeProvider.now()
         collector.collect(
             collectionTime = now,
@@ -63,18 +62,13 @@ class ClientRateLimitCollectorTest {
             ),
         )
 
-        val manifest = slot<ClientChroniclerMarMetadata>()
+        val eventData = slot<Map<String, String>>()
 
-        verify(exactly = 1) {
-            enqueueUpload.enqueue(any(), capture(manifest), any())
+        coVerify(exactly = 1) {
+            bortErrors.add(any(), BortRateLimit, capture(eventData))
         }
 
-        assertThat(manifest.isCaptured).isTrue()
-        assertThat(manifest.captured.entries.isNotEmpty())
-
-        val entry = manifest.captured.entries.first()
-        assertThat(entry.eventType).isEqualTo("AndroidDeviceCollectionRateLimitExceeded")
-        assertThat(entry.source).isEqualTo("android-collection-rate-limits")
-        assertThat(entry.eventData).isEqualTo(mapOf("system_server_anr" to "1"))
+        assertThat(eventData.isCaptured).isTrue()
+        assertThat(eventData.captured).isEqualTo(mapOf("system_server_anr" to "1"))
     }
 }

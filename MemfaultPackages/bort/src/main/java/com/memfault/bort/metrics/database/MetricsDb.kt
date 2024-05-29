@@ -49,7 +49,7 @@ val PREVIOUS_METRICS_DB_NAMES = listOf(
     //     AutoMigration (from = 1, to = 2),
     // ],
 )
-@TypeConverters(Converters::class)
+@TypeConverters(MetricsConverters::class)
 abstract class MetricsDb : RoomDatabase() {
     abstract fun dao(): MetricsDao
 
@@ -170,7 +170,7 @@ data class Aggs(private val numeric: List<NumericAgg>, private val state: List<S
 /**
  * Provide explicit type converters for enums (otherwise Room will use enum name).
  */
-class Converters {
+class MetricsConverters {
     @TypeConverter
     fun decodeMetricType(value: String): MetricType? = MetricType.lookup[value]
 

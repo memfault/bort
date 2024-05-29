@@ -9,7 +9,9 @@ import androidx.work.workDataOf
 import com.memfault.bort.clientserver.CachedClientServerMode
 import com.memfault.bort.clientserver.isClient
 import com.memfault.bort.periodicWorkRequest
+import com.memfault.bort.requester.BortWorkInfo
 import com.memfault.bort.requester.PeriodicWorkRequester
+import com.memfault.bort.requester.asBortWorkInfo
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesMultibinding
@@ -92,6 +94,12 @@ class SettingsUpdateRequester @Inject constructor(
     override suspend fun enabled(settings: SettingsProvider): Boolean {
         // Client does not fetch settings - server will forward them
         return !cachedClientServerMode.isClient()
+    }
+
+    override suspend fun diagnostics(): BortWorkInfo {
+        return WorkManager.getInstance(application)
+            .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
+            .asBortWorkInfo("settings")
     }
 
     override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =

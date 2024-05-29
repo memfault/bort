@@ -29,6 +29,11 @@ import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.AbsoluteTimeProvider
 import com.memfault.bort.time.BaseAbsoluteTime
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.lastOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
 import java.io.BufferedWriter
 import java.io.File
@@ -200,8 +205,7 @@ class LogcatCollector @Inject constructor(
                 ).useFile { scrubbedFile, preventScrubbedDeletion ->
                     scrubbedFile.outputStream().bufferedWriter().use { scrubbedWriter ->
                         val scrubber = dataScrubber
-
-                        lines.toLogcatLines(command)
+                        lines.toLogcatLines(command).asFlow()
                             .onEach {
                                 selinuxViolationLogcatDetector.process(it, packageManagerReport)
                                 kernelOopsDetector.process(it)
@@ -209,8 +213,8 @@ class LogcatCollector @Inject constructor(
                             }
                             .map { it.scrub(scrubber, allowedUids) }
                             .onEach { it.writeTo(scrubbedWriter) }
-                            .lastOrNull { it.logTime != null }
-                            ?.logTime
+                            .mapNotNull { it.logTime }
+                            .lastOrNull()
                     }.also {
                         preventScrubbedDeletion()
                         scrubbedFile.renameTo(outputFile)

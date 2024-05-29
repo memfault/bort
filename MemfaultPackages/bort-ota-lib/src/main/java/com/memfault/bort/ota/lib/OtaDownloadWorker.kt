@@ -14,6 +14,7 @@ import androidx.work.WorkerParameters
 import com.memfault.bort.ota.lib.download.DownloadOtaService.Companion.setupForegroundNotification
 import com.memfault.bort.ota.lib.download.NOTIFICATION_ID
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.NoOpJobReporter
 import com.memfault.bort.shared.runAndTrackExceptions
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -35,7 +36,7 @@ class OtaDownloadWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, params) {
     private var lastReportedPercentage = -1
 
-    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "OtaDownloadWorker") {
+    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "OtaDownloadWorker", NoOpJobReporter) {
         downloadWorkerRun(updater, otaRulesProvider, isAbDevice, applicationContext, ::maybeSetForeground)
     }
 

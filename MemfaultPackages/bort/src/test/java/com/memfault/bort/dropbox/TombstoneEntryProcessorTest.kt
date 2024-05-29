@@ -17,10 +17,10 @@ import com.memfault.bort.uploader.EnqueueUpload
 import com.memfault.bort.uploader.HandleEventOfInterest
 import io.mockk.CapturingSlot
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -45,9 +45,9 @@ class TombstoneEntryProcessorTest {
         mockHandleEventOfInterest = mockk(relaxed = true)
 
         marMetadataSlot = slot()
-        every {
+        coEvery {
             mockEnqueueUpload.enqueue(any(), capture(marMetadataSlot), any())
-        } returns Unit
+        } returns Result.success(mockk())
 
         mockPackageManagerClient = mockk()
         builtInMetricsStore = BuiltinMetricsStore()
@@ -84,7 +84,7 @@ class TombstoneEntryProcessorTest {
         processor.process(mockEntry(text = EXAMPLE_TOMBSTONE))
         val metadata = marMetadataSlot.captured as MarMetadata.DropBoxMarMetadata
         assertEquals(listOf(PACKAGE_FIXTURE.toUploaderPackage()), metadata.packages)
-        verify(exactly = 1) { mockHandleEventOfInterest.handleEventOfInterest(any<BaseBootRelativeTime>()) }
+        coVerify(exactly = 1) { mockHandleEventOfInterest.handleEventOfInterest(any<BaseBootRelativeTime>()) }
     }
 
     @Test
@@ -105,8 +105,8 @@ class TombstoneEntryProcessorTest {
         processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "SYSTEM_TOMBSTONE"))
         allowedByRateLimit = false
         processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "SYSTEM_TOMBSTONE"))
-        verify(exactly = 1) { mockEnqueueUpload.enqueue(any(), any(), any()) }
-        verify(exactly = 1) {
+        coVerify(exactly = 1) { mockEnqueueUpload.enqueue(any(), any(), any()) }
+        coVerify(exactly = 1) {
             mockHandleEventOfInterest.handleEventOfInterest(any<BaseBootRelativeTime>())
         }
     }

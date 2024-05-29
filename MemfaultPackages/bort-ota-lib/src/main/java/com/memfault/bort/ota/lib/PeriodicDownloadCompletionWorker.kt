@@ -7,6 +7,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.memfault.bort.shared.NoOpJobReporter
 import com.memfault.bort.shared.runAndTrackExceptions
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -22,15 +23,16 @@ class PeriodicDownloadCompletionWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val updater: Updater,
 ) : CoroutineWorker(appContext, params) {
-    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "PeriodicSoftwareUpdateWorker") {
-        // This doesn't do anything except wake up the app.
+    override suspend fun doWork(): Result =
+        runAndTrackExceptions(jobName = "PeriodicSoftwareUpdateWorker", NoOpJobReporter) {
+            // This doesn't do anything except wake up the app.
 
-        if (updater.badCurrentUpdateState() !is State.UpdateDownloading) {
-            // If not downloading, then cancel this task (we only need it to run again if download hasn't finished).
-            cancel(appContext)
+            if (updater.badCurrentUpdateState() !is State.UpdateDownloading) {
+                // If not downloading, then cancel this task (we only need it to run again if download hasn't finished).
+                cancel(appContext)
+            }
+            Result.success()
         }
-        Result.success()
-    }
 
     companion object {
         fun schedule(context: Context) {

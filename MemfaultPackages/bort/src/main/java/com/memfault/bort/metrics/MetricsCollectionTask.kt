@@ -150,7 +150,7 @@ class MetricsCollectionTask @Inject constructor(
         )
     }
 
-    private fun uploadHighResMetrics(
+    private suspend fun uploadHighResMetrics(
         highResFile: File?,
         metricReport: MetricReport?,
     ) {
@@ -169,7 +169,7 @@ class MetricsCollectionTask @Inject constructor(
         enqueueUpload.enqueue(highResFile, metadata, collectionTime = combinedTimeProvider.now())
     }
 
-    private fun uploadHeartbeat(
+    private suspend fun uploadHeartbeat(
         batteryStatsFile: File?,
         collectionTime: CombinedTime,
         heartbeatInterval: Duration,

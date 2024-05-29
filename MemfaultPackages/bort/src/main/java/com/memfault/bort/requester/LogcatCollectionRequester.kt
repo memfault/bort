@@ -89,6 +89,12 @@ class LogcatCollectionRequester @Inject constructor(
             settings.logcatSettings.collectionMode == LogcatCollectionMode.PERIODIC
     }
 
+    override suspend fun diagnostics(): BortWorkInfo {
+        return WorkManager.getInstance(application)
+            .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
+            .asBortWorkInfo("logcat")
+    }
+
     override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
         old.logcatSettings.collectionInterval != new.logcatSettings.collectionInterval
 }

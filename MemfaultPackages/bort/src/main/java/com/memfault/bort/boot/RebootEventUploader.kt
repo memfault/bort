@@ -49,7 +49,7 @@ class RebootEventUploader @Inject constructor(
     private val enqueueUpload: EnqueueUpload,
 ) {
 
-    private fun createAndUploadCurrentRebootEvent(
+    private suspend fun createAndUploadCurrentRebootEvent(
         bootCount: Int,
         androidSysBootReason: String?,
     ) {

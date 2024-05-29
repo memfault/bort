@@ -41,9 +41,6 @@ class TestSettingsProvider @Inject constructor(
     fun override() = testOverrides.useTestSettingOverrides.getValue()
 
     override val httpApiSettings = object : HttpApiSettings by settings.httpApiSettings {
-        override val batchMarUploads: Boolean
-            get() = if (override()) false else settings.httpApiSettings.batchMarUploads
-
         // Specifically for Bort Lite tests, where the apk is targeting prod:
         override val deviceBaseUrl: String
             get() = "http://localhost:8000"

@@ -59,13 +59,172 @@ public final class MetricValue {
     this.version = version;
   }
 
+  private static boolean hasBool(JSONObject object, String field) {
+    if (object.has(field)) {
+      try {
+        object.getBoolean(field);
+        return true;
+      } catch (JSONException jsonException) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  private static boolean hasLong(JSONObject object, String field) {
+    if (object.has(field)) {
+      try {
+        object.getLong(field);
+        return true;
+      } catch (JSONException jsonException) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  private static boolean hasDouble(JSONObject object, String field) {
+    if (object.has(field)) {
+      try {
+        object.getDouble(field);
+        return true;
+      } catch (JSONException jsonException) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  private static boolean hasString(JSONObject object, String field) {
+    if (object.has(field)) {
+      try {
+        object.getString(field);
+        return true;
+      } catch (JSONException jsonException) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  private static boolean hasStringArray(JSONObject object, String field) {
+    if (object.has(field)) {
+      try {
+        JSONArray jsonArray = object.getJSONArray(field);
+        boolean isStringArray = true;
+        for (int i = 0; i < jsonArray.length(); i++) {
+          try {
+            jsonArray.getString(i);
+          } catch (JSONException jsonException) {
+            isStringArray = false;
+          }
+        }
+        return isStringArray;
+      } catch (JSONException jsonException) {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isCompliantV1(JSONObject object) {
+    return hasLong(object, MetricJsonFields.TIMESTAMP_MS)
+        && hasString(object, MetricJsonFields.REPORT_TYPE)
+        && hasString(object, MetricJsonFields.EVENT_NAME)
+        && (!object.has(MetricJsonFields.INTERNAL) || hasBool(object, MetricJsonFields.INTERNAL))
+        && hasStringArray(object, MetricJsonFields.AGGREGATIONS)
+        && (hasBool(object, MetricJsonFields.VALUE)
+        || hasDouble(object, MetricJsonFields.VALUE)
+        || hasString(object, MetricJsonFields.VALUE));
+  }
+
+  private static boolean isCompliantV2(JSONObject object) {
+    return isCompliantV1(object)
+        && hasString(object, MetricJsonFields.DATA_TYPE)
+        && hasString(object, MetricJsonFields.METRIC_TYPE)
+        && hasBool(object, MetricJsonFields.CARRY_OVER);
+  }
+
   /**
    * Parse json.
    */
   public static MetricValue fromJson(String json) throws JSONException {
     JSONObject object = new JSONObject(json);
-    // TODO handle versions here. What changed in V2?
 
+    int version = object.getInt(MetricJsonFields.VERSION);
+
+    if (version >= 2) {
+      if (!isCompliantV2(object)) {
+        throw new JSONException("MetricValue is not V2 compliant: " + json);
+      }
+
+      return fromJsonV2(object);
+    }
+
+    if (!isCompliantV1(object)) {
+      throw new JSONException("MetricValue is not V1 compliant: " + json);
+    }
+    return fromJsonV1(object);
+  }
+
+  private static MetricValue fromJsonV1(JSONObject object) throws JSONException {
+    JSONArray aggTypesArray = object.getJSONArray(MetricJsonFields.AGGREGATIONS);
+    List<AggregationType> aggTypes = new ArrayList<>();
+    for (int i = 0; i < aggTypesArray.length(); i++) {
+      AggregationType agg = AggregationType.fromString(aggTypesArray.getString(i));
+      if (agg != null) {
+        aggTypes.add(agg);
+      }
+    }
+
+    String stringVal = null;
+    Double doubleVal = null;
+    Boolean boolVal = null;
+    DataType dataType;
+    if (hasBool(object, MetricJsonFields.VALUE)) {
+      dataType = DataType.BOOLEAN;
+      boolVal = object.getBoolean(MetricJsonFields.VALUE);
+    } else if (hasDouble(object, MetricJsonFields.VALUE)) {
+      dataType = DataType.DOUBLE;
+      doubleVal = object.getDouble(MetricJsonFields.VALUE);
+    } else if (hasString(object, MetricJsonFields.VALUE)) {
+      dataType = DataType.STRING;
+      stringVal = object.getString(MetricJsonFields.VALUE);
+    } else {
+      throw new JSONException("Invalid DataType: " + object);
+    }
+
+    // We could improve the logic here, but hopefully this will push users to update their
+    // libraries instead.
+    MetricType metricType;
+    if (aggTypes.contains(NumericAgg.COUNT)) {
+      metricType = MetricType.COUNTER;
+    } else if (aggTypes.contains(NumericAgg.MIN)
+        || aggTypes.contains(NumericAgg.MEAN)
+        || aggTypes.contains(NumericAgg.MAX)
+        || aggTypes.contains(NumericAgg.SUM)) {
+      metricType = MetricType.GAUGE;
+    } else {
+      metricType = MetricType.PROPERTY;
+    }
+
+    return new MetricValue(
+        object.getString(MetricJsonFields.EVENT_NAME),
+        object.getString(MetricJsonFields.REPORT_TYPE),
+        aggTypes,
+        object.optBoolean(MetricJsonFields.INTERNAL),
+        metricType,
+        dataType,
+        /* carryOver */ false,
+        object.getLong(MetricJsonFields.TIMESTAMP_MS),
+        stringVal,
+        doubleVal,
+        boolVal,
+        object.getInt(MetricJsonFields.VERSION)
+    );
+  }
+
+  private static MetricValue fromJsonV2(JSONObject object) throws JSONException {
     JSONArray aggTypesArray = object.getJSONArray(MetricJsonFields.AGGREGATIONS);
     List<AggregationType> aggTypes = new ArrayList<>();
     for (int i = 0; i < aggTypesArray.length(); i++) {
@@ -95,7 +254,8 @@ public final class MetricValue {
     } else if (dataType == DataType.DOUBLE) {
       doubleVal = object.getDouble(MetricJsonFields.VALUE);
     } else if (dataType == DataType.BOOLEAN) {
-      boolVal = object.getString(MetricJsonFields.VALUE).equals("1");
+      boolVal = object.getString(MetricJsonFields.VALUE).equals("1")
+          || object.optBoolean(MetricJsonFields.VALUE);
     }
 
     return new MetricValue(

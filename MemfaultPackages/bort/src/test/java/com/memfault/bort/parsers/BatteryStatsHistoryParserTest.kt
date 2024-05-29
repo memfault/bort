@@ -1,5 +1,7 @@
 package com.memfault.bort.parsers
 
+import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsHistoryParseError
+import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
 import com.memfault.bort.metrics.HighResTelemetry.DataType.StringType
 import com.memfault.bort.metrics.HighResTelemetry.Datum
@@ -33,6 +35,9 @@ import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_RADIO
 import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_RUNNING
 import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_SCAN
 import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_SIGNAL_STRENGTH
+import io.mockk.Called
+import io.mockk.coVerify
+import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
@@ -46,6 +51,7 @@ class BatteryStatsHistoryParserTest {
         file.writeText(content)
         return file
     }
+    private val bortErrors: BortErrors = mockk(relaxed = true)
 
     private val BATTERYSTATS_FILE = """
         9,hsp,1,0,"Abort:Pending Wakeup Sources: 200f000.qcom,spmi:qcom,pm660@0:qpnp,fg battery qcom-step-chg "
@@ -221,10 +227,16 @@ class BatteryStatsHistoryParserTest {
 
     @Test
     fun testParser() {
-        val parser = BatteryStatsHistoryParser(createFile(BATTERYSTATS_FILE))
+        val parser = BatteryStatsHistoryParser(createFile(BATTERYSTATS_FILE), bortErrors)
         runTest {
             val result = parser.parseToCustomMetrics()
             assertEquals(EXPECTED_HRT, result.batteryStatsHrt)
+            coVerify {
+                bortErrors.add(
+                    BatteryStatsHistoryParseError,
+                    mapOf("error" to "parseEvent: NumberFormatException", "line" to "Bl=x"),
+                )
+            }
         }
     }
 
@@ -269,10 +281,11 @@ class BatteryStatsHistoryParserTest {
 
     @Test
     fun testAggregatesMatchBackend() {
-        val parser = BatteryStatsHistoryParser(createFile(AGGREGATE_FILE))
+        val parser = BatteryStatsHistoryParser(createFile(AGGREGATE_FILE), bortErrors)
         runTest {
             val result = parser.parseToCustomMetrics()
             assertEquals(EXPECTED_AGGREGATES, result.aggregatedMetrics)
+            coVerify { bortErrors wasNot Called }
         }
     }
 
@@ -288,11 +301,12 @@ class BatteryStatsHistoryParserTest {
 
     @Test
     fun testSocAggregates() {
-        val parser = BatteryStatsHistoryParser(createFile(SOC_FILE))
+        val parser = BatteryStatsHistoryParser(createFile(SOC_FILE), bortErrors)
         runTest {
             val result = parser.parseToCustomMetrics()
             assertEquals(JsonPrimitive(80000.0), result.aggregatedMetrics["battery_discharge_duration_ms"])
             assertEquals(JsonPrimitive(42.0), result.aggregatedMetrics["battery_soc_pct_drop"])
+            coVerify { bortErrors wasNot Called }
         }
     }
 
@@ -305,11 +319,12 @@ class BatteryStatsHistoryParserTest {
 
     @Test
     fun testNoSocAggregates() {
-        val parser = BatteryStatsHistoryParser(createFile(SOC_FILE_NO_DISCHARGE))
+        val parser = BatteryStatsHistoryParser(createFile(SOC_FILE_NO_DISCHARGE), bortErrors)
         runTest {
             val result = parser.parseToCustomMetrics()
             assertFalse(result.aggregatedMetrics.containsKey("battery_discharge_duration_ms"))
             assertFalse(result.aggregatedMetrics.containsKey("battery_soc_pct_drop"))
+            coVerify { bortErrors wasNot Called }
         }
     }
 
@@ -322,11 +337,12 @@ class BatteryStatsHistoryParserTest {
 
     @Test
     fun testDischargeNoDrop() {
-        val parser = BatteryStatsHistoryParser(createFile(SOC_FILE_DISCHARGE_NO_DROP))
+        val parser = BatteryStatsHistoryParser(createFile(SOC_FILE_DISCHARGE_NO_DROP), bortErrors)
         runTest {
             val result = parser.parseToCustomMetrics()
             assertEquals(JsonPrimitive(50000.0), result.aggregatedMetrics["battery_discharge_duration_ms"])
             assertEquals(JsonPrimitive(0.0), result.aggregatedMetrics["battery_soc_pct_drop"])
+            coVerify { bortErrors wasNot Called }
         }
     }
 
@@ -341,7 +357,7 @@ class BatteryStatsHistoryParserTest {
 
     @Test
     fun handlesEmptyEvents() {
-        val parser = BatteryStatsHistoryParser(createFile(TRAILING_COMMAS_EMPTY_EVENTS))
+        val parser = BatteryStatsHistoryParser(createFile(TRAILING_COMMAS_EMPTY_EVENTS), bortErrors)
         runTest {
             val result = parser.parseToCustomMetrics()
             assertEquals(1, result.batteryStatsHrt.size)

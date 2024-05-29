@@ -28,6 +28,10 @@ import com.memfault.bort.uploader.LogcatFileUploadPayload
 import com.memfault.bort.uploader.PendingFileUploadEntry
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.fold
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import okio.ByteString.Companion.toByteString
 import java.io.File
 import java.security.MessageDigest
@@ -92,7 +96,7 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
             ).useFile { file, preventDeletion ->
                 file.outputStream().bufferedWriter().use { outputWriter ->
                     val md5 = MessageDigest.getInstance("MD5")
-                    val (timeStart, timeEnd) = lines.toLogcatLines(continuousLogcatCommand)
+                    val (timeStart, timeEnd) = lines.toLogcatLines(continuousLogcatCommand).asFlow()
                         .map { it.scrub(dataScrubber, allowedUids) }
                         .onEach {
                             selinuxViolationLogcatDetector.process(it, packageManagerReport)

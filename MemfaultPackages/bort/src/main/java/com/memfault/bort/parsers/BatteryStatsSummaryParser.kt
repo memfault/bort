@@ -1,6 +1,8 @@
 package com.memfault.bort.parsers
 
 import com.memfault.bort.BortJson
+import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsSummaryParseError
+import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTimeProvider
 import kotlinx.serialization.Serializable
@@ -12,6 +14,7 @@ import javax.inject.Inject
  */
 class BatteryStatsSummaryParser @Inject constructor(
     private val timeProvider: AbsoluteTimeProvider,
+    private val bortErrors: BortErrors,
 ) {
     private data class ParserContext(
         val uids: MutableMap<Int, String> = mutableMapOf(),
@@ -19,9 +22,10 @@ class BatteryStatsSummaryParser @Inject constructor(
         var dischargeData: DischargeData? = null,
         val powerUseItemData: MutableMap<String, PowerUseItemData> = mutableMapOf(),
         var powerUseSummary: PowerUseSummary? = null,
+        var reportedErrorMetric: Boolean = false,
     )
 
-    fun parse(file: File): BatteryStatsSummary? {
+    suspend fun parse(file: File): BatteryStatsSummary? {
         val context = ParserContext()
         context.apply {
             file.bufferedReader().useLines {
@@ -39,8 +43,10 @@ class BatteryStatsSummaryParser @Inject constructor(
                         }
                     } catch (e: IndexOutOfBoundsException) {
                         Logger.i("BatteryStatsSummaryParser $line", e)
+                        reportError("IndexOutOfBoundsException", line)
                     } catch (e: NumberFormatException) {
                         Logger.i("BatteryStatsSummaryParser $line", e)
+                        reportError("NumberFormatException", line)
                     }
                 }
             }
@@ -89,6 +95,12 @@ class BatteryStatsSummaryParser @Inject constructor(
             screenOffRealtimeMs = entries[BATTERY_STATS_INDEX_SCREEN_OFF_REALTIME].toLong(),
             estimatedBatteryCapacity = entries[BATTERY_STATS_INDEX_ESTIMATED_BATTERY_CAPACITY].toDouble(),
         )
+    }
+
+    private suspend fun ParserContext.reportError(error: String, line: String) {
+        if (reportedErrorMetric) return
+        reportedErrorMetric = true
+        bortErrors.add(BatteryStatsSummaryParseError, mapOf("error" to error, "line" to line))
     }
 
     @Serializable

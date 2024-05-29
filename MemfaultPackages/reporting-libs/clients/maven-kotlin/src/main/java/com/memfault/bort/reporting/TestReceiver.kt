@@ -46,7 +46,7 @@ class TestReceiver : BroadcastReceiver() {
                     .numberProperty("reporting-maven-kotlin-np")
                     .update(200L)
                 Reporting.report()
-                    .event("reporting-maven-kotlin-event", true)
+                    .event("reporting-maven-kotlin-event", countInReport = true)
                     .add("evented")
             }
         }

@@ -1,5 +1,10 @@
 package com.memfault.bort.settings
 
+import androidx.work.NetworkType
+import androidx.work.NetworkType.CONNECTED
+import androidx.work.NetworkType.UNMETERED
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.AndroidAppIdScrubbingRule
 import com.memfault.bort.BortJson
 import com.memfault.bort.CredentialScrubbingRule
@@ -15,9 +20,10 @@ import com.memfault.bort.time.boxed
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.serialization.SerializationException
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
@@ -29,10 +35,7 @@ class DynamicSettingsProviderTest {
 
     @Test
     fun testParseRemoteSettings() {
-        assertEquals(
-            EXPECTED_SETTINGS,
-            SETTINGS_FIXTURE.toSettings(),
-        )
+        assertThat(SETTINGS_FIXTURE.toSettings()).isEqualTo(EXPECTED_SETTINGS)
     }
 
     /**
@@ -45,10 +48,7 @@ class DynamicSettingsProviderTest {
      */
     @Test
     fun testParseRemoteSettingsWithMissingFields() {
-        assertEquals(
-            EXPECTED_SETTINGS_DEFAULT,
-            SETTINGS_FIXTURE_WITH_MISSING_FIELDS.toSettings(),
-        )
+        assertThat(SETTINGS_FIXTURE_WITH_MISSING_FIELDS.toSettings()).isEqualTo(EXPECTED_SETTINGS_DEFAULT)
     }
 
     @Test
@@ -76,15 +76,15 @@ class DynamicSettingsProviderTest {
         )
 
         // The first call will use the value in resources
-        assertEquals(LogLevel.VERBOSE, settings.minLogcatLevel)
+        assertThat(settings.minLogcatLevel).isEqualTo(LogLevel.VERBOSE)
 
         // The second call will still operate on a cached settings value
-        assertEquals(LogLevel.VERBOSE, settings.minLogcatLevel)
+        assertThat(settings.minLogcatLevel).isEqualTo(LogLevel.VERBOSE)
 
         // This will cause settings to be reconstructed on the next call, which will
         // read the new min_log_level from shared preferences
         settings.invalidate()
-        assertEquals(LogLevel.INFO, settings.minLogcatLevel)
+        assertThat(settings.minLogcatLevel).isEqualTo(LogLevel.INFO)
     }
 
     @Test
@@ -96,7 +96,7 @@ class DynamicSettingsProviderTest {
             override fun get(): FetchedSettings = SETTINGS_FIXTURE.toSettings()
         }
         val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities, mockk(), mockk(), projectKeyProvider)
-        assertEquals(CONTINUOUS, provider.logcatSettings.collectionMode)
+        assertThat(provider.logcatSettings.collectionMode).isEqualTo(CONTINUOUS)
     }
 
     @Test
@@ -110,7 +110,39 @@ class DynamicSettingsProviderTest {
 
         val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities, mockk(), mockk(), projectKeyProvider)
 
-        assertEquals(PERIODIC, provider.logcatSettings.collectionMode)
+        assertThat(provider.logcatSettings.collectionMode).isEqualTo(PERIODIC)
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = [true, false])
+    fun `otaDownloadNetworkConstraint default UNSET`(allowMeteredConnection: Boolean) {
+        val defaultSettings = SETTINGS_FIXTURE.toSettings()
+            .copy(otaDownloadNetworkConstraintAllowMeteredConnection = allowMeteredConnection)
+
+        val prefProvider = object : ReadonlyFetchedSettingsProvider {
+            override fun get(): FetchedSettings = defaultSettings
+        }
+
+        val provider = DynamicSettingsProvider(prefProvider, mockk(), mockk(), mockk(), projectKeyProvider)
+
+        assertThat(provider.otaSettings.downloadNetworkConstraint)
+            .isEqualTo(if (allowMeteredConnection) CONNECTED else UNMETERED)
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["NOT_ROAMING", "CONNECTED", "UNMETERED"])
+    fun `otaDownloadNetworkConstraint override NetworkType`(networkType: String) {
+        val defaultSettings = SETTINGS_FIXTURE.toSettings()
+            .copy(otaDownloadNetworkConstraint = networkType)
+
+        val prefProvider = object : ReadonlyFetchedSettingsProvider {
+            override fun get(): FetchedSettings = defaultSettings
+        }
+
+        val provider = DynamicSettingsProvider(prefProvider, mockk(), mockk(), mockk(), projectKeyProvider)
+
+        assertThat(provider.otaSettings.downloadNetworkConstraint)
+            .isEqualTo(NetworkType.valueOf(networkType))
     }
 }
 

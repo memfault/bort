@@ -100,9 +100,9 @@ fun PendingFileUploadEntry.TimeSpan.contains(time: ElapsedRealtime): Boolean =
     time >= start.duration && time < end.duration
 
 interface HandleEventOfInterest {
-    fun handleEventOfInterest(bootRelativeEventTime: BaseBootRelativeTime)
-    fun handleEventOfInterest(time: ElapsedRealtime)
-    fun handleEventOfInterest(absoluteTime: BaseAbsoluteTime)
+    suspend fun handleEventOfInterest(bootRelativeEventTime: BaseBootRelativeTime)
+    suspend fun handleEventOfInterest(time: ElapsedRealtime)
+    suspend fun handleEventOfInterest(absoluteTime: BaseAbsoluteTime)
 }
 
 /**
@@ -143,7 +143,7 @@ class FileUploadHoldingArea @Inject constructor(
     fun add(entry: PendingFileUploadEntry) {
         lock.withLock {
             if (eventTimes.any(entry.timeSpan.spanWithMargin()::contains)) {
-                enqueueUpload.enqueueLogcatUpload(entry = entry)
+                uploadEntry(entry = entry)
             } else {
                 entries = entries + listOf(entry)
                 persist()
@@ -156,26 +156,25 @@ class FileUploadHoldingArea @Inject constructor(
      * Records the time of the event of interest, prunes old event times that have outlived their TTL,
      * and checks, triggers and cleans pending file uploads.
      */
-    override fun handleEventOfInterest(bootRelativeEventTime: BaseBootRelativeTime) =
+    override suspend fun handleEventOfInterest(bootRelativeEventTime: BaseBootRelativeTime) =
         handleEventOfInterest(bootRelativeEventTime.elapsedRealtime.duration)
 
-    override fun handleEventOfInterest(time: ElapsedRealtime) {
+    override suspend fun handleEventOfInterest(time: ElapsedRealtime) {
         lock.withLock {
             eventTimes = (eventTimes.filter { it.eventTimeStillAliveAt(time) } + listOf(time))
                 .takeLast(settings.maxStoredEventsOfInterest)
             entries = entries.filter { entry ->
-                entry.timeSpan.spanWithMargin().let {
-                    if (it.contains(time)) {
-                        false.also {
-                            enqueueUpload.enqueueLogcatUpload(entry = entry)
-                        }
-                    } else if (it.shouldBeDeletedAt(time)) {
-                        false.also {
-                            removeEntry(entry)
-                        }
-                    } else {
-                        true
+                val timeSpan = entry.timeSpan.spanWithMargin()
+                if (timeSpan.contains(time)) {
+                    false.also {
+                        uploadEntry(entry = entry)
                     }
+                } else if (timeSpan.shouldBeDeletedAt(time)) {
+                    false.also {
+                        removeEntry(entry)
+                    }
+                } else {
+                    true
                 }
             }
             persist()
@@ -183,7 +182,7 @@ class FileUploadHoldingArea @Inject constructor(
         handleTimeout(combinedTimeProvider.now().elapsedRealtime.duration)
     }
 
-    override fun handleEventOfInterest(absoluteTime: BaseAbsoluteTime) {
+    override suspend fun handleEventOfInterest(absoluteTime: BaseAbsoluteTime) {
         val millisAgo = maxOf(0, System.currentTimeMillis() - absoluteTime.timestamp.toEpochMilli())
         val elapsedRealtime = SystemClock.elapsedRealtime() - millisAgo
         handleEventOfInterest(elapsedRealtime.milliseconds)
@@ -230,6 +229,10 @@ class FileUploadHoldingArea @Inject constructor(
             persist()
         }
 
+    private fun uploadEntry(entry: PendingFileUploadEntry) = runBlocking {
+        enqueueUpload.enqueueLogcatUpload(entry = entry)
+    }
+
     private fun removeEntry(entry: PendingFileUploadEntry) = runBlocking {
         // Only keep logs that didn't overlap an event, if (1) we are configured to store them, or, (2) we are in a
         // logging resolution which would upload them immediately.
@@ -252,7 +255,7 @@ class FileUploadHoldingArea @Inject constructor(
         copy(end = BoxedElapsedRealtime(end.duration + settings.trailingMargin))
 
     companion object {
-        fun EnqueueUpload.enqueueLogcatUpload(
+        suspend fun EnqueueUpload.enqueueLogcatUpload(
             entry: PendingFileUploadEntry,
             overrideDebuggingResolution: Resolution? = null,
         ) {

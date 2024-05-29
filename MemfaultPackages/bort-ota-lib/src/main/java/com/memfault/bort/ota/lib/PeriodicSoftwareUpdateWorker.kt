@@ -12,6 +12,7 @@ import androidx.work.WorkerParameters
 import com.memfault.bort.DEV_MODE_DISABLED
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.NoOpJobReporter
 import com.memfault.bort.shared.runAndTrackExceptions
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -26,10 +27,11 @@ class PeriodicSoftwareUpdateWorker @AssistedInject constructor(
     @Assisted params: WorkerParameters,
     private val updater: Updater,
 ) : CoroutineWorker(appContext, params) {
-    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "PeriodicSoftwareUpdateWorker") {
-        updater.perform(Action.CheckForUpdate(background = true))
-        Result.success()
-    }
+    override suspend fun doWork(): Result =
+        runAndTrackExceptions(jobName = "PeriodicSoftwareUpdateWorker", NoOpJobReporter) {
+            updater.perform(Action.CheckForUpdate(background = true))
+            Result.success()
+        }
 
     companion object {
         fun schedule(
