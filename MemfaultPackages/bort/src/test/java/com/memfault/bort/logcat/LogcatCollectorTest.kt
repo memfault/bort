@@ -20,6 +20,7 @@ import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BaseAbsoluteTime
 import com.memfault.bort.time.boxed
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -181,7 +182,7 @@ class LogcatCollectorTest {
             startTimeProvider.nextStart,
         )
         verify { kernelOopsDetector.process(any()) }
-        verify(exactly = 1) { kernelOopsDetector.finish(any()) }
+        coVerify(exactly = 1) { kernelOopsDetector.finish(any()) }
     }
 
     @Test
@@ -194,7 +195,7 @@ class LogcatCollectorTest {
         )
         assertNotNull(result)
         verify { kernelOopsDetector.process(any()) }
-        verify(exactly = 1) { kernelOopsDetector.finish(any()) }
+        coVerify(exactly = 1) { kernelOopsDetector.finish(any()) }
     }
 
     @Test
@@ -213,7 +214,7 @@ class LogcatCollectorTest {
         )
         assertNotNull(result)
         verify { kernelOopsDetector.process(any()) }
-        verify(exactly = 1) { kernelOopsDetector.finish(any()) }
+        coVerify(exactly = 1) { kernelOopsDetector.finish(any()) }
     }
 
     @Test

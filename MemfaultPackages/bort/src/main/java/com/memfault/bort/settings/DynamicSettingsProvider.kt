@@ -1,5 +1,6 @@
 package com.memfault.bort.settings
 
+import androidx.work.NetworkType
 import com.memfault.bort.BuildConfig
 import com.memfault.bort.DataScrubbingRule
 import com.memfault.bort.DevMode
@@ -295,11 +296,13 @@ open class DynamicSettingsProvider @Inject constructor(
     override val otaSettings = object : OtaSettings {
         override val updateCheckInterval: Duration
             get() = settings.otaUpdateCheckInterval.duration
-        override val downloadNetworkConstraint: NetworkConstraint
-            get() = if (settings.otaDownloadNetworkConstraintAllowMeteredConnection) {
-                CONNECTED
+        override val downloadNetworkConstraint: NetworkType
+            get() = NetworkType.entries.firstOrNull {
+                it.name.equals(settings.otaDownloadNetworkConstraint, ignoreCase = true)
+            } ?: if (settings.otaDownloadNetworkConstraintAllowMeteredConnection) {
+                NetworkType.CONNECTED
             } else {
-                UNMETERED
+                NetworkType.UNMETERED
             }
     }
 

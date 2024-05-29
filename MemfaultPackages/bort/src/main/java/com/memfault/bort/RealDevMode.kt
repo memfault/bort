@@ -35,7 +35,6 @@ class RealDevMode @Inject constructor(
         newEnabled: Boolean,
         context: Context,
     ) {
-        Logger.d("Dev mode = $newEnabled")
         devModePreferenceProvider.setValue(newEnabled)
         updateMetric()
         if (newEnabled) {
@@ -49,6 +48,7 @@ class RealDevMode @Inject constructor(
             justBooted = false,
         )
         dropBoxEntryAddedReceiver.get().initialize()
+        Logger.d("Dev mode = $newEnabled")
     }
 
     override fun updateMetric() {

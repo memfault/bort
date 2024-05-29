@@ -1,12 +1,11 @@
 package com.memfault.bort.chronicler
 
-import com.memfault.bort.TimezoneWithId
-import com.memfault.bort.clientserver.MarMetadata.ClientChroniclerMarMetadata
+import com.memfault.bort.diagnostics.BortErrorType.BortRateLimit
+import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.metrics.RATE_LIMIT_APPLIED
 import com.memfault.bort.settings.ChroniclerSettings
 import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.toAbsoluteTime
-import com.memfault.bort.uploader.EnqueueUpload
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import javax.inject.Inject
@@ -15,9 +14,9 @@ import kotlin.math.roundToLong
 class ClientRateLimitCollector
 @Inject constructor(
     private val chroniclerSettings: ChroniclerSettings,
-    private val enqueueUpload: EnqueueUpload,
+    private val bortErrors: BortErrors,
 ) {
-    fun collect(
+    suspend fun collect(
         collectionTime: CombinedTime,
         internalHeartbeatReportMetrics: Map<String, JsonPrimitive>,
     ) {
@@ -38,17 +37,12 @@ class ClientRateLimitCollector
             }
 
         if (rateLimitHits.isNotEmpty()) {
-            val entry = ClientChroniclerEntry(
-                eventType = "AndroidDeviceCollectionRateLimitExceeded",
-                source = "android-collection-rate-limits",
-                eventData = rateLimitHits.associate { it.tag to it.count.toString() },
-                entryTime = collectionTime.timestamp.toAbsoluteTime(),
-                timezone = TimezoneWithId.deviceDefault,
-            )
-            enqueueUpload.enqueue(
-                file = null,
-                metadata = ClientChroniclerMarMetadata(entries = listOf(entry)),
-                collectionTime = collectionTime,
+            bortErrors.add(
+                collectionTime.timestamp.toAbsoluteTime(),
+                BortRateLimit,
+                rateLimitHits.associate {
+                    it.tag to it.count.toString()
+                },
             )
         }
     }

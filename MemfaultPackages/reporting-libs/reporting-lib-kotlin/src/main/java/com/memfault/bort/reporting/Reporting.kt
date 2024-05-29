@@ -230,17 +230,21 @@ public object Reporting {
          *
          * @param name the name of the metric.
          * @param countInReport if true, includes a count of the number of events reported during the heartbeat period,
-         *                      in the the heartbeat report.
+         *                      in the heartbeat report.
+         * @param latestInReport if true, includes the latest event reported during the heartbeat period, in the
+         *                       heartbeat report.
          */
         @JvmOverloads
         public fun event(
             name: String,
             countInReport: Boolean = false,
+            latestInReport: Boolean = false,
             internal: Boolean = false,
         ): Event = Event(
             name = name,
             reportType = reportType,
             countInReport = countInReport,
+            latestInReport = latestInReport,
             internal = internal,
         )
     }
@@ -493,12 +497,16 @@ public object Reporting {
         override val name: String,
         override val reportType: String,
         private val countInReport: Boolean,
+        private val latestInReport: Boolean,
         override val internal: Boolean,
     ) : Metric() {
         override val metricType = EVENT
         override val dataType = STRING
         override val carryOverValue = false
-        override val aggregations = if (countInReport) listOf(COUNT) else emptyList()
+        override val aggregations = listOfNotNull<AggregationType>(
+            if (countInReport) COUNT else null,
+            if (latestInReport) StateAgg.LATEST_VALUE else null,
+        )
 
         @JvmOverloads
         public fun add(

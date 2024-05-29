@@ -145,6 +145,13 @@
             android:authorities="com.memfault.bort.metrics"
             android:exported="true"
             tools:ignore="ExportedContentProvider" />
+
+      <provider
+          android:name=".diagnostics.BortDiagnosticsProvider"
+          android:authorities="com.memfault.bort.diagnostics"
+          android:permission="android.permission.DUMP"
+          android:exported="true"
+          tools:ignore="ExportedContentProvider" />
     </application>
 
 </manifest>

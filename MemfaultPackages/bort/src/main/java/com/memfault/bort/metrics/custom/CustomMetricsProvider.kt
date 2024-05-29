@@ -24,7 +24,12 @@ class CustomMetricsProvider : ContentProvider() {
         fun bortSystemCapabilities(): BortSystemCapabilities
     }
 
-    fun entryPoint() = EntryPointAccessors.fromApplication(context!!, CustomMetricsProviderEntryPoint::class.java)
+    val entryPoint: CustomMetricsProviderEntryPoint by lazy {
+        EntryPointAccessors.fromApplication(
+            context!!,
+            CustomMetricsProviderEntryPoint::class.java,
+        )
+    }
 
     override fun onCreate(): Boolean {
         return true
@@ -41,7 +46,7 @@ class CustomMetricsProvider : ContentProvider() {
     override fun getType(uri: Uri): String? = null
 
     override fun insert(uri: Uri, values: ContentValues?): Uri? {
-        if (!entryPoint().bortSystemCapabilities().useBortMetricsDb()) {
+        if (!entryPoint.bortSystemCapabilities().useBortMetricsDb()) {
             Logger.v("Not processing metric: Bort Metrics DB disabled")
             return null
         }
@@ -58,7 +63,7 @@ class CustomMetricsProvider : ContentProvider() {
             val metricValue = MetricValue.fromJson(metricJson)
             Logger.test("CustomMetricsProvider received: $metricValue")
             runBlocking {
-                entryPoint().customMetrics().add(metricValue)
+                entryPoint.customMetrics().add(metricValue)
             }
         } catch (e: JSONException) {
             Logger.w("CustomMetricsProvider: error deserializing metric", e)

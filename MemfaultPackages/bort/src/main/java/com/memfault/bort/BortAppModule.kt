@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.content.res.Resources
 import androidx.preference.PreferenceManager
 import com.memfault.bort.dagger.InjectSet
+import com.memfault.bort.diagnostics.BortErrorsDb
 import com.memfault.bort.http.RetrofitInterceptor
 import com.memfault.bort.logcat.KernelOopsDetector
 import com.memfault.bort.logcat.NoopLogcatLineProcessor
@@ -579,6 +580,10 @@ abstract class BortAppModule {
         @Singleton
         @Provides
         fun metricsDb(application: Application) = MetricsDb.create(application)
+
+        @Singleton
+        @Provides
+        fun bortErrorsDb(application: Application) = BortErrorsDb.create(application)
 
         @Provides
         fun projectKeySyspropName() = ProjectKeySyspropName { BuildConfig.PROJECT_KEY_SYSPROP }

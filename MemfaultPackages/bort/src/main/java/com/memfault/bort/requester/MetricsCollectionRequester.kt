@@ -63,11 +63,17 @@ class MetricsCollectionRequester @Inject constructor(
     private val metricsSettings: MetricsSettings,
     private val bootRelativeTimeProvider: BootRelativeTimeProvider,
 ) : PeriodicWorkRequester() {
-    override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
+    override suspend fun startPeriodic(
+        justBooted: Boolean,
+        settingsChanged: Boolean,
+    ) {
         restartPeriodicCollection(resetLastHeartbeatTime = justBooted, collectImmediately = false)
     }
 
-    fun restartPeriodicCollection(resetLastHeartbeatTime: Boolean, collectImmediately: Boolean) {
+    fun restartPeriodicCollection(
+        resetLastHeartbeatTime: Boolean,
+        collectImmediately: Boolean,
+    ) {
         val collectionInterval = maxOf(MINIMUM_COLLECTION_INTERVAL, metricsSettings.collectionInterval)
         Logger.test("Collecting metrics every ${collectionInterval.toDouble(DurationUnit.MINUTES)} minutes")
 
@@ -91,6 +97,15 @@ class MetricsCollectionRequester @Inject constructor(
         return settings.metricsSettings.dataSourceEnabled
     }
 
-    override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
+    override suspend fun diagnostics(): BortWorkInfo {
+        return WorkManager.getInstance(application)
+            .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
+            .asBortWorkInfo("metrics")
+    }
+
+    override suspend fun parametersChanged(
+        old: SettingsProvider,
+        new: SettingsProvider,
+    ): Boolean =
         old.metricsSettings.collectionInterval != new.metricsSettings.collectionInterval
 }

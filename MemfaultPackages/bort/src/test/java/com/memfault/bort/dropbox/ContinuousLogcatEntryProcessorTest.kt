@@ -22,6 +22,7 @@ import com.memfault.bort.uploader.FileUploadHoldingArea
 import com.memfault.bort.uploader.PendingFileUploadEntry
 import io.mockk.CapturingSlot
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -112,7 +113,7 @@ class ContinuousLogcatEntryProcessorTest {
     @Test
     fun `happy path`() = withProcessedEntry {
         verify { mockKernelOopsDetector.process(any()) }
-        verify(exactly = 1) { mockKernelOopsDetector.finish(any()) }
+        coVerify(exactly = 1) { mockKernelOopsDetector.finish(any()) }
         verify(exactly = 1) { mockFileUploadingArea.add(any()) }
         assertTrue(addedFileSlot.isCaptured)
 

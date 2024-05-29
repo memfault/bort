@@ -15,7 +15,7 @@ import subprocess
 import sys
 import tempfile
 from string import Template
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 LOG_FILE = "validate-sdk-integration.log"
 
@@ -364,6 +364,22 @@ def _get_adb_shell_cmd_output_and_errors(
 ) -> Tuple[Optional[str], List[str]]:
     return _get_shell_cmd_output_and_errors(
         description=description, cmd=_create_adb_command(("shell", *cmd), device=device)
+    )
+
+
+def _query_provider(uri: str, device: Optional[str] = None) -> Tuple[Optional[str], List[str]]:
+    return _get_shell_cmd_output_and_errors(
+        description="contentprovider",
+        cmd=_create_adb_command(("shell", "content", "query", "--uri", uri), device=device),
+    )
+
+
+def _query_jobscheduler(
+    package: str, device: Optional[str] = None
+) -> Tuple[Optional[str], List[str]]:
+    return _get_shell_cmd_output_and_errors(
+        description="jobscheduler",
+        cmd=_create_adb_command(("shell", "dumpsys", "jobscheduler", package), device=device),
     )
 
 
@@ -753,12 +769,20 @@ class DevMode(Command):
 
 
 class ValidateConnectedDevice(Command):
-    def __init__(self, bort_app_id, bort_ota_app_id=None, device=None, vendor_feature_name=None):
+    def __init__(
+        self,
+        bort_app_id,
+        bort_ota_app_id=None,
+        device=None,
+        vendor_feature_name=None,
+        ignore_enabled=False,
+    ):
         self._bort_app_id = bort_app_id
         self._bort_ota_app_id = bort_ota_app_id
         self._device = device
         self._vendor_feature_name = vendor_feature_name or bort_app_id
         self._errors = []
+        self._ignore_enabled = ignore_enabled
 
     @classmethod
     def register(cls, create_parser):
@@ -771,6 +795,7 @@ class ValidateConnectedDevice(Command):
         parser.add_argument(
             "--vendor-feature-name", type=str, help="Defaults to the provided Application ID"
         )
+        parser.add_argument("--ignore-enabled", action="store_true")
 
     def _getprop(self, key: str) -> Optional[str]:
         output, errors = _get_adb_shell_cmd_output_and_errors(
@@ -991,6 +1016,56 @@ class ValidateConnectedDevice(Command):
 
         logging.info("\tTest passed")
 
+    def _query_bort_diagnostics(self) -> Tuple[Dict[str, str], List[str]]:
+        output, errors = _query_provider(
+            "content://com.memfault.bort.diagnostics/query", self._device
+        )
+        if not output:
+            self._errors.append(_format_error("Error querying Bort diagnostics provider", *errors))
+            return {}, []
+        """
+        Example output:
+Row: 0 key=enabled, value=true
+Row: 1 key=requires_runtime_enable, value=true
+        """
+        diagnostic_entries: Dict[str, str] = {}
+        errors: List[str] = []
+        for entry in re.findall(r"Row: \d+ key=(\S+), value=(.*)", output, re.RegexFlag.MULTILINE):
+            key = entry[0]
+            value = entry[1]
+            if key == "bort_error":
+                errors.append(value)
+            else:
+                diagnostic_entries[key] = value
+        return diagnostic_entries, errors
+
+    def _validate_bort_diagnostics(self):
+        diagnostics, errors = self._query_bort_diagnostics()
+        logging.info("Bort Diagnostics:")
+        for key, value in diagnostics.items():
+            logging.info("   %s = %s", key, value)
+        if not self._ignore_enabled:
+            if diagnostics.get("enabled", None) != "true":
+                self._errors.append(
+                    "Bort is not enabled. Bort should be enabled to run the validation tool. To ignore this, run again with --ignore-enabled"
+                )
+        if len(errors) > 0:
+            logging.warning("\nBort Errors:")
+            for error in errors:
+                logging.warning("   %s", error)
+
+    def _validate_jobs(self):
+        output, errors = _query_jobscheduler(self._bort_app_id, self._device)
+        if not output:
+            self._errors.append(_format_error("Error querying Bort diagnostics provider", *errors))
+            return
+
+        # We can't identify jobs (there is no tag or ID which we can map to Bort), so just check for all unsatisfied
+        # constraints.
+        for line in output.splitlines():
+            if line.strip().startswith("Unsatisfied constraints:"):
+                logging.info(line)
+
     def run(self):
         should_rollover = os.path.exists(LOG_FILE) and os.path.getsize(LOG_FILE) > 0
         fh = logging.handlers.RotatingFileHandler(LOG_FILE, backupCount=5)
@@ -1078,6 +1153,9 @@ class ValidateConnectedDevice(Command):
                 device=self._device,
             )
         )
+
+        self._validate_bort_diagnostics()
+        self._validate_jobs()
 
         if self._errors:
             for error in self._errors:

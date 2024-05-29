@@ -8,6 +8,7 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.NoOpJobReporter
 import com.memfault.bort.shared.runAndTrackExceptions
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -50,7 +51,7 @@ class ReporterSelfTesterWorker
     @Assisted private val workerParameters: WorkerParameters,
     private val tester: ReporterSelfTester,
 ) : CoroutineWorker(appContext, workerParameters) {
-    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "SelfTestWorker") {
+    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "SelfTestWorker", NoOpJobReporter) {
         Logger.test("UsageReporter self test: ${tester.run().toTestResult()}")
         Result.success()
     }

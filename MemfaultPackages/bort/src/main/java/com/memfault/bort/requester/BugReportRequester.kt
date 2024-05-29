@@ -17,6 +17,7 @@ import com.memfault.bort.BugReportRequestStatus
 import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.broadcastReply
+import com.memfault.bort.diagnostics.BortJobReporter
 import com.memfault.bort.metrics.BUG_REPORT_DELETED_OLD
 import com.memfault.bort.metrics.BUG_REPORT_DELETED_STORAGE
 import com.memfault.bort.metrics.BuiltinMetricsStore
@@ -181,6 +182,12 @@ class BugReportRequester @Inject constructor(
         return settings.bugReportSettings.dataSourceEnabled
     }
 
+    override suspend fun diagnostics(): BortWorkInfo {
+        return WorkManager.getInstance(application)
+            .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
+            .asBortWorkInfo("bugreport")
+    }
+
     override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
         // Note: not including firstBugReportDelayAfterBoot because that is only used immediately after booting.
         old.bugReportSettings.requestInterval != new.bugReportSettings.requestInterval ||
@@ -197,9 +204,10 @@ class BugReportRequestWorker @AssistedInject constructor(
     private val builtInMetricsStore: BuiltinMetricsStore,
     private val bortEnabledProvider: BortEnabledProvider,
     private val startBugReport: StartBugReport,
+    private val bortJobReporter: BortJobReporter,
 ) : CoroutineWorker(appContext, params) {
 
-    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "BugReportRequestWorker") {
+    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = JOB_NAME, bortJobReporter) {
         if (bortEnabledProvider.isEnabled() &&
             tokenBucketStore.takeSimple(tag = BUGREPORT_RATE_LIMITING_TAG) && captureBugReport()
         ) {
@@ -219,5 +227,6 @@ class BugReportRequestWorker @AssistedInject constructor(
 
     companion object {
         const val BUGREPORT_RATE_LIMITING_TAG = "bugreport_periodic"
+        const val JOB_NAME = "BugReportRequestWorker"
     }
 }

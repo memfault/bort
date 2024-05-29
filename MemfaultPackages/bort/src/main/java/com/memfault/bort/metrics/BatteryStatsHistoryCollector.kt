@@ -1,6 +1,7 @@
 package com.memfault.bort.metrics
 
 import com.memfault.bort.TemporaryFileFactory
+import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.parsers.BatteryStatsHistoryParser
 import com.memfault.bort.parsers.BatteryStatsParser
 import com.memfault.bort.parsers.BatteryStatsReport
@@ -51,6 +52,7 @@ class BatteryStatsHistoryCollector @Inject constructor(
     private val nextBatteryStatsHistoryStartProvider: NextBatteryStatsHistoryStartProvider,
     private val runBatteryStats: RunBatteryStats,
     private val settings: BatteryStatsSettings,
+    private val bortErrors: BortErrors,
 ) {
     suspend fun collect(limit: Duration): BatteryStatsResult {
         temporaryFileFactory.createTemporaryFile(
@@ -64,7 +66,7 @@ class BatteryStatsHistoryCollector @Inject constructor(
             )
 
             if (settings.useHighResTelemetry) {
-                val parser = BatteryStatsHistoryParser(batteryStatsFile)
+                val parser = BatteryStatsHistoryParser(batteryStatsFile, bortErrors)
                 return parser.parseToCustomMetrics()
             } else {
                 preventDeletion()

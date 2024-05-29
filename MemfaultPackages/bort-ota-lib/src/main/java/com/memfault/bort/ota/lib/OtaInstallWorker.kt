@@ -11,6 +11,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.NoOpJobReporter
 import com.memfault.bort.shared.runAndTrackExceptions
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -27,7 +28,7 @@ class OtaInstallWorker @AssistedInject constructor(
     private val updater: Updater,
     private val otaRulesProvider: OtaRulesProvider,
 ) : CoroutineWorker(appContext, params) {
-    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "OtaDownloadWorker") {
+    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "OtaDownloadWorker", NoOpJobReporter) {
         installWorkerRun(updater, otaRulesProvider)
     }
 

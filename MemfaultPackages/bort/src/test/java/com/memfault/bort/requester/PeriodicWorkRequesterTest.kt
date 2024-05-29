@@ -42,6 +42,10 @@ internal class PeriodicWorkRequesterTest {
         override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean {
             return paramsChanged
         }
+
+        override suspend fun diagnostics(): BortWorkInfo {
+            TODO("Not used")
+        }
     }
     val oldSettings = SETTINGS_FIXTURE.toSettings().copy(metricsMaxNumAppVersions = 1)
     val newSettings = SETTINGS_FIXTURE.toSettings().copy(metricsMaxNumAppVersions = 2)

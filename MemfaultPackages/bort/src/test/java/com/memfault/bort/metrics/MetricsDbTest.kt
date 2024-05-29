@@ -1,7 +1,8 @@
 package com.memfault.bort.metrics
 
+import android.content.Context
 import androidx.room.Room
-import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.core.app.ApplicationProvider
 import assertk.assertAll
 import assertk.assertThat
 import assertk.assertions.hasSize
@@ -47,7 +48,7 @@ class MetricsDbTest {
 
     @Before
     fun createDB() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val context = ApplicationProvider.getApplicationContext<Context>()
         db = Room.inMemoryDatabaseBuilder(context, MetricsDb::class.java)
             .fallbackToDestructiveMigration().allowMainThreadQueries().build()
         dao = db.dao()

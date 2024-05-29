@@ -1,5 +1,7 @@
 package com.memfault.bort.parsers
 
+import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsHistoryParseError
+import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.metrics.BatteryStatsAgg
 import com.memfault.bort.metrics.BatteryStatsAgg.BatteryLevelAggregator
 import com.memfault.bort.metrics.BatteryStatsAgg.CountByNominalAggregator
@@ -92,6 +94,7 @@ import java.util.LinkedList
 
 class BatteryStatsHistoryParser(
     private val file: File,
+    private val bortErrors: BortErrors,
 ) {
     private val hsp = mutableMapOf<Int, HspEntry>()
     private var used = false
@@ -369,7 +372,7 @@ class BatteryStatsHistoryParser(
         }
     }
 
-    fun parseToCustomMetrics(): BatteryStatsResult {
+    suspend fun parseToCustomMetrics(): BatteryStatsResult {
         if (used) throw IllegalStateException("Cannot re-use parser")
         used = true
 
@@ -390,10 +393,10 @@ class BatteryStatsHistoryParser(
                     }
                 } catch (e: ArrayIndexOutOfBoundsException) {
                     Logger.i("parseToCustomMetrics $line", e)
-                    reportErrorMetric()
+                    reportErrorMetric("parseToCustomMetrics: ArrayIndexOutOfBoundsException", line)
                 } catch (e: NumberFormatException) {
                     Logger.i("parseToCustomMetrics $line", e)
-                    reportErrorMetric()
+                    reportErrorMetric("parseToCustomMetrics: NumberFormatException", line)
                 }
             }
         }
@@ -487,14 +490,14 @@ class BatteryStatsHistoryParser(
         hsp[key] = HspEntry(key = key, uid = uid, value = value)
     }
 
-    private fun hspLookup(value: String?): HspEntry? {
+    private suspend fun hspLookup(value: String?): HspEntry? {
         if (value == null) return null
         try {
             val index = value.toInt()
             return hsp.get(index)
         } catch (e: NumberFormatException) {
             Logger.i("hspLookup $value", e)
-            reportErrorMetric()
+            reportErrorMetric("hspLookup: NumberFormatException", value)
             return null
         }
     }
@@ -506,7 +509,7 @@ class BatteryStatsHistoryParser(
         }
     }
 
-    private fun parseHistory(entries: List<String>) {
+    private suspend fun parseHistory(entries: List<String>) {
         val command = entries[0].split(":")
         if (command.size > 1) {
             val sinceLast = command[0].toLong()
@@ -527,7 +530,7 @@ class BatteryStatsHistoryParser(
     // Bl=85
     // +r
     // -r
-    private fun parseEvent(entries: List<String>) {
+    private suspend fun parseEvent(entries: List<String>) {
         entries.forEach { event ->
             // Separate try/catch for each entry within the line, so that we don't wipe out every entry if we see one
             // parsing error.
@@ -628,24 +631,25 @@ class BatteryStatsHistoryParser(
                 }
             } catch (e: ArrayIndexOutOfBoundsException) {
                 Logger.i("parseEvent $event", e)
-                reportErrorMetric()
+                reportErrorMetric("parseEvent: ArrayIndexOutOfBoundsException", event)
             } catch (e: NumberFormatException) {
                 Logger.i("parseEvent $event", e)
-                reportErrorMetric()
+                reportErrorMetric("parseEvent: NumberFormatException", event)
             } catch (e: NullPointerException) {
                 Logger.i("parseEvent $event", e)
-                reportErrorMetric()
+                reportErrorMetric("parseEvent: NullPointerException", event)
             } catch (e: StringIndexOutOfBoundsException) {
                 Logger.i("parseEvent $event", e)
-                reportErrorMetric()
+                reportErrorMetric("parseEvent: StringIndexOutOfBoundsException", event)
             }
         }
     }
 
-    private fun reportErrorMetric() {
+    private suspend fun reportErrorMetric(error: String, line: String) {
         if (reportedErrorMetric) return
         reportedErrorMetric = true
         BATTERYSTATS_PARSE_ERROR_METRIC.increment()
+        bortErrors.add(BatteryStatsHistoryParseError, mapOf("error" to error, "line" to line))
     }
 
     companion object {

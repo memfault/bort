@@ -1,11 +1,17 @@
 package com.memfault.bort.parsers
 
+import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsSummaryParseError
+import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.BatteryState
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.BatteryStatsSummary
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.DischargeData
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.PowerUseItemData
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.PowerUseSummary
 import com.memfault.bort.time.AbsoluteTime
+import io.mockk.Called
+import io.mockk.coVerify
+import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -18,10 +24,11 @@ class BatteryStatsSummaryParserTest {
 
     private val timeMs: Long = 123456789
     private val timeProvider = { AbsoluteTime(Instant.ofEpochMilli(timeMs)) }
-    private val parser = BatteryStatsSummaryParser(timeProvider)
+    private val bortErrors: BortErrors = mockk(relaxed = true)
+    private val parser = BatteryStatsSummaryParser(timeProvider, bortErrors)
 
     @Test
-    fun testParser() {
+    fun testParser() = runTest {
         val file = tempFolder.newFile()
         file.writeText(CHECKIN_CONTENT)
         val result = parser.parse(file)
@@ -56,10 +63,11 @@ class BatteryStatsSummaryParserTest {
             ),
             result,
         )
+        coVerify { bortErrors wasNot Called }
     }
 
     @Test
-    fun invalidFile() {
+    fun invalidFile() = runTest {
         val file = tempFolder.newFile()
         file.writeText(INVALID_CONTENT)
         val result = parser.parse(file)
@@ -67,10 +75,16 @@ class BatteryStatsSummaryParserTest {
             null,
             result,
         )
+        coVerify {
+            bortErrors.add(
+                BatteryStatsSummaryParseError,
+                mapOf("error" to "NumberFormatException", "line" to ",,,"),
+            )
+        }
     }
 
     @Test
-    fun emulatorNoBatteryFile() {
+    fun emulatorNoBatteryFile() = runTest {
         val file = tempFolder.newFile()
         file.writeText(NO_BATTERY_CONTENT)
         val result = parser.parse(file)
@@ -98,6 +112,7 @@ class BatteryStatsSummaryParserTest {
 
             result,
         )
+        coVerify { bortErrors wasNot Called }
     }
 
     companion object {

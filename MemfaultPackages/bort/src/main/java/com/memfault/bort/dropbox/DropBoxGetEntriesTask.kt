@@ -16,7 +16,9 @@ import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.oneTimeWorkRequest
 import com.memfault.bort.periodicWorkRequest
+import com.memfault.bort.requester.BortWorkInfo
 import com.memfault.bort.requester.PeriodicWorkRequester
+import com.memfault.bort.requester.asBortWorkInfo
 import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.Logger
@@ -168,6 +170,12 @@ class DropboxRequester @Inject constructor(
 
     override suspend fun enabled(settings: SettingsProvider): Boolean {
         return dropBoxSettings.dataSourceEnabled
+    }
+
+    override suspend fun diagnostics(): BortWorkInfo {
+        return WorkManager.getInstance(application)
+            .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
+            .asBortWorkInfo("dropbox")
     }
 
     override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean {

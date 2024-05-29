@@ -43,7 +43,7 @@ class SelinuxViolationLogcatDetector
     private val settingsProvider: SettingsProvider,
     @SelinuxViolations private val tokenBucketStore: TokenBucketStore,
 ) {
-    fun process(
+    suspend fun process(
         line: LogcatLine,
         packageManagerReport: PackageManagerReport,
     ) {
@@ -102,7 +102,7 @@ class SelinuxViolationLogcatDetector
         )
     }
 
-    private fun record(selinuxViolation: SelinuxViolation) {
+    private suspend fun record(selinuxViolation: SelinuxViolation) {
         // Create a local-only key to dedupe SELinux violation uploads.
         val dedupeKey = Buffer()
             .writeStringUtfNotNull(selinuxViolation.action)

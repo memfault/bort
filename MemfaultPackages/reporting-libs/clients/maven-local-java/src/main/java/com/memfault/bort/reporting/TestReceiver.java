@@ -52,7 +52,7 @@ public class TestReceiver extends BroadcastReceiver {
           .numberProperty("reporting-maven-local-java-np", true)
           .update(200L);
       Reporting.report()
-          .event("reporting-maven-local-java-event", true)
+          .event("reporting-maven-local-java-event", true, true)
           .add("evented");
     }
   }

@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.ReporterServiceConnector
+import com.memfault.bort.diagnostics.BortJobReporter
 import com.memfault.bort.receivers.INTENT_EXTRA_BORT_LITE
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.Logger
@@ -61,11 +62,12 @@ class SelfTestWorker @AssistedInject constructor(
     val reporterServiceConnector: ReporterServiceConnector,
     val settingsProvider: SettingsProvider,
     private val selfTester: SelfTester,
+    private val bortJobReporter: BortJobReporter,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
         val isBortLite = inputData.getBoolean(INTENT_EXTRA_BORT_LITE, false)
-        return runAndTrackExceptions(jobName = "SelfTestWorker") {
+        return runAndTrackExceptions(jobName = "SelfTestWorker", bortJobReporter) {
             Logger.test("Bort self test: ${selfTester.run(isBortLite).toTestResult()}")
             Result.success()
         }

@@ -13,6 +13,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkRequest
 import androidx.work.WorkerParameters
 import com.memfault.bort.clientserver.MarBatchingTask
+import com.memfault.bort.diagnostics.BortJobReporter
 import com.memfault.bort.dropbox.DropBoxGetEntriesTask
 import com.memfault.bort.logcat.LogcatCollectionTask
 import com.memfault.bort.metrics.BuiltinMetricsStore
@@ -66,7 +67,10 @@ abstract class Task<I> {
         }
     }
 
-    abstract suspend fun doWork(worker: TaskRunnerWorker, input: I): TaskResult
+    abstract suspend fun doWork(
+        worker: TaskRunnerWorker,
+        input: I,
+    ): TaskResult
 
     open fun finally(input: I?) {}
 
@@ -128,6 +132,7 @@ class TaskRunnerWorker @AssistedInject constructor(
     private val logcat: Provider<LogcatCollectionTask>,
     private val settings: Provider<SettingsUpdateTask>,
     private val marBatching: Provider<MarBatchingTask>,
+    private val bortJobReporter: BortJobReporter,
 ) : CoroutineWorker(appContext, params) {
 
     private fun createTask(inputData: Data): Task<*>? {
@@ -143,22 +148,27 @@ class TaskRunnerWorker @AssistedInject constructor(
         }
     }
 
-    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = inputData.workDelegateClass) {
-        when (val task = createTask(inputData)) {
-            null -> Result.failure().also {
-                Logger.e("Could not create task for inputData (id=$id)")
+    override suspend fun doWork(): Result =
+        runAndTrackExceptions(jobName = inputData.workDelegateClass, bortJobReporter) {
+            when (val task = createTask(inputData)) {
+                null -> Result.failure().also {
+                    Logger.e("Could not create task for inputData (id=$id)")
+                }
+
+                else -> task.doWork(this).toWorkerResult()
             }
-            else -> task.doWork(this).toWorkerResult()
         }
-    }
 }
 
 private const val WORK_DELEGATE_CLASS = "__WORK_DELEGATE_CLASS"
 
-val Data.workDelegateClass: String?
-    get() = getString(WORK_DELEGATE_CLASS)
+val Data.workDelegateClass: String
+    get() = getString(WORK_DELEGATE_CLASS) ?: "unknown"
 
-fun addWorkDelegateClass(className: String, inputData: Data): Data =
+fun addWorkDelegateClass(
+    className: String,
+    inputData: Data,
+): Data =
     Data.Builder()
         .putAll(mapOf(WORK_DELEGATE_CLASS to className))
         .putAll(inputData)

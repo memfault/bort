@@ -1,6 +1,7 @@
 package com.memfault.bort
 
 import android.app.Application
+import androidx.work.NetworkType
 import androidx.work.NetworkType.CONNECTED
 import androidx.work.NetworkType.UNMETERED
 import com.memfault.bort.reporting.Reporting
@@ -47,7 +48,9 @@ class FallbackOtaSettings @Inject constructor(
             updateCheckIntervalMs = bundledSdkSettings.otaUpdateCheckInterval.duration.inWholeMilliseconds,
             baseUrl = bundledSdkSettings.httpApiDeviceBaseUrl,
             projectApiKey = BuildConfig.MEMFAULT_PROJECT_API_KEY,
-            downloadNetworkTypeConstraint = if (bundledSdkSettings.otaDownloadNetworkConstraintAllowMeteredConnection) {
+            downloadNetworkTypeConstraint = NetworkType.entries.firstOrNull {
+                it.name.equals(bundledSdkSettings.otaDownloadNetworkConstraint, ignoreCase = true)
+            } ?: if (bundledSdkSettings.otaDownloadNetworkConstraintAllowMeteredConnection) {
                 CONNECTED
             } else {
                 UNMETERED

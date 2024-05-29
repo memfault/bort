@@ -9,10 +9,11 @@ import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.uploader.EnqueueUpload
 import io.mockk.CapturingSlot
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -44,9 +45,9 @@ class CustomEventEntryProcessorTest {
 
         marMetadataSlot = slot()
         collectionTimeSlot = slot()
-        every {
+        coEvery {
             mockEnqueueUpload.enqueue(any(), capture(marMetadataSlot), capture(collectionTimeSlot))
-        } returns Unit
+        } returns Result.success(mockk())
         builtInMetricsStore = BuiltinMetricsStore()
 
         processor = StructuredLogEntryProcessor(
@@ -76,7 +77,7 @@ class CustomEventEntryProcessorTest {
         processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
         allowedByRateLimit = false
         processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
-        verify(exactly = 1) {
+        coVerify(exactly = 1) {
             mockEnqueueUpload.enqueue(any(), any(), any())
         }
     }
@@ -85,6 +86,6 @@ class CustomEventEntryProcessorTest {
     fun noProcessingWhenDataSourceDisabled() = runTest {
         dataSourceEnabled = false
         processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE, tag_ = "memfault_structured"))
-        verify(exactly = 0) { mockEnqueueUpload.enqueue(any(), any(), any()) }
+        coVerify(exactly = 0) { mockEnqueueUpload.enqueue(any(), any(), any()) }
     }
 }

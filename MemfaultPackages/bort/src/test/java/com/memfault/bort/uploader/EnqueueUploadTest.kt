@@ -15,11 +15,14 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.test.TestCoroutineScheduler
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.io.File
 
 internal class EnqueueUploadTest {
+    private val testScheduler = TestCoroutineScheduler()
     private val marFile = File("fakepath")
     private val testFile = File("fakemarpath")
     private val PROJECT_KEY = "projectKey"
@@ -53,11 +56,12 @@ internal class EnqueueUploadTest {
         marHoldingArea = marHoldingArea,
         deviceInfoProvider = FakeDeviceInfoProvider(),
         projectKey = { PROJECT_KEY },
+        ioCoroutineContext = testScheduler,
     )
     private val combinedTimeProvider = FakeCombinedTimeProvider
 
     @Test
-    fun enqueueMarFileUpload() {
+    fun enqueueMarFileUpload() = runTest(testScheduler) {
         val now = combinedTimeProvider.now()
         enqueueUpload.enqueue(
             file = testFile,
@@ -73,7 +77,7 @@ internal class EnqueueUploadTest {
     }
 
     @Test
-    fun overrideDebuggingResolution() {
+    fun overrideDebuggingResolution() = runTest(testScheduler) {
         val now = combinedTimeProvider.now()
         enqueueUpload.enqueue(
             file = testFile,

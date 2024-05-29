@@ -7,10 +7,13 @@ import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.memfault.bort.RealDevMode
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.TestOverrideSettings
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
 import com.memfault.bort.clientserver.MarMetadata
+import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsHistoryParseError
+import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.dropbox.DropBoxLastProcessedEntryProvider
 import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.logcat.NextLogcatStartTimeProvider
@@ -27,6 +30,7 @@ import com.memfault.bort.settings.asLoggerSettings
 import com.memfault.bort.settings.restartPeriodicSettingsUpdate
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.goAsync
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
@@ -36,9 +40,8 @@ import com.memfault.bort.tokenbucket.TokenBucketStoreRegistry
 import com.memfault.bort.uploader.EnqueueUpload
 import com.memfault.bort.uploader.FileUploadHoldingArea
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.time.Instant
 import javax.inject.Inject
 import kotlin.random.Random
@@ -51,6 +54,7 @@ import kotlin.time.toJavaDuration
 import com.memfault.bort.reporting.Reporting as Kotlin_Reporting
 
 private const val INTENT_EXTRA_ECHO_STRING = "echo"
+private const val INTENT_EXTRA_BORT_ERROR = "com.memfault.intent.extra.BORT_ERROR"
 const val INTENT_EXTRA_BORT_LITE = "com.memfault.intent.extra.BORT_LITE"
 private const val WORK_UNIQUE_NAME_SELF_TEST = "com.memfault.bort.work.SELF_TEST"
 
@@ -70,6 +74,7 @@ class BortTestReceiver : FilteringReceiver(
         "com.memfault.intent.action.TEST_UPLOAD_MAR",
         "com.memfault.intent.action.TEST_CDR",
         "com.memfault.intent.action.TEST_CRASH_FREE_HOURS_METRICS",
+        "com.memfault.intent.action.TEST_BORT_ERROR",
     ),
 ) {
     @Inject lateinit var settingsProvider: SettingsProvider
@@ -102,11 +107,20 @@ class BortTestReceiver : FilteringReceiver(
 
     @Inject lateinit var testOverrideSettings: TestOverrideSettings
 
-    override fun onIntentReceived(context: Context, intent: Intent, action: String) {
+    @Inject lateinit var bortErrors: BortErrors
+
+    @Inject lateinit var devMode: RealDevMode
+
+    override fun onIntentReceived(
+        context: Context,
+        intent: Intent,
+        action: String,
+    ) {
         when (action) {
             "com.memfault.intent.action.TEST_BORT_ECHO" -> {
                 Logger.test("bort echo ${intent.getStringExtra(INTENT_EXTRA_ECHO_STRING)}")
             }
+
             "com.memfault.intent.action.TEST_SELF_TEST" -> {
                 val isBortLite = intent.getBooleanExtra(INTENT_EXTRA_BORT_LITE, false)
                 OneTimeWorkRequestBuilder<SelfTestWorker>()
@@ -119,13 +133,14 @@ class BortTestReceiver : FilteringReceiver(
                         )
                     }
             }
-            "com.memfault.intent.action.TEST_ADD_EVENT_OF_INTEREST" -> {
+            "com.memfault.intent.action.TEST_ADD_EVENT_OF_INTEREST" -> goAsync {
                 // Pretend an event of interest occurred, so that the logcat file gets uploaded immediately:
                 fileUploadHoldingArea.handleEventOfInterest(SystemClock.elapsedRealtime().milliseconds)
                 Logger.test("Added event of interest")
             }
+
             "com.memfault.intent.action.TEST_CDR" -> testUploadCdr()
-            "com.memfault.intent.action.TEST_REQUEST_LOGCAT_COLLECTION" -> {
+            "com.memfault.intent.action.TEST_REQUEST_LOGCAT_COLLECTION" -> goAsync {
                 // Pretend an event of interest occurred, so that the logcat file gets uploaded immediately:
                 fileUploadHoldingArea.handleEventOfInterest(SystemClock.elapsedRealtime().milliseconds)
 
@@ -144,6 +159,7 @@ class BortTestReceiver : FilteringReceiver(
 
                 Logger.test("cid=${nextLogcatCidProvider.cid.uuid}")
             }
+
             "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION" -> {
                 restartPeriodicMetricsCollection(
                     context = context,
@@ -175,6 +191,7 @@ class BortTestReceiver : FilteringReceiver(
                 sync.failure()
                 sync.failure()
             }
+
             "com.memfault.intent.action.TEST_REQUEST_SETTINGS_UPDATE" -> {
                 restartPeriodicSettingsUpdate(
                     context = context,
@@ -187,28 +204,44 @@ class BortTestReceiver : FilteringReceiver(
                     jitterDelayProvider = jitterDelayProvider,
                 )
             }
+
             "com.memfault.intent.action.TEST_RESET_DYNAMIC_SETTINGS" -> {
                 resetDynamicSettings()
             }
+
             "com.memfault.intent.action.TEST_RESET_RATE_LIMITS" -> {
                 resetRateLimits()
             }
             // Sent before each E2E test:
-            "com.memfault.intent.action.TEST_SETUP" -> {
+            "com.memfault.intent.action.TEST_SETUP" -> runBlocking {
                 useTestOverrides(true)
                 resetDynamicSettings()
                 resetRateLimits()
                 resetDropboxCursor()
+                devMode.setEnabled(true, context)
             }
+
             "com.memfault.intent.action.TEST_TEARDOWN" -> {
                 useTestOverrides(false)
             }
+
             "com.memfault.intent.action.TEST_UPLOAD_MAR" -> enqueueOneTimeBatchMarFiles(
                 context = context,
             )
+
             "com.memfault.intent.action.TEST_CRASH_FREE_HOURS_METRICS" -> {
                 crashFreeHoursMetricLogger.incrementCrashFreeHours(1)
                 crashFreeHoursMetricLogger.incrementOperationalHours(1)
+            }
+
+            "com.memfault.intent.action.TEST_BORT_ERROR" -> runBlocking {
+                bortErrors.add(
+                    BatteryStatsHistoryParseError,
+                    mapOf(
+                        "error" to (intent.getStringExtra(INTENT_EXTRA_BORT_ERROR) ?: "undefined"),
+                        "line" to "test line",
+                    ),
+                )
             }
         }
     }
@@ -240,7 +273,7 @@ class BortTestReceiver : FilteringReceiver(
     }
 
     private fun testUploadCdr() {
-        CoroutineScope(Dispatchers.IO).launch {
+        runBlocking(Dispatchers.IO) {
             val duration = 15.minutes
             val start = Instant.now() - duration.toJavaDuration()
             temporaryFileFactory.createTemporaryFile("cdr", suffix = null).useFile { tempFile, preventDeletion ->
@@ -253,7 +286,11 @@ class BortTestReceiver : FilteringReceiver(
                     reason = "just testing",
                 )
                 preventDeletion()
-                enqueueUpload.enqueue(file = tempFile, metadata = metadata, collectionTime = combinedTimeProvider.now())
+                enqueueUpload.enqueue(
+                    file = tempFile,
+                    metadata = metadata,
+                    collectionTime = combinedTimeProvider.now(),
+                )
             }
         }
     }

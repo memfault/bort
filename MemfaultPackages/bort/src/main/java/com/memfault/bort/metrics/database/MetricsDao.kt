@@ -139,15 +139,17 @@ abstract class MetricsDao {
             val timeInStateMs = mutableMapOf<String, Long>()
             var last: DbMetricValue? = null
             values.collect { d ->
-                last?.let { l ->
-                    val state = l.jsonValue().contentOrNull ?: return@let
-                    val existingTimeInState = timeInStateMs.getOrDefault(state, 0)
-                    val timeOfLastRecord = l.timestampMs.coerceAtLeast(reportStartMs)
-                    val timeOfCurrentRecord = d.timestampMs.coerceAtLeast(reportStartMs)
-                    val durationSinceLastRecord = timeOfCurrentRecord - timeOfLastRecord
-                    timeInStateMs[state] = existingTimeInState + durationSinceLastRecord
+                if (d.timestampMs <= reportEndMs) {
+                    last?.let { l ->
+                        val state = l.jsonValue().contentOrNull ?: return@let
+                        val existingTimeInState = timeInStateMs.getOrDefault(state, 0)
+                        val timeOfLastRecord = l.timestampMs.coerceAtLeast(reportStartMs)
+                        val timeOfCurrentRecord = d.timestampMs.coerceAtLeast(reportStartMs)
+                        val durationSinceLastRecord = timeOfCurrentRecord - timeOfLastRecord
+                        timeInStateMs[state] = existingTimeInState + durationSinceLastRecord
+                    }
+                    last = d
                 }
-                last = d
             }
             // End of report
             last?.let { l ->
@@ -179,10 +181,11 @@ abstract class MetricsDao {
 
     @Transaction
     open suspend fun collectHeartbeat(
+        reportType: String = HEARTBEAT_REPORT_TYPE,
         endTimestampMs: Long,
         hrtFile: File?,
     ): CustomReport {
-        val dbReport = getReport(reportType = HEARTBEAT_REPORT_TYPE)
+        val dbReport = getReport(reportType = reportType)
         if (dbReport == null) {
             Logger.i("Didn't find report in database for $HEARTBEAT_REPORT_TYPE")
             return CustomReport(

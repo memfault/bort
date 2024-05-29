@@ -28,8 +28,8 @@ class SoftwareUpdateSettingsContentProvider : ContentProvider() {
     private fun gatherConfig(): SoftwareUpdateSettings {
         // TODO: This does not run in the main thread, is runBlocking ok?
         return runBlocking {
-            val deviceInfo = runBlocking { entryPoint().deviceInfo().getDeviceInfo() }
-            val settings = entryPoint().settings()
+            val deviceInfo = entryPoint.deviceInfo().getDeviceInfo()
+            val settings = entryPoint.settings()
             SoftwareUpdateSettings(
                 deviceSerial = deviceInfo.deviceSerial,
                 currentVersion = deviceInfo.softwareVersion,
@@ -38,7 +38,7 @@ class SoftwareUpdateSettingsContentProvider : ContentProvider() {
                 updateCheckIntervalMs = settings.otaSettings.updateCheckInterval.inWholeMilliseconds,
                 baseUrl = settings.httpApiSettings.deviceBaseUrl,
                 projectApiKey = settings.httpApiSettings.projectKey,
-                downloadNetworkTypeConstraint = settings.otaSettings.downloadNetworkConstraint.networkType,
+                downloadNetworkTypeConstraint = settings.otaSettings.downloadNetworkConstraint,
             )
         }
     }
@@ -64,5 +64,10 @@ class SoftwareUpdateSettingsContentProvider : ContentProvider() {
         fun settings(): SettingsProvider
     }
 
-    fun entryPoint() = EntryPointAccessors.fromApplication(context!!, ContentProviderEntryPoint::class.java)
+    val entryPoint: ContentProviderEntryPoint by lazy {
+        EntryPointAccessors.fromApplication(
+            context!!,
+            ContentProviderEntryPoint::class.java,
+        )
+    }
 }

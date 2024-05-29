@@ -12,6 +12,7 @@ import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.cleanupFiles
 import com.memfault.bort.requester.directorySize
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.shared.NoOpJobReporter
 import com.memfault.bort.shared.runAndTrackExceptions
 import com.memfault.usagereporter.clientserver.RealSendfileQueue
 import com.memfault.usagereporter.clientserver.clientServerUploadsDir
@@ -28,11 +29,12 @@ class ReporterFileCleanupTask
     private val reporterSettings: ReporterSettingsPreferenceProvider,
 ) : CoroutineWorker(appContext, workerParams) {
 
-    override suspend fun doWork(): Result = runAndTrackExceptions(jobName = "ReporterFileCleanupTask") {
-        cleanupCacheDir()
-        RealSendfileQueue.cleanup(clientServerUploadsDir(appContext), reporterSettings)
-        Result.success()
-    }
+    override suspend fun doWork(): Result =
+        runAndTrackExceptions(jobName = "ReporterFileCleanupTask", NoOpJobReporter) {
+            cleanupCacheDir()
+            RealSendfileQueue.cleanup(clientServerUploadsDir(appContext), reporterSettings)
+            Result.success()
+        }
 
     private fun cleanupCacheDir() {
         val tempDir = appContext.cacheDir
