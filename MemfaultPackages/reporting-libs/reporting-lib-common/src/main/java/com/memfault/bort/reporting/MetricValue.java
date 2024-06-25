@@ -27,6 +27,8 @@ public final class MetricValue {
   /** Nullable. */
   public final Boolean boolVal;
   public final int version;
+  /** Nullable. */
+  public final String reportName;
 
   public MetricValue(
       String eventName,
@@ -41,9 +43,11 @@ public final class MetricValue {
       String stringVal,
       /* Nullable. */
       Double numberVal,
-      /* Nullable */
+      /* Nullable. */
       Boolean boolVal,
-      int version
+      int version,
+      /* Nullable. */
+      String reportName
   ) {
     this.reportType = reportType;
     this.aggregations = Collections.unmodifiableList(aggregations);
@@ -57,6 +61,7 @@ public final class MetricValue {
     this.numberVal = numberVal;
     this.boolVal = boolVal;
     this.version = version;
+    this.reportName = reportName;
   }
 
   private static boolean hasBool(JSONObject object, String field) {
@@ -220,7 +225,8 @@ public final class MetricValue {
         stringVal,
         doubleVal,
         boolVal,
-        object.getInt(MetricJsonFields.VERSION)
+        object.getInt(MetricJsonFields.VERSION),
+        /* reportName */ null
     );
   }
 
@@ -270,7 +276,9 @@ public final class MetricValue {
         stringVal,
         doubleVal,
         boolVal,
-        object.getInt(MetricJsonFields.VERSION)
+        object.getInt(MetricJsonFields.VERSION),
+        object.has(MetricJsonFields.REPORT_NAME)
+            ? object.getString(MetricJsonFields.REPORT_NAME) : null
     );
   }
 
@@ -304,6 +312,7 @@ public final class MetricValue {
     json.put(MetricJsonFields.METRIC_TYPE, metricType.value);
     json.put(MetricJsonFields.DATA_TYPE, dataType.value);
     json.put(MetricJsonFields.CARRY_OVER, carryOverValue);
+    json.put(MetricJsonFields.REPORT_NAME, reportName);
 
     return json.toString();
   }
@@ -328,13 +337,14 @@ public final class MetricValue {
         && Objects.equals(stringVal, that.stringVal)
         && Objects.equals(numberVal, that.numberVal)
         && Objects.equals(boolVal, that.boolVal)
-        && version == that.version;
+        && version == that.version
+        && Objects.equals(reportName, that.reportName);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(eventName, reportType, aggregations, internal, metricType, dataType,
-        carryOverValue, timeMs, stringVal, numberVal, boolVal, version);
+        carryOverValue, timeMs, stringVal, numberVal, boolVal, version, reportName);
   }
 
   @Override
@@ -352,6 +362,7 @@ public final class MetricValue {
         + ", numberVal=" + numberVal
         + ", boolVal=" + boolVal
         + ", version=" + version
+        + ", reportName='" + reportName + '\''
         + '}';
   }
 
@@ -369,5 +380,6 @@ public final class MetricValue {
     static final String METRIC_TYPE = "metricType";
     static final String DATA_TYPE = "dataType";
     static final String CARRY_OVER = "carryOver";
+    static final String REPORT_NAME = "reportName";
   }
 }

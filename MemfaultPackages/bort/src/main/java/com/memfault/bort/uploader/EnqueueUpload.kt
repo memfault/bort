@@ -46,6 +46,11 @@ class EnqueueUpload @Inject constructor(
         metadata: MarMetadata,
         collectionTime: CombinedTime,
         /**
+         * Set to override the monitoring resolution from its default.
+         * Null/unset = default for type (as defined during manifest creation).
+         **/
+        overrideMonitoringResolution: Resolution? = null,
+        /**
          * Set to override the debugging resolution from its default.
          * Null/unset = default for type (as defined during manifest creation).
          *
@@ -55,6 +60,9 @@ class EnqueueUpload @Inject constructor(
         overrideDebuggingResolution: Resolution? = null,
     ): Result<MarFileWithManifest> = withContext(ioCoroutineContext) {
         var manifest = createManifest(metadata, collectionTime, deviceInfoProvider, projectKey)
+        overrideMonitoringResolution?.let {
+            manifest = manifest.copy(monitoringResolution = it)
+        }
         overrideDebuggingResolution?.let {
             manifest = manifest.copy(debuggingResolution = it)
         }

@@ -10,11 +10,14 @@ import com.memfault.bort.INTENT_ACTION_BORT_ENABLE
 import com.memfault.bort.INTENT_ACTION_BUG_REPORT_REQUESTED
 import com.memfault.bort.INTENT_ACTION_COLLECT_METRICS
 import com.memfault.bort.INTENT_ACTION_DEV_MODE
+import com.memfault.bort.INTENT_ACTION_OVERRIDE_SERIAL
 import com.memfault.bort.INTENT_ACTION_UPDATE_CONFIGURATION
 import com.memfault.bort.INTENT_ACTION_UPDATE_PROJECT_KEY
 import com.memfault.bort.INTENT_EXTRA_BORT_ENABLED
 import com.memfault.bort.INTENT_EXTRA_DEV_MODE_ENABLED
 import com.memfault.bort.INTENT_EXTRA_PROJECT_KEY
+import com.memfault.bort.INTENT_EXTRA_SERIAL
+import com.memfault.bort.OverrideSerial
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.RealDevMode
 import com.memfault.bort.ReporterServiceConnector
@@ -93,6 +96,8 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
     @Inject lateinit var dropBoxEntryAddedReceiver: DropBoxEntryAddedReceiver
 
     @Inject lateinit var dropBoxTagEnabler: DropBoxTagEnabler
+
+    @Inject lateinit var overrideSerial: OverrideSerial
 
     private fun allowedByRateLimit(): Boolean =
         tokenBucketStore.takeSimple(key = "control-requested", tag = "bugreport_request")
@@ -226,6 +231,12 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
         }
     }
 
+    private fun onOverrideSerial(intent: Intent) {
+        // This is allowed to run before enabling Bort (in fact this is encouraged if possible).
+        val serial = intent.getStringExtra(INTENT_EXTRA_SERIAL)
+        overrideSerial.overriddenSerial = serial
+    }
+
     override fun onIntentReceived(context: Context, intent: Intent, action: String) {
         when (action) {
             INTENT_ACTION_BUG_REPORT_REQUESTED -> onBugReportRequested(context, intent)
@@ -234,6 +245,7 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
             INTENT_ACTION_UPDATE_CONFIGURATION -> onUpdateConfig()
             INTENT_ACTION_DEV_MODE -> onDevMode(intent, context)
             INTENT_ACTION_UPDATE_PROJECT_KEY -> onChangeProjectKey(intent)
+            INTENT_ACTION_OVERRIDE_SERIAL -> onOverrideSerial(intent)
         }
     }
 }
@@ -254,6 +266,7 @@ class ShellControlReceiver : BaseControlReceiver(
         INTENT_ACTION_UPDATE_CONFIGURATION,
         INTENT_ACTION_DEV_MODE,
         INTENT_ACTION_UPDATE_PROJECT_KEY,
+        INTENT_ACTION_OVERRIDE_SERIAL,
     ),
 )
 

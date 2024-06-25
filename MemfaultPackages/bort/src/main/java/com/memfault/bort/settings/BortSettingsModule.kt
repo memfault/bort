@@ -11,6 +11,7 @@ import kotlin.time.Duration
 fun interface MetricReportEnabled : () -> Boolean
 fun interface StructuredLogEnabled : () -> Boolean
 fun interface HighResMetricsEnabled : () -> Boolean
+fun interface DailyHeartbeatEnabled : () -> Boolean
 fun interface UploadCompressionEnabled : () -> Boolean
 fun interface BatchMarUploads : () -> Boolean
 fun interface UseDeviceConfig : suspend () -> Boolean
@@ -59,6 +60,10 @@ abstract class BortSettingsModule {
         @Provides
         fun highResMetrics(settings: SettingsProvider) =
             HighResMetricsEnabled { settings.structuredLogSettings.highResMetricsEnabled }
+
+        @Provides
+        fun dailyHeartbeatEnabled(settings: SettingsProvider) =
+            DailyHeartbeatEnabled { settings.metricsSettings.dailyHeartbeatEnabled }
 
         @Provides
         fun logcatCollectionInterval(settings: SettingsProvider) =

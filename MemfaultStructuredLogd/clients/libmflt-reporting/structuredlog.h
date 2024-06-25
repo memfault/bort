@@ -14,6 +14,8 @@ public:
   ~StructuredLogger();
 
   void addValue(const std::string &json);
+  void startReport(const std::string &json);
+  void finishReport(const std::string &json);
 
 private:
   void ensureServiceLocked();

@@ -14,9 +14,10 @@ public class Distribution extends Metric {
   private static final DataType DATA_TYPE = DOUBLE;
   private static final boolean CARRY_OVER_VALUE = false;
 
-  Distribution(String eventName, String reportType, List<NumericAgg> aggregations) {
+  Distribution(String eventName, String reportType, List<NumericAgg> aggregations,
+      String reportName) {
     super(eventName, reportType, aggregations, METRIC_TYPE, DATA_TYPE,
-            CARRY_OVER_VALUE);
+        CARRY_OVER_VALUE, reportName);
   }
 
   public void record(Long value) {

@@ -40,6 +40,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
+const val CONNECTIVITY_TYPE_METRIC = "connectivity.type"
+
 // Don't automatically include this in all apps using @ContributesMultibinding (it'll be included in OTA,
 // and Bort has to conditionally enable it only if UsageReporter is not installed).
 @Singleton
@@ -51,7 +53,7 @@ class ConnectivityMetrics
 ) : Scoped {
     private val connectivityMetric = Reporting.report()
         .stateTracker<ConnectivityState>(
-            name = "connectivity.type",
+            name = CONNECTIVITY_TYPE_METRIC,
             aggregations = listOf(TIME_PER_HOUR, TIME_TOTALS),
         )
     private val airplaneModeMetric = Reporting.report().boolStateTracker(name = "airplane_mode")
@@ -190,7 +192,7 @@ class ConnectivityMetrics
     }
 }
 
-private enum class ConnectivityState {
+enum class ConnectivityState {
     WIFI,
     CELLULAR,
     ETHERNET,

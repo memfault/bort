@@ -15,10 +15,11 @@ public class NumberProperty extends Metric {
   private static final DataType DATA_TYPE = DOUBLE;
   private static final boolean CARRY_OVER_VALUE = true;
 
-  NumberProperty(String eventName, String reportType, boolean addLatestToReport) {
+  NumberProperty(String eventName, String reportType, boolean addLatestToReport,
+      String reportName) {
     super(eventName, reportType,
         addLatestToReport ? singletonList(LATEST_VALUE) : Collections.emptyList(), METRIC_TYPE,
-        DATA_TYPE, CARRY_OVER_VALUE);
+        DATA_TYPE, CARRY_OVER_VALUE, reportName);
   }
 
   public void update(Float value) {

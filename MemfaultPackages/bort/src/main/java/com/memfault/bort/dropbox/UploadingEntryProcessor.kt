@@ -10,7 +10,6 @@ import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.metrics.metricForTraceTag
-import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BootRelativeTimeProvider
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.time.toAbsoluteTime
@@ -57,7 +56,7 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
     override val tags: List<String>
         get() = delegate.tags
 
-    override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
+    override suspend fun process(entry: DropBoxManager.Entry) {
         tempFileFactory.createTemporaryFile(entry.tag, ".txt").useFile { tempFile, preventDeletion ->
             tempFile.outputStream().use { outStream ->
                 val copiedBytes = entry.inputStream.use { inStream ->
@@ -80,13 +79,15 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
 
             val fileToUpload = delegate.scrub(tempFile, entry.tag)
 
+            val fileTime = entry.timeMillis.toAbsoluteTime()
+
             val now = bootRelativeTimeProvider.now()
             enqueueUpload.enqueue(
                 file = fileToUpload,
                 metadata = DropBoxMarMetadata(
                     entryFileName = fileToUpload.name,
                     tag = entry.tag,
-                    entryTime = entry.timeMillis.toAbsoluteTime(),
+                    entryTime = fileTime,
                     timezone = TimezoneWithId.deviceDefault,
                     cidReference = nextLogcatCidProvider.cid,
                     packages = info.packages,
@@ -103,7 +104,7 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
             }
 
             if (delegate.isCrash(entry.tag)) {
-                crashHandler.onCrash()
+                crashHandler.onCrash(crashTimestamp = fileTime.timestamp)
             }
         }
     }

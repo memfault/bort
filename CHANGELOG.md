@@ -1,5 +1,39 @@
 # Memfault Bort Changelog
 
+## v4.17.0 - June 24, 2024
+
+### :rocket: New Features
+
+- Support for the new [Session](https://mflt.io/android-sessions) metrics. This
+  enables Memfault to be used for more product-specific use cases by associating
+  metrics to product functionality.
+  - The latest reporting-lib on each platform have been updated to start, end,
+    and record metrics to sessions (reporting-lib 1.5 has been published to
+    Maven with Sessions support).
+  - Every session will automatically include relevant `sync_successful`,
+    `sync_failure`, `memfault_sync_successful`, `memfault_sync_failure`,
+    `connectivity_expected_time_ms` and `connectivity_connected_time_ms` Device
+    Vitals metrics. `operational_crashes` will also be automatically recorded,
+    even if the value is 0.
+- Support for new Daily Heartbeats has been added. This enables support for
+  daily metric aggregations to supplement or replace Hourly Heartbeats for lower
+  upload frequency use cases. Please contact us for more information.
+  - Daily Heartbeats will contain every metric that Hourly Heartbeats do,
+    besides batterystats at the moment.
+
+### :chart_with_upwards_trend: Improvements
+
+- The `structuredlogd` metrics database has been replaced by a Room database
+  inside the Bort app. This move allows us to more quickly iterate on
+  improvements to how metrics are persisted. The `structuredlogd` service now
+  forwards all calls to the Bort app for backwards compatibility.
+- Bort Lite's serial can be overridden using by sending an
+  `INTENT_ACTION_OVERRIDE_SERIAL` intent with an `INTENT_EXTRA_SERIAL` string
+  extra.
+- DropBox is now queried when Bort starts in Dev Mode.
+- A bug was fixed where Device information would be incorrectly cached until
+  Bort restarted.
+
 ## v4.16.0 - May 28, 2024
 
 ### :rocket: New Features

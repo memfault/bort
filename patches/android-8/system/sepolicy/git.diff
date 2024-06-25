@@ -2,89 +2,45 @@ diff --git a/private/compat/26.0/26.0.ignore.cil b/private/compat/26.0/26.0.igno
 index 9e1eb9775..f10d54c86 100644
 --- a/private/compat/26.0/26.0.ignore.cil
 +++ b/private/compat/26.0/26.0.ignore.cil
-@@ -14,6 +14,12 @@
+@@ -14,6 +14,10 @@
      hal_wifi_offload_hwservice
      kmsg_debug_device
      mediaprovider_tmpfs
 +    memfault_prop
-+    memfault_structured
-+    memfault_structured_data_file
-+    memfault_structured_exec
++    memfault_structured_app
++    memfault_structured_app_tmpfs
 +    memfault_structured_service
-+    memfault_structured_tmpfs
      netd_stable_secret_prop
      package_native_service
      sysfs_fs_ext4_features
-diff --git a/private/file.te b/private/file.te
-index da5f9adde..d6cb5c04d 100644
---- a/private/file.te
-+++ b/private/file.te
-@@ -5,3 +5,6 @@ typealias app_data_file alias download_file;
-
- # /proc/config.gz
- type config_gz, fs_type;
-+
-+# MFLT
-+type memfault_structured_data_file, file_type, data_file_type;
-diff --git a/private/file_contexts b/private/file_contexts
-index 536975894..5d3d6b376 100644
---- a/private/file_contexts
-+++ b/private/file_contexts
-@@ -468,3 +468,7 @@
- /mnt/user(/.*)?             u:object_r:mnt_user_file:s0
- /mnt/runtime(/.*)?          u:object_r:storage_file:s0
- /storage(/.*)?              u:object_r:storage_file:s0
-+
-+#### MFLT
-+/data/system/MemfaultStructuredLogd(/.*)? u:object_r:memfault_structured_data_file:s0
-+/system/bin/MemfaultStructuredLogd        u:object_r:memfault_structured_exec:s0
-diff --git a/private/memfault_structured.te b/private/memfault_structured.te
+diff --git a/private/memfault_structured_app.te b/private/memfault_structured_app.te
 new file mode 100644
-index 000000000..f1648da0e
+index 0000000000..dbb3d6b71e
 --- /dev/null
-+++ b/private/memfault_structured.te
-@@ -0,0 +1,41 @@
-+type memfault_structured, service_manager_type, domain;
-+type memfault_structured_exec, exec_type, file_type;
++++ b/private/memfault_structured_app.te
+@@ -0,0 +1,21 @@
++type memfault_structured_app, service_manager_type, domain;
 +
-+typeattribute memfault_structured coredomain;
++typeattribute memfault_structured_app coredomain;
 +
-+# Allow domain transition from init to memfault_structured
-+init_daemon_domain(memfault_structured)
++app_domain(memfault_structured_app);
 +
-+# Allow memfault_structured to use binder
-+binder_use(memfault_structured)
++# Allow memfault_structured_app to use binder
++binder_use(memfault_structured_app)
 +
-+# Allow memfault_structured to register a service with service manager
-+add_service(memfault_structured, memfault_structured_service)
++# Allow memfault_structured_app to register a service with service manager
++add_service(memfault_structured_app, memfault_structured_service)
 +
-+# Allow apps to call memfault_structured
-+binder_call(appdomain, memfault_structured)
++# Allow apps to call memfault_structured_app
++binder_call(appdomain, memfault_structured_app)
 +
-+# Allow memfault_structured to find and call dropbox
-+allow memfault_structured dropbox_service:service_manager find;
-+binder_call(memfault_structured, dropbox_service)
-+
-+# Allow memfault_structured to find the permission service
-+allow memfault_structured permission_service:service_manager find;
-+
-+# Allow calling/sharing fds to/from the system server for dropbox
-+binder_call(memfault_structured, system_server)
-+binder_call(system_server, memfault_structured)
-+
-+# Allow memfault_structured rw access to its data dir
-+allow memfault_structured memfault_structured_data_file:dir rw_dir_perms;
-+allow memfault_structured memfault_structured_data_file:file create_file_perms;
-+
-+# Allow system server to read files for dropbox
-+allow system_server memfault_structured_data_file:file read;
-+
-+# Allow access to /proc/sys/kernel/random/boot_id
-+allow memfault_structured proc:file { getattr open read };
++# Allow memfault_structured_app to find the activity_service
++allow memfault_structured_app activity_service:service_manager find;
 +
 +# Allow dumpstate (via MemfaultDumpster) to add metrics
-+allow dumpstate memfault_structured:service_manager find;
-+binder_call(dumpstate, memfault_structured)
++allow dumpstate memfault_structured_app:service_manager find;
++binder_call(dumpstate, memfault_structured_app)
+\ No newline at end of file
 diff --git a/private/property_contexts b/private/property_contexts
 index 8eb2f28b2..9c3076fca 100644
 --- a/private/property_contexts
@@ -140,4 +96,4 @@ index e97b864db..ea86d172b 100644
  type wifiaware_service, app_api_service, system_server_service, service_manager_type;
  type window_service, system_api_service, system_server_service, service_manager_type;
 +
-+type memfault_structured_service, app_api_service, ephemeral_app_api_service, service_manager_type;
++type memfault_structured_service, app_api_service, service_manager_type;

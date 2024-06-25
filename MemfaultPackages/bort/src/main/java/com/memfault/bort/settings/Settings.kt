@@ -58,6 +58,7 @@ interface BatteryStatsSettings {
 
 interface MetricsSettings {
     val dataSourceEnabled: Boolean
+    val dailyHeartbeatEnabled: Boolean
     val collectionInterval: Duration
     val systemProperties: List<String>
     val appVersions: List<String>

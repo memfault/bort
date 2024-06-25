@@ -1,7 +1,8 @@
-service memfault-structured-logd /system/bin/MemfaultStructuredLogd
-    user system
-    group system log
-    disabled
+# When MemfaultDumpster signals that Bort is ready, delete the /data/system/MemfaultStructuredLogd/ folder.
+# This folder used to contain the "data" folder for the C++ AIDL Backend for ILogger, but was migrated
+# to a Java app AIDL Backend managed by com.memfault.structuredlogd. Deleting the folder makes sure that we
+# clean up the metrics database and other preferences which were previously located in that folder and now
+# orphaned.
 
 on post-fs-data
     mkdir /data/system/MemfaultStructuredLogd/ 0700 system system
@@ -9,10 +10,4 @@ on post-fs-data
     setprop vendor.memfault.data.ready 1
 
 on property:vendor.memfault.data.ready=1 && property:persist.system.memfault.bort.enabled=1 && property:persist.system.memfault.structured.enabled=1
-    start memfault-structured-logd
-
-on property:persist.system.memfault.bort.enabled=0
-    stop memfault-structured-logd
-
-on property:persist.system.memfault.structured.enabled=0
-    stop memfault-structured-logd
+    rmdir /data/system/MemfaultStructuredLogd/

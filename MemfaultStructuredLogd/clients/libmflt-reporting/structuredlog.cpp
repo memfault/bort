@@ -33,4 +33,20 @@ void StructuredLogger::addValue(const std::string &json) {
   }
 }
 
+void StructuredLogger::startReport(const std::string &json) {
+  std::unique_lock<std::mutex> lock(mInt->mLoggerMutex);
+  ensureServiceLocked();
+  if (mInt->mLogger != nullptr) {
+    mInt->mLogger->startReport(android::String16(json.c_str()));
+  }
+}
+
+void StructuredLogger::finishReport(const std::string &json) {
+  std::unique_lock<std::mutex> lock(mInt->mLoggerMutex);
+  ensureServiceLocked();
+  if (mInt->mLogger != nullptr) {
+    mInt->mLogger->finishReport(android::String16(json.c_str()));
+  }
+}
+
 }  // namespace memfault

@@ -14,10 +14,10 @@ public class Counter extends Metric {
   private static final DataType DATA_TYPE = DOUBLE;
   private static final boolean CARRY_OVER_VALUE = false;
 
-  Counter(String name, String reportType, boolean sumInReport) {
+  Counter(String name, String reportType, boolean sumInReport, String reportName) {
     super(name, reportType,
         sumInReport ? Collections.singletonList(NumericAgg.SUM) : Collections.emptyList(),
-        METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
+        METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE, reportName);
   }
 
   public void increment() {

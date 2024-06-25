@@ -6,29 +6,36 @@ import com.memfault.bort.reporting.MetricValue;
 import com.memfault.bort.reporting.NumericAgg;
 import com.memfault.bort.reporting.RemoteMetricsService;
 import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 import static com.memfault.bort.reporting.StateAgg.LATEST_VALUE;
+import static java.util.Arrays.asList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.times;
 
 public class JavaMetricTest {
   private static final long timeMs = 123456;
   private static final String reportType = "heartbeat";
+  private static final String reportName = null;
 
   private <T extends Metric> void testMetric(Class<T> clazz, String metricName, Object value) {
     Metric metric;
     if (clazz.equals(BoolStateTracker.class)) {
-      metric = new BoolStateTracker(metricName, reportType, new ArrayList<>());
+      metric = new BoolStateTracker(metricName, reportType, new ArrayList<>(), reportName);
       ((BoolStateTracker) metric).state((Boolean) value, timeMs);
     } else if (clazz.equals(Counter.class)) {
-      metric = new Counter(metricName, reportType, true);
+      metric = new Counter(metricName, reportType, true, reportName);
       ((Counter) metric).incrementBy((Integer) value, timeMs);
     } else if (clazz.equals(StringProperty.class)) {
-      metric = new StringProperty(metricName, reportType, true);
+      metric = new StringProperty(metricName, reportType, true, reportName);
       ((StringProperty) metric).update((String) value, timeMs);
     } else {
       throw new UnsupportedOperationException(
@@ -77,6 +84,21 @@ public class JavaMetricTest {
       assertEquals(null, result.stringVal);
       assertEquals(1, result.numberVal);
       assertEquals(null, result.boolVal);
+    }
+  }
+
+  @Test public void testSessionNames() {
+    List<String> invalidReportNames = asList(
+        "",
+        "test metric",
+        "test@memfault",
+        "test/metric"
+    );
+
+    for (String reportName : invalidReportNames) {
+      assertNotNull(RemoteMetricsService.isSessionNameValid(reportName));
+      assertFalse(Reporting.startSession(reportName));
+      assertFalse(Reporting.finishSession(reportName));
     }
   }
 }

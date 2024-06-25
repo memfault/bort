@@ -13,6 +13,7 @@ class SystemPropertiesCollectorTest {
         val store: DevicePropertiesStore = mockk(relaxed = true)
         val settings = object : MetricsSettings {
             override val dataSourceEnabled = true
+            override val dailyHeartbeatEnabled: Boolean = false
             override val collectionInterval = Duration.ZERO
             override val systemProperties = listOf("a", "c", "1", "doesntexist", "1.2", "1.3", "true", "notypelisted")
             override val appVersions = emptyList<String>()

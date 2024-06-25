@@ -1,0 +1,21 @@
+
+type memfault_structured_app, domain;
+
+typeattribute memfault_structured_app coredomain;
+
+app_domain(memfault_structured_app);
+
+# Allow memfault_structured_app to use binder
+binder_use(memfault_structured_app)
+
+# Allow memfault_structured_app to register a service with service manager
+add_service(memfault_structured_app, memfault_structured_service)
+
+# Allow apps to call memfault_structured_app
+binder_call(appdomain, memfault_structured_app)
+
+# Allows memfault_structured_app to find the activity_service
+allow memfault_structured_app activity_service:service_manager find;
+
+# Allow vendor_init to set memfault properties defined in {vendor,system}.prop
+set_prop(vendor_init, memfault_prop)

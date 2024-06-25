@@ -56,12 +56,27 @@ class DynamicSettingsProviderTest {
         assertThrows(SerializationException::class.java) { FetchedSettings.from("trash") { BortJson } }
     }
 
+    companion object {
+        private const val MODEL_KEY_OLD = "model.key.old"
+        private const val MODEL_KEY_NEW = "model.key.new"
+    }
+
     @Test
     fun testInvalidation() {
         val storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider = mockk {
             every { get() } returns
-                SETTINGS_FIXTURE.toSettings().copy(bortMinLogcatLevel = LogLevel.VERBOSE.level) andThen
-                SETTINGS_FIXTURE.toSettings().copy(bortMinLogcatLevel = LogLevel.INFO.level)
+                SETTINGS_FIXTURE.toSettings()
+                    .copy(
+                        bortMinLogcatLevel = LogLevel.VERBOSE.level,
+                        deviceInfoAndroidHardwareVersionKey = MODEL_KEY_OLD,
+                        httpApiZipCompressionLevel = 1,
+                    ) andThen
+                SETTINGS_FIXTURE.toSettings()
+                    .copy(
+                        bortMinLogcatLevel = LogLevel.INFO.level,
+                        deviceInfoAndroidHardwareVersionKey = MODEL_KEY_NEW,
+                        httpApiZipCompressionLevel = 2,
+                    )
         }
         val dumpsterCapabilities = mockk<DumpsterCapabilities> {
             every { supportsContinuousLogging() } answers { true }
@@ -80,11 +95,15 @@ class DynamicSettingsProviderTest {
 
         // The second call will still operate on a cached settings value
         assertThat(settings.minLogcatLevel).isEqualTo(LogLevel.VERBOSE)
+        assertThat(settings.deviceInfoSettings.androidHardwareVersionKey).isEqualTo(MODEL_KEY_OLD)
+        assertThat(settings.httpApiSettings.zipCompressionLevel).isEqualTo(1)
 
         // This will cause settings to be reconstructed on the next call, which will
         // read the new min_log_level from shared preferences
         settings.invalidate()
         assertThat(settings.minLogcatLevel).isEqualTo(LogLevel.INFO)
+        assertThat(settings.deviceInfoSettings.androidHardwareVersionKey).isEqualTo(MODEL_KEY_NEW)
+        assertThat(settings.httpApiSettings.zipCompressionLevel).isEqualTo(2)
     }
 
     @Test

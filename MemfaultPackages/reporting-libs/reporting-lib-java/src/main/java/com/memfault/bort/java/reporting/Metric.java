@@ -17,22 +17,25 @@ public abstract class Metric {
   final MetricType metricType;
   final DataType dataType;
   final boolean carryOverValue;
+  /** Nullable. */
+  final String reportName;
 
   Metric(String eventName, String reportType, List<? extends AggregationType> aggregations,
-      MetricType metricType, DataType dataType, boolean carryOverValue) {
+      MetricType metricType, DataType dataType, boolean carryOverValue, String reportName) {
     this.reportType = reportType;
     this.aggregations = Collections.unmodifiableList(aggregations);
     this.eventName = eventName;
     this.metricType = metricType;
     this.dataType = dataType;
     this.carryOverValue = carryOverValue;
+    this.reportName = reportName;
   }
 
   void addMetric(String stringVal, Long timeMs) {
     dataType.verifyValueType(stringVal);
     RemoteMetricsService.record(new MetricValue(
         eventName, reportType, aggregations, false, metricType, dataType, carryOverValue,
-        timeMs, stringVal, null, null, REPORTING_CLIENT_VERSION)
+        timeMs, stringVal, null, null, REPORTING_CLIENT_VERSION, reportName)
     );
   }
 
@@ -40,7 +43,7 @@ public abstract class Metric {
     dataType.verifyValueType(numberVal);
     RemoteMetricsService.record(new MetricValue(
         eventName, reportType, aggregations, false, metricType, dataType, carryOverValue,
-        timeMs, null, numberVal, null, REPORTING_CLIENT_VERSION)
+        timeMs, null, numberVal, null, REPORTING_CLIENT_VERSION, reportName)
     );
   }
 
@@ -48,7 +51,7 @@ public abstract class Metric {
     dataType.verifyValueType(boolVal);
     RemoteMetricsService.record(new MetricValue(
         eventName, reportType, aggregations, false, metricType, dataType, carryOverValue,
-        timeMs, null, null, boolVal, REPORTING_CLIENT_VERSION)
+        timeMs, null, null, boolVal, REPORTING_CLIENT_VERSION, reportName)
     );
   }
 

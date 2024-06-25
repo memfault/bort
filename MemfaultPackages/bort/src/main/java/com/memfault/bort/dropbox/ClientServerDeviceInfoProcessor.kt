@@ -5,7 +5,6 @@ import com.memfault.bort.clientserver.ClientDeviceInfoPreferenceProvider
 import com.memfault.bort.settings.DeviceConfigUpdateService
 import com.memfault.bort.shared.CLIENT_SERVER_DEVICE_INFO_DROPBOX_TAG
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.time.AbsoluteTime
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.SerializationException
@@ -17,7 +16,7 @@ class ClientServerDeviceInfoProcessor @Inject constructor(
 ) : EntryProcessor() {
     override val tags: List<String> = listOf(CLIENT_SERVER_DEVICE_INFO_DROPBOX_TAG)
 
-    override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
+    override suspend fun process(entry: DropBoxManager.Entry) {
         val content = entry.inputStream?.use { input ->
             input.reader().use { reader ->
                 reader.readText()

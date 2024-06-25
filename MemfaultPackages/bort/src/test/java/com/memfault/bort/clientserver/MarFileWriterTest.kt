@@ -280,6 +280,8 @@ internal class MarFileWriterTest {
                     heartbeatIntervalMs = 2,
                     customMetrics = emptyMap(),
                     builtinMetrics = emptyMap(),
+                    reportType = "heartbeat",
+                    reportName = null,
                 ),
                 debuggingResolution = Resolution.NOT_APPLICABLE,
                 loggingResolution = Resolution.NOT_APPLICABLE,

@@ -12,6 +12,7 @@ data class DeviceInfoParams(
     val androidBuildVersionKey: String,
     val androidHardwareVersionKey: String,
     val androidSerialNumberKey: String,
+    val overriddenSerialNumber: String?,
 )
 
 data class DeviceInfo(
@@ -34,7 +35,7 @@ data class DeviceInfo(
                     "${getBuildFingerprint()}::${props[settings.androidBuildVersionKey] ?: "unknown"}"
             }
             return DeviceInfo(
-                props[settings.androidSerialNumberKey] ?: getFallbackAndroidId(),
+                settings.overriddenSerialNumber ?: props[settings.androidSerialNumberKey] ?: getFallbackAndroidId(),
                 hardwareVersionFromSettingsAndSystemProperties(settings, props),
                 softwareVersion,
             )

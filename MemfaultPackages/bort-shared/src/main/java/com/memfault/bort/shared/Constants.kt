@@ -13,6 +13,8 @@ const val INTENT_EXTRA_BUG_REPORT_REQUEST_STATUS = "com.memfault.intent.extra.BU
 
 const val DROPBOX_ENTRY_ADDED_RECEIVER_QUALIFIED_NAME = "com.memfault.bort.receivers.DropBoxEntryAddedReceiver"
 
+const val APPLICATION_ID_MEMFAULT_STRUCTUREDLOGD = "com.memfault.structuredlogd"
+
 const val APPLICATION_ID_MEMFAULT_USAGE_REPORTER = "com.memfault.usagereporter"
 const val REPORTER_SERVICE_QUALIFIED_NAME = "$APPLICATION_ID_MEMFAULT_USAGE_REPORTER.ReporterService"
 

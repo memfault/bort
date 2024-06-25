@@ -26,6 +26,7 @@ class AppVersionsCollectorTest {
     val collector = AppVersionsCollector(
         metricsSettings = object : MetricsSettings {
             override val dataSourceEnabled: Boolean = false
+            override val dailyHeartbeatEnabled: Boolean = false
             override val collectionInterval: Duration = ZERO
             override val systemProperties: List<String> = emptyList()
             override val appVersions: List<String>

@@ -47,5 +47,13 @@ int main(int argc, char *argv[]) {
 
   metric_report_destroy(report);
 
+  metric_report_t session = metric_session_start("native_session");
+
+  metric_counter_t sessionCounter = metric_report_counter(session, "native_session_counter", true);
+  metric_counter_increment(sessionCounter);
+  metric_counter_destroy(sessionCounter);
+
+  metric_session_finish_plus_ts(session, 1);
+
   return 0;
 }

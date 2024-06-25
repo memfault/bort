@@ -7,17 +7,25 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
-import com.memfault.bort.dropbox.MetricReport
-import com.memfault.bort.metrics.HEARTBEAT_REPORT_TYPE
+import com.memfault.bort.json.useJsonWriter
+import com.memfault.bort.metrics.AggregateMetricFilter
 import com.memfault.bort.metrics.custom.CustomReport
+import com.memfault.bort.metrics.custom.MetricReport
+import com.memfault.bort.metrics.database.DerivedAggregation.Companion.asMetrics
+import com.memfault.bort.reporting.AggregationType
+import com.memfault.bort.reporting.DataType
+import com.memfault.bort.reporting.FinishReport
+import com.memfault.bort.reporting.MetricType
 import com.memfault.bort.reporting.MetricValue
 import com.memfault.bort.reporting.NumericAgg
+import com.memfault.bort.reporting.StartReport
 import com.memfault.bort.reporting.StateAgg
 import com.memfault.bort.shared.Logger
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import java.io.File
@@ -26,39 +34,288 @@ import java.time.Instant
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.DurationUnit.MILLISECONDS
+import kotlin.time.toDuration
 import kotlin.time.toKotlinDuration
 
+const val DAILY_HEARTBEAT_REPORT_TYPE = "Daily-Heartbeat"
+const val HOURLY_HEARTBEAT_REPORT_TYPE = "Heartbeat"
+const val SESSION_REPORT_TYPE = "Session"
+
+/**
+ * A single metric value that is manually derived from metrics in an existing report.
+ *
+ * See [CalculateDerivedAggregations].
+ */
+data class DerivedAggregation(
+    val metadata: DbMetricMetadata,
+    val value: DbMetricValue,
+) {
+
+    companion object {
+        fun List<DerivedAggregation>.asMetrics(internal: Boolean): Map<String, JsonPrimitive> =
+            mapNotNull { aggregation ->
+                (aggregation.metadata.eventName to aggregation.value.jsonValue())
+                    .takeIf { aggregation.metadata.internal == internal }
+            }
+                .toMap()
+
+        fun create(
+            metricName: String,
+            metricValue: Double,
+            metricType: MetricType,
+            dataType: DataType,
+            collectionTimeMs: Long,
+            internal: Boolean,
+        ): DerivedAggregation = DerivedAggregation(
+            metadata = DbMetricMetadata(
+                reportId = UNUSED_ID,
+                eventName = metricName,
+                metricType = metricType,
+                dataType = dataType,
+                carryOver = false,
+                aggregations = Aggs(emptyList()),
+                internal = internal,
+            ),
+            value = DbMetricValue(
+                metadataId = UNUSED_ID,
+                version = UNUSED_VERSION,
+                timestampMs = collectionTimeMs,
+                numberVal = metricValue,
+            ),
+        )
+
+        private const val UNUSED_ID = -1L
+        private const val UNUSED_VERSION = -1
+    }
+}
+
+/**
+ * Before a [MetricReport] is finalized, we may want to add some additional metrics based off of any completed
+ * aggregations of that report, like the time totals.
+ */
+fun interface CalculateDerivedAggregations {
+    fun calculate(
+        startTimestampMs: Long,
+        endTimestampMs: Long,
+        metrics: Map<String, JsonPrimitive>,
+        internalMetrics: Map<String, JsonPrimitive>,
+    ): List<DerivedAggregation>
+}
+
+/**
+ * There are currently only 2 kinds of reports in the database:
+ *  * [HOURLY_HEARTBEAT_REPORT_TYPE]
+ *  * [SESSION_REPORT_TYPE]
+ *
+ * [HOURLY_HEARTBEAT_REPORT_TYPE] are about 1-2 hours in length. There is only 1 active hourly report at any time.
+ * When the hourly metric report is generated, this report is deleted, unless there are carryOver values to bring over
+ * for the next hour, or unless daily reports are enabled.
+ *
+ * [SESSION_REPORT_TYPE] are about 1-2 hours in length. There can be multiple sessions with different [DbReport.name]s
+ * active at the same time, but only 1 session with the same name can be active at once. A session is active if it
+ * has a null [DbReport.endTimeMs]. Calling [finish] on a session will set the [DbReport.endTimeMs]. When the session
+ * report is generated, the report is deleted entirely.
+ *
+ * To generate a [DAILY_HEARTBEAT_REPORT_TYPE], we simply wait for 24 hours worth of [HOURLY_HEARTBEAT_REPORT_TYPE]s
+ * to be stored in the database, and then we generate the hourly report as well as the daily report using all
+ * 24 hourly reports.
+ */
 @Dao
 abstract class MetricsDao {
     @Transaction
+    open suspend fun insertAllReports(
+        metric: MetricValue,
+    ): Long {
+        var inserts = 0L
+
+        inserts += if (insert(metric) != -1L) 1L else 0L
+
+        inserts += insertAllSessions(
+            metric = metric,
+        ).takeIf { it != -1L } ?: 0L
+
+        return inserts
+    }
+
+    @Transaction
+    open suspend fun insertAllSessions(
+        metric: MetricValue,
+    ): Long {
+        var inserts = 0L
+
+        getReports(reportType = SESSION_REPORT_TYPE).forEach { session ->
+            val metricTime = metric.timeMs
+
+            val appliesToSession = if (session.endTimeMs != null) {
+                session.startTimeMs <= metricTime && metricTime <= session.endTimeMs
+            } else {
+                session.startTimeMs <= metricTime
+            }
+
+            if (appliesToSession) {
+                val metadataId = insertOrUpdateMetadataIfNeeded(
+                    DbMetricMetadata(
+                        reportId = session.id,
+                        eventName = metric.eventName,
+                        metricType = metric.metricType,
+                        dataType = metric.dataType,
+                        carryOver = metric.carryOverValue,
+                        aggregations = Aggs(metric.aggregations),
+                        internal = metric.internal,
+                    ),
+                )
+                inserts += if (insert(
+                        DbMetricValue(
+                            metadataId = metadataId,
+                            version = metric.version,
+                            timestampMs = metric.timeMs,
+                            stringVal = metric.stringVal,
+                            numberVal = metric.numberVal,
+                            boolVal = metric.boolVal,
+                        ),
+                    ) != 1L
+                ) {
+                    1L
+                } else {
+                    0L
+                }
+            }
+        }
+
+        return inserts
+    }
+
+    @Transaction
     open suspend fun insert(metric: MetricValue): Long {
-        val reportId = insertOrGetReport(
+        return insert(
+            reportType = metric.reportType,
+            reportName = metric.reportName,
+            reportStartTimestampMs = metric.timeMs,
+            eventTimestampMs = metric.timeMs,
+            eventName = metric.eventName,
+            metricType = metric.metricType,
+            dataType = metric.dataType,
+            carryOver = metric.carryOverValue,
+            aggs = metric.aggregations,
+            internal = metric.internal,
+            version = metric.version,
+            stringVal = metric.stringVal,
+            numberVal = metric.numberVal,
+            boolVal = metric.boolVal,
+        )
+    }
+
+    @Transaction
+    open suspend fun insert(
+        reportType: String,
+        reportName: String?,
+        reportStartTimestampMs: Long,
+        eventTimestampMs: Long,
+        eventName: String,
+        metricType: MetricType,
+        dataType: DataType,
+        carryOver: Boolean,
+        aggs: List<AggregationType>,
+        internal: Boolean,
+        version: Int,
+        stringVal: String?,
+        numberVal: Double?,
+        boolVal: Boolean?,
+    ): Long {
+        val reportId = insertOrGetStartedReport(
             DbReport(
-                type = metric.reportType,
-                startTimeMs = metric.timeMs,
+                type = reportType,
+                name = reportName,
+                startTimeMs = reportStartTimestampMs,
             ),
         )
         val metadataId = insertOrUpdateMetadataIfNeeded(
             DbMetricMetadata(
                 reportId = reportId,
-                eventName = metric.eventName,
-                metricType = metric.metricType,
-                dataType = metric.dataType,
-                carryOver = metric.carryOverValue,
-                aggregations = Aggs(metric.aggregations),
-                internal = metric.internal,
+                eventName = eventName,
+                metricType = metricType,
+                dataType = dataType,
+                carryOver = carryOver,
+                aggregations = Aggs(aggs),
+                internal = internal,
             ),
         )
         return insert(
             DbMetricValue(
                 metadataId = metadataId,
-                version = metric.version,
-                timestampMs = metric.timeMs,
-                stringVal = metric.stringVal,
-                numberVal = metric.numberVal,
-                boolVal = metric.boolVal,
+                version = version,
+                timestampMs = eventTimestampMs,
+                stringVal = stringVal,
+                numberVal = numberVal,
+                boolVal = boolVal,
             ),
         )
+    }
+
+    @Transaction
+    open suspend fun startWithLatestMetricValues(
+        startReport: StartReport,
+        hourlyHeartbeatReportType: String = HOURLY_HEARTBEAT_REPORT_TYPE,
+        latestMetricKeys: List<String>,
+    ): Long {
+        val reportId = insertOrGetStartedReport(
+            DbReport(
+                type = startReport.reportType,
+                name = startReport.reportName,
+                startTimeMs = startReport.timestampMs,
+            ),
+        )
+
+        val hourlyHeartbeatDbReport = singleStartedReport(reportType = hourlyHeartbeatReportType)
+        if (hourlyHeartbeatDbReport != null) {
+            latestMetricKeys.forEach { key ->
+                val metadata = getMetadata(reportId = hourlyHeartbeatDbReport.id, eventName = key)
+                if (metadata != null) {
+                    val metric = getLatestMetricValue(metadataId = metadata.id)
+
+                    val metadataId = insertOrUpdateMetadataIfNeeded(
+                        DbMetricMetadata(
+                            reportId = reportId,
+                            eventName = metadata.eventName,
+                            metricType = metadata.metricType,
+                            dataType = metadata.dataType,
+                            carryOver = metadata.carryOver,
+                            aggregations = metadata.aggregations,
+                            internal = metadata.internal,
+                        ),
+                    )
+
+                    insert(
+                        DbMetricValue(
+                            metadataId = metadataId,
+                            version = metric.version,
+                            // Use the current timestamp.
+                            timestampMs = startReport.timestampMs,
+                            stringVal = metric.stringVal,
+                            numberVal = metric.numberVal,
+                            boolVal = metric.boolVal,
+                        ),
+                    )
+                }
+            }
+        }
+
+        return reportId
+    }
+
+    @Transaction
+    open suspend fun finish(finishReport: FinishReport): Long {
+        val report = singleStartedReport(
+            reportType = finishReport.reportType,
+            reportName = finishReport.reportName,
+        )
+
+        if (report == null) {
+            return -1
+        }
+
+        return updateReportEndTimestamp(report.id, endTimestampMs = finishReport.timestampMs).toLong()
     }
 
     @VisibleForTesting
@@ -71,11 +328,11 @@ abstract class MetricsDao {
      * @return ID.
      */
     @Transaction
-    protected open suspend fun insertOrGetReport(report: DbReport): Long {
+    protected open suspend fun insertOrGetStartedReport(report: DbReport): Long {
         val reportOrNull = if (report.name != null) {
-            getReport(reportType = report.type, reportName = report.name)
+            singleStartedReport(reportType = report.type, reportName = report.name)
         } else {
-            getReport(reportType = report.type)
+            singleStartedReport(reportType = report.type)
         }
         return reportOrNull?.id ?: insert(report)
     }
@@ -92,7 +349,11 @@ abstract class MetricsDao {
         if (existing?.equals(metadata.copy(id = existing.id)) == true) {
             return existing.id
         }
-        return insertOrReplace(metadata)
+        return if (existing != null) {
+            insertOrReplace(metadata.copy(id = existing.id))
+        } else {
+            insertOrReplace(metadata)
+        }
     }
 
     @Query("SELECT * FROM metric_metadata WHERE reportId = :reportId AND eventName = :eventName")
@@ -109,16 +370,24 @@ abstract class MetricsDao {
     protected abstract suspend fun insert(metric: DbMetricValue): Long
 
     private suspend fun calculateAggregations(
-        metadata: DbMetricMetadata,
+        metadata: List<DbMetricMetadata>,
+        aggs: List<AggregationType>,
+        key: String,
         reportStartMs: Long,
         reportEndMs: Long,
     ): Map<String, JsonPrimitive> {
+        val uniqueMetadataKeys = metadata.mapTo(mutableSetOf()) { it.eventName }
+        if (uniqueMetadataKeys.size != 1) {
+            Logger.w("Tried to calculate aggregations across different metadata keys: $uniqueMetadataKeys")
+            // This shouldn't be possible, but usually better to no-op than crash.
+            return emptyMap()
+        }
+
         val metrics = mutableMapOf<String, JsonPrimitive>()
-        val aggs = metadata.aggregations.aggregations
-        val key = metadata.eventName
         val numericAggs = aggs.filterIsInstance<NumericAgg>()
+        val metadataIds = metadata.mapTo(mutableSetOf()) { it.id }.toList()
         if (numericAggs.isNotEmpty()) {
-            val results = getNumericAggregations(metadataId = metadata.id)
+            val results = getNumericAggregations(metadataIds = metadataIds)
             for (numericAgg in numericAggs) {
                 when (numericAgg) {
                     NumericAgg.COUNT -> metrics["$key.count"] = JsonPrimitive(results.count)
@@ -131,11 +400,11 @@ abstract class MetricsDao {
             }
         }
         if (aggs.any { it == NumericAgg.LATEST_VALUE || it == StateAgg.LATEST_VALUE }) {
-            val results = getLatestMetricValue(metadataId = metadata.id)
+            val results = getLatestMetricValue(metadataIds = metadataIds)
             metrics["$key.latest"] = results.jsonValue()
         }
         if (aggs.any { it == StateAgg.TIME_PER_HOUR || it == StateAgg.TIME_TOTALS }) {
-            val values = getMetricValuesFlow(metadataId = metadata.id, pageSize = 250, bufferSize = 500)
+            val values = getMetricValuesFlow(metadataIds = metadataIds, pageSize = 250, bufferSize = 500)
             val timeInStateMs = mutableMapOf<String, Long>()
             var last: DbMetricValue? = null
             values.collect { d ->
@@ -164,12 +433,13 @@ abstract class MetricsDao {
             val reportDurationMs = reportEndMs - reportStartMs
             timeInStateMs.forEach { (state, timeMs) ->
                 if (StateAgg.TIME_PER_HOUR in aggs) {
-                    metrics["${key}_$state.secs/hour"] =
-                        JsonPrimitive(
-                            (1.hours * (timeMs.milliseconds.div(reportDurationMs.milliseconds)))
-                                .coerceAtMost(1.hours)
-                                .inWholeSeconds,
-                        )
+                    if (timeMs <= reportDurationMs) {
+                        metrics["${key}_$state.secs/hour"] =
+                            JsonPrimitive(
+                                (1.hours * (timeMs.milliseconds.div(reportDurationMs.milliseconds)))
+                                    .inWholeSeconds,
+                            )
+                    }
                 }
                 if (StateAgg.TIME_TOTALS in aggs) {
                     metrics["${key}_$state.total_secs"] = JsonPrimitive(timeMs.milliseconds.inWholeSeconds)
@@ -179,138 +449,349 @@ abstract class MetricsDao {
         return metrics
     }
 
-    @Transaction
-    open suspend fun collectHeartbeat(
-        reportType: String = HEARTBEAT_REPORT_TYPE,
+    /**
+     * Converts a list of [DbReport]s into a single [MetricReport]. The list often has only 1 element, but may
+     * contain multiple reports, in the case of daily heartbeats where we merge 24 hours worth of reports into 1.
+     * [DbMetricValue]s are always tied to a single [DbReport] for the hourly heartbeat, but for daily heartbeats, we
+     * can simply pass all [DbReport]s in the 24 hour period to produce a single [MetricReport]. This allows us to
+     * re-use the existing aggregation logic without re-structuring metric associations.
+     */
+    private suspend fun produceMetricReport(
+        dbReports: List<DbReport>,
         endTimestampMs: Long,
-        hrtFile: File?,
-    ): CustomReport {
-        val dbReport = getReport(reportType = reportType)
-        if (dbReport == null) {
-            Logger.i("Didn't find report in database for $HEARTBEAT_REPORT_TYPE")
-            return CustomReport(
-                report = MetricReport(
-                    version = METRICS_VERSION,
-                    startTimestampMs = endTimestampMs,
-                    endTimestampMs = endTimestampMs,
-                    reportType = HEARTBEAT_REPORT_TYPE,
-                    metrics = emptyMap(),
-                    internalMetrics = emptyMap(),
-                ),
-                hrt = hrtFile,
+        calculateDerivedAggregations: CalculateDerivedAggregations,
+        consumeMetadata: suspend (
+            dbReport: DbReport,
+            dbMetadata: List<DbMetricMetadata>,
+            derivedAggregations: List<DerivedAggregation>,
+        ) -> Unit,
+    ): MetricReport {
+        if (dbReports.isEmpty()) {
+            Logger.w("Tried to produceMetricReport but didn't pass any reports")
+            // Should never pass an empty list here, but just in case.
+            return MetricReport(
+                version = METRICS_VERSION,
+                startTimestampMs = endTimestampMs,
+                endTimestampMs = endTimestampMs,
+                reportType = HOURLY_HEARTBEAT_REPORT_TYPE,
+                reportName = null,
+                metrics = emptyMap(),
+                internalMetrics = emptyMap(),
             )
         }
-        val startTimestampMs = dbReport.startTimeMs
-        val reportMetadata = getMetricMetadata(reportId = dbReport.id)
+        val reportIds = dbReports.map { it.id }
+        val startReport = dbReports.minBy { it.startTimeMs }
+        val startTimestampMs = startReport.startTimeMs
+
         val metrics = mutableMapOf<String, JsonPrimitive>()
         val internalMetrics = mutableMapOf<String, JsonPrimitive>()
-        for (metadata in reportMetadata) {
+
+        val metricMetadata = getMetricMetadata(reportIds = reportIds)
+        val uniqueMetricKeys = metricMetadata.groupBy { it.eventName }
+        // For each metric key, calculate aggregations based off of every passed in report. In most cases, only 1
+        // report is passed in, but for daily heartbeats, there could be 24 hours worth of reports (24).
+        for ((metricKey, commonMetadata) in uniqueMetricKeys) {
+            // If there is more than one metadata, then use the latest metadata as the "canonical" metadata for the
+            // (daily) aggregation. Note that there may be situations where there are fewer metadata than reports,
+            // if some reports don't contain that metric.
+            val commonMetadataSorted = commonMetadata
+                .sortedBy { metadata ->
+                    dbReports.single { dbReport -> dbReport.id == metadata.reportId }.endTimeMs
+                }
+            val latestMetadata = commonMetadata.last()
+
+            // Make sure that the start and end timestamps are correct for all 3 of hourly heartbeats, daily
+            // heartbeats, and sessions.
             val aggregations = calculateAggregations(
-                metadata = metadata,
+                metadata = commonMetadataSorted,
+                aggs = latestMetadata.aggregations.aggregations,
+                key = metricKey,
                 reportStartMs = startTimestampMs,
                 reportEndMs = endTimestampMs,
             )
-            if (metadata.internal) {
+            if (latestMetadata.internal) {
                 internalMetrics.putAll(aggregations)
             } else {
                 metrics.putAll(aggregations)
             }
         }
-        val report = MetricReport(
+
+        val derivedAggregations =
+            calculateDerivedAggregations.calculate(startTimestampMs, endTimestampMs, metrics, internalMetrics)
+
+        // We currently only call and use consumeMetadata for HRT, which is only supported for hourly heartbeats.
+        // Perhaps there's a better way to model this with Sessions and DerivedAggregations.
+        if (dbReports.size == 1) {
+            consumeMetadata(startReport, metricMetadata, derivedAggregations)
+        }
+
+        return MetricReport(
             version = METRICS_VERSION,
             startTimestampMs = startTimestampMs,
             endTimestampMs = endTimestampMs,
-            reportType = dbReport.type,
-            metrics = metrics,
-            internalMetrics = internalMetrics,
+            reportType = startReport.type,
+            reportName = startReport.name,
+            metrics = derivedAggregations.asMetrics(internal = false) +
+                AggregateMetricFilter.filterAndRenameMetrics(metrics, internal = false),
+            internalMetrics = derivedAggregations.asMetrics(internal = true) +
+                AggregateMetricFilter.filterAndRenameMetrics(internalMetrics, internal = true),
         )
-        hrtFile?.let {
-            hrtFile.bufferedWriter().use { writer ->
-                JsonWriter(writer).use { json ->
-                    json.beginObject()
-                    json.name("schema_version").value(1)
-                    json.name("start_time").value(startTimestampMs)
-                    json.name("duration_ms").value(endTimestampMs - startTimestampMs)
-                    json.name("report_type").value(dbReport.type)
+    }
 
-                    json.name("producer").beginObject()
-                    json.name("version").value("1")
-                    json.name("id").value("bort")
-                    json.endObject()
+    private suspend fun writeHrtRollup(
+        json: JsonWriter,
+        dbReport: DbReport,
+        dbMetadata: DbMetricMetadata,
+        dbMetricValues: Flow<DbMetricValue>,
+    ) {
+        var writtenMetadata = false
+        dbMetricValues.collect { d ->
+            if (!writtenMetadata) {
+                json.beginObject()
+                json.name("metadata").beginObject()
+                json.name("string_key").value(dbMetadata.eventName)
+                json.name("metric_type").value(dbMetadata.metricType.value)
+                json.name("data_type").value(dbMetadata.dataType.value)
+                json.name("internal").value(dbMetadata.internal)
+                json.endObject()
+                json.name("data").beginArray()
+                writtenMetadata = true
+            }
 
-                    json.name("rollups").beginArray()
-                    reportMetadata.forEach { metadata ->
-                        val values = getMetricValuesFlow(
-                            metadataId = metadata.id,
-                            pageSize = PAGE_SIZE,
-                            bufferSize = BUFFER_SIZE,
-                        )
-                        var writtenMetadata = false
-                        values.collect { d ->
-                            if (!writtenMetadata) {
-                                json.beginObject()
-                                json.name("metadata").beginObject()
-                                json.name("string_key").value(metadata.eventName)
-                                json.name("metric_type").value(metadata.metricType.value)
-                                json.name("data_type").value(metadata.dataType.value)
-                                json.name("internal").value(metadata.internal)
-                                json.endObject()
-                                json.name("data").beginArray()
-                                writtenMetadata = true
-                            }
+            json.beginObject()
+            val timestamp = d.timestampMs.coerceAtLeast(dbReport.startTimeMs)
+            json.name("t").value(timestamp)
+            if (d.boolVal != null) {
+                json.name("value").value(d.boolVal)
+            } else if (d.stringVal != null) {
+                json.name("value").value(d.stringVal)
+            } else if (d.numberVal != null) {
+                json.name("value").value(d.numberVal)
+            }
+            json.endObject()
+        }
+        if (writtenMetadata) {
+            json.endArray()
+            json.endObject()
+        }
+    }
 
-                            json.beginObject()
-                            val timestamp = d.timestampMs.coerceAtLeast(startTimestampMs)
-                            json.name("t").value(timestamp)
-                            if (d.boolVal != null) {
-                                json.name("value").value(d.boolVal)
-                            } else if (d.stringVal != null) {
-                                json.name("value").value(d.stringVal)
-                            } else if (d.numberVal != null) {
-                                json.name("value").value(d.numberVal)
-                            }
-                            json.endObject()
-                        }
-                        if (writtenMetadata) {
-                            json.endArray()
-                            json.endObject()
+    private suspend fun writeHrtReport(
+        json: JsonWriter,
+        dbReport: DbReport,
+        dbMetadata: List<DbMetricMetadata>,
+        endTimestampMs: Long,
+        derivedAggregations: List<DerivedAggregation>,
+    ) {
+        json.beginObject()
+        json.name("schema_version").value(1)
+        json.name("start_time").value(dbReport.startTimeMs)
+        json.name("duration_ms").value(endTimestampMs - dbReport.startTimeMs)
+        json.name("report_type").value(dbReport.type)
+
+        json.name("producer").beginObject()
+        json.name("version").value("1")
+        json.name("id").value("bort")
+        json.endObject()
+
+        json.name("rollups").beginArray()
+        dbMetadata.forEach { metadata ->
+            writeHrtRollup(
+                json = json,
+                dbReport = dbReport,
+                dbMetadata = metadata,
+                dbMetricValues = getMetricValuesFlow(
+                    metadataIds = listOf(metadata.id),
+                    pageSize = PAGE_SIZE,
+                    bufferSize = BUFFER_SIZE,
+                ),
+            )
+        }
+
+        derivedAggregations.forEach { derivedAggregation ->
+            writeHrtRollup(
+                json = json,
+                dbReport = dbReport,
+                dbMetadata = derivedAggregation.metadata,
+                dbMetricValues = flowOf(derivedAggregation.value),
+            )
+        }
+        json.endArray()
+        json.endObject()
+    }
+
+    /**
+     * Generates a [CustomReport], which contains the hourly, daily, and session [MetricReport]s.
+     *
+     * Every time this method is called, we produce a single "hourly" [MetricReport]. Note that this hourly report
+     * might not actually contain a full hour's worth of metrics. We also write all finished sessions, each into
+     * its own [MetricReport]. We also check whether daily reports are enabled. If yes, then we won't delete each
+     * hourly report, and instead wait until we've accumulated 24 hours worth of hourly reports, before producing
+     * a daily report in the [CustomReport.dailyHeartbeatReport] slot.
+     */
+    @Transaction
+    open suspend fun collectHeartbeat(
+        hourlyHeartbeatReportType: String = HOURLY_HEARTBEAT_REPORT_TYPE,
+        dailyHeartbeatReportType: String? = null,
+        endTimestampMs: Long,
+        hrtFile: File?,
+        calculateDerivedAggregations: CalculateDerivedAggregations = CalculateDerivedAggregations { _, _, _, _ ->
+            emptyList()
+        },
+    ): CustomReport {
+        val hourlyHeartbeatDbReport = singleStartedReport(reportType = hourlyHeartbeatReportType)
+        val hourlyHeartbeatReport = if (hourlyHeartbeatDbReport == null) {
+            Logger.i("Didn't find report in database for $hourlyHeartbeatReportType")
+            MetricReport(
+                version = METRICS_VERSION,
+                startTimestampMs = endTimestampMs,
+                endTimestampMs = endTimestampMs,
+                reportType = HOURLY_HEARTBEAT_REPORT_TYPE,
+                reportName = null,
+                metrics = emptyMap(),
+                internalMetrics = emptyMap(),
+            )
+        } else {
+            // Always end the hourly report.
+            updateReportEndTimestamp(hourlyHeartbeatDbReport.id, endTimestampMs = endTimestampMs)
+
+            val hourlyReport = produceMetricReport(
+                dbReports = listOf(hourlyHeartbeatDbReport),
+                endTimestampMs = endTimestampMs,
+                calculateDerivedAggregations = calculateDerivedAggregations,
+                consumeMetadata = { dbReport, dbMetadata, derivedAggregations ->
+                    hrtFile.useJsonWriter { jsonWriter ->
+                        jsonWriter?.let {
+                            writeHrtReport(
+                                json = it,
+                                dbReport = dbReport,
+                                dbMetadata = dbMetadata,
+                                endTimestampMs = endTimestampMs,
+                                derivedAggregations = derivedAggregations,
+                            )
                         }
                     }
+                },
+            )
 
-                    json.endArray()
-                    json.endObject()
+            // Delete all values, metadata, and reports. If carryOver is enabled for a metric, then carry over its
+            // latest value to the next report. CarryOvers are only kept for 3 days if they're not updated.
+            val allCarryOverMetricMetadata = getMetricMetadataWithCarryOver(hourlyHeartbeatDbReport.id)
+
+            val carryOverMetricValues = allCarryOverMetricMetadata
+                .mapNotNull { metadata ->
+                    val latestValue = getLatestMetricValue(metadata.id)
+
+                    if ((endTimestampMs - latestValue.timestampMs).milliseconds <= 3.days) {
+                        metadata to latestValue
+                    } else {
+                        null
+                    }
                 }
+
+            carryOverMetricValues.forEach { (metadata, value) ->
+                insert(
+                    reportType = hourlyHeartbeatDbReport.type,
+                    reportName = hourlyHeartbeatDbReport.name,
+                    reportStartTimestampMs = endTimestampMs,
+                    eventTimestampMs = value.timestampMs,
+                    eventName = metadata.eventName,
+                    metricType = metadata.metricType,
+                    dataType = metadata.dataType,
+                    carryOver = metadata.carryOver,
+                    aggs = metadata.aggregations.aggregations,
+                    internal = metadata.internal,
+                    version = value.version,
+                    stringVal = value.stringVal,
+                    numberVal = value.numberVal,
+                    boolVal = value.boolVal,
+                )
             }
+
+            hourlyReport
         }
 
-        // Delete all values, metadata, and reports. If carryOver is enabled for a metric, then carry over its latest
-        // value to the next report. CarryOvers are only kept for 3 days if they're not updated.
-        val allCarryOverMetricMetadataIds = getMetricMetadataIdsForCarryOver(dbReport.id)
-        val carryOverMetricValues = allCarryOverMetricMetadataIds.map { id -> getLatestMetricValue(id) }
-            .filter {
-                Duration.between(Instant.ofEpochMilli(it.timestampMs), Instant.ofEpochMilli(endTimestampMs))
-                    .toKotlinDuration() <= 3.days
+        val dailyHeartbeatReport = if (dailyHeartbeatReportType != null) {
+            val hourlyHeartbeats = getEndedReports(reportType = HOURLY_HEARTBEAT_REPORT_TYPE)
+                .sortedBy { it.endTimeMs }
+
+            val hourlyStartTimeMs = hourlyHeartbeats.minByOrNull { it.startTimeMs }?.startTimeMs ?: 0
+            val hourlyEndTimeMs = hourlyHeartbeats.maxByOrNull { it.endTimeMs ?: 0 }?.endTimeMs ?: 0
+            if ((hourlyEndTimeMs - hourlyStartTimeMs).toDuration(MILLISECONDS) >= 24.hours) {
+                // Daily heartbeats work by reading all 24 hours worth of hourly heartbeats. By passing in all
+                // 24 hourly heartbeat reports into the same function, we can reuse the [produceMetricReport]
+                // function without much modification.
+                val dailyReport = produceMetricReport(
+                    dbReports = hourlyHeartbeats,
+                    endTimestampMs = endTimestampMs,
+                    calculateDerivedAggregations = calculateDerivedAggregations,
+                    consumeMetadata = { _, _, _ -> },
+                )
+
+                // Once we're done producing the daily MetricReport, delete all its report and data.
+                hourlyHeartbeats.forEach { report ->
+                    deleteMetricValues(reportId = report.id)
+                    deleteMetricMetadata(reportId = report.id)
+                    deleteReport(reportId = report.id)
+                }
+
+                dailyReport
+            } else {
+                null
             }
-        val carryOverMetricMetadataIds = carryOverMetricValues.map { it.metadataId }.toSet()
-
-        deleteMetricValues(dbReport.id)
-
-        getMetricMetadata(dbReport.id)
-            .filter { it.id !in carryOverMetricMetadataIds }
-            .chunked(1_000)
-            .forEach { metadataChunk -> deleteMetricMetadataIds(metadataIds = metadataChunk.map { it.id }) }
-
-        if (carryOverMetricValues.isEmpty()) {
-            deleteReport(dbReport.id)
         } else {
-            updateReportTimestamp(dbReport.type, startTimestampMs = endTimestampMs)
-            carryOverMetricValues.forEach { insert(it) }
+            // If the daily heartbeat is disabled, finished hourly heartbeats aren't used after the metric report is
+            // produced, so make sure to delete them.
+            getEndedReports(reportType = HOURLY_HEARTBEAT_REPORT_TYPE)
+                .forEach { report ->
+                    deleteMetricValues(reportId = report.id)
+                    deleteMetricMetadata(reportId = report.id)
+                    deleteReport(reportId = report.id)
+                }
+
+            null
         }
+
+        expireSessions(endTimestampMs = endTimestampMs)
+
+        val sessionReports = getEndedReports(reportType = SESSION_REPORT_TYPE)
+            .map { dbSession ->
+                val sessionEndTimeMs = dbSession.endTimeMs
+                checkNotNull(sessionEndTimeMs) {
+                    "endTimeMs must not be null, is the query correct?"
+                }
+                val sessionReport = produceMetricReport(
+                    dbReports = listOf(dbSession),
+                    endTimestampMs = sessionEndTimeMs,
+                    calculateDerivedAggregations = calculateDerivedAggregations,
+                    consumeMetadata = { _, _, _ -> },
+                )
+
+                // Delete all values, metadata, and reports.
+                deleteMetricValues(reportId = dbSession.id)
+                deleteMetricMetadata(reportId = dbSession.id)
+                deleteReport(reportId = dbSession.id)
+
+                sessionReport
+            }
 
         return CustomReport(
-            report = report,
+            hourlyHeartbeatReport = hourlyHeartbeatReport,
+            dailyHeartbeatReport = dailyHeartbeatReport,
+            sessions = sessionReports,
             hrt = hrtFile,
         )
+    }
+
+    private suspend fun expireSessions(endTimestampMs: Long) {
+        val expiredSessionIds = getStartedReports(reportType = SESSION_REPORT_TYPE)
+            .filter { session ->
+                Duration.between(Instant.ofEpochMilli(session.startTimeMs), Instant.ofEpochMilli(endTimestampMs))
+                    .toKotlinDuration().inWholeHours >= 1.days.inWholeHours
+            }
+            .map { session -> session.id }
+
+        updateReportEndTimestamps(expiredSessionIds, endTimestampMs)
     }
 
     @VisibleForTesting suspend fun dump(): DbDump = DbDump(
@@ -327,9 +808,9 @@ abstract class MetricsDao {
         AVG(v.numberVal) as mean,
         COUNT(v.numberVal) as count
         FROM metric_values v
-        WHERE v.metadataId = :metadataId""",
+        WHERE v.metadataId IN (:metadataIds)""",
     )
-    protected abstract suspend fun getNumericAggregations(metadataId: Long): DbNumericAggs
+    protected abstract suspend fun getNumericAggregations(metadataIds: List<Long>): DbNumericAggs
 
     @Query(
         """SELECT
@@ -341,30 +822,55 @@ abstract class MetricsDao {
     )
     protected abstract suspend fun getLatestMetricValue(metadataId: Long): DbMetricValue
 
+    @Query(
+        """SELECT
+        *
+        FROM metric_values v
+        WHERE v.metadataId IN (:metadataIds)
+        ORDER BY v.timestampMs DESC
+        LIMIT 1""",
+    )
+    protected abstract suspend fun getLatestMetricValue(metadataIds: List<Long>): DbMetricValue
+
     @Query("SELECT * FROM reports")
     protected abstract suspend fun getReports(): List<DbReport>
 
     @Query("SELECT * FROM reports WHERE type = :reportType")
-    protected abstract suspend fun getReport(reportType: String): DbReport?
+    protected abstract suspend fun getReports(reportType: String): List<DbReport>
 
-    @Query("SELECT * FROM reports WHERE type = :reportType AND name = :reportName")
-    protected abstract suspend fun getReport(reportType: String, reportName: String): DbReport?
+    @Query("SELECT * FROM reports WHERE type = :reportType AND endTimeMs IS NULL")
+    protected abstract suspend fun singleStartedReport(reportType: String): DbReport?
 
-    @Query("SELECT * FROM metric_metadata WHERE reportId = :reportId")
-    protected abstract suspend fun getMetricMetadata(reportId: Long): List<DbMetricMetadata>
+    @Query("SELECT * FROM reports WHERE type = :reportType AND name = :reportName AND endTimeMs IS NULL")
+    protected abstract suspend fun singleStartedReport(
+        reportType: String,
+        reportName: String,
+    ): DbReport?
+
+    @Query("SELECT * FROM reports WHERE type = :reportType AND endTimeMs IS NULL")
+    protected abstract suspend fun getStartedReports(reportType: String): List<DbReport>
+
+    @Query("SELECT * FROM reports WHERE type = :reportType AND endTimeMs IS NOT NULL")
+    protected abstract suspend fun getEndedReports(reportType: String): List<DbReport>
+
+    @Query("SELECT * FROM metric_metadata WHERE reportId = :reportId AND carryOver = 1")
+    protected abstract suspend fun getMetricMetadataWithCarryOver(reportId: Long): List<DbMetricMetadata>
+
+    @Query("SELECT * FROM metric_metadata WHERE reportId IN (:reportIds)")
+    protected abstract suspend fun getMetricMetadata(reportIds: List<Long>): List<DbMetricMetadata>
 
     /**
      * Create a flow of metric values. This avoids loading them all into memory at once (the emitter will block until
      * the buffer is consumed by the caller).
      */
     private fun getMetricValuesFlow(
-        metadataId: Long,
+        metadataIds: List<Long>,
         pageSize: Long,
         bufferSize: Int,
     ): Flow<DbMetricValue> = flow {
         var offset = 0L
         while (true) {
-            val values = getMetricValuesPage(metadataId = metadataId, limit = pageSize, offset = offset)
+            val values = getMetricValuesPage(metadataIds = metadataIds, limit = pageSize, offset = offset)
             if (values.isEmpty()) break
             values.forEach {
                 emit(it)
@@ -374,11 +880,11 @@ abstract class MetricsDao {
     }.buffer(capacity = bufferSize, onBufferOverflow = BufferOverflow.SUSPEND)
 
     @Query(
-        "SELECT * FROM metric_values WHERE metadataId = :metadataId " +
+        "SELECT * FROM metric_values WHERE metadataId IN (:metadataIds) " +
             "ORDER BY timestampMs ASC LIMIT :limit OFFSET :offset",
     )
     protected abstract suspend fun getMetricValuesPage(
-        metadataId: Long,
+        metadataIds: List<Long>,
         limit: Long,
         offset: Long,
     ): List<DbMetricValue>
@@ -392,12 +898,8 @@ abstract class MetricsDao {
     @Query("SELECT * FROM metric_metadata")
     protected abstract suspend fun getMetricMetadata(): List<DbMetricMetadata>
 
-    @Query(
-        "SELECT id FROM metric_metadata WHERE reportId = :reportId AND carryOver = 1",
-    )
-    protected abstract suspend fun getMetricMetadataIdsForCarryOver(
-        reportId: Long,
-    ): List<Long>
+    @Query("DELETE FROM metric_metadata WHERE reportId = :reportId")
+    protected abstract suspend fun deleteMetricMetadata(reportId: Long): Int
 
     @Query("DELETE FROM metric_metadata WHERE id in (:metadataIds)")
     protected abstract suspend fun deleteMetricMetadataIds(metadataIds: List<Long>): Int
@@ -408,8 +910,23 @@ abstract class MetricsDao {
     @Query("DELETE FROM reports WHERE id = :reportId")
     protected abstract suspend fun deleteReport(reportId: Long): Int
 
-    @Query("UPDATE reports SET startTimeMs = :startTimestampMs WHERE type = :reportType")
-    protected abstract suspend fun updateReportTimestamp(reportType: String, startTimestampMs: Long): Int
+    @Query("UPDATE reports SET startTimeMs = :startTimestampMs WHERE id = :reportId")
+    protected abstract suspend fun updateReportStartTimestamp(
+        reportId: Long,
+        startTimestampMs: Long,
+    ): Int
+
+    @Query("UPDATE reports SET endTimeMs = :endTimestampMs WHERE id = :reportId")
+    protected abstract suspend fun updateReportEndTimestamp(
+        reportId: Long,
+        endTimestampMs: Long,
+    ): Int
+
+    @Query("UPDATE reports SET endTimeMs = :endTimestampMs WHERE id IN (:reportIds)")
+    protected abstract suspend fun updateReportEndTimestamps(
+        reportIds: List<Long>,
+        endTimestampMs: Long,
+    ): Int
 
     companion object {
         const val METRICS_VERSION = 1

@@ -121,6 +121,8 @@ class ResolutionTest {
             heartbeatIntervalMs = 0,
             customMetrics = emptyMap(),
             builtinMetrics = emptyMap(),
+            reportType = "heartbeat",
+            reportName = null,
         ),
         debuggingResolution = Resolution.NOT_APPLICABLE,
         loggingResolution = Resolution.NOT_APPLICABLE,

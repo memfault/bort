@@ -14,10 +14,11 @@ public class StringProperty extends Metric {
   private static final DataType DATA_TYPE = STRING;
   private static final boolean CARRY_OVER_VALUE = true;
 
-  StringProperty(String eventName, String reportType, boolean addLatestToReport) {
+  StringProperty(String eventName, String reportType, boolean addLatestToReport,
+      String reportName) {
     super(eventName, reportType,
         addLatestToReport ? Collections.singletonList(LATEST_VALUE) : Collections.emptyList(),
-        METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
+        METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE, reportName);
   }
 
   public void update(String value) {

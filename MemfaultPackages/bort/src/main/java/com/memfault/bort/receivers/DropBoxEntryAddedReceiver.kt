@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.DropBoxManager
+import com.memfault.bort.DevMode
 import com.memfault.bort.dropbox.DropBoxFilters
 import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.dropbox.enqueueOneTimeDropBoxQueryTask
@@ -20,6 +21,7 @@ class DropBoxEntryAddedReceiver @Inject constructor(
     private val dropBoxProcessedEntryCursorProvider: ProcessedEntryCursorProvider,
     private val dropBoxFilters: DropBoxFilters,
     private val application: Application,
+    private val devMode: DevMode,
 ) : BortEnabledFilteringReceiver(
     setOf(DropBoxManager.ACTION_DROPBOX_ENTRY_ADDED),
 ) {
@@ -36,9 +38,17 @@ class DropBoxEntryAddedReceiver @Inject constructor(
             application.registerReceiver(this, IntentFilter(DropBoxManager.ACTION_DROPBOX_ENTRY_ADDED))
             registered = true
         }
+        if (devMode.isEnabled()) {
+            // Dev Mode: process any new dropbox entries right away after Bort starts.
+            enqueueOneTimeDropBoxQueryTask(application)
+        }
     }
 
-    override fun onReceivedAndEnabled(context: Context, intent: Intent, action: String) {
+    override fun onReceivedAndEnabled(
+        context: Context,
+        intent: Intent,
+        action: String,
+    ) {
         if (!settingsProvider.dropBoxSettings.dataSourceEnabled) return
 
         val thisTag = intent.getStringExtra(DropBoxManager.EXTRA_TAG)

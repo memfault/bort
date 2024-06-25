@@ -6,7 +6,6 @@ import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.clientserver.MarMetadata.StructuredLogMarMetadata
 import com.memfault.bort.settings.StructuredLogEnabled
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.StructuredLog
 import com.memfault.bort.tokenbucket.TokenBucketStore
@@ -31,7 +30,7 @@ class StructuredLogEntryProcessor @Inject constructor(
     private fun allowedByRateLimit(): Boolean =
         tokenBucketStore.takeSimple(key = DROPBOX_ENTRY_TAG, tag = "structured")
 
-    override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
+    override suspend fun process(entry: DropBoxManager.Entry) {
         if (!structuredLogDataSourceEnabledConfig()) {
             return
         }

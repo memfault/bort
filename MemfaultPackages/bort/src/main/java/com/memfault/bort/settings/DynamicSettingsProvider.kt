@@ -108,7 +108,7 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.httpApiMaxMarUnsampledStorageBytes
     }
 
-    override val deviceInfoSettings = settings.deviceInfoSettings()
+    override val deviceInfoSettings get() = settings.deviceInfoSettings()
 
     override val sdkVersionInfo = BuildConfigSdkVersionInfo
 
@@ -171,6 +171,8 @@ open class DynamicSettingsProvider @Inject constructor(
     override val metricsSettings = object : MetricsSettings {
         override val dataSourceEnabled
             get() = settings.metricsDataSourceEnabled
+        override val dailyHeartbeatEnabled: Boolean
+            get() = settings.dailyHeartbeatEnabled
         override val collectionInterval
             get() = settings.metricsCollectionInterval.duration
         override val systemProperties: List<String>

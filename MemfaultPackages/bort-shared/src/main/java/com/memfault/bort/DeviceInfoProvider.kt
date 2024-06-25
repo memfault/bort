@@ -20,6 +20,7 @@ class RealDeviceInfoProvider @Inject constructor(
     private val deviceInfoSettings: DeviceInfoSettings,
     private val dumpsterClient: DumpsterClient,
     private val application: Application,
+    private val overrideSerial: OverrideSerial,
 ) : DeviceInfoProvider {
     private val deviceInfo = CachedAsyncProperty {
         DeviceInfo.fromSettingsAndSystemProperties(
@@ -28,22 +29,23 @@ class RealDeviceInfoProvider @Inject constructor(
             application,
         )
     }
-    private var lastSettings = deviceInfoSettings.asParams()
+    private var lastSettings = deviceInfoSettings.asParams(overrideSerial)
     private val mutex = Mutex()
 
     override suspend fun getDeviceInfo(): DeviceInfo = mutex.withLock {
-        if (lastSettings != deviceInfoSettings.asParams()) {
+        if (lastSettings != deviceInfoSettings.asParams(overrideSerial)) {
             Logger.d("Invalidating deviceInfo")
-            lastSettings = deviceInfoSettings.asParams()
+            lastSettings = deviceInfoSettings.asParams(overrideSerial)
             deviceInfo.invalidate()
         }
         deviceInfo.get()
     }
 }
 
-private fun DeviceInfoSettings.asParams() = DeviceInfoParams(
+private fun DeviceInfoSettings.asParams(overrideSerial: OverrideSerial) = DeviceInfoParams(
     androidBuildFormat = androidBuildFormat,
     androidBuildVersionKey = androidBuildVersionKey,
     androidHardwareVersionKey = androidHardwareVersionKey,
     androidSerialNumberKey = androidSerialNumberKey,
+    overriddenSerialNumber = overrideSerial.overriddenSerial,
 )

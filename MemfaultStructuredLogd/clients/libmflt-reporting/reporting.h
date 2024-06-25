@@ -48,9 +48,17 @@ namespace memfault {
 
 class Metric {
 protected:
-    Metric(const std::shared_ptr<StructuredLogger> &logger, std::string name, const std::string &reportType,
-           std::vector<AggregationType> aggregations, MetricType metricType, DataType dataType, bool carryOverValue,
-            bool internal);
+    Metric(
+            const std::shared_ptr<StructuredLogger> &logger,
+            std::string name,
+            const std::string &reportType,
+            const std::string &reportName,
+            std::vector<AggregationType> aggregations,
+            MetricType metricType,
+            DataType dataType,
+            bool carryOverValue,
+            bool internal
+   );
 
     void addValue(uint64_t timestamp, const std::string &stringVal) const;
     void addValue(uint64_t timestamp, double numberVal) const;
@@ -62,6 +70,7 @@ private:
     std::shared_ptr<StructuredLogger> mLogger;
     const std::string mName;
     const std::string &mReportType;
+    const std::string &mReportName;
     std::vector<AggregationType> mAggregations;
     MetricType mMetricType;
     DataType mDataType;
@@ -78,9 +87,20 @@ public:
             const std::shared_ptr<StructuredLogger> &logger,
             const std::string &name,
             const std::string &reportType,
+            const std::string &reportName,
             bool sumInReport,
             bool internal
-    ) : Metric(logger, name, reportType, sumInReport ? COUNTER_AGGS_SUM : COUNTER_AGGS_NO_SUM, COUNTER, DOUBLE, false, internal) {}
+    ) : Metric(
+            logger,
+            name,
+            reportType,
+            reportName,
+            sumInReport ? COUNTER_AGGS_SUM : COUNTER_AGGS_NO_SUM,
+            COUNTER,
+            DOUBLE,
+            false,
+            internal
+    ) {}
 
 public:
     template<typename T>
@@ -109,9 +129,20 @@ public:
             const std::shared_ptr<StructuredLogger> &logger,
             const std::string &name,
             const std::string &reportType,
+            const std::string &reportName,
             const std::vector<AggregationType>& aggregations,
             bool internal
-    ) : Metric(logger, name, reportType, aggregations, GAUGE, DOUBLE, false, internal) {}
+    ) : Metric(
+            logger,
+            name,
+            reportType,
+            reportName,
+            aggregations,
+            GAUGE,
+            DOUBLE,
+            false,
+            internal
+    ) {}
 
     template<typename T>
     void record(T value) const {
@@ -134,10 +165,21 @@ public:
             const std::shared_ptr<StructuredLogger> &logger,
             const std::string &name,
             const std::string &reportType,
+            const std::string &reportName,
             DataType dataType,
             bool addLatestToReport,
             bool internal
-    ) : Metric(logger, name, reportType, addLatestToReport ? PROPERTY_AGGS_LATEST : PROPERTY_AGGS_NO_LATEST, PROPERTY, dataType, true, internal) {}
+    ) : Metric(
+            logger,
+            name,
+            reportType,
+            reportName,
+            addLatestToReport ? PROPERTY_AGGS_LATEST : PROPERTY_AGGS_NO_LATEST,
+            PROPERTY,
+            dataType,
+            true,
+            internal
+    ) {}
 
     void update(const T &value) const {
         update(value, timestamp());
@@ -155,10 +197,21 @@ public:
             const std::shared_ptr<StructuredLogger> &logger,
             const std::string &name,
             const std::string &reportType,
+            const std::string &reportName,
             const std::vector<AggregationType>& aggregations,
             DataType dataType,
             bool internal
-    ) : Metric(logger, name, reportType, aggregations, PROPERTY, dataType, true, internal) {}
+    ) : Metric(
+            logger,
+            name,
+            reportType,
+            reportName,
+            aggregations,
+            PROPERTY,
+            dataType,
+            true,
+            internal
+    ) {}
 
     void state(const T &value) const {
         state(value, timestamp());
@@ -178,9 +231,20 @@ public:
             const std::shared_ptr<StructuredLogger> &logger,
             const std::string &name,
             const std::string &reportType,
+            const std::string &reportName,
             bool countInReport,
             bool internal
-    ) : Metric(logger, name, reportType, countInReport ? EVENT_AGGS_COUNT : EVENT_AGGS_NO_COUNT, EVENT, STRING, false, internal) {}
+    ) : Metric(
+            logger,
+            name,
+            reportType,
+            reportName,
+            countInReport ? EVENT_AGGS_COUNT : EVENT_AGGS_NO_COUNT,
+            EVENT,
+            STRING,
+            false,
+            internal
+    ) {}
 
     void add(const std::string &value) const {
         add(value, timestamp());
@@ -195,14 +259,24 @@ public:
 class Report {
 public:
     explicit Report();
+    explicit Report(std::string name);
 
     ~Report();
+
+    [[nodiscard]] uint64_t timestamp() const;
 
     /**
      * Aggregates the total count at the end of the period.
      */
     [[nodiscard]] std::unique_ptr<Counter> counter(const std::string &name, bool sumInReport = true, bool internal = false) const {
-        return std::make_unique<Counter>(mLogger, name, mReportType, sumInReport, internal);
+        return std::make_unique<Counter>(
+                mLogger,
+                name,
+                mReportType,
+                mReportName,
+                sumInReport,
+                internal
+        );
     }
 
     /**
@@ -210,50 +284,139 @@ public:
      *
      * One metric will be generated for each [aggregations].
      */
-    [[nodiscard]] std::unique_ptr<Distribution> distribution(const std::string &name, const std::vector<AggregationType>& aggregations,
-                                               bool internal = false) const {
-        return std::make_unique<Distribution>(mLogger, name, mReportType, aggregations, internal);
+    [[nodiscard]] std::unique_ptr<Distribution> distribution(
+            const std::string &name,
+            const std::vector<AggregationType>& aggregations,
+            bool internal = false
+    ) const {
+        return std::make_unique<Distribution>(
+                mLogger,
+                name,
+                mReportType,
+                mReportName,
+                aggregations,
+                internal
+        );
     }
 
     /**
      * Keep track of the latest value of a string property.
      */
-    [[nodiscard]] std::unique_ptr<Property<std::string>> stringProperty(const std::string &name, bool addLatestToReport = true, bool internal = false) const {
-        return std::make_unique<Property<std::string>>(mLogger, name, mReportType, STRING, addLatestToReport, internal);
+    [[nodiscard]] std::unique_ptr<Property<std::string>> stringProperty(
+            const std::string &name,
+            bool addLatestToReport = true,
+            bool internal = false
+    ) const {
+        return std::make_unique<Property<std::string>>(
+                mLogger,name,
+                mReportType,
+                mReportName,
+                STRING,
+                addLatestToReport,
+                internal
+        );
     }
 
     /**
      * Keep track of the latest value of a number property.
      */
-    [[nodiscard]] std::unique_ptr<Property<double>> numberProperty(const std::string &name, bool addLatestToReport = true, bool internal = false) const {
-        return std::make_unique<Property<double>>(mLogger, name, mReportType, DOUBLE, addLatestToReport, internal);
+    [[nodiscard]] std::unique_ptr<Property<double>> numberProperty(
+            const std::string &name,
+            bool addLatestToReport = true,
+            bool internal = false
+    ) const {
+        return std::make_unique<Property<double>>(
+                mLogger,
+                name,
+                mReportType,
+                mReportName,
+                DOUBLE,
+                addLatestToReport,
+                internal
+        );
     }
 
     /**
      * Tracks total time spent in each state during the report period.
      */
-    [[nodiscard]] std::unique_ptr<StateTracker<std::string>> stringStateTracker(const std::string &name, const std::vector<AggregationType>& aggregations,
-                                                             bool internal = false) const {
-        return std::make_unique<StateTracker<std::string>>(mLogger, name, mReportType, aggregations, STRING, internal);
+    [[nodiscard]] std::unique_ptr<StateTracker<std::string>> stringStateTracker(
+            const std::string &name,
+            const std::vector<AggregationType>& aggregations,
+            bool internal = false
+    ) const {
+        return std::make_unique<StateTracker<std::string>>(
+                mLogger,
+                name,
+                mReportType,
+                mReportName,
+                aggregations,
+                STRING,
+                internal
+        );
     }
 
     /**
      * Tracks total time spent in each state during the report period.
      */
-    [[nodiscard]] std::unique_ptr<StateTracker<bool>> boolStateTracker(const std::string &name, const std::vector<AggregationType>& aggregations,
-                                                             bool internal = false) const {
-        return std::make_unique<StateTracker<bool>>(mLogger, name, mReportType, aggregations, BOOLEAN, internal);
+    [[nodiscard]] std::unique_ptr<StateTracker<bool>> boolStateTracker(
+            const std::string &name,
+            const std::vector<AggregationType>& aggregations,
+            bool internal = false
+    ) const {
+        return std::make_unique<StateTracker<bool>>(
+                mLogger,
+                name,
+                mReportType,
+                mReportName,
+                aggregations,
+                BOOLEAN,
+                internal
+        );
     }
 
     /**
      * Track individual events. Replacement for Custom Events.
      */
     [[nodiscard]] std::unique_ptr<Event> event(const std::string &name, bool countInReport = false, bool internal = false) const {
-        return std::make_unique<Event>(mLogger, name, mReportType, countInReport, internal);
+        return std::make_unique<Event>(
+                mLogger,
+                name,
+                mReportType,
+                mReportName,
+                countInReport,
+                internal
+        );
+    }
+
+    /**
+     * Finishes the Report. The Report should no longer be used after this call.
+     */
+    void finish() const;
+
+    /**
+     * Retrieves the structured logger. Private use for starting and finishing sessions.
+     */
+    [[nodiscard]] std::shared_ptr<StructuredLogger> logger() const {
+        return mLogger;
+    }
+
+    /**
+     * Retrieves the structured logger. Private use for starting and finishing sessions.
+     */
+    [[nodiscard]] std::string reportType() const {
+        return mReportType;
+    }
+
+    /**
+     * Retrieves the structured logger. Private use for starting and finishing sessions.
+     */
+    [[nodiscard]] std::string reportName() const {
+        return mReportName;
     }
 
 private:
     const std::string mReportType;
+    const std::string mReportName;
     std::shared_ptr<StructuredLogger> mLogger;
 };
 
@@ -273,8 +436,28 @@ typedef void* metric_number_prop_t;
 typedef void* metric_string_state_tracker_t;
 typedef void* metric_event_t;
 
+/**
+ * Creates a heartbeat report.
+ */
 metric_report_t metric_report_new();
+/**
+ * Deallocates a report.
+ */
 void metric_report_destroy(metric_report_t self);
+/**
+ * Starts a session report.
+ */
+metric_report_t metric_session_start(const char* name);
+/**
+ * Finishes and then deallocates a session report.
+ */
+void metric_session_finish(metric_report_t self);
+/**
+ * Finishes and then deallocates a session report, ADDING ts to the timestamp.
+ *
+ * Not meant for general use.
+ */
+void metric_session_finish_plus_ts(metric_report_t self, uint64_t ts);
 
 /**
  * Aggregates the total count at the end of the period.

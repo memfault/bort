@@ -45,5 +45,18 @@ int main(int argc, char *argv[]) {
   event->add("Hello");
   event->add("world!");
 
+  auto session = std::make_unique<Report>("native_session");
+
+  auto sessionStringStateTracker = report->stringStateTracker("session_states_cpp", {TIME_TOTALS, LATEST_VALUE});
+  sessionStringStateTracker->state("ready");
+  sessionStringStateTracker->state("steady");
+  sessionStringStateTracker->state("go");
+
+  auto sessionNumericProp = report->numberProperty("session_number_cpp");
+  sessionNumericProp->update(0.0);
+  sessionNumericProp->update(1.0);
+
+  session->finish();
+
   return 0;
 }

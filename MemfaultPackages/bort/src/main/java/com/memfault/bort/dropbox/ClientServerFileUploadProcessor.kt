@@ -6,7 +6,6 @@ import com.memfault.bort.clientserver.MarFileHoldingArea
 import com.memfault.bort.clientserver.MarFileWriter.Companion.MAR_EXTENSION
 import com.memfault.bort.shared.CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.tokenbucket.MarDropbox
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.squareup.anvil.annotations.ContributesMultibinding
@@ -24,7 +23,7 @@ class ClientServerFileUploadProcessor @Inject constructor(
     private fun allowedByRateLimit(): Boolean =
         tokenBucketStore.takeSimple(key = MAR_FILE_TAG, tag = "mar_file")
 
-    override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
+    override suspend fun process(entry: DropBoxManager.Entry) {
         Logger.d("ClientServerFileUploadProcessor")
 
         if (!allowedByRateLimit()) {
