@@ -64,7 +64,7 @@ class BortDiagnosticsProvider : ContentProvider() {
             cursor.addRow(arrayOf("project_key_sysprop", entryPoint.projectKeySysprop()()))
             cursor.addRow(arrayOf("builtin_project_key", entryPoint.builtInProjectKey()()))
             cursor.addRow(arrayOf("project_key", entryPoint.settings().httpApiSettings.projectKey))
-            cursor.addRow(arrayOf("internal_metrics_db", BortBuildConfig.INTERNAL_METRICS_DB))
+            cursor.addRow(arrayOf("bort_lite", BortBuildConfig.BORT_LITE))
             cursor.addRow(arrayOf("upstream_version_code", BuildConfig.UPSTREAM_VERSION_CODE))
             cursor.addRow(arrayOf("upstream_version_name", BuildConfig.UPSTREAM_VERSION_NAME))
             val bortErrors = entryPoint.bortErrors().getAllErrors()

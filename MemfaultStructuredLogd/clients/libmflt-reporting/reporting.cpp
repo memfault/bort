@@ -10,6 +10,7 @@
 #include "rapidjson/writer.h"
 
 static constexpr char kHeartbeat[] = "Heartbeat";
+static constexpr char kSession[] = "Session";
 
 namespace memfault {
 
@@ -17,6 +18,7 @@ static constexpr int kCurrentSchemaVersion = 2;
 static constexpr char kVersion[] = "version";
 static constexpr char kTimestampMs[] = "timestampMs";
 static constexpr char kReportType[] = "reportType";
+static constexpr char kReportName[] = "reportName";
 static constexpr char kEventName[] = "eventName";
 static constexpr char kInternal[] = "internal";
 static constexpr char kAggregations[] = "aggregations";
@@ -25,12 +27,20 @@ static constexpr char kMetricType[] = "metricType";
 static constexpr char kDataType[] = "dataType";
 static constexpr char kCarryOver[] = "carryOver";
 
-Metric::Metric(const std::shared_ptr<StructuredLogger> &logger, std::string name,
-               const std::string &reportType, std::vector<AggregationType> aggregations,
-               MetricType metricType, DataType dataType, bool carryOverValue, bool internal)
+Metric::Metric(const std::shared_ptr<StructuredLogger> &logger,
+               std::string name,
+               const std::string &reportType,
+               const std::string &reportName,
+               std::vector<AggregationType> aggregations,
+               MetricType metricType,
+               DataType dataType,
+               bool carryOverValue,
+               bool internal
+)
     : mLogger(logger),
       mName(std::move(name)),
       mReportType(reportType),
+      mReportName(reportName),
       mAggregations{std::move(aggregations)},
       mMetricType(metricType),
       mDataType(dataType),
@@ -44,11 +54,18 @@ static void addDataTypeToWriter(rapidjson::Writer<rapidjson::OStreamWrapper> &wr
                                 DataType dataType);
 
 static void addWithValueHook(
-  const std::shared_ptr<StructuredLogger> &logger, uint64_t timestamp,
-  const std::string &reportType, const std::string &eventName, bool internal,
-  const std::vector<AggregationType> &aggregations, MetricType metricType, DataType dataType,
+  const std::shared_ptr<StructuredLogger> &logger,
+  uint64_t timestamp,
+  const std::string &reportType,
+  const std::string &reportName,
+  const std::string &eventName,
+  bool internal,
+  const std::vector<AggregationType> &aggregations,
+  MetricType metricType,
+  DataType dataType,
   bool carryOverValue,
-  const std::function<void(rapidjson::Writer<rapidjson::OStreamWrapper> &)> &valueHook) {
+  const std::function<void(rapidjson::Writer<rapidjson::OStreamWrapper> &)> &valueHook
+) {
   std::ostringstream strStream;
   rapidjson::OStreamWrapper oStreamWrapper(strStream);
   rapidjson::Writer<rapidjson::OStreamWrapper> writer(oStreamWrapper);
@@ -63,6 +80,11 @@ static void addWithValueHook(
 
   writer.Key(kReportType);
   writer.String(reportType.c_str());
+
+  if (!reportName.empty()) {
+    writer.Key(kReportName);
+    writer.String(reportName.c_str());
+  }
 
   writer.Key(kEventName);
   writer.String(eventName.c_str());
@@ -95,6 +117,64 @@ static void addWithValueHook(
   oStreamWrapper.Flush();
 
   logger->addValue(strStream.str());
+}
+
+static void startReport(
+        const std::shared_ptr<StructuredLogger> &logger,
+        uint64_t timestamp,
+        const std::string &reportType,
+        const std::string &reportName) {
+    std::ostringstream strStream;
+    rapidjson::OStreamWrapper oStreamWrapper(strStream);
+    rapidjson::Writer<rapidjson::OStreamWrapper> writer(oStreamWrapper);
+
+    writer.StartObject();
+
+    writer.Key(kVersion);
+    writer.Int(kCurrentSchemaVersion);
+
+    writer.Key(kTimestampMs);
+    writer.Uint64(timestamp);
+
+    writer.Key(kReportType);
+    writer.String(reportType.c_str());
+
+    writer.Key(kReportName);
+    writer.String(reportName.c_str());
+
+    writer.EndObject();
+    oStreamWrapper.Flush();
+
+    logger->startReport(strStream.str());
+}
+
+static void finishReport(
+        const std::shared_ptr<StructuredLogger> &logger,
+        uint64_t timestamp,
+        const std::string &reportType,
+        const std::string &reportName) {
+    std::ostringstream strStream;
+    rapidjson::OStreamWrapper oStreamWrapper(strStream);
+    rapidjson::Writer<rapidjson::OStreamWrapper> writer(oStreamWrapper);
+
+    writer.StartObject();
+
+    writer.Key(kVersion);
+    writer.Int(kCurrentSchemaVersion);
+
+    writer.Key(kTimestampMs);
+    writer.Uint64(timestamp);
+
+    writer.Key(kReportType);
+    writer.String(reportType.c_str());
+
+    writer.Key(kReportName);
+    writer.String(reportName.c_str());
+
+    writer.EndObject();
+    oStreamWrapper.Flush();
+
+    logger->finishReport(strStream.str());
 }
 
 static void addAggregationToWriter(rapidjson::Writer<rapidjson::OStreamWrapper> &writer, AggregationType type) {
@@ -160,16 +240,32 @@ static void addDataTypeToWriter(rapidjson::Writer<rapidjson::OStreamWrapper> &wr
 }
 
 void Metric::addValue(uint64_t timestamp, const std::string &stringVal) const {
-    addWithValueHook(mLogger, timestamp, mReportType, mName, mInternal, mAggregations, mMetricType,
-                     mDataType, mCarryOverValue,
+    addWithValueHook(mLogger,
+                     timestamp,
+                     mReportType,
+                     mReportName,
+                     mName,
+                     mInternal,
+                     mAggregations,
+                     mMetricType,
+                     mDataType,
+                     mCarryOverValue,
                      [&stringVal](rapidjson::Writer<rapidjson::OStreamWrapper> &writer) {
                        writer.String(stringVal.c_str());
                      });
 }
 
 void Metric::addValue(uint64_t timestamp, double doubleVal) const {
-    addWithValueHook(mLogger, timestamp, mReportType, mName, mInternal, mAggregations, mMetricType,
-                     mDataType, mCarryOverValue,
+    addWithValueHook(mLogger,
+                     timestamp,
+                     mReportType,
+                     mReportName,
+                     mName,
+                     mInternal,
+                     mAggregations,
+                     mMetricType,
+                     mDataType,
+                     mCarryOverValue,
                      [&doubleVal](rapidjson::Writer<rapidjson::OStreamWrapper> &writer) {
                        writer.Double(doubleVal);
                      });
@@ -177,7 +273,15 @@ void Metric::addValue(uint64_t timestamp, double doubleVal) const {
 
 void Metric::addValue(uint64_t timestamp, bool boolVal) const {
     addWithValueHook(
-      mLogger, timestamp, mReportType, mName, mInternal, mAggregations, mMetricType, mDataType,
+      mLogger,
+      timestamp,
+      mReportType,
+      mReportName,
+      mName,
+      mInternal,
+      mAggregations,
+      mMetricType,
+      mDataType,
       mCarryOverValue,
       [&boolVal](rapidjson::Writer<rapidjson::OStreamWrapper> &writer) { writer.Bool(boolVal); });
 }
@@ -187,8 +291,18 @@ uint64_t Metric::timestamp() const {
 }
 
 Report::Report() : mReportType(kHeartbeat), mLogger(std::make_shared<StructuredLogger>()) {}
+Report::Report(std::string name) : mReportType(kSession), mReportName(std::move(name)),
+    mLogger(std::make_shared<StructuredLogger>()) {}
 
 Report::~Report() {}
+}
+
+uint64_t memfault::Report::timestamp() const {
+    return getTimeInMsSinceEpoch();
+}
+
+void memfault::Report::finish() const {
+    finishReport(mLogger, getTimeInMsSinceEpoch(), mReportType, mReportName);
 }
 
 metric_report_t metric_report_new() {
@@ -198,6 +312,24 @@ metric_report_t metric_report_new() {
 void metric_report_destroy(metric_report_t self) {
     auto *r = reinterpret_cast<memfault::Report*>(self);
     delete r;
+}
+
+metric_report_t metric_session_start(const char* name) {
+    auto r = new memfault::Report(name);
+    auto logger = r->logger();
+    startReport(logger, getTimeInMsSinceEpoch(), r->reportType(), r->reportName());
+    return r;
+}
+
+void metric_session_finish(metric_report_t self) {
+    metric_session_finish_plus_ts(self, 0);
+}
+
+void metric_session_finish_plus_ts(metric_report_t self, uint64_t ts) {
+    auto *r = reinterpret_cast<memfault::Report*>(self);
+    auto logger = r->logger();
+    finishReport(logger, getTimeInMsSinceEpoch() + ts, r->reportType(), r->reportName());
+    metric_report_destroy(self);
 }
 
 metric_counter_t metric_report_counter(metric_report_t self, const char *name, bool sumInReport) {

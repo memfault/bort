@@ -73,7 +73,7 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
     private fun allowedByRateLimit(): Boolean =
         tokenBucketStore.takeSimple(key = DROPBOX_ENTRY_TAG, tag = "continuous_log")
 
-    override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
+    override suspend fun process(entry: DropBoxManager.Entry) {
         val stream = entry.inputStream ?: return
 
         if (!logcatSettings.dataSourceEnabled) {

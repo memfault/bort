@@ -1,11 +1,12 @@
 package com.memfault.bort
 
+import android.content.pm.PackageManager
 import android.os.RemoteException
 import com.memfault.bort.shared.MINIMUM_VALID_VERSION
 import com.memfault.dumpster.IDumpster
-import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.CoroutineContext
 
 /**
  * Helper class to determine whether certain features are supported
@@ -17,6 +18,8 @@ import javax.inject.Singleton
 class BortSystemCapabilities @Inject constructor(
     dumpsterClient: DumpsterClient,
     private val reporterServiceConnector: ReporterServiceConnector,
+    private val packageManager: PackageManager,
+    @IO private val ioCoroutineContext: CoroutineContext,
 ) {
     private val dumpsterVersion: Int? by lazy { dumpsterClient.availableVersion() }
 
@@ -46,7 +49,5 @@ class BortSystemCapabilities @Inject constructor(
 
     suspend fun supportsCaliperMetrics() = supportsCaliperDeviceInfo() && hasMinimumValidReporterService()
 
-    fun isStructuredLogDInstalled(): Boolean = File("/system/bin/MemfaultStructuredLogd").exists()
-
-    fun useBortMetricsDb(): Boolean = BuildConfig.INTERNAL_METRICS_DB && !isStructuredLogDInstalled()
+    fun isBortLite() = BuildConfig.BORT_LITE
 }

@@ -4,10 +4,13 @@ import android.content.ContentProvider
 import android.content.ContentValues
 import android.database.Cursor
 import android.net.Uri
-import com.memfault.bort.BortSystemCapabilities
+import com.memfault.bort.reporting.FinishReport
 import com.memfault.bort.reporting.MetricValue
 import com.memfault.bort.reporting.RemoteMetricsService.KEY_CUSTOM_METRIC
 import com.memfault.bort.reporting.RemoteMetricsService.URI_ADD_CUSTOM_METRIC
+import com.memfault.bort.reporting.RemoteMetricsService.URI_FINISH_CUSTOM_REPORT
+import com.memfault.bort.reporting.RemoteMetricsService.URI_START_CUSTOM_REPORT
+import com.memfault.bort.reporting.StartReport
 import com.memfault.bort.shared.Logger
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -21,7 +24,6 @@ class CustomMetricsProvider : ContentProvider() {
     @InstallIn(SingletonComponent::class)
     interface CustomMetricsProviderEntryPoint {
         fun customMetrics(): CustomMetrics
-        fun bortSystemCapabilities(): BortSystemCapabilities
     }
 
     val entryPoint: CustomMetricsProviderEntryPoint by lazy {
@@ -46,11 +48,7 @@ class CustomMetricsProvider : ContentProvider() {
     override fun getType(uri: Uri): String? = null
 
     override fun insert(uri: Uri, values: ContentValues?): Uri? {
-        if (!entryPoint.bortSystemCapabilities().useBortMetricsDb()) {
-            Logger.v("Not processing metric: Bort Metrics DB disabled")
-            return null
-        }
-        if (uri != URI_ADD_CUSTOM_METRIC) {
+        if (!listOf(URI_ADD_CUSTOM_METRIC, URI_START_CUSTOM_REPORT, URI_FINISH_CUSTOM_REPORT).contains(uri)) {
             Logger.w("CustomMetricsProvider: unknown uri: $uri")
             return null
         }
@@ -59,16 +57,47 @@ class CustomMetricsProvider : ContentProvider() {
             Logger.w("CustomMetricsProvider: no metric extra")
             return null
         }
-        try {
-            val metricValue = MetricValue.fromJson(metricJson)
-            Logger.test("CustomMetricsProvider received: $metricValue")
-            runBlocking {
-                entryPoint.customMetrics().add(metricValue)
+        return try {
+            when (uri) {
+                URI_ADD_CUSTOM_METRIC -> {
+                    val metricValue = MetricValue.fromJson(metricJson)
+                    Logger.test("CustomMetricsProvider received: $metricValue")
+                    runBlocking {
+                        entryPoint.customMetrics().add(metricValue)
+                        // Return the URI if successful.
+                        URI_ADD_CUSTOM_METRIC
+                    }
+                }
+                URI_START_CUSTOM_REPORT -> {
+                    val startReport = StartReport.fromJson(metricJson)
+                    Logger.test("CustomMetricsProvider received: $startReport")
+                    runBlocking {
+                        if (entryPoint.customMetrics().start(startReport) != -1L) {
+                            // Return the URI if successful.
+                            URI_START_CUSTOM_REPORT
+                        } else {
+                            null
+                        }
+                    }
+                }
+                URI_FINISH_CUSTOM_REPORT -> {
+                    val finishReport = FinishReport.fromJson(metricJson)
+                    Logger.test("CustomMetricsProvider received: $finishReport")
+                    runBlocking {
+                        if (entryPoint.customMetrics().finish(finishReport) != -1L) {
+                            // Return the URI if successful.
+                            URI_FINISH_CUSTOM_REPORT
+                        } else {
+                            null
+                        }
+                    }
+                }
+                else -> error("CustomMetricsProvider: unknown uri: $uri")
             }
         } catch (e: JSONException) {
             Logger.w("CustomMetricsProvider: error deserializing metric", e)
+            null
         }
-        return null
     }
 
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int = 0

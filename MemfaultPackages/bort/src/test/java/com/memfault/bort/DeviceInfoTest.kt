@@ -19,6 +19,7 @@ class DeviceInfoFromSettingsAndProperties {
         androidBuildVersionKey = "ro.build.version.incremental",
         androidHardwareVersionKey = "ro.product.board",
         androidSerialNumberKey = "ro.serialno",
+        overriddenSerialNumber = null,
     )
 
     @Test
@@ -34,6 +35,22 @@ class DeviceInfoFromSettingsAndProperties {
             getFallbackAndroidId = fallbackAndroidId,
         )
         assertEquals("SERIAL", deviceInfo.deviceSerial)
+        assertEquals("HARDWARE-XYZ", deviceInfo.hardwareVersion)
+    }
+
+    @Test
+    fun happyPathHardwareAndDeviceSerial_overrideSerial() {
+        val props = mapOf(
+            "ro.serialno" to "SERIAL",
+            "ro.product.board" to "HARDWARE-XYZ",
+        )
+        val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(
+            settings.copy(overriddenSerialNumber = "OVERRIDE"),
+            props,
+            context,
+            getFallbackAndroidId = fallbackAndroidId,
+        )
+        assertEquals("OVERRIDE", deviceInfo.deviceSerial)
         assertEquals("HARDWARE-XYZ", deviceInfo.hardwareVersion)
     }
 
@@ -104,6 +121,7 @@ class DeviceInfoLegacy {
         androidBuildVersionKey = "ro.build.version.incremental",
         androidHardwareVersionKey = "",
         androidSerialNumberKey = "ro.serialno",
+        overriddenSerialNumber = null,
     )
 
     /**

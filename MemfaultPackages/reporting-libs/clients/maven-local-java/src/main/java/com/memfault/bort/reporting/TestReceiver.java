@@ -3,6 +3,7 @@ package com.memfault.bort.reporting;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import com.memfault.bort.java.reporting.Distribution;
 import com.memfault.bort.java.reporting.Reporting;
 import java.util.List;
 
@@ -54,6 +55,15 @@ public class TestReceiver extends BroadcastReceiver {
       Reporting.report()
           .event("reporting-maven-local-java-event", true, true)
           .add("evented");
+
+      Reporting.startSession("reporting-maven-local-session");
+
+      Distribution session = Reporting.session("reporting-maven-local-session")
+          .distribution("reporting-maven-local-session-dist", numericAggs);
+      session.record(2000L);
+      session.record(8000L);
+
+      Reporting.finishSession("reporting-maven-local-session");
     }
   }
 }

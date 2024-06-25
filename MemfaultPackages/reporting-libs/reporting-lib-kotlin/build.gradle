@@ -65,7 +65,7 @@ afterEvaluate {
             release(MavenPublication) {
                 groupId = 'com.memfault.bort'
                 artifactId = 'reporting-lib'
-                version = deps.versions.memfault.reporting.get()
+                version = '1.5'
 
                 from components.release
 

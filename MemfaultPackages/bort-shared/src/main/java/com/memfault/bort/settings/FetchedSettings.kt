@@ -384,6 +384,9 @@ data class FetchedSettings(
     @SerialName("metric_report.high_res_telemetry")
     val highResTelemetryEnabled: Boolean = true,
 
+    @SerialName("metric_report.daily_heartbeat")
+    val dailyHeartbeatEnabled: Boolean = false,
+
     @SerialName("storage.apps_size_data_source_enabled")
     val storageAppsSizeDataSourceEnabled: Boolean = true,
 

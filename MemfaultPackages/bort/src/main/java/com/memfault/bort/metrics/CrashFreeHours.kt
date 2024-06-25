@@ -1,12 +1,14 @@
 package com.memfault.bort.metrics
 
 import android.content.SharedPreferences
+import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_CRASHES_METRIC_KEY
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.SerializedCachedPreferenceKeyProvider
 import com.memfault.bort.time.BootRelativeTimeProvider
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.Serializable
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration.Companion.hours
@@ -14,7 +16,7 @@ import kotlin.time.DurationUnit.MILLISECONDS
 import kotlin.time.toDuration
 
 interface CrashHandler {
-    fun onCrash()
+    suspend fun onCrash(crashTimestamp: Instant)
     fun onBoot()
     fun process()
 }
@@ -53,6 +55,7 @@ class CrashFreeHoursMetricLogger @Inject constructor() {
     }
 
     companion object {
+        const val OPERATIONAL_CRASHES_METRIC_KEY = "operational_crashes"
         const val OPERATIONAL_HOURS_METRIC_KEY = "operational_hours"
         const val CRASH_FREE_HOURS_METRIC_KEY = "operational_crashfree_hours"
         private val OPERATIONAL_HOURS_METRIC = Reporting.report().counter(OPERATIONAL_HOURS_METRIC_KEY)
@@ -76,7 +79,11 @@ class CrashFreeHours @Inject constructor(
     private val storage: CrashFreeHoursStorage,
     private val metricLogger: CrashFreeHoursMetricLogger,
 ) : CrashHandler {
-    override fun onCrash() {
+    override suspend fun onCrash(crashTimestamp: Instant) {
+        Reporting.report()
+            .counter(name = OPERATIONAL_CRASHES_METRIC_KEY)
+            .increment(timestamp = crashTimestamp.toEpochMilli())
+
         // Call process before setting the crash flag - this ensures that any previous crash-free hours are processed,
         // before marking the current hour as lastHourHadCrash.
         process()

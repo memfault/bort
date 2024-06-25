@@ -7,6 +7,7 @@ import com.memfault.bort.time.BaseAbsoluteTime
 import com.memfault.bort.tokenbucket.KernelOops
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.HandleEventOfInterest
+import java.time.Instant
 import javax.inject.Inject
 
 private const val OOPS_TOKEN_START = "------------[ cut here ]------------"
@@ -28,6 +29,8 @@ class KernelOopsDetector @Inject constructor(
 ) : LogcatLineProcessor {
     @VisibleForTesting var foundOops: Boolean = false
 
+    @VisibleForTesting var oopsTimestamp: Instant? = null
+
     /**
      * Called for every logcat line, including separators
      */
@@ -36,6 +39,7 @@ class KernelOopsDetector @Inject constructor(
         if (line.buffer != "kernel") return
         if (line.message != OOPS_TOKEN_START) return
         foundOops = true
+        oopsTimestamp = line.logTime
     }
 
     /**
@@ -45,7 +49,7 @@ class KernelOopsDetector @Inject constructor(
         if (!foundOops) return false
         if (!tokenBucketStore.takeSimple(tag = "oops")) return false
         handleEventOfInterest.handleEventOfInterest(lastLogTime)
-        crashHandler.onCrash()
+        crashHandler.onCrash(crashTimestamp = oopsTimestamp ?: lastLogTime.timestamp)
         return true
     }
 }

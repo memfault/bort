@@ -18,6 +18,7 @@ class DevicePropertiesStoreTest {
     private var writeToService = true
     private val metricsSettings = object : MetricsSettings {
         override val dataSourceEnabled: Boolean = true
+        override val dailyHeartbeatEnabled: Boolean = false
         override val collectionInterval: Duration = 1.hours
         override val systemProperties: List<String> = emptyList()
         override val appVersions: List<String> = emptyList()

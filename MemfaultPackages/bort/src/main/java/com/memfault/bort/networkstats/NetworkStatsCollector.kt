@@ -2,22 +2,18 @@ package com.memfault.bort.networkstats
 
 import android.os.Process
 import com.memfault.bort.PackageManagerClient
-import com.memfault.bort.metrics.HighResTelemetry
-import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
-import com.memfault.bort.metrics.HighResTelemetry.Datum
-import com.memfault.bort.metrics.HighResTelemetry.MetricType.Gauge
-import com.memfault.bort.metrics.HighResTelemetry.RollupMetadata
 import com.memfault.bort.metrics.SignificantAppsProvider
 import com.memfault.bort.networkstats.NetworkStatsConnectivity.BLUETOOTH
 import com.memfault.bort.networkstats.NetworkStatsConnectivity.ETHERNET
 import com.memfault.bort.networkstats.NetworkStatsConnectivity.MOBILE
 import com.memfault.bort.networkstats.NetworkStatsConnectivity.WIFI
 import com.memfault.bort.parsers.PackageManagerReport
+import com.memfault.bort.reporting.NumericAgg.SUM
+import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.settings.NetworkUsageSettings
 import com.memfault.bort.time.CombinedTime
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
-import kotlinx.serialization.json.JsonPrimitive
 import java.time.Instant
 import javax.inject.Inject
 import kotlin.time.Duration
@@ -26,40 +22,61 @@ interface NetworkStatsCollector {
     suspend fun collect(
         collectionTime: CombinedTime,
         heartbeatInterval: Duration,
-    ): NetworkStatsResult
+    ): NetworkStatsResult?
+
+    suspend fun record(
+        collectionTime: CombinedTime,
+        networkStatsResult: NetworkStatsResult,
+    )
+
+    suspend fun collectAndRecord(
+        collectionTime: CombinedTime,
+        heartbeatInterval: Duration,
+    ) {
+        collect(collectionTime, heartbeatInterval)
+            ?.let {
+                record(collectionTime, it)
+            }
+    }
+}
+
+data class NetworkStatsUsage(
+    val rxKB: Long,
+    val txKB: Long,
+) {
+    companion object {
+        fun sum(vararg usages: NetworkStatsUsage?): NetworkStatsUsage = NetworkStatsUsage(
+            rxKB = usages.sumOf { it?.rxKB ?: 0L },
+            txKB = usages.sumOf { it?.txKB ?: 0L },
+        )
+    }
 }
 
 data class NetworkStatsResult(
-    val hrtRollup: Set<HighResTelemetry.Rollup>,
-    val heartbeatMetrics: Map<String, JsonPrimitive>,
-    val internalHeartbeatMetrics: Map<String, JsonPrimitive>,
+    val ethernetUsage: NetworkStatsSummary?,
+    val mobileUsage: NetworkStatsSummary?,
+    val wifiUsage: NetworkStatsSummary?,
+    val bluetoothUsage: NetworkStatsSummary?,
+    val perAppEthernetUsage: Map<String, NetworkStatsUsage>,
+    val perAppMobileUsage: Map<String, NetworkStatsUsage>,
+    val perAppWifiUsage: Map<String, NetworkStatsUsage>,
+    val perAppBluetoothUsage: Map<String, NetworkStatsUsage>,
 ) {
+    val totalUsages = listOf(wifiUsage, ethernetUsage, mobileUsage, bluetoothUsage)
 
-    companion object {
-        val EMPTY = NetworkStatsResult(
-            hrtRollup = emptySet(),
-            heartbeatMetrics = emptyMap(),
-            internalHeartbeatMetrics = emptyMap(),
-        )
-
-        fun merge(vararg results: NetworkStatsResult): NetworkStatsResult {
-            val hrtRollup = mutableSetOf<HighResTelemetry.Rollup>()
-            val heartbeatMetrics = mutableMapOf<String, JsonPrimitive>()
-            val internalHeartbeatMetrics = mutableMapOf<String, JsonPrimitive>()
-
-            results.forEach { result ->
-                hrtRollup.addAll(result.hrtRollup)
-                heartbeatMetrics.putAll(result.heartbeatMetrics)
-                internalHeartbeatMetrics.putAll(result.internalHeartbeatMetrics)
-            }
-
-            return NetworkStatsResult(
-                hrtRollup = hrtRollup,
-                heartbeatMetrics = heartbeatMetrics,
-                internalHeartbeatMetrics = internalHeartbeatMetrics,
-            )
+    val totalPerAppUsage: Map<String, NetworkStatsUsage>
+        get() {
+            val perAppUsages = listOf(perAppEthernetUsage, perAppMobileUsage, perAppWifiUsage, perAppBluetoothUsage)
+            return perAppUsages.flatMap { it.keys }.toSet()
+                .associateWith { key ->
+                    NetworkStatsUsage.sum(
+                        perAppEthernetUsage[key],
+                        perAppMobileUsage[key],
+                        perAppWifiUsage[key],
+                        perAppBluetoothUsage[key],
+                    )
+                }
         }
-    }
 }
 
 @ContributesBinding(SingletonComponent::class)
@@ -75,9 +92,9 @@ class RealNetworkStatsCollector
     override suspend fun collect(
         collectionTime: CombinedTime,
         heartbeatInterval: Duration,
-    ): NetworkStatsResult {
+    ): NetworkStatsResult? {
         if (!networkUsageSettings.dataSourceEnabled) {
-            return NetworkStatsResult.EMPTY
+            return null
         }
 
         val lastCollectionTimestamp = lastNetworkStatsCollectionTimestamp.getValue()
@@ -102,44 +119,6 @@ class RealNetworkStatsCollector
 
         val bluetoothUsage =
             networkStatsQueries.getTotalUsage(start = queryStartTime, end = queryEndTime, connectivity = BLUETOOTH)
-
-        val totalEthernetUsage = recordTotalUsageMetric(
-            inMetric = TOTAL_ETHERNET_IN_METRIC,
-            outMetric = TOTAL_ETHERNET_OUT_METRIC,
-            usage = ethernetUsage,
-            queryEndTime = queryEndTime,
-        )
-
-        val totalMobileUsage = recordTotalUsageMetric(
-            inMetric = TOTAL_MOBILE_IN_METRIC,
-            outMetric = TOTAL_MOBILE_OUT_METRIC,
-            usage = mobileUsage,
-            queryEndTime = queryEndTime,
-        )
-
-        val totalWifiUsage = recordTotalUsageMetric(
-            inMetric = TOTAL_WIFI_IN_METRIC,
-            outMetric = TOTAL_WIFI_OUT_METRIC,
-            usage = wifiUsage,
-            queryEndTime = queryEndTime,
-        )
-
-        val totalBluetoothUsage = recordTotalUsageMetric(
-            inMetric = TOTAL_BLUETOOTH_IN_METRIC,
-            outMetric = TOTAL_BLUETOOTH_OUT_METRIC,
-            usage = bluetoothUsage,
-            queryEndTime = queryEndTime,
-        )
-
-        val totalUsages = listOf(wifiUsage, ethernetUsage, mobileUsage, bluetoothUsage)
-
-        val totalAllUsage = recordTotalUsageMetric(
-            inMetric = TOTAL_ALL_IN_METRIC,
-            outMetric = TOTAL_ALL_OUT_METRIC,
-            rxKB = totalUsages.map { it?.rxKB }.sumOf { it ?: 0L },
-            txKB = totalUsages.map { it?.txKB }.sumOf { it ?: 0L },
-            queryEndTime = queryEndTime,
-        )
 
         val packageManagerReport = packageManagerClient.getPackageManagerReport()
 
@@ -171,34 +150,68 @@ class RealNetworkStatsCollector
             queryEndTime = queryEndTime,
         )
 
-        val perAppUsages = listOf(perAppEthernetUsage, perAppMobileUsage, perAppWifiUsage, perAppBluetoothUsage)
-        val totalPerAppUsage = perAppUsages.flatMap { it.keys }.toSet()
-            .associateWith { key ->
-                NetworkStatsUsage.sum(
-                    perAppEthernetUsage[key],
-                    perAppMobileUsage[key],
-                    perAppWifiUsage[key],
-                    perAppBluetoothUsage[key],
-                )
-            }
+        return NetworkStatsResult(
+            ethernetUsage = ethernetUsage,
+            mobileUsage = mobileUsage,
+            wifiUsage = wifiUsage,
+            bluetoothUsage = bluetoothUsage,
+            perAppEthernetUsage = perAppEthernetUsage,
+            perAppMobileUsage = perAppMobileUsage,
+            perAppWifiUsage = perAppWifiUsage,
+            perAppBluetoothUsage = perAppBluetoothUsage,
+        )
+    }
 
-        val perAppUsage = recordPerAppUsageMetric(
-            ethernetUsage = perAppEthernetUsage,
-            mobileUsage = perAppMobileUsage,
-            wifiUsage = perAppWifiUsage,
-            bluetoothUsage = perAppBluetoothUsage,
-            totalUsage = totalPerAppUsage,
-            networkUsageSettings = networkUsageSettings,
+    override suspend fun record(
+        collectionTime: CombinedTime,
+        networkStatsResult: NetworkStatsResult,
+    ) {
+        val queryEndTime = collectionTime.timestamp
+
+        recordTotalUsageMetric(
+            inMetric = TOTAL_ETHERNET_IN_METRIC,
+            outMetric = TOTAL_ETHERNET_OUT_METRIC,
+            usage = networkStatsResult.ethernetUsage,
             queryEndTime = queryEndTime,
         )
 
-        return NetworkStatsResult.merge(
-            totalAllUsage,
-            totalEthernetUsage,
-            totalMobileUsage,
-            totalWifiUsage,
-            totalBluetoothUsage,
-            perAppUsage,
+        recordTotalUsageMetric(
+            inMetric = TOTAL_MOBILE_IN_METRIC,
+            outMetric = TOTAL_MOBILE_OUT_METRIC,
+            usage = networkStatsResult.mobileUsage,
+            queryEndTime = queryEndTime,
+        )
+
+        recordTotalUsageMetric(
+            inMetric = TOTAL_WIFI_IN_METRIC,
+            outMetric = TOTAL_WIFI_OUT_METRIC,
+            usage = networkStatsResult.wifiUsage,
+            queryEndTime = queryEndTime,
+        )
+
+        recordTotalUsageMetric(
+            inMetric = TOTAL_BLUETOOTH_IN_METRIC,
+            outMetric = TOTAL_BLUETOOTH_OUT_METRIC,
+            usage = networkStatsResult.bluetoothUsage,
+            queryEndTime = queryEndTime,
+        )
+
+        recordTotalUsageMetric(
+            inMetric = TOTAL_ALL_IN_METRIC,
+            outMetric = TOTAL_ALL_OUT_METRIC,
+            rxKB = networkStatsResult.totalUsages.map { it?.rxKB }.sumOf { it ?: 0L },
+            txKB = networkStatsResult.totalUsages.map { it?.txKB }.sumOf { it ?: 0L },
+            queryEndTime = queryEndTime,
+        )
+
+        recordPerAppUsageMetric(
+            ethernetUsage = networkStatsResult.perAppEthernetUsage,
+            mobileUsage = networkStatsResult.perAppMobileUsage,
+            wifiUsage = networkStatsResult.perAppWifiUsage,
+            bluetoothUsage = networkStatsResult.perAppBluetoothUsage,
+            totalUsage = networkStatsResult.totalPerAppUsage,
+            networkUsageSettings = networkUsageSettings,
+            queryEndTime = queryEndTime,
         )
     }
 
@@ -207,15 +220,17 @@ class RealNetworkStatsCollector
         outMetric: String,
         usage: NetworkStatsSummary?,
         queryEndTime: Instant,
-    ): NetworkStatsResult = usage?.let {
-        recordTotalUsageMetric(
-            inMetric = inMetric,
-            outMetric = outMetric,
-            rxKB = usage.rxKB,
-            txKB = usage.txKB,
-            queryEndTime = queryEndTime,
-        )
-    } ?: NetworkStatsResult.EMPTY
+    ) {
+        usage?.let {
+            recordTotalUsageMetric(
+                inMetric = inMetric,
+                outMetric = outMetric,
+                rxKB = usage.rxKB,
+                txKB = usage.txKB,
+                queryEndTime = queryEndTime,
+            )
+        }
+    }
 
     private fun recordTotalUsageMetric(
         inMetric: String,
@@ -223,30 +238,21 @@ class RealNetworkStatsCollector
         rxKB: Long,
         txKB: Long,
         queryEndTime: Instant,
-    ): NetworkStatsResult {
-        val hrtRollup = mutableSetOf<HighResTelemetry.Rollup>()
-        val heartbeatMetrics = mutableMapOf<String, JsonPrimitive>()
-
+    ) {
         fun record(
             absoluteUsageKB: Long,
             metricName: String,
         ) {
-            heartbeatMetrics["$metricName.latest"] = JsonPrimitive(absoluteUsageKB)
-            hrtRollup += networkMetricHrtRollup(
-                metricName = metricName,
-                metricValue = absoluteUsageKB,
-                collectionTime = queryEndTime,
-            )
+            Reporting.report()
+                .distribution(name = metricName, aggregations = listOf(SUM))
+                .record(
+                    value = absoluteUsageKB,
+                    timestamp = queryEndTime.toEpochMilli(),
+                )
         }
 
         record(rxKB, inMetric)
         record(txKB, outMetric)
-
-        return NetworkStatsResult(
-            hrtRollup = hrtRollup,
-            heartbeatMetrics = heartbeatMetrics,
-            internalHeartbeatMetrics = emptyMap(),
-        )
     }
 
     private suspend fun queryPerAppUsageMetric(
@@ -292,11 +298,7 @@ class RealNetworkStatsCollector
         totalUsage: Map<String, NetworkStatsUsage>,
         networkUsageSettings: NetworkUsageSettings,
         queryEndTime: Instant,
-    ): NetworkStatsResult {
-        val hrtRollup = mutableSetOf<HighResTelemetry.Rollup>()
-        val heartbeatMetrics = mutableMapOf<String, JsonPrimitive>()
-        val internalHeartbeatMetrics = mutableMapOf<String, JsonPrimitive>()
-
+    ) {
         fun recordUsage(
             inName: String,
             outName: String,
@@ -313,18 +315,16 @@ class RealNetworkStatsCollector
             )
                 .forEach { (metricName, metricValue) ->
                     if (recordZeroUsage || metricValue > 0) {
-                        hrtRollup += networkMetricHrtRollup(
-                            metricName = metricName,
-                            metricValue = metricValue,
-                            collectionTime = queryEndTime,
-                            internal = internal,
-                        )
-
-                        if (internal) {
-                            internalHeartbeatMetrics[metricName] = JsonPrimitive(metricValue)
-                        } else {
-                            heartbeatMetrics[metricName] = JsonPrimitive(metricValue)
-                        }
+                        Reporting.report()
+                            .distribution(
+                                name = metricName,
+                                listOf(SUM),
+                                internal = internal,
+                            )
+                            .record(
+                                value = metricValue,
+                                timestamp = queryEndTime.toEpochMilli(),
+                            )
                     }
                 }
         }
@@ -365,21 +365,27 @@ class RealNetworkStatsCollector
             for ((packageName, usage) in usageByPackage) {
                 // Logs the package too if it exceeds the specified threshold.
                 if (usage.rxKB >= networkUsageSettings.collectionReceiveThresholdKb) {
-                    hrtRollup += networkMetricHrtRollup(
-                        metricName = connectivity?.let { appInMetricName(connectivity, packageName) }
-                            ?: allAppInMetricName(packageName),
-                        metricValue = usage.rxKB,
-                        collectionTime = queryEndTime,
-                    )
+                    Reporting.report()
+                        .distribution(
+                            name = connectivity?.let { appInMetricName(connectivity, packageName) }
+                                ?: allAppInMetricName(packageName),
+                        )
+                        .record(
+                            value = usage.rxKB,
+                            timestamp = queryEndTime.toEpochMilli(),
+                        )
                 }
 
                 if (usage.txKB >= networkUsageSettings.collectionTransmitThresholdKb) {
-                    hrtRollup += networkMetricHrtRollup(
-                        metricName = connectivity?.let { appOutMetricName(connectivity, packageName) }
-                            ?: allAppOutMetricName(packageName),
-                        metricValue = usage.txKB,
-                        collectionTime = queryEndTime,
-                    )
+                    Reporting.report()
+                        .distribution(
+                            name = connectivity?.let { appOutMetricName(connectivity, packageName) }
+                                ?: allAppOutMetricName(packageName),
+                        )
+                        .record(
+                            value = usage.txKB,
+                            timestamp = queryEndTime.toEpochMilli(),
+                        )
                 }
             }
         }
@@ -389,12 +395,6 @@ class RealNetworkStatsCollector
         rollupUsage(WIFI, wifiUsage)
         rollupUsage(MOBILE, mobileUsage)
         rollupUsage(BLUETOOTH, mobileUsage)
-
-        return NetworkStatsResult(
-            hrtRollup = hrtRollup,
-            heartbeatMetrics = heartbeatMetrics,
-            internalHeartbeatMetrics = internalHeartbeatMetrics,
-        )
     }
 
     private fun PackageManagerReport.uuidToName(uid: Int): String = when (uid) {
@@ -403,33 +403,6 @@ class RealNetworkStatsCollector
         // Every system UID's usage is assigned to "android"
         else -> "android"
     }
-
-    private data class NetworkStatsUsage(
-        val rxKB: Long,
-        val txKB: Long,
-    ) {
-        companion object {
-            fun sum(vararg usages: NetworkStatsUsage?): NetworkStatsUsage = NetworkStatsUsage(
-                rxKB = usages.sumOf { it?.rxKB ?: 0L },
-                txKB = usages.sumOf { it?.txKB ?: 0L },
-            )
-        }
-    }
-
-    private fun networkMetricHrtRollup(
-        metricName: String,
-        metricValue: Number,
-        collectionTime: Instant,
-        internal: Boolean = false,
-    ) = HighResTelemetry.Rollup(
-        metadata = RollupMetadata(
-            stringKey = metricName,
-            metricType = Gauge,
-            dataType = DoubleType,
-            internal = internal,
-        ),
-        data = listOf(Datum(t = collectionTime.toEpochMilli(), value = JsonPrimitive(metricValue))),
-    )
 
     companion object {
         private fun appInMetricName(

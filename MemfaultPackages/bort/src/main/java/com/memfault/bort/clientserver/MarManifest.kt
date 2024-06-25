@@ -62,6 +62,10 @@ sealed class MarMetadata {
         val customMetrics: Map<String, JsonPrimitive>,
         @SerialName("builtin_metrics")
         val builtinMetrics: Map<String, JsonPrimitive>,
+        @SerialName("report_type")
+        val reportType: String,
+        @SerialName("report_name")
+        val reportName: String? = null,
     ) : MarMetadata()
 
     @Serializable

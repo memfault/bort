@@ -1,3 +1,0 @@
-
-/data/system/MemfaultStructuredLogd(/.*)? u:object_r:memfault_structured_data_file:s0
-/system/bin/MemfaultStructuredLogd        u:object_r:memfault_structured_exec:s0

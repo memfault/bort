@@ -7,7 +7,6 @@ import com.memfault.bort.settings.SettingsUpdateHandler
 import com.memfault.bort.settings.handleUpdate
 import com.memfault.bort.shared.CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.time.AbsoluteTime
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.Lazy
 import dagger.hilt.components.SingletonComponent
@@ -21,7 +20,7 @@ class ClientServerDeviceConfigProcessor @Inject constructor(
 ) : EntryProcessor() {
     override val tags: List<String> = listOf(CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG)
 
-    override suspend fun process(entry: DropBoxManager.Entry, fileTime: AbsoluteTime?) {
+    override suspend fun process(entry: DropBoxManager.Entry) {
         val content = entry.inputStream?.use { input ->
             input.reader().use { reader ->
                 reader.readText()

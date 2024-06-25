@@ -14,8 +14,10 @@ public class BoolStateTracker extends Metric {
   private static final DataType DATA_TYPE = BOOLEAN;
   private static final boolean CARRY_OVER_VALUE = true;
 
-  BoolStateTracker(String eventName, String reportType, List<StateAgg> aggregations) {
-    super(eventName, reportType, aggregations, METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE);
+  BoolStateTracker(String eventName, String reportType, List<StateAgg> aggregations,
+      String reportName) {
+    super(eventName, reportType, aggregations, METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE,
+        reportName);
   }
 
   public void state(Boolean state) {

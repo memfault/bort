@@ -40,8 +40,7 @@ MEMFAULT_DUMPSTER_PATH = "/system/bin/MemfaultDumpster"
 MEMFAULT_DUMPSTER_DATA_PATH = "/data/system/MemfaultDumpster/"
 MEMFAULT_DUMPSTER_RC_PATH = "/etc/init/memfault_dumpster.rc"
 MEMFAULT_STRUCTURED_RC_PATH = "/etc/init/memfault_structured_logd.rc"
-MEMFAULT_STRUCTURED_DATA_PATH = "/data/system/MemfaultStructuredLogd/"
-MEMFAULT_STRUCTURED_EXEC_PATH = "/system/bin/MemfaultStructuredLogd"
+MEMFAULT_STRUCTURED_APPLICATION_ID = "com.memfault.structuredlogd"
 BORT_APK_PATH = r"package:/system/priv-app/MemfaultBort/MemfaultBort.apk"
 BORT_OTA_APK_PATH = r"package:/system/priv-app/MemfaultBortOta/MemfaultBortOta.apk"
 VENDOR_CIL_PATH = "/vendor/etc/selinux/vendor_sepolicy.cil"
@@ -937,23 +936,11 @@ class ValidateConnectedDevice(Command):
 
         self._errors.extend(
             _check_file_ownership_and_secontext(
-                path=MEMFAULT_STRUCTURED_EXEC_PATH,
-                mode="-rwxr-xr-x",
-                owner="root",
-                group="shell",
-                secontext="u:object_r:memfault_structured_exec:s0",
-                directory=True,
-                device=self._device,
-            )
-        )
-
-        self._errors.extend(
-            _check_file_ownership_and_secontext(
-                path=MEMFAULT_STRUCTURED_DATA_PATH,
+                path=f"/data/data/{MEMFAULT_STRUCTURED_APPLICATION_ID}/",
                 mode="drwx------",
                 owner="system",
                 group="system",
-                secontext="u:object_r:memfault_structured_data_file:s0",
+                secontext="u:object_r:system_app_data_file:s0",
                 directory=True,
                 device=self._device,
             )

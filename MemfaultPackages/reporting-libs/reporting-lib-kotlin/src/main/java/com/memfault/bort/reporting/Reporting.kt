@@ -9,7 +9,8 @@ import com.memfault.bort.reporting.MetricType.PROPERTY
 import com.memfault.bort.reporting.MetricValue.MetricJsonFields.REPORTING_CLIENT_VERSION
 import com.memfault.bort.reporting.NumericAgg.COUNT
 import com.memfault.bort.reporting.NumericAgg.SUM
-import com.memfault.bort.reporting.RemoteMetricsService.FinishReport
+import com.memfault.bort.reporting.RemoteMetricsService.HEARTBEAT_REPORT
+import com.memfault.bort.reporting.RemoteMetricsService.SESSION_REPORT
 
 /**
  * Entry point to Memfault's Reporting library.
@@ -33,22 +34,78 @@ public object Reporting {
     public fun report(): Report = Report(reportType = HEARTBEAT_REPORT)
 
     /**
-     * Finish a report. This is currently private and only used within Bort for heartbeats.
+     * Session. Values are aggregated by the length of each individual session with the same name.
+     *
+     * Session [name]s must match [RemoteMetricsService.SESSION_NAME_REGEX] and not be a
+     * [RemoteMetricsService.RESERVED_REPORT_NAMES].
      */
     @JvmStatic
-    private fun finishReport(
-        reportType: String = HEARTBEAT_REPORT,
-        timeMs: Long = timestamp(),
-        startNextReport: Boolean = false,
-    ): Boolean =
-        RemoteMetricsService.finishReport(FinishReport(timeMs, REPORTING_CLIENT_VERSION, reportType, startNextReport))
+    public fun session(name: String): Report {
+        return Report(reportType = SESSION_REPORT, reportName = name)
+    }
 
-    // Bort heartbeat will call RemoteMetricsService.finishReport() using this report name.
-    private const val HEARTBEAT_REPORT: String = "Heartbeat"
+    /**
+     * Convenience helper for recording a session within a single (longer) function call. The Session is started at
+     * the beginning of the [block], and stopped when the [block]'s scope ends.
+     *
+     * This class is inline so that [block] can be invoke coroutines if it is executed within a suspend function,
+     * without bringing the coroutine library into the reporting lib artifact.
+     */
+    public inline fun <R> withSession(
+        name: String,
+        block: (session: Report) -> R,
+    ): R = try {
+        startSession(name = name)
+        val session = session(name)
+        block(session)
+    } finally {
+        finishSession(name = name)
+    }
+
+    /**
+     * Start a session.
+     *
+     * Session [name]s must match [RemoteMetricsService.SESSION_NAME_REGEX] and not be a
+     * [RemoteMetricsService.RESERVED_REPORT_NAMES].
+     */
+    public fun startSession(
+        name: String,
+        timestampMs: Long = timestamp(),
+    ): Boolean {
+        return RemoteMetricsService.startReport(
+            StartReport(
+                timestampMs,
+                REPORTING_CLIENT_VERSION,
+                SESSION_REPORT,
+                name,
+            ),
+        )
+    }
+
+    /**
+     * Finish a session.
+     */
+    public fun finishSession(
+        name: String,
+        timestampMs: Long = timestamp(),
+    ): Boolean {
+        return RemoteMetricsService.finishReport(
+            FinishReport(
+                timestampMs,
+                REPORTING_CLIENT_VERSION,
+                SESSION_REPORT,
+                /** startNextReport */ false,
+                name,
+            ),
+        )
+    }
 
     private fun timestamp(): Long = System.currentTimeMillis()
 
-    public class Report internal constructor(public val reportType: String) {
+    public class Report internal constructor(
+        public val reportType: String,
+        public val reportName: String? = null,
+    ) {
         /**
          * Aggregates the total count at the end of the period.
          *
@@ -60,7 +117,13 @@ public object Reporting {
             name: String,
             sumInReport: Boolean = true,
             internal: Boolean = false,
-        ): Counter = Counter(name = name, reportType = reportType, internal = internal, sumInReport = sumInReport)
+        ): Counter = Counter(
+            name = name,
+            reportType = reportType,
+            reportName = reportName,
+            internal = internal,
+            sumInReport = sumInReport,
+        )
 
         /**
          * All-purpose success and failure counter for any sync-like events.
@@ -122,6 +185,7 @@ public object Reporting {
         ): Distribution = Distribution(
             name = name,
             reportType = reportType,
+            reportName = reportName,
             aggregations = aggregations,
             internal = internal,
         )
@@ -143,6 +207,7 @@ public object Reporting {
         ): StateTracker<T> = StateTracker(
             name = name,
             reportType = reportType,
+            reportName = reportName,
             aggregations = aggregations,
             internal = internal,
         )
@@ -164,6 +229,7 @@ public object Reporting {
         ): StringStateTracker = StringStateTracker(
             name = name,
             reportType = reportType,
+            reportName = reportName,
             aggregations = aggregations,
             internal = internal,
         )
@@ -185,6 +251,7 @@ public object Reporting {
         ): BoolStateTracker = BoolStateTracker(
             name = name,
             reportType = reportType,
+            reportName = reportName,
             aggregations = aggregations,
             internal = internal,
         )
@@ -203,6 +270,7 @@ public object Reporting {
         ): StringProperty = StringProperty(
             name = name,
             reportType = reportType,
+            reportName = reportName,
             addLatestToReport = addLatestToReport,
             internal = internal,
         )
@@ -221,6 +289,7 @@ public object Reporting {
         ): NumberProperty = NumberProperty(
             name = name,
             reportType = reportType,
+            reportName = reportName,
             addLatestToReport = addLatestToReport,
             internal = internal,
         )
@@ -243,6 +312,7 @@ public object Reporting {
         ): Event = Event(
             name = name,
             reportType = reportType,
+            reportName = reportName,
             countInReport = countInReport,
             latestInReport = latestInReport,
             internal = internal,
@@ -262,6 +332,7 @@ public object Reporting {
     public abstract class Metric internal constructor() {
         internal abstract val name: String
         internal abstract val reportType: String
+        internal abstract val reportName: String?
         internal abstract val aggregations: List<AggregationType>
         internal abstract val internal: Boolean
         internal abstract val metricType: MetricType
@@ -289,6 +360,7 @@ public object Reporting {
                     numberVal,
                     boolVal,
                     REPORTING_CLIENT_VERSION,
+                    reportName,
                 ),
             )
         }
@@ -297,6 +369,7 @@ public object Reporting {
     public data class StringProperty internal constructor(
         override val name: String,
         override val reportType: String,
+        override val reportName: String?,
         override val internal: Boolean,
         private val addLatestToReport: Boolean,
     ) : Metric() {
@@ -316,6 +389,7 @@ public object Reporting {
     public data class NumberProperty internal constructor(
         override val name: String,
         override val reportType: String,
+        override val reportName: String?,
         override val internal: Boolean,
         private val addLatestToReport: Boolean,
     ) : Metric() {
@@ -364,22 +438,25 @@ public object Reporting {
         private val successCounter: Counter,
         private val failureCounter: Counter,
     ) {
-        public fun record(successful: Boolean) {
+        public fun record(successful: Boolean, timestamp: Long = timestamp()) {
             if (successful) {
-                success()
+                success(timestamp = timestamp)
             } else {
-                failure()
+                failure(timestamp = timestamp)
             }
         }
 
-        public fun success(): Unit = successCounter.increment()
+        public fun success(timestamp: Long = timestamp()): Unit =
+            successCounter.increment(timestamp = timestamp)
 
-        public fun failure(): Unit = failureCounter.increment()
+        public fun failure(timestamp: Long = timestamp()): Unit =
+            failureCounter.increment(timestamp = timestamp)
     }
 
     public data class Counter internal constructor(
         override val name: String,
         override val reportType: String,
+        override val reportName: String?,
         override val internal: Boolean,
         private val sumInReport: Boolean,
     ) : Metric() {
@@ -412,6 +489,7 @@ public object Reporting {
     public data class StateTracker<T : Enum<T>> internal constructor(
         override val name: String,
         override val reportType: String,
+        override val reportName: String?,
         override val aggregations: List<StateAgg>,
         override val internal: Boolean,
     ) : Metric() {
@@ -431,6 +509,7 @@ public object Reporting {
     public data class StringStateTracker internal constructor(
         override val name: String,
         override val reportType: String,
+        override val reportName: String?,
         override val aggregations: List<StateAgg>,
         override val internal: Boolean,
     ) : Metric() {
@@ -450,6 +529,7 @@ public object Reporting {
     public data class BoolStateTracker internal constructor(
         override val name: String,
         override val reportType: String,
+        override val reportName: String?,
         override val aggregations: List<StateAgg>,
         override val internal: Boolean,
     ) : Metric() {
@@ -469,6 +549,7 @@ public object Reporting {
     public data class Distribution internal constructor(
         override val name: String,
         override val reportType: String,
+        override val reportName: String?,
         override val aggregations: List<NumericAgg>,
         override val internal: Boolean,
     ) : Metric() {
@@ -496,6 +577,7 @@ public object Reporting {
     public data class Event internal constructor(
         override val name: String,
         override val reportType: String,
+        override val reportName: String?,
         private val countInReport: Boolean,
         private val latestInReport: Boolean,
         override val internal: Boolean,

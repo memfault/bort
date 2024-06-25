@@ -6,7 +6,9 @@ import com.memfault.bort.time.boxed
 import io.mockk.confirmVerified
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -32,11 +34,18 @@ class CrashFreeHoursTest {
                 storedState = value
             }
     }
+
     private val metricLogger: CrashFreeHoursMetricLogger = mockk(relaxed = true)
-    private val crashFreeHours = CrashFreeHours(timeProvider, storage, metricLogger)
+    private val crashFreeHours = CrashFreeHours(
+        timeProvider = timeProvider,
+        storage = storage,
+        metricLogger = metricLogger,
+    )
+
+    private val crashTimestamp = Instant.now()
 
     @Test
-    fun crashFreeHour() {
+    fun crashFreeHour() = runTest {
         crashFreeHours.onBoot()
         uptimeMs += 1.hours
         crashFreeHours.process()
@@ -46,10 +55,10 @@ class CrashFreeHoursTest {
     }
 
     @Test
-    fun crashyHour() {
+    fun crashyHour() = runTest {
         crashFreeHours.onBoot()
         uptimeMs += 30.minutes
-        crashFreeHours.onCrash()
+        crashFreeHours.onCrash(crashTimestamp)
         uptimeMs += 30.minutes
         crashFreeHours.process()
         verify(exactly = 1) { metricLogger.incrementOperationalHours(1) }
@@ -58,7 +67,7 @@ class CrashFreeHoursTest {
     }
 
     @Test
-    fun lessThanOneHour() {
+    fun lessThanOneHour() = runTest {
         crashFreeHours.onBoot()
         uptimeMs += 50.minutes
         crashFreeHours.process()
@@ -68,33 +77,33 @@ class CrashFreeHoursTest {
     }
 
     @Test
-    fun crashTriggersMetrics() {
+    fun crashTriggersMetrics() = runTest {
         crashFreeHours.onBoot()
         uptimeMs += 60.minutes
-        crashFreeHours.onCrash()
+        crashFreeHours.onCrash(crashTimestamp)
         verify(exactly = 1) { metricLogger.incrementOperationalHours(1) }
         verify(exactly = 1) { metricLogger.incrementCrashFreeHours(1) }
         confirmVerified(metricLogger)
     }
 
     @Test
-    fun crashyTriggersMetrics() {
+    fun crashyTriggersMetrics() = runTest {
         crashFreeHours.onBoot()
-        crashFreeHours.onCrash()
+        crashFreeHours.onCrash(crashTimestamp)
         uptimeMs += 60.minutes
-        crashFreeHours.onCrash()
+        crashFreeHours.onCrash(crashTimestamp)
         verify(exactly = 1) { metricLogger.incrementOperationalHours(1) }
         verify(exactly = 0) { metricLogger.incrementCrashFreeHours(any()) }
     }
 
     @Test
-    fun multipleHours() {
+    fun multipleHours() = runTest {
         crashFreeHours.onBoot()
         uptimeMs += 3.hours
         crashFreeHours.process()
         verify { metricLogger.incrementOperationalHours(3) }
         uptimeMs += 30.minutes
-        crashFreeHours.onCrash()
+        crashFreeHours.onCrash(crashTimestamp)
         uptimeMs += 30.minutes
         crashFreeHours.process()
         verify { metricLogger.incrementOperationalHours(1) }
@@ -103,15 +112,15 @@ class CrashFreeHoursTest {
     }
 
     @Test
-    fun multipleHoursMoreCrashes() {
+    fun multipleHoursMoreCrashes() = runTest {
         crashFreeHours.onBoot()
         uptimeMs += 2.hours + 50.minutes
-        crashFreeHours.onCrash()
+        crashFreeHours.onCrash(crashTimestamp)
         verify { metricLogger.incrementOperationalHours(2) }
         verify { metricLogger.incrementCrashFreeHours(2) }
         uptimeMs += 10.minutes
         uptimeMs += 30.minutes
-        crashFreeHours.onCrash()
+        crashFreeHours.onCrash(crashTimestamp)
         uptimeMs += 30.minutes
         crashFreeHours.process()
         verify { metricLogger.incrementOperationalHours(1) }

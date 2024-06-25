@@ -19,12 +19,17 @@ public class Event extends Metric {
   private static final DataType DATA_TYPE = STRING;
   private static final boolean CARRY_OVER_VALUE = false;
 
-  Event(String eventName, String reportType, boolean countInReport, boolean latestInReport) {
-    super(eventName, reportType,
-        Event.<AggregationType>union(countInReport ? singletonList(COUNT) : emptyList(),
+  Event(String eventName, String reportType, boolean countInReport, boolean latestInReport,
+          String reportName) {
+    super(eventName,
+        reportType,
+        Event.<AggregationType>union(
+            countInReport ? singletonList(COUNT) : emptyList(),
             latestInReport ? singletonList(StateAgg.LATEST_VALUE) : emptyList()),
         METRIC_TYPE,
-        DATA_TYPE, CARRY_OVER_VALUE);
+        DATA_TYPE,
+        CARRY_OVER_VALUE,
+        reportName);
   }
 
   public void add(String value) {
