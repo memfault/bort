@@ -13,6 +13,8 @@
   device supports this and writes it to
   `/sys/class/power_supply/battery/cycle_count`).
 - Added `startSession`/`finishSession` native APIs for Sessions
+- Reboots are now always uploaded, regardless of fleet sampling resolution
+  (previously only uploaded when Debugging resolution is enabled).
 
 ### :chart_with_upwards_trend: Improvements
 
