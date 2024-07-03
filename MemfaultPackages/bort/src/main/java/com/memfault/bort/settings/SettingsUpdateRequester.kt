@@ -1,7 +1,6 @@
 package com.memfault.bort.settings
 
 import android.app.Application
-import android.content.Context
 import androidx.work.ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE
 import androidx.work.ExistingPeriodicWorkPolicy.UPDATE
 import androidx.work.WorkManager
@@ -26,62 +25,28 @@ import kotlin.time.toJavaDuration
 private const val WORK_TAG = "SETTINGS_UPDATE"
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.$WORK_TAG"
 
-internal fun restartPeriodicSettingsUpdate(
-    context: Context,
-    httpApiSettings: HttpApiSettings,
-    updateInterval: Duration,
-    delayAfterSettingsUpdate: Boolean,
-    cancel: Boolean,
-    jitterDelayProvider: JitterDelayProvider,
-    testRequest: Boolean = false,
-) {
-    if (testRequest) {
-        Logger.test("Restarting settings periodic task for testing")
-    } else {
-        Logger.test(
-            "Requesting settings every ${updateInterval.toDouble(HOURS)} " +
-                "hours (delayInitially=$delayAfterSettingsUpdate)",
-        )
-    }
-
-    periodicWorkRequest<SettingsUpdateTask>(
-        updateInterval,
-        workDataOf(),
-    ) {
-        addTag(WORK_TAG)
-        setConstraints(httpApiSettings.uploadConstraints)
-        // Use delay to prevent running the task again immediately after a settings update:
-        val settingsDelay = if (delayAfterSettingsUpdate) updateInterval else ZERO
-        val initialDelay = settingsDelay.toJavaDuration() + jitterDelayProvider.randomJitterDelay()
-        setInitialDelay(initialDelay.toMillis(), TimeUnit.MILLISECONDS)
-    }.also { workRequest ->
-        WorkManager.getInstance(context)
-            .enqueueUniquePeriodicWork(
-                WORK_UNIQUE_NAME_PERIODIC,
-                if (cancel) CANCEL_AND_REENQUEUE else UPDATE,
-                workRequest,
-            )
-    }
-}
-
 @ContributesMultibinding(scope = SingletonComponent::class)
 class SettingsUpdateRequester @Inject constructor(
     private val application: Application,
-    private val settings: SettingsProvider,
+    private val httpApiSettings: HttpApiSettings,
     private val jitterDelayProvider: JitterDelayProvider,
     private val cachedClientServerMode: CachedClientServerMode,
+    private val everFetchedSettingsPreferenceProvider: EverFetchedSettingsPreferenceProvider,
 ) : PeriodicWorkRequester() {
-    override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
+    override suspend fun startPeriodic(
+        justBooted: Boolean,
+        settingsChanged: Boolean,
+    ) {
         restartSettingsUpdate(delayAfterSettingsUpdate = settingsChanged, cancel = false)
     }
 
-    suspend fun restartSettingsUpdate(delayAfterSettingsUpdate: Boolean, cancel: Boolean) {
+    fun restartSettingsUpdate(
+        delayAfterSettingsUpdate: Boolean,
+        cancel: Boolean,
+    ) {
         restartPeriodicSettingsUpdate(
-            context = application,
-            httpApiSettings = settings.httpApiSettings,
-            updateInterval = settings.sdkSettingsUpdateInterval(),
+            updateInterval = httpApiSettings.deviceConfigInterval,
             delayAfterSettingsUpdate = delayAfterSettingsUpdate,
-            jitterDelayProvider = jitterDelayProvider,
             cancel = cancel,
         )
     }
@@ -102,14 +67,49 @@ class SettingsUpdateRequester @Inject constructor(
             .asBortWorkInfo("settings")
     }
 
-    override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
-        old.sdkSettingsUpdateInterval() != new.sdkSettingsUpdateInterval()
-}
+    override suspend fun parametersChanged(
+        old: SettingsProvider,
+        new: SettingsProvider,
+    ): Boolean =
+        old.httpApiSettings.deviceConfigInterval != new.httpApiSettings.deviceConfigInterval
 
-/**
- * Get the correct update interval, based on which endpoint is enabled.
- */
-private suspend fun SettingsProvider.sdkSettingsUpdateInterval(): Duration = when (httpApiSettings.useDeviceConfig()) {
-    true -> httpApiSettings.deviceConfigInterval
-    false -> settingsUpdateInterval
+    fun restartPeriodicSettingsUpdate(
+        updateInterval: Duration,
+        delayAfterSettingsUpdate: Boolean,
+        cancel: Boolean,
+        testRequest: Boolean = false,
+    ) {
+        if (testRequest) {
+            Logger.test("Restarting settings periodic task for testing")
+        } else {
+            Logger.test(
+                "Requesting settings every ${updateInterval.toDouble(HOURS)} " +
+                    "hours (delayInitially=$delayAfterSettingsUpdate)",
+            )
+        }
+
+        periodicWorkRequest<SettingsUpdateTask>(
+            updateInterval,
+            workDataOf(),
+        ) {
+            addTag(WORK_TAG)
+            setConstraints(httpApiSettings.uploadConstraints)
+            // Only add jitter if we have previously fetched settings (i.e. zero delay if we have never fetched
+            // settings)
+            if (everFetchedSettingsPreferenceProvider.getValue()) {
+                // Use delay to prevent running the task again immediately after a settings update:
+                val settingsDelay = if (delayAfterSettingsUpdate) updateInterval else ZERO
+                val initialDelay = settingsDelay.toJavaDuration() +
+                    jitterDelayProvider.randomJitterDelay(maxDelay = updateInterval.toJavaDuration())
+                setInitialDelay(initialDelay.toMillis(), TimeUnit.MILLISECONDS)
+            }
+        }.also { workRequest ->
+            WorkManager.getInstance(application)
+                .enqueueUniquePeriodicWork(
+                    WORK_UNIQUE_NAME_PERIODIC,
+                    if (cancel) CANCEL_AND_REENQUEUE else UPDATE,
+                    workRequest,
+                )
+        }
+    }
 }

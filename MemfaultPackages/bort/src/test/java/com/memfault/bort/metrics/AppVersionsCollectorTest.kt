@@ -4,6 +4,8 @@ import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.settings.MetricsSettings
+import com.memfault.bort.settings.RateLimitingSettings
+import com.memfault.bort.time.boxed
 import io.mockk.Called
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -14,6 +16,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.Duration.Companion.hours
 
 class AppVersionsCollectorTest {
     val store: DevicePropertiesStore = mockk(relaxed = true)
@@ -27,6 +30,11 @@ class AppVersionsCollectorTest {
         metricsSettings = object : MetricsSettings {
             override val dataSourceEnabled: Boolean = false
             override val dailyHeartbeatEnabled: Boolean = false
+            override val sessionsRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+                defaultCapacity = 11,
+                defaultPeriod = 24.hours.boxed(),
+                maxBuckets = 1,
+            )
             override val collectionInterval: Duration = ZERO
             override val systemProperties: List<String> = emptyList()
             override val appVersions: List<String>

@@ -1,5 +1,37 @@
 # Memfault Bort Changelog
 
+## v4.18.0 - July 1, 2024
+
+### :rocket: New Features
+
+- Battery device vitals are automatically added to
+  [Sessions](https://mflt.io/android-sessions), to enable seeing how the Session
+  affected battery life: `battery_discharge_duration_ms`,
+  `battery_soc_pct_drop`.
+- Added battery charge cycle count metric: `battery.charge_cycle_count` - this
+  tracks the total number of charge cycles the battery has been through (if the
+  device supports this and writes it to
+  `/sys/class/power_supply/battery/cycle_count`).
+- Added `startSession`/`finishSession` native APIs for Sessions
+
+### :chart_with_upwards_trend: Improvements
+
+- Removed legacy settings endpoint support (this had not been used for ~2
+  years - replaced by `device-config`).
+- Added rate-limiter for Sessions.
+- Catch a `SocketTimeoutException` during settings update, so that it doesn't
+  fail the job.
+- Changed the jitter for settings update, so that it evenly distributes requests
+  throughout the fleet. Also removed any jitter from the very first settings
+  update on a fresh device.
+- Updated gradle to version 8.8 (fixed a build failure we saw internally).
+
+### :house: Internal
+
+- Changed network security config in the debug variant of the Bort app, for our
+  internal CI configuration.
+- Added internal metrics to track the size of Bort's databases.
+
 ## v4.17.0 - June 24, 2024
 
 ### :rocket: New Features

@@ -387,6 +387,13 @@ data class FetchedSettings(
     @SerialName("metric_report.daily_heartbeat")
     val dailyHeartbeatEnabled: Boolean = false,
 
+    @SerialName("metric_report.sessions_rate_limiting_settings")
+    val metricReportSessionsRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+        defaultCapacity = 125,
+        defaultPeriod = 24.hours.boxed(),
+        maxBuckets = 1,
+    ),
+
     @SerialName("storage.apps_size_data_source_enabled")
     val storageAppsSizeDataSourceEnabled: Boolean = true,
 

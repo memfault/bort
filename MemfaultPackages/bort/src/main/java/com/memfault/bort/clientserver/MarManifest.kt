@@ -256,7 +256,7 @@ sealed class MarMetadata {
                     type = "android-device-config",
                     device = device,
                     metadata = metadata,
-                    // All resolutions are set of OFF. This means that the file is always uploaded, regardless of device
+                    // All resolutions are set to OFF. This means that the file is always uploaded, regardless of device
                     // fleet-sampling configuration.
                     debuggingResolution = Resolution.OFF,
                     loggingResolution = Resolution.OFF,
@@ -267,9 +267,11 @@ sealed class MarMetadata {
                     type = "android-reboot",
                     device = device,
                     metadata = metadata,
-                    debuggingResolution = Resolution.NORMAL,
-                    loggingResolution = Resolution.NOT_APPLICABLE,
-                    monitoringResolution = Resolution.NOT_APPLICABLE,
+                    // All resolutions are set to OFF. This means that the file is always uploaded, regardless of device
+                    // fleet-sampling configuration.
+                    debuggingResolution = Resolution.OFF,
+                    loggingResolution = Resolution.OFF,
+                    monitoringResolution = Resolution.OFF,
                 )
                 is SelinuxViolationMarMetadata -> MarManifest(
                     collectionTime = collectionTime,

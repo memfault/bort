@@ -301,8 +301,20 @@ uint64_t memfault::Report::timestamp() const {
     return getTimeInMsSinceEpoch();
 }
 
-void memfault::Report::finish() const {
-    finishReport(mLogger, getTimeInMsSinceEpoch(), mReportType, mReportName);
+void memfault::Report::startSession() const {
+    startSession(getTimeInMsSinceEpoch());
+}
+
+void memfault::Report::startSession(uint64_t timestamp) const {
+    startReport(mLogger, timestamp, mReportType, mReportName);
+}
+
+void memfault::Report::finishSession() const {
+    finishSession(getTimeInMsSinceEpoch());
+}
+
+void memfault::Report::finishSession(uint64_t timestamp) const {
+    finishReport(mLogger, timestamp, mReportType, mReportName);
 }
 
 metric_report_t metric_report_new() {

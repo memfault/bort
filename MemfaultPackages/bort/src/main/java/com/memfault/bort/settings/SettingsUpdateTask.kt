@@ -14,16 +14,13 @@ import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.settings.FetchedDeviceConfigContainer.Companion.asSamplingConfig
 import com.memfault.bort.shared.CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG
 import com.memfault.bort.shared.Logger
-import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
 import javax.inject.Inject
 
 class SettingsUpdateTask @Inject constructor(
     private val deviceInfoProvider: DeviceInfoProvider,
-    private val settingsUpdateService: SettingsUpdateService,
     override val metrics: BuiltinMetricsStore,
     private val settingsUpdateHandler: SettingsUpdateHandler,
-    private val useDeviceConfig: UseDeviceConfig,
     private val deviceConfigUpdateService: DeviceConfigUpdateService,
     private val samplingConfig: CurrentSamplingConfig,
     private val cachedClientServerMode: CachedClientServerMode,
@@ -33,33 +30,27 @@ class SettingsUpdateTask @Inject constructor(
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
 
-    override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult {
-        return try {
-            val deviceInfo = deviceInfoProvider.getDeviceInfo()
-            if (useDeviceConfig()) {
-                val deviceConfig = deviceConfigUpdateService.deviceConfig(
-                    DeviceConfigUpdateService.DeviceConfigArgs(deviceInfo.asDeviceConfigInfo()),
-                )
-                deviceConfig.handleUpdate(settingsUpdateHandler, samplingConfig)
-
-                maybeFetchDeviceConfigForClientDevice()
-            } else {
-                val new = settingsUpdateService.settings(
-                    deviceInfo.deviceSerial,
-                    deviceInfo.softwareVersion,
-                    deviceInfo.hardwareVersion,
-                ).data
-                settingsUpdateHandler.handleSettingsUpdate(new)
-            }
-
-            TaskResult.SUCCESS
+    override suspend fun doWork(
+        worker: TaskRunnerWorker,
+        input: Unit,
+    ): TaskResult {
+        val deviceInfo = deviceInfoProvider.getDeviceInfo()
+        val deviceConfig: DecodedDeviceConfig = try {
+            deviceConfigUpdateService.deviceConfig(
+                DeviceConfigUpdateService.DeviceConfigArgs(deviceInfo.asDeviceConfigInfo()),
+            )
         } catch (e: HttpException) {
             Logger.d("failed to fetch settings from remote endpoint", e)
-            TaskResult.SUCCESS
-        } catch (e: SerializationException) {
+            return TaskResult.SUCCESS
+        } catch (e: Exception) {
             Logger.d("failed to deserialize fetched settings from remote endpoint", e)
-            TaskResult.SUCCESS
+            return TaskResult.SUCCESS
         }
+        deviceConfig.handleUpdate(settingsUpdateHandler, samplingConfig)
+
+        maybeFetchDeviceConfigForClientDevice()
+
+        return TaskResult.SUCCESS
     }
 
     private suspend fun maybeFetchDeviceConfigForClientDevice() {

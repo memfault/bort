@@ -7,6 +7,7 @@ import android.content.ContentResolver
 import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.net.ConnectivityManager
+import android.os.BatteryManager
 import android.os.DropBoxManager
 import android.os.Looper
 import com.memfault.bort.Default
@@ -65,4 +66,8 @@ class SharedAndroidModule {
     @Provides
     fun storageStatsManager(application: Application): StorageStatsManager =
         application.getSystemService(StorageStatsManager::class.java)
+
+    @Provides
+    fun batteryManager(application: Application): BatteryManager =
+        application.getSystemService(BatteryManager::class.java)
 }

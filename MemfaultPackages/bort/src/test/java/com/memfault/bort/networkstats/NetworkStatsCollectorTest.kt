@@ -39,6 +39,7 @@ import com.memfault.bort.settings.NetworkUsageSettings
 import com.memfault.bort.test.util.TemporaryFolderTemporaryFileFactory
 import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.boxed
+import com.memfault.bort.tokenbucket.TokenBucketStore
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -136,6 +137,11 @@ class NetworkStatsCollectorTest {
 
     private val highResMetricsEnabled = HighResMetricsEnabled { true }
 
+    private var rateLimited = false
+    private val tokenBucketStore = mockk<TokenBucketStore> {
+        every { takeSimple(any(), any(), any()) } answers { !rateLimited }
+    }
+
     @Before
     fun setup() {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -149,6 +155,7 @@ class NetworkStatsCollectorTest {
             temporaryFileFactory = TemporaryFolderTemporaryFileFactory(tempFolder),
             dailyHeartbeatEnabled = dailyHeartbeatEnabled,
             highResMetricsEnabled = highResMetricsEnabled,
+            sessionMetricsTokenBucketStore = tokenBucketStore,
         )
 
         val contentResolver = mockk<ContentResolver> {

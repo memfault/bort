@@ -11,6 +11,7 @@ import com.memfault.bort.metrics.HighResTelemetry.RollupMetadata
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.reporting.StateAgg
 import com.memfault.bort.settings.MetricsSettings
+import com.memfault.bort.time.CombinedTime
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
@@ -31,10 +32,13 @@ import kotlinx.serialization.json.jsonPrimitive
  * This is likely a temporary measure, until we move metrics storage to Bort.
  */
 class DevicePropertiesStore(
+    collectionTime: CombinedTime,
     private val metricsSettings: MetricsSettings,
 ) {
     private val metrics: MutableMap<String, JsonPrimitive> = mutableMapOf()
     private val internalMetrics: MutableMap<String, JsonPrimitive> = mutableMapOf()
+
+    private val collectionTimeMs = collectionTime.timestamp.toEpochMilli()
 
     private fun storeLocally(name: String, value: JsonPrimitive, internal: Boolean) {
         if (internal) {
@@ -46,7 +50,8 @@ class DevicePropertiesStore(
 
     fun upsert(name: String, value: String, internal: Boolean = false) {
         if (metricsSettings.propertiesUseMetricService) {
-            Reporting.report().stringProperty(name = name, addLatestToReport = true, internal = internal).update(value)
+            Reporting.report().stringProperty(name = name, addLatestToReport = true, internal = internal)
+                .update(value, timestamp = collectionTimeMs)
         } else {
             storeLocally(name = name, value = JsonPrimitive(value), internal = internal)
         }
@@ -54,7 +59,8 @@ class DevicePropertiesStore(
 
     fun upsert(name: String, value: Double, internal: Boolean = false) {
         if (metricsSettings.propertiesUseMetricService) {
-            Reporting.report().numberProperty(name = name, addLatestToReport = true, internal = internal).update(value)
+            Reporting.report().numberProperty(name = name, addLatestToReport = true, internal = internal)
+                .update(value, timestamp = collectionTimeMs)
         } else {
             storeLocally(name = name, value = JsonPrimitive(value), internal = internal)
         }
@@ -72,7 +78,7 @@ class DevicePropertiesStore(
         if (metricsSettings.propertiesUseMetricService) {
             Reporting.report()
                 .boolStateTracker(name = name, aggregations = listOf(StateAgg.LATEST_VALUE), internal = internal)
-                .state(value)
+                .state(value, timestamp = collectionTimeMs)
         } else {
             storeLocally(name = name, value = JsonPrimitive(value), internal = internal)
         }

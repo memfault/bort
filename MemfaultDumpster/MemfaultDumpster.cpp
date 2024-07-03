@@ -86,6 +86,9 @@ namespace {
                 case IDumpster::CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_DISABLED: return {
                         "/system/bin/setprop", STRUCTURED_ENABLED_PROPERTY, "0"
                 };
+                case IDumpster::CMD_ID_CYCLE_COUNT: return {
+                        "cat", "/sys/class/power_supply/battery/cycle_count"
+                };
 
 
                 default: return {};

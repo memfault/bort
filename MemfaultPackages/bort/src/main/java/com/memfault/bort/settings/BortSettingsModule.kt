@@ -14,7 +14,6 @@ fun interface HighResMetricsEnabled : () -> Boolean
 fun interface DailyHeartbeatEnabled : () -> Boolean
 fun interface UploadCompressionEnabled : () -> Boolean
 fun interface BatchMarUploads : () -> Boolean
-fun interface UseDeviceConfig : suspend () -> Boolean
 fun interface ProjectKey : () -> String
 fun interface TimeoutConfig : () -> Duration
 fun interface RulesConfig : () -> List<AndroidAppIdScrubbingRule>
@@ -48,10 +47,6 @@ abstract class BortSettingsModule {
         @Provides
         fun batchMarUploads(settings: SettingsProvider) =
             BatchMarUploads { settings.httpApiSettings.batchMarUploads }
-
-        @Provides
-        fun useDeviceConfig(settings: SettingsProvider) =
-            UseDeviceConfig { settings.httpApiSettings.useDeviceConfig() }
 
         @Provides
         fun structuredLog(settings: SettingsProvider) =

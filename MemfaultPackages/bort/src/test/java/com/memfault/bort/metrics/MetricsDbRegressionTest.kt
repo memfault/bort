@@ -612,7 +612,7 @@ class MetricsDbRegressionTest {
                 """
                 {
                     "version": 2,
-                    "timestampMs": 0,
+                    "timestampMs": 1,
                     "reportType": "heartbeat",
                     "eventName": "screen_on",
                     "aggregations": ["TIME_PER_HOUR"],

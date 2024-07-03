@@ -1,5 +1,6 @@
 package com.memfault.bort.settings
 
+import com.memfault.bort.makeFakeSharedPreferences
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.time.boxed
 import io.mockk.coEvery
@@ -38,11 +39,14 @@ class SettingsUpdateHandlerTest {
     private val callback: SettingsUpdateCallback = mockk {
         coEvery { onSettingsUpdated(any(), capture(fetchedSettingsUpdateSlot)) } returns Unit
     }
+    private val everFetchedSettingsPreferenceProvider =
+        EverFetchedSettingsPreferenceProvider(makeFakeSharedPreferences())
     private val handler = SettingsUpdateHandler(
         settingsProvider = settingsProvider,
         storedSettingsPreferenceProvider = storedSettingsPreferenceProvider,
         settingsUpdateCallback = callback,
         metrics = mockk(relaxed = true),
+        everFetchedSettingsPreferenceProvider = everFetchedSettingsPreferenceProvider,
     )
 
     @Test

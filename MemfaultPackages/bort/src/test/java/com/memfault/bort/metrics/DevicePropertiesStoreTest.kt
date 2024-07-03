@@ -1,11 +1,14 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.metrics.HighResTelemetry.DataType
 import com.memfault.bort.metrics.HighResTelemetry.DataType.BooleanType
 import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
 import com.memfault.bort.metrics.HighResTelemetry.DataType.StringType
 import com.memfault.bort.metrics.HighResTelemetry.Rollup
 import com.memfault.bort.settings.MetricsSettings
+import com.memfault.bort.settings.RateLimitingSettings
+import com.memfault.bort.time.boxed
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -19,6 +22,11 @@ class DevicePropertiesStoreTest {
     private val metricsSettings = object : MetricsSettings {
         override val dataSourceEnabled: Boolean = true
         override val dailyHeartbeatEnabled: Boolean = false
+        override val sessionsRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+            defaultCapacity = 11,
+            defaultPeriod = 24.hours.boxed(),
+            maxBuckets = 1,
+        )
         override val collectionInterval: Duration = 1.hours
         override val systemProperties: List<String> = emptyList()
         override val appVersions: List<String> = emptyList()
@@ -28,7 +36,11 @@ class DevicePropertiesStoreTest {
         override val cachePackageManagerReport: Boolean = true
     }
 
-    private val propertiesStore = DevicePropertiesStore(metricsSettings)
+    private val combinedTimeProvider = FakeCombinedTimeProvider
+    private val propertiesStore = DevicePropertiesStore(
+        collectionTime = combinedTimeProvider.now(),
+        metricsSettings = metricsSettings,
+    )
 
     companion object {
         private const val METRIC_NAME_STRING = "key_str"
@@ -50,7 +62,12 @@ class DevicePropertiesStoreTest {
         private const val TIMESTAMP = 1234L
     }
 
-    private fun rollup(name: String, value: JsonPrimitive, dataType: DataType, internal: Boolean) = Rollup(
+    private fun rollup(
+        name: String,
+        value: JsonPrimitive,
+        dataType: DataType,
+        internal: Boolean,
+    ) = Rollup(
         metadata = HighResTelemetry.RollupMetadata(
             stringKey = name,
             metricType = HighResTelemetry.MetricType.Property,

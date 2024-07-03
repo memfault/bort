@@ -134,6 +134,13 @@
             </intent-filter>
         </receiver>
 
+        <receiver android:name=".receivers.ChargeStateReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.ACTION_POWER_CONNECTED"/>
+                <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED"/>
+            </intent-filter>
+        </receiver>
+
         <provider
             android:authorities="com.memfault.bort.softwareupdate.settings"
             android:name=".settings.SoftwareUpdateSettingsContentProvider"

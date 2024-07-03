@@ -6,12 +6,10 @@ import android.content.pm.PackageManager.NameNotFoundException
 import android.os.Build
 import android.os.storage.StorageManager
 import com.memfault.bort.IO
-import com.memfault.bort.metrics.HighResTelemetry
-import com.memfault.bort.metrics.HighResTelemetry.DataType
-import com.memfault.bort.metrics.HighResTelemetry.Datum
-import com.memfault.bort.metrics.HighResTelemetry.MetricType
-import com.memfault.bort.metrics.HighResTelemetry.RollupMetadata
+import com.memfault.bort.metrics.InMemoryMetric
+import com.memfault.bort.metrics.InMemoryMetricCollector
 import com.memfault.bort.metrics.SignificantAppsProvider
+import com.memfault.bort.reporting.MetricType.GAUGE
 import com.memfault.bort.settings.StorageSettings
 import com.memfault.bort.time.CombinedTime
 import com.squareup.anvil.annotations.ContributesBinding
@@ -21,24 +19,9 @@ import kotlinx.serialization.json.JsonPrimitive
 import java.io.IOException
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
 
-data class AppStorageStatsResult(
-    val heartbeatMetrics: Map<String, JsonPrimitive>,
-    val internalHeartbeatMetrics: Map<String, JsonPrimitive>,
-    val hrtRollup: Set<HighResTelemetry.Rollup>,
-) {
-    companion object {
-        val EMPTY = AppStorageStatsResult(
-            heartbeatMetrics = emptyMap(),
-            internalHeartbeatMetrics = emptyMap(),
-            hrtRollup = emptySet(),
-        )
-    }
-}
-
-interface AppStorageStatsCollector {
-    suspend fun collect(collectionTime: CombinedTime): AppStorageStatsResult
-}
+interface AppStorageStatsCollector : InMemoryMetricCollector
 
 @ContributesBinding(SingletonComponent::class)
 class RealAppStorageStatsCollector
@@ -49,69 +32,51 @@ class RealAppStorageStatsCollector
     @IO private val ioCoroutineContext: CoroutineContext,
 ) : AppStorageStatsCollector {
 
-    override suspend fun collect(collectionTime: CombinedTime): AppStorageStatsResult {
-        if (!storageSettings.appsSizeDataSourceEnabled) return AppStorageStatsResult.EMPTY
+    override suspend fun collect(
+        collectionTime: CombinedTime,
+        heartbeatInterval: Duration,
+    ): List<InMemoryMetric> {
+        if (!storageSettings.appsSizeDataSourceEnabled) return emptyList()
 
-        val heartbeatMetrics = mutableMapOf<String, JsonPrimitive>()
-        val internalHeartbeatMetrics = mutableMapOf<String, JsonPrimitive>()
-        val hrtRollup = mutableSetOf<HighResTelemetry.Rollup>()
-
-        fun recordStorageStats(
+        fun storageStatsMetrics(
             key: String,
             storageStats: StorageStats?,
             internal: Boolean,
-        ) {
-            if (storageStats == null) return
+        ): List<InMemoryMetric> {
+            if (storageStats == null) {
+                return emptyList()
+            }
 
-            fun record(
+            fun metric(
                 key: String,
-                value: Long?,
-            ) {
-                if (value == null) return
+                value: Long,
+            ): InMemoryMetric = InMemoryMetric(
+                metricName = key,
+                metricValue = JsonPrimitive(value),
+                metricType = GAUGE,
+                internal = internal,
+            )
 
-                val jsonValue = JsonPrimitive(value)
-                if (internal) {
-                    internalHeartbeatMetrics[key] = jsonValue
+            return listOfNotNull(
+                metric("storage.app.app_$key", storageStats.appBytes),
+                metric("storage.app.cache_$key", storageStats.cacheBytes),
+                metric("storage.app.data_$key", storageStats.dataBytes),
+                if (Build.VERSION.SDK_INT >= 31) {
+                    metric("storage.app.extcache_$key", storageStats.externalCacheBytes)
                 } else {
-                    heartbeatMetrics[key] = jsonValue
-                }
-
-                val rollup = HighResTelemetry.Rollup(
-                    metadata = RollupMetadata(
-                        stringKey = key,
-                        metricType = MetricType.Gauge,
-                        dataType = DataType.DoubleType,
-                        internal = internal,
-                    ),
-                    data = listOf(
-                        Datum(t = collectionTime.timestamp.toEpochMilli(), value = jsonValue),
-                    ),
-                )
-                hrtRollup.add(rollup)
-            }
-
-            record("storage.app.app_$key", storageStats.appBytes)
-            record("storage.app.cache_$key", storageStats.cacheBytes)
-            record("storage.app.data_$key", storageStats.dataBytes)
-            if (Build.VERSION.SDK_INT >= 31) {
-                record("storage.app.extcache_$key", storageStats.externalCacheBytes)
-            }
+                    null
+                },
+            )
         }
 
-        significantAppsProvider.apps()
-            .forEach { app ->
-                recordStorageStats(
+        return significantAppsProvider.apps()
+            .flatMap { app ->
+                storageStatsMetrics(
                     key = app.identifier,
                     storageStats = queryForPackage(app.packageName),
                     internal = app.internal,
                 )
             }
-
-        return AppStorageStatsResult(
-            heartbeatMetrics = heartbeatMetrics,
-            internalHeartbeatMetrics = internalHeartbeatMetrics,
-            hrtRollup = hrtRollup,
-        )
     }
 
     private suspend fun queryForPackage(packageName: String?): StorageStats? = withContext(ioCoroutineContext) {

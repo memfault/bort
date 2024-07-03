@@ -59,6 +59,7 @@ interface BatteryStatsSettings {
 interface MetricsSettings {
     val dataSourceEnabled: Boolean
     val dailyHeartbeatEnabled: Boolean
+    val sessionsRateLimitingSettings: RateLimitingSettings
     val collectionInterval: Duration
     val systemProperties: List<String>
     val appVersions: List<String>
@@ -106,7 +107,6 @@ interface HttpApiSettings {
     val zipCompressionLevel: Int
     val batchMarUploads: Boolean
     val batchedMarUploadPeriod: Duration
-    suspend fun useDeviceConfig(): Boolean
     val deviceConfigInterval: Duration
     val maxMarFileSizeBytes: Int
     val maxMarStorageBytes: Long
@@ -190,7 +190,6 @@ interface SettingsProvider {
     val eventLogEnabled: Boolean
     val internalLogToDiskEnabled: Boolean
     val isRuntimeEnableRequired: Boolean
-    val settingsUpdateInterval: Duration
 
     val httpApiSettings: HttpApiSettings
     val sdkVersionInfo: SdkVersionInfo
