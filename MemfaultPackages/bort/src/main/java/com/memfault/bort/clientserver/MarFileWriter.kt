@@ -9,6 +9,7 @@ import com.memfault.bort.addZipEntry
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.settings.HttpApiSettings
 import com.memfault.bort.settings.ZipCompressionLevel
+import com.memfault.bort.shared.Logger
 import com.memfault.bort.zip.openZipFile
 import kotlinx.serialization.encodeToString
 import java.io.File
@@ -46,6 +47,7 @@ class MarFileWriter @Inject constructor(
         val batches = splitFilesIntoBatchesForMaxSize(inputMarFiles)
         val batchedFiles = batches.map { batch ->
             createMarFile(type = BATCHED_MAR_TYPE).useFile { file, preventDeletion ->
+                Logger.v("Batching files [${batch.joinToString()}] to $file.")
                 writeBatchedMarFile(
                     marFile = file,
                     inputFiles = batch,

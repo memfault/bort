@@ -60,9 +60,6 @@ open class DynamicSettingsProvider @Inject constructor(
 
     override val isRuntimeEnableRequired: Boolean = BuildConfig.RUNTIME_ENABLE_REQUIRED
 
-    override val settingsUpdateInterval: Duration
-        get() = settings.bortSettingsUpdateInterval.duration
-
     override val httpApiSettings = object : HttpApiSettings {
         override val uploadNetworkConstraint: NetworkConstraint
             get() = if (settings.httpApiUploadNetworkConstraintAllowMeteredConnection) {
@@ -91,11 +88,6 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.httpApiBatchMarUploads && !devMode.isEnabled()
         override val batchedMarUploadPeriod: Duration
             get() = settings.httpApiBatchedMarUploadPeriod.duration
-
-        // TODO also true if fleet sampling enabled, but we don't know that
-        // Only device config is supported in client/server mode.
-        override suspend fun useDeviceConfig(): Boolean =
-            cachedClientServerMode.isEnabled() || settings.httpApiUseDeviceConfig
         override val deviceConfigInterval: Duration
             get() = settings.httpApiDeviceConfigInterval.duration
         override val maxMarFileSizeBytes: Int
@@ -173,6 +165,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.metricsDataSourceEnabled
         override val dailyHeartbeatEnabled: Boolean
             get() = settings.dailyHeartbeatEnabled
+        override val sessionsRateLimitingSettings: RateLimitingSettings
+            get() = settings.metricReportSessionsRateLimitingSettings
         override val collectionInterval
             get() = settings.metricsCollectionInterval.duration
         override val systemProperties: List<String>

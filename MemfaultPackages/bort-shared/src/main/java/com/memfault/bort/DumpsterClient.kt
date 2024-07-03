@@ -20,12 +20,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Qualifier
 import javax.inject.Singleton
-import kotlin.annotation.AnnotationRetention.RUNTIME
-import kotlin.annotation.AnnotationTarget.FIELD
-import kotlin.annotation.AnnotationTarget.FUNCTION
-import kotlin.annotation.AnnotationTarget.PROPERTY_GETTER
-import kotlin.annotation.AnnotationTarget.PROPERTY_SETTER
-import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
 import kotlin.coroutines.resume
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -107,8 +101,6 @@ private class WrappedService(val service: IDumpster, val basicCommandTimeout: Lo
 }
 
 @Qualifier
-@Retention(RUNTIME)
-@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 annotation class BasicCommandTimeout
 
 class DumpsterClient @Inject constructor(
@@ -229,6 +221,11 @@ class DumpsterClient @Inject constructor(
             stopContinuousLogging()
         }
     }
+
+    suspend fun getChargeCycleCount(): Int? =
+        withService<Int?>(minimumVersion = IDumpster.VERSION_CYCLE_COUNT) {
+            return runBasicCommand(IDumpster.CMD_ID_CYCLE_COUNT)?.toIntOrNull()
+        }
 
     /**
      * Gets the available version of the MemfaultDumpster service, or null if the service is not available.

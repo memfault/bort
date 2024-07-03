@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.callbackFlow
 
 suspend fun Context.registerForIntents(
     vararg actions: String,
+    sticky: Boolean = false,
 ): Flow<Intent> {
     check(actions.isNotEmpty()) { "Must provide a non-empty list of actions to listen to." }
 
@@ -24,7 +25,11 @@ suspend fun Context.registerForIntents(
         val filter = IntentFilter()
         actions.forEach { filter.addAction(it) }
 
-        registerReceiver(receiver, filter)
+        val stickyIntentOrNull = registerReceiver(receiver, filter)
+
+        if (sticky && stickyIntentOrNull != null) {
+            trySend(stickyIntentOrNull)
+        }
 
         awaitClose { unregisterReceiver(receiver) }
     }

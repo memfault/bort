@@ -33,6 +33,12 @@ fun makeFakeSharedPreferences(): FakeSharedPreferences {
             this@mockk
         }
         every {
+            putBoolean(any(), any())
+        } answers {
+            backingStorage.put(firstArg(), secondArg())
+            this@mockk
+        }
+        every {
             apply()
         } just Runs
         every {
@@ -58,6 +64,11 @@ fun makeFakeSharedPreferences(): FakeSharedPreferences {
             getString(any(), any())
         } answers {
             backingStorage[firstArg()] as String? ?: secondArg()
+        }
+        every {
+            getBoolean(any(), any())
+        } answers {
+            backingStorage[firstArg()] as Boolean? ?: secondArg()
         }
         every {
             edit()

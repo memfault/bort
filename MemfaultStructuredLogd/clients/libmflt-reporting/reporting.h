@@ -389,9 +389,28 @@ public:
     }
 
     /**
-     * Finishes the Report. The Report should no longer be used after this call.
+     * Starts the Session (Report). Must be called before metrics can be recorded to this Session.
      */
-    void finish() const;
+    void startSession() const;
+
+    /**
+     * Starts the Session (Report). Must be called before metrics can be recorded to this Session.
+     *
+     * Passes a custom timestamp for the session start (not recommended).
+     */
+    void startSession(uint64_t timestamp) const;
+
+    /**
+     * Finishes the Session (Report). The Report should no longer be used after this call.
+     */
+    void finishSession() const;
+
+    /**
+     * Finishes the Session (Report). The Report should no longer be used after this call.
+     *
+     * Passes a custom timestamp for the session end (not recommended).
+     */
+    void finishSession(uint64_t timestamp) const;
 
     /**
      * Retrieves the structured logger. Private use for starting and finishing sessions.

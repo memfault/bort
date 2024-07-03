@@ -1,6 +1,9 @@
 package com.memfault.bort.metrics.custom
 
 import com.memfault.bort.TemporaryFileFactory
+import com.memfault.bort.battery.BATTERY_CHARGING_METRIC
+import com.memfault.bort.battery.BATTERY_LEVEL_METRIC
+import com.memfault.bort.battery.BatterySessionVitalsCalculator
 import com.memfault.bort.connectivity.CONNECTIVITY_TYPE_METRIC
 import com.memfault.bort.connectivity.ConnectivityTimeCalculator
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_CRASHES_METRIC_KEY
@@ -14,6 +17,8 @@ import com.memfault.bort.reporting.MetricValue
 import com.memfault.bort.reporting.StartReport
 import com.memfault.bort.settings.DailyHeartbeatEnabled
 import com.memfault.bort.settings.HighResMetricsEnabled
+import com.memfault.bort.tokenbucket.SessionMetrics
+import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.sync.Mutex
@@ -38,6 +43,11 @@ private val SYNC_METRICS = setOf(
     "sync_successful",
 )
 
+private val BATTERY_METRICS = setOf(
+    BATTERY_CHARGING_METRIC,
+    BATTERY_LEVEL_METRIC,
+)
+
 /**
  * Abstraction layer between the [MetricsDb] and [MetricsDao] and the rest of the codebase. The goal of this class
  * is to not leak specific metric names into the [MetricsDb.dao].
@@ -49,6 +59,7 @@ class RealCustomMetrics @Inject constructor(
     private val temporaryFileFactory: TemporaryFileFactory,
     private val dailyHeartbeatEnabled: DailyHeartbeatEnabled,
     private val highResMetricsEnabled: HighResMetricsEnabled,
+    @SessionMetrics private val sessionMetricsTokenBucketStore: TokenBucketStore,
 ) : CustomMetrics {
     private val mutex = Mutex()
 
@@ -65,20 +76,36 @@ class RealCustomMetrics @Inject constructor(
             metric.eventName in SYNC_METRICS
         ) {
             db.dao().insertAllReports(metric)
-        } else {
+        } else if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
+            metric.eventName in BATTERY_METRICS
+        ) {
+            db.dao().insert(metric, overrideReportType = DAILY_HEARTBEAT_REPORT_TYPE)
+        } else if (metric.reportType == SESSION_REPORT_TYPE) {
+            db.dao().insertSessionMetric(metric)
+        } else if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE) {
             db.dao().insert(metric)
+        } else {
+            -1
         }
     }
 
     override suspend fun start(start: StartReport): Long = mutex.withLock {
-        if (start.reportType == SESSION_REPORT_TYPE) {
-            db.dao().startWithLatestMetricValues(
-                startReport = start,
-                hourlyHeartbeatReportType = HOURLY_HEARTBEAT_REPORT_TYPE,
-                latestMetricKeys = listOf(CONNECTIVITY_TYPE_METRIC),
-            )
-        } else {
-            -1L
+        when (start.reportType) {
+            SESSION_REPORT_TYPE -> {
+                val allowedByRateLimit = sessionMetricsTokenBucketStore.takeSimple(tag = "session")
+                if (allowedByRateLimit) {
+                    db.dao().startWithLatestMetricValues(
+                        startReport = start,
+                        hourlyHeartbeatReportType = HOURLY_HEARTBEAT_REPORT_TYPE,
+                        latestMetricKeys = listOf(CONNECTIVITY_TYPE_METRIC),
+                    )
+                } else {
+                    -1
+                }
+            }
+            else -> {
+                -1
+            }
         }
     }
 
@@ -109,20 +136,33 @@ class RealCustomMetrics @Inject constructor(
             calculateDerivedAggregations = { dbReport, endTimestamp, metrics, internalMetrics ->
                 val aggregations = mutableListOf<DerivedAggregation>()
                 aggregations += ConnectivityTimeCalculator.calculate(dbReport, endTimestamp, metrics, internalMetrics)
+                aggregations += BatterySessionVitalsCalculator.calculate(
+                    dbReport,
+                    endTimestamp,
+                    metrics,
+                    internalMetrics,
+                )
                 aggregations
             },
+            dailyHeartbeatReportMetricsForSessions = BATTERY_METRICS.toList(),
         )
 
         // Perform additional modifications on the generated heartbeat and session reports.
         val updatedSessions = report.sessions.map { session ->
-            // Always report operational_crashes even if it's 0.
             val updatedMetrics = session.metrics.toMutableMap()
+
+            // Always report operational_crashes even if it's 0.
             updatedMetrics.putIfAbsent(OPERATIONAL_CRASHES_METRIC_KEY, JsonPrimitive(0.0))
 
             // Remove the connectivity.type total time metrics.
             updatedMetrics.keys.removeIf { key -> key.startsWith(CONNECTIVITY_TYPE_METRIC) }
 
             val updatedInternalMetrics = session.internalMetrics.toMutableMap()
+
+            // Remove the session battery metrics.
+            updatedInternalMetrics.keys.removeIf { key ->
+                BATTERY_METRICS.any { metric -> key.startsWith(metric) }
+            }
 
             session.copy(
                 metrics = updatedMetrics,

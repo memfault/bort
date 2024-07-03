@@ -1,11 +1,14 @@
 package com.memfault.bort.metrics
 
 import com.memfault.bort.settings.MetricsSettings
+import com.memfault.bort.settings.RateLimitingSettings
+import com.memfault.bort.time.boxed
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 
 class SystemPropertiesCollectorTest {
     @Test
@@ -14,6 +17,11 @@ class SystemPropertiesCollectorTest {
         val settings = object : MetricsSettings {
             override val dataSourceEnabled = true
             override val dailyHeartbeatEnabled: Boolean = false
+            override val sessionsRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+                defaultCapacity = 11,
+                defaultPeriod = 24.hours.boxed(),
+                maxBuckets = 1,
+            )
             override val collectionInterval = Duration.ZERO
             override val systemProperties = listOf("a", "c", "1", "doesntexist", "1.2", "1.3", "true", "notypelisted")
             override val appVersions = emptyList<String>()

@@ -63,9 +63,12 @@ class CustomMetricsProvider : ContentProvider() {
                     val metricValue = MetricValue.fromJson(metricJson)
                     Logger.test("CustomMetricsProvider received: $metricValue")
                     runBlocking {
-                        entryPoint.customMetrics().add(metricValue)
-                        // Return the URI if successful.
-                        URI_ADD_CUSTOM_METRIC
+                        if (entryPoint.customMetrics().add(metricValue) != -1L) {
+                            // Return the URI if successful.
+                            URI_ADD_CUSTOM_METRIC
+                        } else {
+                            null
+                        }
                     }
                 }
                 URI_START_CUSTOM_REPORT -> {

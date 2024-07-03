@@ -15,6 +15,8 @@ import com.memfault.bort.diagnostics.MapWrapper.Companion.toJson
 import com.memfault.bort.shared.Logger
 import kotlinx.serialization.Serializable
 
+const val BORT_ERRORS_DB_NAME = "bort_errors"
+
 @Database(
     entities = [
         DbBortError::class,
@@ -36,7 +38,7 @@ abstract class BortErrorsDb : RoomDatabase() {
         fun create(application: Application): BortErrorsDb = Room.databaseBuilder(
             application,
             BortErrorsDb::class.java,
-            "bort_errors",
+            BORT_ERRORS_DB_NAME,
         ).build()
     }
 }

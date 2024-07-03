@@ -9,11 +9,12 @@ interface IDumpster {
     const int VERSION_GETPROP_TYPES = 3;
     const int VERSION_BORT_CONTINUOUS_LOGGING = 4;
     const int VERSION_BORT_CONTINUOUS_FIXES = 5;
+    const int VERSION_CYCLE_COUNT = 6;
 
     /**
      * Current version of the service.
      */
-    const int VERSION = 5;
+    const int VERSION = 6;
 
     /**
     * Gets the version of the MemfaultDumpster service.
@@ -26,6 +27,7 @@ interface IDumpster {
     const int CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_ENABLED = 4;
     const int CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_DISABLED = 5;
     const int CMD_ID_GETPROP_TYPES = 6;
+    const int CMD_ID_CYCLE_COUNT = 7;
 
     /**
      * Runs a basic command and calls the listener with the string output.

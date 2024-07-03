@@ -32,6 +32,11 @@ public enum NumericAgg implements AggregationType {
 
   LATEST_VALUE("LATEST_VALUE"),
   // Future: more aggregations e.g. Std Dev, Percentile
+
+  /**
+   * The total amount the value "dropped" during the period.
+   */
+  VALUE_DROP("VALUE_DROP"),
   ;
 
   public final String value;

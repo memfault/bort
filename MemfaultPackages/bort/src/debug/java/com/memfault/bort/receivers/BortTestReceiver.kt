@@ -25,9 +25,9 @@ import com.memfault.bort.requester.restartPeriodicMetricsCollection
 import com.memfault.bort.selftest.SelfTestWorker
 import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.SettingsUpdateRequester
 import com.memfault.bort.settings.StoredSettingsPreferenceProvider
 import com.memfault.bort.settings.asLoggerSettings
-import com.memfault.bort.settings.restartPeriodicSettingsUpdate
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.goAsync
@@ -111,6 +111,8 @@ class BortTestReceiver : FilteringReceiver(
 
     @Inject lateinit var devMode: RealDevMode
 
+    @Inject lateinit var settingsUpdateRequester: SettingsUpdateRequester
+
     override fun onIntentReceived(
         context: Context,
         intent: Intent,
@@ -193,15 +195,12 @@ class BortTestReceiver : FilteringReceiver(
             }
 
             "com.memfault.intent.action.TEST_REQUEST_SETTINGS_UPDATE" -> {
-                restartPeriodicSettingsUpdate(
-                    context = context,
+                settingsUpdateRequester.restartPeriodicSettingsUpdate(
                     // Something long to ensure it does not re-run & interfere with tests:
                     updateInterval = 4.days,
-                    httpApiSettings = settingsProvider.httpApiSettings,
                     delayAfterSettingsUpdate = false,
                     testRequest = true,
                     cancel = true,
-                    jitterDelayProvider = jitterDelayProvider,
                 )
             }
 

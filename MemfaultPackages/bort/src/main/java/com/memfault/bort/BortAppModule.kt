@@ -17,7 +17,6 @@ import com.memfault.bort.settings.BuiltInProjectKey
 import com.memfault.bort.settings.BundledConfig
 import com.memfault.bort.settings.DeviceConfigUpdateService
 import com.memfault.bort.settings.SettingsProvider
-import com.memfault.bort.settings.SettingsUpdateService
 import com.memfault.bort.settings.readBundledSettings
 import com.memfault.bort.shared.BASIC_COMMAND_TIMEOUT_MS
 import com.memfault.bort.shared.BuildConfig
@@ -56,12 +55,6 @@ import vnd.myandroid.bortappid.CustomLogScrubber
 import java.io.File
 import javax.inject.Qualifier
 import javax.inject.Singleton
-import kotlin.annotation.AnnotationRetention.RUNTIME
-import kotlin.annotation.AnnotationTarget.FIELD
-import kotlin.annotation.AnnotationTarget.FUNCTION
-import kotlin.annotation.AnnotationTarget.PROPERTY_GETTER
-import kotlin.annotation.AnnotationTarget.PROPERTY_SETTER
-import kotlin.annotation.AnnotationTarget.VALUE_PARAMETER
 import kotlin.time.toJavaDuration
 
 /**
@@ -536,14 +529,6 @@ abstract class BortAppModule {
 
         @Provides
         @Singleton
-        fun settingsUpdateService(okHttpClient: OkHttpClient, settingsProvider: SettingsProvider) =
-            SettingsUpdateService.create(
-                okHttpClient = okHttpClient,
-                deviceBaseUrl = settingsProvider.httpApiSettings.deviceBaseUrl,
-            )
-
-        @Provides
-        @Singleton
         fun deviceConfigUpdateService(
             okHttpClient: OkHttpClient,
             settingsProvider: SettingsProvider,
@@ -597,16 +582,10 @@ abstract class BortAppModule {
 }
 
 @Qualifier
-@Retention(RUNTIME)
-@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 annotation class UploadHoldingArea
 
 @Qualifier
-@Retention(RUNTIME)
-@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 annotation class MarFileSampledHoldingDir
 
 @Qualifier
-@Retention(RUNTIME)
-@Target(FIELD, VALUE_PARAMETER, FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 annotation class MarFileUnsampledHoldingDir
