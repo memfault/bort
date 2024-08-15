@@ -1,7 +1,6 @@
 package com.memfault.bort.logcat
 
 import com.memfault.bort.FakeCombinedTimeProvider
-import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.parsers.LogcatLine
 import com.memfault.bort.time.BaseAbsoluteTime
 import com.memfault.bort.tokenbucket.TokenBucketStore
@@ -21,17 +20,14 @@ class KernelOopsDetectorTest {
     lateinit var detector: KernelOopsDetector
     lateinit var mockHandleEventOfInterest: HandleEventOfInterest
     lateinit var mockTokenBucketStore: TokenBucketStore
-    lateinit var crashHandler: CrashHandler
 
     @BeforeEach
     fun setUp() {
         mockHandleEventOfInterest = mockk(relaxed = true)
         mockTokenBucketStore = mockk()
-        crashHandler = mockk(relaxed = true)
         detector = KernelOopsDetector(
             tokenBucketStore = mockTokenBucketStore,
             handleEventOfInterest = mockHandleEventOfInterest,
-            crashHandler = crashHandler,
         )
     }
 
@@ -64,7 +60,6 @@ class KernelOopsDetectorTest {
         detector = KernelOopsDetector(
             tokenBucketStore = mockTokenBucketStore,
             handleEventOfInterest = mockHandleEventOfInterest,
-            crashHandler = crashHandler,
         )
         detector.foundOops = true
         val line: LogcatLine = mockk()
@@ -84,7 +79,6 @@ class KernelOopsDetectorTest {
         detector = KernelOopsDetector(
             tokenBucketStore = mockTokenBucketStore,
             handleEventOfInterest = mockHandleEventOfInterest,
-            crashHandler = crashHandler,
         )
         detector.foundOops = true
         mockLimitRate(limited = true)
@@ -98,7 +92,6 @@ class KernelOopsDetectorTest {
         detector = KernelOopsDetector(
             tokenBucketStore = mockTokenBucketStore,
             handleEventOfInterest = mockHandleEventOfInterest,
-            crashHandler = crashHandler,
         )
         detector.foundOops = true
         mockLimitRate(limited = false)

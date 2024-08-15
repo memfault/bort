@@ -166,7 +166,6 @@ public class RemoteMetricsService {
     }
 
     try {
-      android.util.Log.w(TAG, "Sending metric: " + event);
       ContentValues values = new ContentValues();
       values.put(KEY_CUSTOM_METRIC, event.toJson());
       Uri result = context.getContentResolver().insert(URI_ADD_CUSTOM_METRIC, values);

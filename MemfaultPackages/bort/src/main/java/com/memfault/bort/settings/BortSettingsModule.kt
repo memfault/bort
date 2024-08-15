@@ -19,6 +19,7 @@ fun interface TimeoutConfig : () -> Duration
 fun interface RulesConfig : () -> List<AndroidAppIdScrubbingRule>
 fun interface UploadConstraints : () -> Constraints
 fun interface LogcatCollectionInterval : () -> Duration
+fun interface MetricsCollectionInterval : () -> Duration
 fun interface MaxUploadAttempts : () -> Int
 fun interface MaxMarStorageBytes : () -> Long
 fun interface ZipCompressionLevel : () -> Int
@@ -27,6 +28,7 @@ fun interface MarUnsampledMaxStorageBytes : () -> Long
 fun interface DropboxScrubTombstones : () -> Boolean
 fun interface CachePackageManagerReport : () -> Boolean
 fun interface DropBoxForceEnableWtfTags : () -> Boolean
+fun interface OperationalCrashesExclusions : () -> List<String>
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -63,6 +65,10 @@ abstract class BortSettingsModule {
         @Provides
         fun logcatCollectionInterval(settings: SettingsProvider) =
             LogcatCollectionInterval { settings.logcatSettings.collectionInterval }
+
+        @Provides
+        fun metricsCollectionInterval(settings: SettingsProvider) =
+            MetricsCollectionInterval { settings.metricsSettings.collectionInterval }
 
         @Provides
         fun constraints(settings: SettingsProvider) = UploadConstraints { settings.httpApiSettings.uploadConstraints }
@@ -146,5 +152,9 @@ abstract class BortSettingsModule {
         @Provides
         fun dropBoxForceEnableWtfTags(settings: SettingsProvider) =
             DropBoxForceEnableWtfTags { settings.dropBoxSettings.forceEnableWtfTags }
+
+        @Provides
+        fun operationalCrashesExclusions(settings: SettingsProvider): OperationalCrashesExclusions =
+            OperationalCrashesExclusions { settings.metricsSettings.operationalCrashesExclusions }
     }
 }

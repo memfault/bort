@@ -95,7 +95,7 @@ class EnqueuePreparedUploadTask @Inject constructor(
             FileUploadTaskInput(file, metadata, shouldCompress).toWorkerInputData(),
         ) {
             if (applyJitter) {
-                setInitialDelay(jitterDelayProvider.randomJitterDelay())
+                setInitialDelay(jitterDelayProvider.randomJitterDelay().toJavaDuration())
             }
             setConstraints(constraints())
             setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())

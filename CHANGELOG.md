@@ -1,5 +1,33 @@
 # Memfault Bort Changelog
 
+## v4.19.0 - August 13, 2024
+
+### :rocket: New Features
+
+- Added support for automatically collecting the phone's IMEI number as a
+  metric: `phone.imei`.
+- Updates the Stable Hours algorithm. By default, only ANRs, non-WTF app
+  crashes, kernel panics, and tombstones count as "crashes" for the purposes of
+  the algorithm. It is now also possible to exclude these crashes from the
+  algorithm if desired (please reach out to customer support for more
+  information).
+
+### :chart_with_upwards_trend: Improvements
+
+- Fixed a bug in the battery per-hour charge and discharge calculations where
+  the wrong denominator was being used.
+- Fixed a bug in the SDK where heartbeats after reboots could fail to process.
+- Fixed a bug in the SDK where batterystats collection could fail
+  inconsistently.
+- Added the device serial and override to the diagnostics content provider.
+- Disables metrics handling in more places if Bort is also disabled.
+
+### :house: Internal
+
+- Added more internal metrics to detect how often the Bort app restarts.
+- Cleaned up spurious Bort logs.
+- Fixed bug when tracking Bort's own battery usage.
+
 ## v4.18.0 - July 1, 2024
 
 ### :rocket: New Features
@@ -993,7 +1021,7 @@ documentation.
   provided, the `dumpstate.memfault.requestid` system property is set to the
   value provided. Additionally, a BroadcastReceiver can be specified to which
   the status of the bug report request will be reported by Bort. See
-  https://mflt.io/android-bort-sdk for details.
+  <https://mflt.io/android-bort-sdk> for details.
   > NOTE: in order to use this feature, the AOSP system image has to be updated
   > (merely updating MemfaultBort.apk is not sufficient, because this feature
   > also involved a change in the MemfaultDumpstateRunner system component).
@@ -1025,13 +1053,13 @@ documentation.
 - Have you ever wondered how the metrics in your device timelines are trending
   across your whole fleet? With the 3.0.0 version of Bort, now you can view
   visualizations of these metrics aggregated across all your devices! See
-  https://mflt.io/fleet-wide-metrics for details.
+  <https://mflt.io/fleet-wide-metrics> for details.
 - The aforementioned "experimental" data source is now ready for prime time! It
   can be used to collect traces and metrics, with additional data sources coming
-  in future SDK releases. See https://mflt.io/memfault-caliper for details.
+  in future SDK releases. See <https://mflt.io/memfault-caliper> for details.
 - Reboot events were added in an earlier version of the SDK but didn't make it
   into the changelog. Let's call that a 3.0 feature too! See
-  https://mflt.io/android-reboot-reasons to learn more.
+  <https://mflt.io/android-reboot-reasons> to learn more.
 
 ## v2.9.1 - December 3, 2020
 
@@ -1317,7 +1345,7 @@ documentation.
   it, add an intent filter with the launcher category to an activity in the
   `AndroidManifest`.
 
-```
+```xml
 <intent-filter>
   <action android:name="android.intent.action.MAIN" />
   <category android:name="android.intent.category.LAUNCHER" />

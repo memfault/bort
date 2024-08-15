@@ -32,7 +32,7 @@ interface UploadingEntryProcessorDelegate {
 
     fun scrub(inputFile: File, tag: String): File = inputFile
 
-    fun isCrash(tag: String): Boolean
+    fun isCrash(entry: DropBoxManager.Entry, entryFile: File): Boolean
 }
 
 data class EntryInfo(
@@ -73,13 +73,18 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
 
             builtinMetricsStore.increment(metricForTraceTag(entry.tag))
 
+            val fileTime = entry.timeMillis.toAbsoluteTime()
+
+            // The crash rate should be incremented even if this dropbox trace would be rate limited.
+            if (delegate.isCrash(entry, tempFile)) {
+                crashHandler.onCrash(crashTimestamp = fileTime.timestamp)
+            }
+
             if (!delegate.allowedByRateLimit(info.tokenBucketKey, entry.tag)) {
                 return
             }
 
             val fileToUpload = delegate.scrub(tempFile, entry.tag)
-
-            val fileTime = entry.timeMillis.toAbsoluteTime()
 
             val now = bootRelativeTimeProvider.now()
             enqueueUpload.enqueue(
@@ -101,10 +106,6 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
             // Only consider trace entries as "events of interest" for log collection purposes:
             if (delegate.isTraceEntry(entry)) {
                 handleEventOfInterest.handleEventOfInterest(now)
-            }
-
-            if (delegate.isCrash(entry.tag)) {
-                crashHandler.onCrash(crashTimestamp = fileTime.timestamp)
             }
         }
     }

@@ -270,6 +270,9 @@ data class FetchedSettings(
     @Serializable(with = DurationAsMillisecondsLong::class)
     val metricsCollectionInterval: BoxedDuration,
 
+    @SerialName("metrics.operational_crashes_exclusions")
+    val metricsOperationalCrashesExclusions: List<String> = listOf(),
+
     @SerialName("metrics.data_source_enabled")
     val metricsDataSourceEnabled: Boolean,
 
@@ -293,6 +296,9 @@ data class FetchedSettings(
 
     @SerialName("network.collection_transmit_threshold_kb")
     val networkCollectionTransmitThresholdKb: Long = 1_000L,
+
+    @SerialName("metrics.record_imei")
+    val metricsRecordImei: Boolean = false,
 
     @SerialName("metrics.reporter_collection_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)

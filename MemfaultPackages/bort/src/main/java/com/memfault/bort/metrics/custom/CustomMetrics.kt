@@ -67,7 +67,7 @@ class RealCustomMetrics @Inject constructor(
         if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
             metric.eventName == OPERATIONAL_CRASHES_METRIC_KEY
         ) {
-            db.dao().insertAllSessions(metric)
+            db.dao().insertAllReports(metric)
         } else if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
             metric.eventName == CONNECTIVITY_TYPE_METRIC
         ) {
@@ -148,6 +148,28 @@ class RealCustomMetrics @Inject constructor(
         )
 
         // Perform additional modifications on the generated heartbeat and session reports.
+        val updatedHourlyHeartbeat = report.hourlyHeartbeatReport.let { hourlyReport ->
+            val updatedMetrics = hourlyReport.metrics.toMutableMap()
+
+            // Always report operational_crashes even if it's 0.
+            updatedMetrics.putIfAbsent(OPERATIONAL_CRASHES_METRIC_KEY, JsonPrimitive(0.0))
+
+            hourlyReport.copy(
+                metrics = updatedMetrics,
+            )
+        }
+
+        val updatedDailyHeartbeat = report.dailyHeartbeatReport?.let { dailyReport ->
+            val updatedMetrics = dailyReport.metrics.toMutableMap()
+
+            // Always report operational_crashes even if it's 0.
+            updatedMetrics.putIfAbsent(OPERATIONAL_CRASHES_METRIC_KEY, JsonPrimitive(0.0))
+
+            dailyReport.copy(
+                metrics = updatedMetrics,
+            )
+        }
+
         val updatedSessions = report.sessions.map { session ->
             val updatedMetrics = session.metrics.toMutableMap()
 
@@ -171,6 +193,8 @@ class RealCustomMetrics @Inject constructor(
         }
 
         report.copy(
+            hourlyHeartbeatReport = updatedHourlyHeartbeat,
+            dailyHeartbeatReport = updatedDailyHeartbeat,
             sessions = updatedSessions,
         )
     }

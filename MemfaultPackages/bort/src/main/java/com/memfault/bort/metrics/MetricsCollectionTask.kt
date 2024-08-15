@@ -39,6 +39,7 @@ import com.memfault.bort.shared.Logger
 import com.memfault.bort.storage.AppStorageStatsCollector
 import com.memfault.bort.storage.DatabaseSizeCollector
 import com.memfault.bort.time.AbsoluteTime
+import com.memfault.bort.time.BaseLinuxBootRelativeTime
 import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.MetricsCollection
@@ -79,7 +80,6 @@ data class InMemoryMetric(
 interface InMemoryMetricCollector {
     suspend fun collect(
         collectionTime: CombinedTime,
-        heartbeatInterval: Duration,
     ): List<InMemoryMetric>
 
     companion object {
@@ -150,14 +150,20 @@ class MetricsCollectionTask @Inject constructor(
 
     private suspend fun enqueueHeartbeatUpload(
         collectionTime: CombinedTime,
-        heartbeatInterval: Duration,
+        lastHeartbeatUptime: BaseLinuxBootRelativeTime,
         propertiesStore: DevicePropertiesStore,
     ) {
-        val batteryStatsResult = batteryStatsCollector.collect(heartbeatInterval, collectionTime)
+        val batteryStatsResult = batteryStatsCollector.collect(
+            collectionTime = collectionTime,
+            lastHeartbeatUptime = lastHeartbeatUptime,
+        )
         Logger.test("Metrics: properties_use_service = ${metricsSettings.propertiesUseMetricService}")
         // These write to Custom Metrics - do before finishing the heartbeat report.
         storageStatsCollector.collectStorageStats(collectionTime)
-        networkStatsCollector.collectAndRecord(collectionTime, heartbeatInterval)
+        networkStatsCollector.collectAndRecord(
+            collectionTime = collectionTime,
+            lastHeartbeatUptime = lastHeartbeatUptime,
+        )
 
         systemPropertiesCollector.updateSystemProperties(propertiesStore)
         appVersionsCollector.updateAppVersions(propertiesStore)
@@ -183,6 +189,21 @@ class MetricsCollectionTask @Inject constructor(
             )
 
         val heartbeatReport = heartbeatReportCollector.finishAndCollectHeartbeatReport(now = collectionTime)
+
+        // This duration should be positive unless there is clock skew (or problems with the RTC battery).
+        val hourlyHeartbeatDurationFromReport = (
+            heartbeatReport.hourlyHeartbeatReport.endTimestampMs -
+                heartbeatReport.hourlyHeartbeatReport.startTimestampMs
+            ).toDuration(MILLISECONDS)
+            .takeIf { it.isPositive() }
+
+        // This duration can also be negative, but it's the same as we had before.
+        val hourlyHeartbeatDurationFromUptime = collectionTime.elapsedRealtime.duration -
+            lastHeartbeatUptime.elapsedRealtime.duration
+
+        val hourlyHeartbeatDuration = hourlyHeartbeatDurationFromReport
+            ?: hourlyHeartbeatDurationFromUptime
+
         val heartbeatReportMetrics = heartbeatReport.hourlyHeartbeatReport.metrics
         val heartbeatReportInternalMetrics = heartbeatReport.hourlyHeartbeatReport.internalMetrics
 
@@ -201,7 +222,7 @@ class MetricsCollectionTask @Inject constructor(
             databaseSizeCollector,
         )
             .flatMap { collector ->
-                collector.collect(collectionTime, heartbeatInterval)
+                collector.collect(collectionTime)
             }
         val inMemoryHeartbeats = inMemoryMetrics.heartbeatMetrics()
         val inMemoryInternalHeartbeats = inMemoryMetrics.internalHeartbeatMetrics()
@@ -212,12 +233,13 @@ class MetricsCollectionTask @Inject constructor(
         uploadHeartbeat(
             batteryStatsFile = batteryStatsResult.batteryStatsFileToUpload,
             collectionTime = collectionTime,
-            heartbeatInterval = heartbeatInterval,
+            heartbeatInterval = hourlyHeartbeatDuration,
             heartbeatReportMetrics = heartbeatReportMetrics +
                 batteryStatsResult.aggregatedMetrics +
                 inMemoryHeartbeats +
                 propertiesStoreMetrics,
             heartbeatReportInternalMetrics = internalMetrics +
+                batteryStatsResult.internalAggregatedMetrics +
                 inMemoryInternalHeartbeats +
                 propertiesStoreInternalMetrics,
             reportType = HOURLY_HEARTBEAT_REPORT_TYPE.lowercase(),
@@ -325,14 +347,13 @@ class MetricsCollectionTask @Inject constructor(
         }
 
         val now = combinedTimeProvider.now()
-        val heartbeatInterval =
-            (now.elapsedRealtime.duration - lastHeartbeatEndTimeProvider.lastEnd.elapsedRealtime.duration)
+        val lastHeartbeatUptime = lastHeartbeatEndTimeProvider.lastEnd
 
         // Create a properties store, which will collect properties in-memory if that setting is enabled (instead of
         // writing them to the metrics service).
         val propertiesStore = DevicePropertiesStore(collectionTime = now, metricsSettings)
 
-        enqueueHeartbeatUpload(now, heartbeatInterval, propertiesStore)
+        enqueueHeartbeatUpload(now, lastHeartbeatUptime, propertiesStore)
 
         lastHeartbeatEndTimeProvider.lastEnd = now
         return TaskResult.SUCCESS

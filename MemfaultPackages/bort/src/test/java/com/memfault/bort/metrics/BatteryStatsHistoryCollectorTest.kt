@@ -1,5 +1,9 @@
 package com.memfault.bort.metrics
 
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
 import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.shared.BatteryStatsCommand
@@ -10,10 +14,8 @@ import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
 import java.io.File
 import java.io.OutputStream
 import java.lang.Exception
@@ -61,6 +63,7 @@ class BatteryStatsHistoryCollectorTest {
             nextBatteryStatsHistoryStartProvider,
             mockRunBatteryStats,
             settings,
+            { 1.hours },
             bortErrors,
         )
     }
@@ -83,8 +86,8 @@ class BatteryStatsHistoryCollectorTest {
         coVerifyOrder {
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 1000), 1.minutes)
         }
-        assertEquals(1100, nextBatteryStatsHistoryStartProvider.historyStart)
-        assertEquals(batteryStatsOutputByHistoryStart[1000], tempFile?.readText())
+        assertThat(nextBatteryStatsHistoryStartProvider.historyStart).isEqualTo(1100)
+        assertThat(batteryStatsOutputByHistoryStart[1000]).isEqualTo(tempFile?.readText())
     }
 
     @Test
@@ -106,8 +109,8 @@ class BatteryStatsHistoryCollectorTest {
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 1000), 1.minutes)
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 0), 1.minutes)
         }
-        assertEquals(505, nextBatteryStatsHistoryStartProvider.historyStart)
-        assertEquals(batteryStatsOutputByHistoryStart[0], tempFile?.readText())
+        assertThat(nextBatteryStatsHistoryStartProvider.historyStart).isEqualTo(505)
+        assertThat(batteryStatsOutputByHistoryStart[0]).isEqualTo(tempFile?.readText())
     }
 
     @Test
@@ -132,8 +135,8 @@ class BatteryStatsHistoryCollectorTest {
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 1000), 1.minutes)
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 100000), 1.minutes)
         }
-        assertEquals(100005, nextBatteryStatsHistoryStartProvider.historyStart)
-        assertEquals(batteryStatsOutputByHistoryStart[100000], tempFile?.readText())
+        assertThat(nextBatteryStatsHistoryStartProvider.historyStart).isEqualTo(100005)
+        assertThat(batteryStatsOutputByHistoryStart[100000]).isEqualTo(tempFile?.readText())
     }
 
     @Test
@@ -160,8 +163,8 @@ class BatteryStatsHistoryCollectorTest {
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 0), 1.minutes)
             mockRunBatteryStats.runBatteryStats(any(), BatteryStatsCommand(c = true, historyStart = 100000), 1.minutes)
         }
-        assertEquals(100005, nextBatteryStatsHistoryStartProvider.historyStart)
-        assertEquals(batteryStatsOutputByHistoryStart[100000], tempFile?.readText())
+        assertThat(nextBatteryStatsHistoryStartProvider.historyStart).isEqualTo(100005)
+        assertThat(batteryStatsOutputByHistoryStart[100000]).isEqualTo(tempFile?.readText())
     }
 
     @Test
@@ -177,8 +180,8 @@ class BatteryStatsHistoryCollectorTest {
                 NEXT: 1000
             """.trimIndent(),
         )
-        assertThrows<Exception> {
+        assertFailure {
             tempFile = collector.collect(limit = 100.seconds).batteryStatsFileToUpload
-        }
+        }.isInstanceOf<Exception>()
     }
 }

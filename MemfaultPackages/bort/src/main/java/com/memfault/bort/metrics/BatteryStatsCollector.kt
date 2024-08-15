@@ -6,9 +6,9 @@ import com.memfault.bort.reporting.NumericAgg.LATEST_VALUE
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.shared.Logger
+import com.memfault.bort.time.BaseLinuxBootRelativeTime
 import com.memfault.bort.time.CombinedTime
 import javax.inject.Inject
-import kotlin.time.Duration
 
 class BatteryStatsCollector @Inject constructor(
     private val batteryStatsHistoryCollector: BatteryStatsHistoryCollector,
@@ -17,18 +17,17 @@ class BatteryStatsCollector @Inject constructor(
     private val metrics: BuiltinMetricsStore,
     private val dumpsterClient: DumpsterClient,
 ) {
-    suspend fun collect(heartbeatInterval: Duration, collectionTime: CombinedTime): BatteryStatsResult {
+    suspend fun collect(
+        collectionTime: CombinedTime,
+        lastHeartbeatUptime: BaseLinuxBootRelativeTime,
+    ): BatteryStatsResult {
         if (!settings.dataSourceEnabled) return BatteryStatsResult.EMPTY
 
-        // The batteryStatsHistoryCollector will use the NEXT time from the previous run and use that as starting
-        // point for the data to collect. In practice, this roughly matches the start of the current heartbeat period.
-        // But, in case that got screwy for some reason, impose a somewhat arbitrary limit on how much batterystats data
-        // we collect, because the history can grow *very* large. In the backend, any extra data before it, will get
-        // clipped when aggregating, so it doesn't matter if there's more.
-        val batteryStatsLimit = heartbeatInterval * 2
-
         val historyResult = try {
-            batteryStatsHistoryCollector.collect(limit = batteryStatsLimit)
+            batteryStatsHistoryCollector.collect(
+                collectionTime = collectionTime,
+                lastHeartbeatUptime = lastHeartbeatUptime,
+            )
         } catch (e: RemoteException) {
             Logger.w("Unable to connect to ReporterService to run batterystats")
             BatteryStatsResult.EMPTY
@@ -38,7 +37,7 @@ class BatteryStatsCollector @Inject constructor(
             BatteryStatsResult.EMPTY
         }
 
-        // Summary is only collected if we're using HRt, and successfully collected history.
+        // Summary is only collected if we're using HRT, and successfully collected history.
         val summaryResult = if (settings.useHighResTelemetry && settings.collectSummary) {
             try {
                 batterystatsSummaryCollector.collectSummaryCheckin()

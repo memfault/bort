@@ -10,7 +10,6 @@ import com.memfault.bort.time.CombinedTime
 import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import javax.inject.Inject
-import kotlin.time.Duration
 
 private const val METRICS_DB = "db.metrics"
 private const val BORT_ERRORS_DB = "db.bort_errors"
@@ -22,7 +21,6 @@ class DatabaseSizeCollector
 ) : InMemoryMetricCollector {
     override suspend fun collect(
         collectionTime: CombinedTime,
-        heartbeatInterval: Duration,
     ): List<InMemoryMetric> =
         application.databaseList()
             .groupBy(

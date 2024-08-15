@@ -17,6 +17,7 @@ import com.memfault.bort.shared.runAndTrackExceptions
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
+import kotlin.time.toJavaDuration
 
 /**
  * A periodic worker that triggers an update check.
@@ -54,7 +55,7 @@ class PeriodicSoftwareUpdateWorker @AssistedInject constructor(
                     JitterDelayProvider(
                         jitterDelayConfiguration = { JitterDelayProvider.ApplyJitter.APPLY },
                         devMode = DEV_MODE_DISABLED,
-                    ).randomJitterDelay(),
+                    ).randomJitterDelay().toJavaDuration(),
                 )
             }.build()
 

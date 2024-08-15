@@ -88,9 +88,8 @@ import com.memfault.bort.shared.Logger
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import java.io.File
-import java.lang.IllegalStateException
-import java.lang.NumberFormatException
 import java.util.LinkedList
+import kotlin.time.Duration.Companion.hours
 
 class BatteryStatsHistoryParser(
     private val file: File,
@@ -162,6 +161,11 @@ class BatteryStatsHistoryParser(
             type = Property,
             dataType = StringType,
             aggregations = listOf(
+                TimeByNominalAggregator(
+                    metricName = CHARGE_DURATION_METRIC,
+                    states = enumNames(listOf(BatteryStatus.Charging)),
+                    useRawElapsedMs = true,
+                ),
                 TimeByNominalAggregator(
                     metricName = DISCHARGE_DURATION_METRIC,
                     states = enumNames(listOf(BatteryStatus.Discharging)),
@@ -404,19 +408,40 @@ class BatteryStatsHistoryParser(
         val aggregateMetrics = mutableMapOf<String, JsonPrimitive>()
         metrics.forEach { aggregateMetrics.putAll(it.aggregates()) }
 
-        val dischargeDurationMetric = aggregateMetrics[DISCHARGE_DURATION_METRIC]
-        val dischargeDurationOrZero = dischargeDurationMetric?.doubleOrNull ?: 0.0
+        val dischargeDurationOrZero = aggregateMetrics[DISCHARGE_DURATION_METRIC]?.doubleOrNull ?: 0.0
         val socDropMetric = aggregateMetrics[BATTERY_DROP_METRIC]
-        if (dischargeDurationMetric != null && dischargeDurationOrZero > 0.0 && socDropMetric == null) {
-            // If there is a discharge duration, but no discharge (i.e. less than a hole percent), then ensure we
+
+        if (dischargeDurationOrZero > 0.0) {
+            // If there is a discharge duration, but no discharge (i.e. less than a whole percent), then ensure we
             // populate the discharge with a zero.
-            aggregateMetrics[BATTERY_DROP_METRIC] = JsonPrimitive(0.0)
-        } else if (dischargeDurationMetric == null || socDropMetric == null || dischargeDurationOrZero == 0.0) {
-            // Only include the core battery metrics if:
-            // - They are both populated.
-            // - The discharge duration is non-zero.
+            if (socDropMetric == null) {
+                aggregateMetrics[BATTERY_DROP_METRIC] = JsonPrimitive(0.0)
+            }
+
+            val perHourDischargeRate = -(socDropMetric?.doubleOrNull ?: 0.0) *
+                (1.hours.inWholeMilliseconds / dischargeDurationOrZero)
+            aggregateMetrics[PER_HOUR_DISCHARGE_RATE_METRIC] = JsonPrimitive(perHourDischargeRate)
+        } else {
+            // Only include the core battery metrics if the discharge duration is non-zero.
             aggregateMetrics.remove(DISCHARGE_DURATION_METRIC)
             aggregateMetrics.remove(BATTERY_DROP_METRIC)
+        }
+
+        val chargeDurationOrZero = aggregateMetrics[CHARGE_DURATION_METRIC]?.doubleOrNull ?: 0.0
+        val socRiseMetric = aggregateMetrics[BATTERY_RISE_METRIC]
+
+        // Update the charge metrics following the same pattern as the discharge device vitals for consistency.
+        if (chargeDurationOrZero > 0.0) {
+            if (socRiseMetric == null) {
+                aggregateMetrics[BATTERY_RISE_METRIC] = JsonPrimitive(0.0)
+            }
+
+            val perHourChargeRate = (socRiseMetric?.doubleOrNull ?: 0.0) *
+                (1.hours.inWholeMilliseconds / chargeDurationOrZero)
+            aggregateMetrics[PER_HOUR_CHARGE_RATE_METRIC] = JsonPrimitive(perHourChargeRate)
+        } else {
+            aggregateMetrics.remove(CHARGE_DURATION_METRIC)
+            aggregateMetrics.remove(BATTERY_RISE_METRIC)
         }
 
         // Add some of the aggregate metrics as HRT, so that they appear on timeline
@@ -437,11 +462,15 @@ class BatteryStatsHistoryParser(
                 )
                 extraHrtRollups.add(rollup)
             }
-            aggregateMetrics[DISCHARGE_DURATION_METRIC]?.let {
-                addHrtRollup(DISCHARGE_DURATION_METRIC, it)
-            }
-            aggregateMetrics[BATTERY_DROP_METRIC]?.let {
-                addHrtRollup(BATTERY_DROP_METRIC, it)
+            listOf(
+                DISCHARGE_DURATION_METRIC,
+                BATTERY_DROP_METRIC,
+                CHARGE_DURATION_METRIC,
+                BATTERY_RISE_METRIC,
+            ).forEach { name ->
+                aggregateMetrics[name]?.let { value ->
+                    addHrtRollup(name, value)
+                }
             }
         }
 
@@ -462,24 +491,39 @@ class BatteryStatsHistoryParser(
         val value: String,
     )
 
-    private fun addValue(key: String, value: String?) {
+    private fun addValue(
+        key: String,
+        value: String?,
+    ) {
         addValue(key, JsonPrimitive(value))
     }
 
-    private fun addValue(key: String, value: Boolean?) {
+    private fun addValue(
+        key: String,
+        value: Boolean?,
+    ) {
         // null is false
         addValue(key, if (value == true) BOOL_VALUE_TRUE else BOOL_VALUE_FALSE)
     }
 
-    private fun <T : Enum<T>> addValue(key: String, value: Enum<T>?) {
+    private fun <T : Enum<T>> addValue(
+        key: String,
+        value: Enum<T>?,
+    ) {
         addValue(key, JsonPrimitive(value?.name ?: ""))
     }
 
-    private fun addValue(key: String, value: Long?) {
+    private fun addValue(
+        key: String,
+        value: Long?,
+    ) {
         addValue(key, JsonPrimitive(value))
     }
 
-    private fun addValue(key: String, value: JsonPrimitive) {
+    private fun addValue(
+        key: String,
+        value: JsonPrimitive,
+    ) {
         metricsMap[key]?.addValue(value = value)
     }
 
@@ -590,6 +634,7 @@ class BatteryStatsHistoryParser(
                         currentTopApp = topApp
                         addValue(TOP_APP, topApp)
                     }
+
                     "Efg" -> run {
                         val lookupName = hspLookup(value)?.value
                         val foreground = if (transition.bool) lookupName else null
@@ -614,6 +659,7 @@ class BatteryStatsHistoryParser(
                     "Epu" -> hspLookup(value)?.let {
                         addValue(PACKAGE_UNINSTALL, "${it.value}: ${it.uid}")
                     }
+
                     "Eac" -> addValue(DEVICE_ACTIVE, hspLookup(value)?.value)
                     "bles" -> addValue(BLUETOOTH_LE_SCANNING, transition.bool)
                     "Pr" -> addValue(PHONE_RADIO, transition.bool)
@@ -627,6 +673,7 @@ class BatteryStatsHistoryParser(
                             addValue(PHONE_SIGNAL_STRENGTH, null as String?)
                         }
                     }
+
                     "Eal" -> addValue(ALARM, hspLookup(value)?.value)
                 }
             } catch (e: ArrayIndexOutOfBoundsException) {
@@ -645,7 +692,10 @@ class BatteryStatsHistoryParser(
         }
     }
 
-    private suspend fun reportErrorMetric(error: String, line: String) {
+    private suspend fun reportErrorMetric(
+        error: String,
+        line: String,
+    ) {
         if (reportedErrorMetric) return
         reportedErrorMetric = true
         BATTERYSTATS_PARSE_ERROR_METRIC.increment()
@@ -656,6 +706,10 @@ class BatteryStatsHistoryParser(
         private val BATTERYSTATS_PARSE_ERROR_METRIC =
             Reporting.report().counter(name = "batterystats_parse_error", internal = true)
         private const val DISCHARGE_DURATION_METRIC = "battery_discharge_duration_ms"
+        private const val CHARGE_DURATION_METRIC = "battery_charge_duration_ms"
         const val BATTERY_DROP_METRIC = "battery_soc_pct_drop"
+        const val BATTERY_RISE_METRIC = "battery_soc_pct_rise"
+        const val PER_HOUR_CHARGE_RATE_METRIC = "battery_charge_rate_pct_per_hour_avg"
+        const val PER_HOUR_DISCHARGE_RATE_METRIC = "battery_discharge_rate_pct_per_hour_avg"
     }
 }

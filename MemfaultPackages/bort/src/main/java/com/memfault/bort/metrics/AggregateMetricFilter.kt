@@ -3,6 +3,7 @@ package com.memfault.bort.metrics
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.CRASH_FREE_HOURS_METRIC_KEY
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_CRASHES_METRIC_KEY
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_HOURS_METRIC_KEY
+import com.memfault.bort.metrics.SystemPropertiesCollector.Companion.IMEI_METRIC
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
@@ -59,6 +60,11 @@ object AggregateMetricFilter {
         // Special case: bort_lite
         if (metric.key == "$BORT_LITE_METRIC_KEY.latest") {
             return BORT_LITE_METRIC_KEY to metric.value
+        }
+
+        // Special case: imei
+        if (metric.key == "$IMEI_METRIC.latest") {
+            return IMEI_METRIC to metric.value
         }
 
         // Internal metrics: drop the sum/latest suffixes.

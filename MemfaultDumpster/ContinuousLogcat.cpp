@@ -217,7 +217,7 @@ void ContinuousLogcat::run() {
     // don't block when the buffer ends (equivalent to logcat -d), this does not prevent blocking in wrapping scenarios
     int log_mode = ANDROID_LOG_NONBLOCK;
 
-    // if we are not doing an inmmediate dump, use wrapping behavior
+    // if we are not doing an immediate dump, use wrapping behavior
     if (!dump_after_intr) {
       log_mode |= ANDROID_LOG_WRAP;
     }

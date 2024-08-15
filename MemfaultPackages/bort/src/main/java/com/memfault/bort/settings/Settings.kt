@@ -67,6 +67,8 @@ interface MetricsSettings {
     val reporterCollectionInterval: Duration
     val propertiesUseMetricService: Boolean
     val cachePackageManagerReport: Boolean
+    val recordImei: Boolean
+    val operationalCrashesExclusions: List<String>
 }
 
 interface LogcatSettings {

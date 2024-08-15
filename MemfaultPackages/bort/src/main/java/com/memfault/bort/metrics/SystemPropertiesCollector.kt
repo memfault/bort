@@ -1,6 +1,7 @@
 package com.memfault.bort.metrics
 
-import androidx.annotation.VisibleForTesting
+import android.app.Application
+import android.telephony.TelephonyManager
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.metrics.SystemPropertiesCollector.TypedSyspropVal.BoolVal
 import com.memfault.bort.metrics.SystemPropertiesCollector.TypedSyspropVal.DoubleVal
@@ -8,6 +9,7 @@ import com.memfault.bort.metrics.SystemPropertiesCollector.TypedSyspropVal.LongV
 import com.memfault.bort.metrics.SystemPropertiesCollector.TypedSyspropVal.StringVal
 import com.memfault.bort.settings.MetricsSettings
 import com.memfault.bort.shared.ClientServerMode
+import com.memfault.bort.shared.Logger
 import javax.inject.Inject
 
 /**
@@ -16,6 +18,7 @@ import javax.inject.Inject
 class SystemPropertiesCollector @Inject constructor(
     private val settings: MetricsSettings,
     private val dumpsterClient: DumpsterClient,
+    private val application: Application,
 ) {
     suspend fun updateSystemProperties(devicePropertiesStore: DevicePropertiesStore) {
         val systemProperties = dumpsterClient.getprop() ?: return
@@ -25,10 +28,20 @@ class SystemPropertiesCollector @Inject constructor(
             systemPropertyTypes = systemPropertyTypes,
             devicePropertiesStore = devicePropertiesStore,
         )
+        if (settings.recordImei) {
+            try {
+                application.getSystemService(TelephonyManager::class.java)?.let { telephony ->
+                    telephony.imei?.let { imei ->
+                        devicePropertiesStore.upsert(IMEI_METRIC, imei)
+                    }
+                }
+            } catch (e: SecurityException) {
+                Logger.d("Error fetching imei")
+            }
+        }
     }
 
-    @VisibleForTesting
-    internal fun updateSystemPropertiesWith(
+    private fun updateSystemPropertiesWith(
         systemProperties: Map<String, String>,
         systemPropertyTypes: Map<String, String>,
         devicePropertiesStore: DevicePropertiesStore,
@@ -96,5 +109,6 @@ class SystemPropertiesCollector @Inject constructor(
             ClientServerMode.SYSTEM_PROP,
         )
         private const val SYSTEM_PROPERTY_PREFIX = "sysprop."
+        const val IMEI_METRIC = "phone.imei"
     }
 }

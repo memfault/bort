@@ -11,5 +11,7 @@
         <permission name="android.permission.INTERACT_ACROSS_USERS" />
         <!-- Enable dropbox tags -->
         <permission name="android.permission.WRITE_SECURE_SETTINGS" />
+        <!-- Read IMEI -->
+        <permission name="android.permission.READ_PRIVILEGED_PHONE_STATE" />
     </privapp-permissions>
 </permissions>

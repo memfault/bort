@@ -46,6 +46,10 @@ class AppVersionsCollectorTest {
                 get() = true
             override val cachePackageManagerReport: Boolean
                 get() = true
+            override val recordImei: Boolean
+                get() = false
+            override val operationalCrashesExclusions: List<String>
+                get() = emptyList()
         },
         packageManagerClient = pmClient,
     )

@@ -1,6 +1,7 @@
 package com.memfault.bort.metrics
 
 import com.memfault.bort.parsers.BatteryStatsHistoryParser.Companion.BATTERY_DROP_METRIC
+import com.memfault.bort.parsers.BatteryStatsHistoryParser.Companion.BATTERY_RISE_METRIC
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
 import kotlin.time.Duration.Companion.hours
@@ -94,10 +95,15 @@ sealed class BatteryStatsAgg {
     class BatteryLevelAggregator : BatteryStatsAgg() {
         private var prevVal: JsonPrimitive? = null
         private var prevElapsedMs: Long? = null
+
+        private var chargeDuration: Double? = null
+        private var chargeDurationUnder80: Double? = null
+        private var dischargeDuration: Double? = null
+
         private var runningValueLevel: Double? = null
-        private var runningValueCharge: Double? = null
-        private var runningValueChargeFirst80Percent: Double? = null
-        private var runningValueDischarge: Double? = null
+
+        private var runningSocChargePct: Double? = null
+        private var runningSocChargePctUnder80: Double? = null
         private var runningSocDischargePct: Double? = null
 
         override fun addValue(elapsedMs: Long, value: JsonPrimitive) {
@@ -114,13 +120,15 @@ sealed class BatteryStatsAgg {
                     value.doubleOrNull?.let { newDouble ->
                         val diff = newDouble - prevDouble
                         if (diff > 0) {
-                            runningValueCharge = (runningValueCharge ?: 0.0) + (diff * msSincePrev)
-                            if (runningValueCharge!! <= 80) {
-                                runningValueChargeFirst80Percent = runningValueCharge
+                            runningSocChargePct = (runningSocChargePct ?: 0.0) + diff
+                            chargeDuration = (chargeDuration ?: 0.0) + msSincePrev
+                            if (newDouble <= 80.1) {
+                                runningSocChargePctUnder80 = (runningSocChargePctUnder80 ?: 0.0) + diff
+                                chargeDurationUnder80 = (chargeDurationUnder80 ?: 0.0) + msSincePrev
                             }
                         } else if (diff < 0) {
-                            runningValueDischarge = (runningValueDischarge ?: 0.0) + (diff * msSincePrev)
                             runningSocDischargePct = (runningSocDischargePct ?: 0.0) - diff
+                            dischargeDuration = (dischargeDuration ?: 0.0) + msSincePrev
                         }
                         // Mean of time since last reading.
                         val avgPrevAndCurrent = (newDouble + prevDouble) / 2.0
@@ -137,29 +145,18 @@ sealed class BatteryStatsAgg {
             runningValueLevel?.let {
                 results.add(Pair("battery_level_pct_avg", JsonPrimitive(it / elapsedMs.toDouble())))
             }
-            runningValueCharge?.let {
-                results.add(
-                    Pair(
-                        "battery_charge_rate_pct_per_hour_avg",
-                        JsonPrimitive(it.perHour(elapsedMs.toDouble()) / elapsedMs.toDouble()),
-                    ),
-                )
+            runningSocChargePctUnder80?.takeIf { it > 0 }?.let { chargePctUnder80 ->
+                chargeDurationUnder80?.takeIf { it > 0 }?.let { durationUnder80 ->
+                    results.add(
+                        Pair(
+                            "battery_charge_rate_first_80_percent_pct_per_hour_avg",
+                            JsonPrimitive(chargePctUnder80.perHour(durationUnder80)),
+                        ),
+                    )
+                }
             }
-            runningValueChargeFirst80Percent?.let {
-                results.add(
-                    Pair(
-                        "battery_charge_rate_first_80_percent_pct_per_hour_avg",
-                        JsonPrimitive(it.perHour(elapsedMs.toDouble()) / elapsedMs.toDouble()),
-                    ),
-                )
-            }
-            runningValueDischarge?.let {
-                results.add(
-                    Pair(
-                        "battery_discharge_rate_pct_per_hour_avg",
-                        JsonPrimitive(it.perHour(elapsedMs.toDouble()) / elapsedMs.toDouble()),
-                    ),
-                )
+            runningSocChargePct?.let {
+                results.add(Pair(BATTERY_RISE_METRIC, JsonPrimitive(it)))
             }
             runningSocDischargePct?.let {
                 results.add(Pair(BATTERY_DROP_METRIC, JsonPrimitive(it)))
