@@ -63,6 +63,7 @@ class TombstoneEntryProcessorTest {
                 },
                 tempFileFactory = TestTemporaryFileFactory,
                 scrubTombstones = { false },
+                operationalCrashesExclusions = { emptyList() },
             ),
             tempFileFactory = TestTemporaryFileFactory,
             enqueueUpload = mockEnqueueUpload,

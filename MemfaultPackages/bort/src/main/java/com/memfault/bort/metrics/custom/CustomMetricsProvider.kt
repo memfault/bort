@@ -11,6 +11,7 @@ import com.memfault.bort.reporting.RemoteMetricsService.URI_ADD_CUSTOM_METRIC
 import com.memfault.bort.reporting.RemoteMetricsService.URI_FINISH_CUSTOM_REPORT
 import com.memfault.bort.reporting.RemoteMetricsService.URI_START_CUSTOM_REPORT
 import com.memfault.bort.reporting.StartReport
+import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.shared.Logger
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -24,6 +25,7 @@ class CustomMetricsProvider : ContentProvider() {
     @InstallIn(SingletonComponent::class)
     interface CustomMetricsProviderEntryPoint {
         fun customMetrics(): CustomMetrics
+        fun bortEnabledProvider(): BortEnabledProvider
     }
 
     val entryPoint: CustomMetricsProviderEntryPoint by lazy {
@@ -50,6 +52,10 @@ class CustomMetricsProvider : ContentProvider() {
     override fun insert(uri: Uri, values: ContentValues?): Uri? {
         if (!listOf(URI_ADD_CUSTOM_METRIC, URI_START_CUSTOM_REPORT, URI_FINISH_CUSTOM_REPORT).contains(uri)) {
             Logger.w("CustomMetricsProvider: unknown uri: $uri")
+            return null
+        }
+        if (!entryPoint.bortEnabledProvider().isEnabled()) {
+            Logger.d("CustomMetricsProvider: Bort is disabled")
             return null
         }
         val metricJson = values?.getAsString(KEY_CUSTOM_METRIC)

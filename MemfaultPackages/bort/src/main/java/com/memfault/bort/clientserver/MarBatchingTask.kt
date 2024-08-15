@@ -51,7 +51,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
-import kotlin.time.toKotlinDuration
 
 /**
  * Can be either periodic or one-time.
@@ -193,10 +192,10 @@ class PeriodicMarUploadRequester @Inject constructor(
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         // Jitter is based on the mar batching period.
-        val maxJitterDelay = httpApiSettings.batchedMarUploadPeriod.toJavaDuration()
+        val maxJitterDelay = httpApiSettings.batchedMarUploadPeriod
         val jitter: Duration
         val bootDelay = if (justBooted) 5.minutes else ZERO
-        jitter = bootDelay + jitterDelayProvider.randomJitterDelay(maxDelay = maxJitterDelay).toKotlinDuration()
+        jitter = bootDelay + jitterDelayProvider.randomJitterDelay(maxDelay = maxJitterDelay)
         MarBatchingTask.schedulePeriodicMarBatching(
             context = application,
             period = httpApiSettings.batchedMarUploadPeriod,

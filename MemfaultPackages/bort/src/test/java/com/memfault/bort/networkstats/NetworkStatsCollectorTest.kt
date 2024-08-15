@@ -10,11 +10,11 @@ import assertk.all
 import assertk.assertThat
 import assertk.assertions.containsExactlyInAnyOrder
 import assertk.assertions.containsOnly
-import assertk.assertions.isEmpty
 import assertk.assertions.isNotNull
 import assertk.assertions.prop
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.makeFakeSharedPreferences
+import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_CRASHES_METRIC_KEY
 import com.memfault.bort.metrics.HighResTelemetry
 import com.memfault.bort.metrics.HighResTelemetry.DataType
 import com.memfault.bort.metrics.HighResTelemetry.Datum
@@ -56,8 +56,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.IOException
 import java.time.Instant
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [26])
@@ -103,8 +103,8 @@ class NetworkStatsCollectorTest {
     )
 
     private fun time(timeMs: Long) = CombinedTime(
-        uptime = Duration.ZERO.boxed(),
-        elapsedRealtime = Duration.ZERO.boxed(),
+        uptime = timeMs.milliseconds.boxed(),
+        elapsedRealtime = timeMs.milliseconds.boxed(),
         linuxBootId = "bootid",
         bootCount = 1,
         timestamp = Instant.ofEpochMilli(timeMs),
@@ -204,10 +204,12 @@ class NetworkStatsCollectorTest {
     @Test fun `return null when disabled`() = runTest {
         fakeNetworkUsageSettings.dataSourceEnabled = false
 
-        collector.collectAndRecord(time(2.hours.inWholeMilliseconds), 1.hours)
+        collector.collectAndRecord(time(2.hours.inWholeMilliseconds), time(1.hours.inWholeMilliseconds))
 
         dao.collectHeartbeat(endTimestampMs = 2.hours.inWholeMilliseconds).apply {
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::metrics).isEmpty()
+            assertThat(hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
+                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
+            )
         }
     }
 
@@ -223,7 +225,7 @@ class NetworkStatsCollectorTest {
             networkStatsQueries.getUsageByApp(start = any(), end = any(), connectivity = any())
         } coAnswers { emptyMap() }
 
-        collector.collectAndRecord(time(2.hours.inWholeMilliseconds), 1.hours)
+        collector.collectAndRecord(time(2.hours.inWholeMilliseconds), time(1.hours.inWholeMilliseconds))
 
         assertThat(dao.collectHeartbeat(endTimestampMs = 2.hours.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
@@ -238,6 +240,8 @@ class NetworkStatsCollectorTest {
                 "network.total.out.mobile.latest" to JsonPrimitive(2.0),
                 "network.total.out.eth.latest" to JsonPrimitive(2.0),
                 "network.total.out.bt.latest" to JsonPrimitive(2.0),
+
+                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::internalMetrics).containsOnly(
@@ -293,12 +297,14 @@ class NetworkStatsCollectorTest {
             )
         }
 
-        collector.collectAndRecord(time(2.hours.inWholeMilliseconds), 1.hours)
+        collector.collectAndRecord(time(2.hours.inWholeMilliseconds), time(1.hours.inWholeMilliseconds))
 
         assertThat(dao.collectHeartbeat(endTimestampMs = 2.hours.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "network.total.in.all.latest" to JsonPrimitive(0.0),
                 "network.total.out.all.latest" to JsonPrimitive(0.0),
+
+                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::internalMetrics).containsOnly(
@@ -392,7 +398,7 @@ class NetworkStatsCollectorTest {
             )
         }
 
-        collector.collectAndRecord(time(2.hours.inWholeMilliseconds), 1.hours)
+        collector.collectAndRecord(time(2.hours.inWholeMilliseconds), time(1.hours.inWholeMilliseconds))
 
         assertThat(dao.collectHeartbeat(endTimestampMs = 2.hours.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
@@ -407,6 +413,8 @@ class NetworkStatsCollectorTest {
                 "network.total.out.mobile.latest" to JsonPrimitive(2.0),
                 "network.total.out.eth.latest" to JsonPrimitive(2.0),
                 "network.total.out.bt.latest" to JsonPrimitive(2.0),
+
+                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::internalMetrics).containsOnly(
@@ -498,7 +506,7 @@ class NetworkStatsCollectorTest {
             )
         }
 
-        collector.collectAndRecord(time(2.hours.inWholeMilliseconds), 1.hours)
+        collector.collectAndRecord(time(2.hours.inWholeMilliseconds), time(1.hours.inWholeMilliseconds))
 
         assertThat(dao.collectHeartbeat(endTimestampMs = 2.hours.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::internalMetrics).containsOnly(
@@ -551,6 +559,19 @@ class NetworkStatsCollectorTest {
         }
     }
 
+    @Test fun `query range invalid`() = runTest {
+        collector.collectAndRecord(
+            collectionTime = time(2.hours.inWholeMilliseconds),
+            lastHeartbeatUptime = time(3.hours.inWholeMilliseconds),
+        )
+
+        assertThat(dao.collectHeartbeat(endTimestampMs = 4.hours.inWholeMilliseconds)).all {
+            prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
+                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
+            )
+        }
+    }
+
     private fun rollup(
         stringKey: String,
         value: Number,
@@ -570,9 +591,3 @@ class NetworkStatsCollectorTest {
         ),
     )
 }
-
-fun cartesianProduct(vararg lists: List<*>): Sequence<List<*>> =
-    lists.asSequence()
-        .fold(sequenceOf(emptyList<Any?>())) { acc, running ->
-            acc.flatMap { list -> running.map { element -> list + element } }
-        }

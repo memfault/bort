@@ -23,6 +23,7 @@ internal class TombstoneUploadingEntryProcessorDelegateTest {
                 tokenBucketStore = tokenBucketStore,
                 tempFileFactory = TestTemporaryFileFactory,
                 scrubTombstones = { false },
+                operationalCrashesExclusions = { emptyList() },
             )
         val inputFile = loadFile("test_tombstone_1.txt")
         val outputFile = processor.scrub(inputFile, "UPLOAD_TOMBSTONE")
@@ -38,6 +39,7 @@ internal class TombstoneUploadingEntryProcessorDelegateTest {
                 tokenBucketStore = tokenBucketStore,
                 tempFileFactory = TestTemporaryFileFactory,
                 scrubTombstones = { true },
+                operationalCrashesExclusions = { emptyList() },
             )
         val inputFile = loadFile("test_tombstone_1.txt")
         val outputFile = processor.scrub(inputFile, "UPLOAD_TOMBSTONE")
@@ -54,6 +56,7 @@ internal class TombstoneUploadingEntryProcessorDelegateTest {
                 tokenBucketStore = tokenBucketStore,
                 tempFileFactory = TestTemporaryFileFactory,
                 scrubTombstones = { true },
+                operationalCrashesExclusions = { emptyList() },
             )
         val inputFile = loadFile("test_tombstone_2.txt")
         val outputFile = processor.scrub(inputFile, "UPLOAD_TOMBSTONE")

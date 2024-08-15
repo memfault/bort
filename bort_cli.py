@@ -1194,10 +1194,8 @@ storePassword=$password"""
 
         parser.add_argument(
             "--ota-keystore",
-            type=bool,
             help="Generates a keystore for the OTA application",
-            default=False,
-            action=argparse.BooleanOptionalAction,
+            action="store_true",
         )
 
         parser.add_argument(

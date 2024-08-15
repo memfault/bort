@@ -19,7 +19,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import java.io.IOException
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
-import kotlin.time.Duration
 
 interface AppStorageStatsCollector : InMemoryMetricCollector
 
@@ -34,7 +33,6 @@ class RealAppStorageStatsCollector
 
     override suspend fun collect(
         collectionTime: CombinedTime,
-        heartbeatInterval: Duration,
     ): List<InMemoryMetric> {
         if (!storageSettings.appsSizeDataSourceEnabled) return emptyList()
 

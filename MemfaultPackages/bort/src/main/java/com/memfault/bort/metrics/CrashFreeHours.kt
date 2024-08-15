@@ -80,9 +80,7 @@ class CrashFreeHours @Inject constructor(
     private val metricLogger: CrashFreeHoursMetricLogger,
 ) : CrashHandler {
     override suspend fun onCrash(crashTimestamp: Instant) {
-        Reporting.report()
-            .counter(name = OPERATIONAL_CRASHES_METRIC_KEY)
-            .increment(timestamp = crashTimestamp.toEpochMilli())
+        OPERATIONAL_CRASHES_METRIC.increment(timestamp = crashTimestamp.toEpochMilli())
 
         // Call process before setting the crash flag - this ensures that any previous crash-free hours are processed,
         // before marking the current hour as lastHourHadCrash.
@@ -116,5 +114,10 @@ class CrashFreeHours @Inject constructor(
                 lastHourHadCrash = false,
             )
         }
+    }
+
+    companion object {
+        private val OPERATIONAL_CRASHES_METRIC = Reporting.report()
+            .counter(name = OPERATIONAL_CRASHES_METRIC_KEY)
     }
 }

@@ -11,17 +11,19 @@ import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.reporting.NumericAgg.SUM
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.settings.NetworkUsageSettings
+import com.memfault.bort.shared.Logger
+import com.memfault.bort.time.BaseLinuxBootRelativeTime
 import com.memfault.bort.time.CombinedTime
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import java.time.Instant
 import javax.inject.Inject
-import kotlin.time.Duration
+import kotlin.time.toJavaDuration
 
 interface NetworkStatsCollector {
     suspend fun collect(
         collectionTime: CombinedTime,
-        heartbeatInterval: Duration,
+        lastHeartbeatUptime: BaseLinuxBootRelativeTime,
     ): NetworkStatsResult?
 
     suspend fun record(
@@ -31,9 +33,9 @@ interface NetworkStatsCollector {
 
     suspend fun collectAndRecord(
         collectionTime: CombinedTime,
-        heartbeatInterval: Duration,
+        lastHeartbeatUptime: BaseLinuxBootRelativeTime,
     ) {
-        collect(collectionTime, heartbeatInterval)
+        collect(collectionTime, lastHeartbeatUptime)
             ?.let {
                 record(collectionTime, it)
             }
@@ -91,7 +93,7 @@ class RealNetworkStatsCollector
 
     override suspend fun collect(
         collectionTime: CombinedTime,
-        heartbeatInterval: Duration,
+        lastHeartbeatUptime: BaseLinuxBootRelativeTime,
     ): NetworkStatsResult? {
         if (!networkUsageSettings.dataSourceEnabled) {
             return null
@@ -102,11 +104,28 @@ class RealNetworkStatsCollector
         val queryStartTime = if (lastCollectionTimestamp > 0) {
             Instant.ofEpochMilli(lastCollectionTimestamp)
         } else {
-            collectionTime.minus(heartbeatInterval).timestamp
+            val heartbeatInterval = collectionTime.elapsedRealtime.duration
+                .minus(lastHeartbeatUptime.elapsedRealtime.duration)
+                .takeIf { it.isPositive() }
+
+            if (heartbeatInterval != null) {
+                collectionTime.timestamp.minus(heartbeatInterval.toJavaDuration())
+            } else {
+                null
+            }
         }
+
         val queryEndTime = collectionTime.timestamp
 
         lastNetworkStatsCollectionTimestamp.setValue(queryEndTime.toEpochMilli())
+
+        if (queryStartTime == null) {
+            Logger.i(
+                "Could not collect network stats, invalid query range " +
+                    "[${lastHeartbeatUptime.elapsedRealtime.duration}, ${collectionTime.elapsedRealtime.duration}]",
+            )
+            return null
+        }
 
         val ethernetUsage =
             networkStatsQueries.getTotalUsage(start = queryStartTime, end = queryEndTime, connectivity = ETHERNET)

@@ -2,6 +2,7 @@ package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
 import com.memfault.bort.parsers.JavaExceptionParser
+import com.memfault.bort.settings.OperationalCrashesExclusions
 import com.memfault.bort.tokenbucket.JavaException
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.tokenbucket.Wtf
@@ -14,6 +15,7 @@ class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
     @JavaException private val javaExceptionTokenBucketStore: TokenBucketStore,
     @Wtf private val wtfTokenBucketStore: TokenBucketStore,
     @WtfTotal private val wtfTotalTokenBucketStore: TokenBucketStore,
+    private val operationalCrashesExclusions: OperationalCrashesExclusions,
 ) : UploadingEntryProcessorDelegate {
     override val tags = listOf(
         "data_app_crash",
@@ -52,7 +54,13 @@ class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
             EntryInfo(entry.tag)
         }
 
-    override fun isCrash(tag: String): Boolean = !isWtf(tag)
+    override fun isCrash(entry: DropBoxManager.Entry, entryFile: File): Boolean {
+        if (entry.tag in operationalCrashesExclusions()) {
+            return false
+        }
+
+        return !isWtf(entry.tag)
+    }
 
     companion object {
         private fun isWtf(tag: String): Boolean = tag.endsWith("wtf")

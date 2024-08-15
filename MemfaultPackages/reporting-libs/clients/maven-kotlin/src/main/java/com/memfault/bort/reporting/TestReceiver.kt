@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.memfault.bort.reporting.NumericAgg.COUNT
+import com.memfault.bort.reporting.NumericAgg.LATEST_VALUE
 import com.memfault.bort.reporting.NumericAgg.MAX
 import com.memfault.bort.reporting.NumericAgg.MEAN
 import com.memfault.bort.reporting.NumericAgg.MIN
@@ -30,9 +31,31 @@ class TestReceiver : BroadcastReceiver() {
                 Reporting.report()
                     .successOrFailure("reporting-maven-kotlin-sf")
                     .record(false)
+
                 Reporting.report()
                     .distribution("reporting-maven-kotlin-dist", numericAggs)
                     .record(100)
+
+                Reporting.report()
+                    .distribution("reporting-maven-kotlin-dist1.min", listOf(LATEST_VALUE))
+                    .record(1500)
+                Reporting.report()
+                    .distribution("reporting-maven-kotlin-dist1.mean", listOf(LATEST_VALUE))
+                    .record(2024)
+                Reporting.report()
+                    .distribution("reporting-maven-kotlin-dist1.max", listOf(LATEST_VALUE))
+                    .record(5000)
+
+                Reporting.report()
+                    .distribution("reporting-maven-kotlin-dist2.min", listOf(MIN))
+                    .record(19)
+                Reporting.report()
+                    .distribution("reporting-maven-kotlin-dist2.mean", listOf(MEAN))
+                    .record(24)
+                Reporting.report()
+                    .distribution("reporting-maven-kotlin-dist2.max", listOf(MAX))
+                    .record(30)
+
                 Reporting.report()
                     .stringStateTracker("reporting-maven-kotlin-sst", stateAggs)
                     .state("stated")

@@ -1,5 +1,13 @@
 package com.memfault.bort.parsers
 
+import assertk.all
+import assertk.assertThat
+import assertk.assertions.contains
+import assertk.assertions.containsExactlyInAnyOrder
+import assertk.assertions.containsOnly
+import assertk.assertions.doesNotContainKey
+import assertk.assertions.isEqualTo
+import assertk.assertions.isTrue
 import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsHistoryParseError
 import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
@@ -40,17 +48,21 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import java.io.File
 
 class BatteryStatsHistoryParserTest {
-    private fun createFile(content: String): File {
-        val file = File.createTempFile("batterystats", ".txt")
-        file.writeText(content)
-        return file
-    }
+    @get:Rule
+    val tempFolder: TemporaryFolder = TemporaryFolder.builder().assureDeletion().build()
+
+    private fun createFile(
+        filename: String = "batterystats.txt",
+        content: String,
+    ): File = tempFolder.newFile(filename)
+        .apply { writeText(content) }
+
     private val bortErrors: BortErrors = mockk(relaxed = true)
 
     private val BATTERYSTATS_FILE = """
@@ -226,17 +238,15 @@ class BatteryStatsHistoryParserTest {
     )
 
     @Test
-    fun testParser() {
-        val parser = BatteryStatsHistoryParser(createFile(BATTERYSTATS_FILE), bortErrors)
-        runTest {
-            val result = parser.parseToCustomMetrics()
-            assertEquals(EXPECTED_HRT, result.batteryStatsHrt)
-            coVerify {
-                bortErrors.add(
-                    BatteryStatsHistoryParseError,
-                    mapOf("error" to "parseEvent: NumberFormatException", "line" to "Bl=x"),
-                )
-            }
+    fun testParser() = runTest {
+        val parser = BatteryStatsHistoryParser(createFile(content = BATTERYSTATS_FILE), bortErrors)
+        val result = parser.parseToCustomMetrics()
+        assertThat(result.batteryStatsHrt).containsExactlyInAnyOrder(*EXPECTED_HRT.toTypedArray())
+        coVerify {
+            bortErrors.add(
+                BatteryStatsHistoryParseError,
+                mapOf("error" to "parseEvent: NumberFormatException", "line" to "Bl=x"),
+            )
         }
     }
 
@@ -280,13 +290,12 @@ class BatteryStatsHistoryParserTest {
     )
 
     @Test
-    fun testAggregatesMatchBackend() {
-        val parser = BatteryStatsHistoryParser(createFile(AGGREGATE_FILE), bortErrors)
-        runTest {
-            val result = parser.parseToCustomMetrics()
-            assertEquals(EXPECTED_AGGREGATES, result.aggregatedMetrics)
-            coVerify { bortErrors wasNot Called }
-        }
+    fun testAggregatesMatchBackend() = runTest {
+        val parser = BatteryStatsHistoryParser(createFile(content = AGGREGATE_FILE), bortErrors)
+        val result = parser.parseToCustomMetrics()
+        assertThat(result.aggregatedMetrics)
+            .containsOnly(*EXPECTED_AGGREGATES.entries.map { it.key to it.value }.toTypedArray())
+        coVerify { bortErrors wasNot Called }
     }
 
     private val SOC_FILE = """
@@ -300,14 +309,16 @@ class BatteryStatsHistoryParserTest {
     """.trimIndent()
 
     @Test
-    fun testSocAggregates() {
-        val parser = BatteryStatsHistoryParser(createFile(SOC_FILE), bortErrors)
-        runTest {
-            val result = parser.parseToCustomMetrics()
-            assertEquals(JsonPrimitive(80000.0), result.aggregatedMetrics["battery_discharge_duration_ms"])
-            assertEquals(JsonPrimitive(42.0), result.aggregatedMetrics["battery_soc_pct_drop"])
-            coVerify { bortErrors wasNot Called }
+    fun testSocAggregates() = runTest {
+        val parser = BatteryStatsHistoryParser(createFile(content = SOC_FILE), bortErrors)
+        val result = parser.parseToCustomMetrics()
+
+        assertThat(result.aggregatedMetrics).all {
+            contains("battery_discharge_duration_ms" to JsonPrimitive(80000.0))
+            contains("battery_soc_pct_drop" to JsonPrimitive(42.0))
         }
+
+        coVerify { bortErrors wasNot Called }
     }
 
     private val SOC_FILE_NO_DISCHARGE = """
@@ -318,14 +329,14 @@ class BatteryStatsHistoryParserTest {
     """.trimIndent()
 
     @Test
-    fun testNoSocAggregates() {
-        val parser = BatteryStatsHistoryParser(createFile(SOC_FILE_NO_DISCHARGE), bortErrors)
-        runTest {
-            val result = parser.parseToCustomMetrics()
-            assertFalse(result.aggregatedMetrics.containsKey("battery_discharge_duration_ms"))
-            assertFalse(result.aggregatedMetrics.containsKey("battery_soc_pct_drop"))
-            coVerify { bortErrors wasNot Called }
+    fun testNoSocAggregates() = runTest {
+        val parser = BatteryStatsHistoryParser(createFile(content = SOC_FILE_NO_DISCHARGE), bortErrors)
+        val result = parser.parseToCustomMetrics()
+        assertThat(result.aggregatedMetrics).all {
+            doesNotContainKey("battery_discharge_duration_ms")
+            doesNotContainKey("battery_soc_pct_drop")
         }
+        coVerify { bortErrors wasNot Called }
     }
 
     private val SOC_FILE_DISCHARGE_NO_DROP = """
@@ -336,14 +347,14 @@ class BatteryStatsHistoryParserTest {
     """.trimIndent()
 
     @Test
-    fun testDischargeNoDrop() {
-        val parser = BatteryStatsHistoryParser(createFile(SOC_FILE_DISCHARGE_NO_DROP), bortErrors)
-        runTest {
-            val result = parser.parseToCustomMetrics()
-            assertEquals(JsonPrimitive(50000.0), result.aggregatedMetrics["battery_discharge_duration_ms"])
-            assertEquals(JsonPrimitive(0.0), result.aggregatedMetrics["battery_soc_pct_drop"])
-            coVerify { bortErrors wasNot Called }
+    fun testDischargeNoDrop() = runTest {
+        val parser = BatteryStatsHistoryParser(createFile(content = SOC_FILE_DISCHARGE_NO_DROP), bortErrors)
+        val result = parser.parseToCustomMetrics()
+        assertThat(result.aggregatedMetrics).all {
+            contains("battery_discharge_duration_ms", JsonPrimitive(50000.0))
+            contains("battery_soc_pct_drop", JsonPrimitive(0.0))
         }
+        coVerify { bortErrors wasNot Called }
     }
 
     private val TRAILING_COMMAS_EMPTY_EVENTS = """
@@ -356,25 +367,140 @@ class BatteryStatsHistoryParserTest {
     """.trimIndent()
 
     @Test
-    fun handlesEmptyEvents() {
-        val parser = BatteryStatsHistoryParser(createFile(TRAILING_COMMAS_EMPTY_EVENTS), bortErrors)
-        runTest {
-            val result = parser.parseToCustomMetrics()
-            assertEquals(1, result.batteryStatsHrt.size)
-            val batteryLevelHrt = result.batteryStatsHrt.first()
-            val expectedHrt = Rollup(
-                RollupMetadata(
-                    stringKey = "battery_level",
-                    metricType = Gauge,
-                    dataType = DoubleType,
-                    internal = false,
-                ),
-                listOf(
-                    Datum(t = 1712915952498, value = JsonPrimitive(100)),
-                    Datum(t = 1712915952499, value = JsonPrimitive(99)),
-                ),
-            )
-            assertEquals(expectedHrt, batteryLevelHrt)
+    fun handlesEmptyEvents() = runTest {
+        val parser = BatteryStatsHistoryParser(createFile(content = TRAILING_COMMAS_EMPTY_EVENTS), bortErrors)
+        val result = parser.parseToCustomMetrics()
+        assertThat(result.batteryStatsHrt.size).isEqualTo(1)
+        val batteryLevelHrt = result.batteryStatsHrt.first()
+        val expectedHrt = Rollup(
+            RollupMetadata(
+                stringKey = "battery_level",
+                metricType = Gauge,
+                dataType = DoubleType,
+                internal = false,
+            ),
+            listOf(
+                Datum(t = 1712915952498, value = JsonPrimitive(100)),
+                Datum(t = 1712915952499, value = JsonPrimitive(99)),
+            ),
+        )
+        assertThat(batteryLevelHrt).isEqualTo(expectedHrt)
+    }
+
+    @Test
+    fun testDischargeDrop() = runTest {
+        val parser = BatteryStatsHistoryParser(
+            createFile(
+                content =
+                """
+                9,hsp,1,0,"Abort:Pending Wakeup Sources: 200f000.qcom,spmi:qcom,pm660@0:qpnp,fg battery qcom-step-chg "
+                9,h,123:TIME:1000000
+                9,h,0,Bl=60,Bs=d
+                9,h,1200000,Bl=50
+                9,h,1200000,Bl=40
+                """.trimIndent(),
+            ),
+            bortErrors,
+        )
+        val result = parser.parseToCustomMetrics()
+        assertThat(result.aggregatedMetrics).all {
+            doesNotContainKey("battery_soc_pct_rise")
+            doesNotContainKey("battery_charge_duration_ms")
+            doesNotContainKey("battery_charge_rate_pct_per_hour_avg")
+            doesNotContainKey("battery_charge_rate_first_80_percent_pct_per_hour_avg")
+            contains("battery_discharge_duration_ms", JsonPrimitive(2400000.0))
+            contains("battery_soc_pct_drop", JsonPrimitive(20.0))
+            contains("battery_discharge_rate_pct_per_hour_avg", JsonPrimitive(-30.0))
         }
+        coVerify { bortErrors wasNot Called }
+    }
+
+    @Test
+    fun testChargeRise() = runTest {
+        val parser = BatteryStatsHistoryParser(
+            createFile(
+                content =
+                """
+                9,hsp,1,0,"Abort:Pending Wakeup Sources: 200f000.qcom,spmi:qcom,pm660@0:qpnp,fg battery qcom-step-chg "
+                9,h,123:TIME:1000000
+                9,h,0,Bl=60,Bs=c
+                9,h,600000,Bl=70
+                9,h,600000,Bl=80
+                9,h,600000,Bl=90
+                """.trimIndent(),
+            ),
+            bortErrors,
+        )
+        val result = parser.parseToCustomMetrics()
+        assertThat(result.aggregatedMetrics).all {
+            doesNotContainKey("battery_discharge_duration_ms")
+            doesNotContainKey("battery_soc_pct_drop")
+            doesNotContainKey("battery_discharge_rate_pct_per_hour_avg")
+            contains("battery_charge_duration_ms", JsonPrimitive(1800000.0))
+            contains("battery_soc_pct_rise", JsonPrimitive(30.0))
+            contains("battery_charge_rate_pct_per_hour_avg", JsonPrimitive(60.0))
+            contains("battery_charge_rate_first_80_percent_pct_per_hour_avg", JsonPrimitive(60.0))
+        }
+        coVerify { bortErrors wasNot Called }
+    }
+
+    @Test
+    fun `discharge rate should be same over 1 hour as over 2 hours`() = runTest {
+        val result1 = BatteryStatsHistoryParser(
+            createFile(
+                filename = "batterystats1.txt",
+                content = """
+                9,hsp,1,0,"Abort:Pending Wakeup Sources: 200f000.qcom,spmi:qcom,pm660@0:qpnp,fg battery qcom-step-chg "
+                9,h,123:TIME:1000000
+                9,h,0,Bl=80,Bs=d
+                9,h,1800000,Bl=60
+                9,h,1800000,Bl=40
+                """.trimIndent(),
+            ),
+            bortErrors,
+        ).parseToCustomMetrics()
+
+        assertThat(result1.aggregatedMetrics).all {
+            doesNotContainKey("battery_soc_pct_rise")
+            doesNotContainKey("battery_charge_duration_ms")
+            doesNotContainKey("battery_charge_rate_pct_per_hour_avg")
+            doesNotContainKey("battery_charge_rate_first_80_percent_pct_per_hour_avg")
+            contains("battery_discharge_duration_ms", JsonPrimitive(3600000.0))
+            contains("battery_soc_pct_drop", JsonPrimitive(40.0))
+            contains("battery_discharge_rate_pct_per_hour_avg", JsonPrimitive(-40.0))
+        }
+
+        val result2 = BatteryStatsHistoryParser(
+            createFile(
+                filename = "batterystats2.txt",
+                content = """
+                9,hsp,1,0,"Abort:Pending Wakeup Sources: 200f000.qcom,spmi:qcom,pm660@0:qpnp,fg battery qcom-step-chg "
+                9,h,123:TIME:1000000
+                9,h,0,Bl=80,Bs=d
+                9,h,1800000,Bl=60
+                9,h,1800000,Bl=40
+                9,h,1800000,Bl=20
+                9,h,1800000,Bl=0
+                """.trimIndent(),
+            ),
+            bortErrors,
+        ).parseToCustomMetrics()
+
+        assertThat(result2.aggregatedMetrics).all {
+            doesNotContainKey("battery_soc_pct_rise")
+            doesNotContainKey("battery_charge_duration_ms")
+            doesNotContainKey("battery_charge_rate_pct_per_hour_avg")
+            doesNotContainKey("battery_charge_rate_first_80_percent_pct_per_hour_avg")
+            contains("battery_discharge_duration_ms", JsonPrimitive(7200000.0))
+            contains("battery_soc_pct_drop", JsonPrimitive(80.0))
+            contains("battery_discharge_rate_pct_per_hour_avg", JsonPrimitive(-40.0))
+        }
+
+        coVerify { bortErrors wasNot Called }
+
+        assertThat(
+            result1.aggregatedMetrics["battery_discharge_rate_pct_per_hour_avg"] ==
+                result2.aggregatedMetrics["battery_discharge_rate_pct_per_hour_avg"],
+        ).isTrue()
     }
 }

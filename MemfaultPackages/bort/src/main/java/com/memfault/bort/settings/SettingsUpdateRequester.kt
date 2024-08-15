@@ -20,7 +20,6 @@ import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.DurationUnit.HOURS
-import kotlin.time.toJavaDuration
 
 private const val WORK_TAG = "SETTINGS_UPDATE"
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.$WORK_TAG"
@@ -99,9 +98,9 @@ class SettingsUpdateRequester @Inject constructor(
             if (everFetchedSettingsPreferenceProvider.getValue()) {
                 // Use delay to prevent running the task again immediately after a settings update:
                 val settingsDelay = if (delayAfterSettingsUpdate) updateInterval else ZERO
-                val initialDelay = settingsDelay.toJavaDuration() +
-                    jitterDelayProvider.randomJitterDelay(maxDelay = updateInterval.toJavaDuration())
-                setInitialDelay(initialDelay.toMillis(), TimeUnit.MILLISECONDS)
+                val initialDelay = settingsDelay +
+                    jitterDelayProvider.randomJitterDelay(maxDelay = updateInterval)
+                setInitialDelay(initialDelay.inWholeMilliseconds, TimeUnit.MILLISECONDS)
             }
         }.also { workRequest ->
             WorkManager.getInstance(application)

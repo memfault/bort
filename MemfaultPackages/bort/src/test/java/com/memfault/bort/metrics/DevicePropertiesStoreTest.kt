@@ -34,6 +34,8 @@ class DevicePropertiesStoreTest {
         override val reporterCollectionInterval: Duration = 15.minutes
         override val propertiesUseMetricService: Boolean get() = writeToService
         override val cachePackageManagerReport: Boolean = true
+        override val recordImei: Boolean = false
+        override val operationalCrashesExclusions: List<String> = emptyList()
     }
 
     private val combinedTimeProvider = FakeCombinedTimeProvider

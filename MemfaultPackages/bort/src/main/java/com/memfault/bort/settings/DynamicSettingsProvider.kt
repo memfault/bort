@@ -6,7 +6,6 @@ import com.memfault.bort.DataScrubbingRule
 import com.memfault.bort.DevMode
 import com.memfault.bort.DumpsterCapabilities
 import com.memfault.bort.clientserver.CachedClientServerMode
-import com.memfault.bort.clientserver.isEnabled
 import com.memfault.bort.settings.LogcatCollectionMode.PERIODIC
 import com.memfault.bort.settings.NetworkConstraint.CONNECTED
 import com.memfault.bort.settings.NetworkConstraint.UNMETERED
@@ -181,6 +180,10 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.metricsPropertiesUseService
         override val cachePackageManagerReport: Boolean
             get() = settings.metricsCachePackages
+        override val recordImei: Boolean
+            get() = settings.metricsRecordImei
+        override val operationalCrashesExclusions: List<String>
+            get() = settings.metricsOperationalCrashesExclusions
     }
 
     override val batteryStatsSettings = object : BatteryStatsSettings {

@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
 import com.memfault.bort.boot.LinuxBootId
+import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.memfault.bort.tokenbucket.realElapsedRealtime
 import kotlinx.serialization.Serializable
@@ -38,6 +39,9 @@ class UptimeTracker @Inject constructor(
         // If boot ID is different, then store previous uptime.
         if (storedUptime.bootId != linuxBootId) {
             previousUptimePrefMillis.setValue(storedUptime.uptimeMillis)
+        } else {
+            // If the boot ID did not change, then Bort will was killed + restarted; track when this happens.
+            BORT_START_NOT_FROM_REBOOT_METRIC.increment()
         }
         trackCurrentUptime()
     }
@@ -53,6 +57,11 @@ class UptimeTracker @Inject constructor(
         )
         // Run again, after UPDATE_PERIOD.
         handler.postDelayed(::trackCurrentUptime, UPDATE_PERIOD.inWholeMilliseconds)
+    }
+
+    companion object {
+        private val BORT_START_NOT_FROM_REBOOT_METRIC =
+            Reporting.report().counter(name = "bort_started_not_from_reboot", sumInReport = true, internal = true)
     }
 }
 

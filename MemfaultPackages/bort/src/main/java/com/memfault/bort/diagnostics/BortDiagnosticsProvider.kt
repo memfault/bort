@@ -7,6 +7,8 @@ import android.database.DatabaseUtils
 import android.database.MatrixCursor
 import android.net.Uri
 import com.memfault.bort.DevMode
+import com.memfault.bort.DeviceInfoProvider
+import com.memfault.bort.OverrideSerial
 import com.memfault.bort.ProjectKeySyspropName
 import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
 import com.memfault.bort.settings.AllowProjectKeyChange
@@ -35,6 +37,8 @@ class BortDiagnosticsProvider : ContentProvider() {
         fun bortErrors(): BortErrors
         fun periodicWorkManager(): PeriodicWorkManager
         fun bortJobReporter(): BortJobReporter
+        fun deviceInfoProvider(): DeviceInfoProvider
+        fun overrideSerial(): OverrideSerial
     }
 
     val entryPoint: DiagnosticsProviderEntryPoint by lazy {
@@ -72,6 +76,8 @@ class BortDiagnosticsProvider : ContentProvider() {
                 cursor.addRow(arrayOf("bort_error", it.toString()))
             }
             addJobStatus(cursor)
+            cursor.addRow(arrayOf("device_serial", entryPoint.deviceInfoProvider().getDeviceInfo().deviceSerial))
+            cursor.addRow(arrayOf("override_serial", entryPoint.overrideSerial().overriddenSerial))
         }
         Logger.d("Bort Diagnostics:")
         Logger.d(DatabaseUtils.dumpCursorToString(cursor))
