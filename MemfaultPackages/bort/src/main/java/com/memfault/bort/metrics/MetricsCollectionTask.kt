@@ -2,6 +2,7 @@ package com.memfault.bort.metrics
 
 import androidx.work.Data
 import com.memfault.bort.BortSystemCapabilities
+import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.InstallationIdProvider
 import com.memfault.bort.IntegrationChecker
@@ -23,7 +24,9 @@ import com.memfault.bort.metrics.HighResTelemetry.RollupMetadata
 import com.memfault.bort.metrics.InMemoryMetricCollector.Companion.heartbeatMetrics
 import com.memfault.bort.metrics.InMemoryMetricCollector.Companion.hrtRollups
 import com.memfault.bort.metrics.InMemoryMetricCollector.Companion.internalHeartbeatMetrics
+import com.memfault.bort.metrics.custom.CustomMetrics
 import com.memfault.bort.metrics.custom.MetricReport
+import com.memfault.bort.metrics.custom.softwareVersionChanged
 import com.memfault.bort.metrics.database.DAILY_HEARTBEAT_REPORT_TYPE
 import com.memfault.bort.metrics.database.HOURLY_HEARTBEAT_REPORT_TYPE
 import com.memfault.bort.metrics.database.SESSION_REPORT_TYPE
@@ -130,7 +133,7 @@ class MetricsCollectionTask @Inject constructor(
     @MetricsCollection private val tokenBucketStore: TokenBucketStore,
     private val packageManagerClient: PackageManagerClient,
     private val systemPropertiesCollector: SystemPropertiesCollector,
-    private val heartbeatReportCollector: HeartbeatReportCollector,
+    private val customMetrics: CustomMetrics,
     private val storageStatsCollector: StorageStatsCollector,
     private val networkStatsCollector: NetworkStatsCollector,
     private val appVersionsCollector: AppVersionsCollector,
@@ -144,6 +147,7 @@ class MetricsCollectionTask @Inject constructor(
     private val clientRateLimitCollector: ClientRateLimitCollector,
     private val appStorageStatsCollector: AppStorageStatsCollector,
     private val databaseSizeCollector: DatabaseSizeCollector,
+    private val deviceInfoProvider: DeviceInfoProvider,
 ) : Task<Unit>() {
     override val getMaxAttempts: () -> Int = { 1 }
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -153,11 +157,18 @@ class MetricsCollectionTask @Inject constructor(
         lastHeartbeatUptime: BaseLinuxBootRelativeTime,
         propertiesStore: DevicePropertiesStore,
     ) {
+        val deviceSoftwareVersion = deviceInfoProvider.getDeviceInfo().softwareVersion
+        val heartbeat = customMetrics.startedHeartbeatOrNull()
+        val heartbeatSoftwareVersion = heartbeat?.softwareVersion
+        val softwareVersionChanged = customMetrics.softwareVersionChanged(deviceSoftwareVersion)
+
         val batteryStatsResult = batteryStatsCollector.collect(
             collectionTime = collectionTime,
             lastHeartbeatUptime = lastHeartbeatUptime,
         )
         Logger.test("Metrics: properties_use_service = ${metricsSettings.propertiesUseMetricService}")
+        Logger.test("Metrics: software version = $heartbeatSoftwareVersion -> $deviceSoftwareVersion")
+
         // These write to Custom Metrics - do before finishing the heartbeat report.
         storageStatsCollector.collectStorageStats(collectionTime)
         networkStatsCollector.collectAndRecord(
@@ -165,8 +176,25 @@ class MetricsCollectionTask @Inject constructor(
             lastHeartbeatUptime = lastHeartbeatUptime,
         )
 
-        systemPropertiesCollector.updateSystemProperties(propertiesStore)
-        appVersionsCollector.updateAppVersions(propertiesStore)
+        // If the device's software version changed, then we're finishing a heartbeat after an OTA, and don't
+        // want to write metrics that would've changed as a result of that OTA, so don't update the sysprops
+        // or app versions (or any other metrics that need to account for that). Instead, we will now write the
+        // sysprops and app versions at the start and the end of the heartbeat (skipping the end if the
+        // software version changed) (and eventually ideally when the metrics change so that you can see the
+        // change in HRT). In the meantime for the first heartbeat after this Bort update, we haven't written those
+        // metrics at the start of the report yet, so just write it at the end anyways (in the cases where the software
+        // version is null).
+
+        val deviceSystemProperties = systemPropertiesCollector.collect()
+        val appVersions = appVersionsCollector.collect()
+
+        // Write these metrics if the software version didn't change, or if the software version hasn't been persisted
+        // yet (meaning we haven't written these metrics at the start already).
+        if (heartbeat == null || heartbeatSoftwareVersion == null || !softwareVersionChanged) {
+            deviceSystemProperties?.let { systemPropertiesCollector.record(it, propertiesStore) }
+            appVersions?.let { appVersionsCollector.record(it, propertiesStore) }
+        }
+
         if (bortSystemCapabilities.isBortLite()) {
             propertiesStore.upsert(BORT_LITE_METRIC_KEY, true, internal = false)
         }
@@ -188,78 +216,98 @@ class MetricsCollectionTask @Inject constructor(
                 installationIdProvider,
             )
 
-        val heartbeatReport = heartbeatReportCollector.finishAndCollectHeartbeatReport(now = collectionTime)
-
-        // This duration should be positive unless there is clock skew (or problems with the RTC battery).
-        val hourlyHeartbeatDurationFromReport = (
-            heartbeatReport.hourlyHeartbeatReport.endTimestampMs -
-                heartbeatReport.hourlyHeartbeatReport.startTimestampMs
-            ).toDuration(MILLISECONDS)
-            .takeIf { it.isPositive() }
-
-        // This duration can also be negative, but it's the same as we had before.
-        val hourlyHeartbeatDurationFromUptime = collectionTime.elapsedRealtime.duration -
-            lastHeartbeatUptime.elapsedRealtime.duration
-
-        val hourlyHeartbeatDuration = hourlyHeartbeatDurationFromReport
-            ?: hourlyHeartbeatDurationFromUptime
-
-        val heartbeatReportMetrics = heartbeatReport.hourlyHeartbeatReport.metrics
-        val heartbeatReportInternalMetrics = heartbeatReport.hourlyHeartbeatReport.internalMetrics
-
         val propertiesStoreMetrics =
             AggregateMetricFilter.filterAndRenameMetrics(propertiesStore.metrics(), internal = false)
         val propertiesStoreInternalMetrics =
             AggregateMetricFilter.filterAndRenameMetrics(propertiesStore.internalMetrics(), internal = true)
 
-        clientRateLimitCollector.collect(
-            collectionTime = collectionTime,
-            internalHeartbeatReportMetrics = heartbeatReportInternalMetrics,
-        )
-
         val inMemoryMetrics = listOf(
             appStorageStatsCollector,
             databaseSizeCollector,
-        )
-            .flatMap { collector ->
-                collector.collect(collectionTime)
-            }
+        ).flatMap { collector -> collector.collect(collectionTime) }
         val inMemoryHeartbeats = inMemoryMetrics.heartbeatMetrics()
         val inMemoryInternalHeartbeats = inMemoryMetrics.internalHeartbeatMetrics()
         val inMemoryHrtRollups = inMemoryMetrics.hrtRollups(collectionTime)
 
-        // If there were no heartbeat internal metrics, then fallback to include some core values.
-        val internalMetrics = heartbeatReportInternalMetrics.ifEmpty { fallbackInternalMetrics }
-        uploadHeartbeat(
-            batteryStatsFile = batteryStatsResult.batteryStatsFileToUpload,
-            collectionTime = collectionTime,
-            heartbeatInterval = hourlyHeartbeatDuration,
-            heartbeatReportMetrics = heartbeatReportMetrics +
-                batteryStatsResult.aggregatedMetrics +
-                inMemoryHeartbeats +
-                propertiesStoreMetrics,
-            heartbeatReportInternalMetrics = internalMetrics +
-                batteryStatsResult.internalAggregatedMetrics +
-                inMemoryInternalHeartbeats +
-                propertiesStoreInternalMetrics,
-            reportType = HOURLY_HEARTBEAT_REPORT_TYPE.lowercase(),
-            reportName = null,
+        val heartbeatReport = customMetrics.collectHeartbeat(
+            endTimestampMs = collectionTime.timestamp.toEpochMilli(),
+            forceEndAllReports = softwareVersionChanged,
         )
+
+        heartbeatReport.hourlyHeartbeatReport.let { hourlyHeartbeatReport ->
+            // This duration should be positive unless there is clock skew (or problems with the RTC battery).
+            val hourlyHeartbeatDurationFromReport = (
+                hourlyHeartbeatReport.endTimestampMs -
+                    hourlyHeartbeatReport.startTimestampMs
+                ).toDuration(MILLISECONDS)
+                .takeIf { it.isPositive() }
+
+            // This duration can also be negative, but it's the same as we had before.
+            val hourlyHeartbeatDurationFromUptime = collectionTime.elapsedRealtime.duration -
+                lastHeartbeatUptime.elapsedRealtime.duration
+
+            val hourlyHeartbeatDuration = hourlyHeartbeatDurationFromReport
+                ?: hourlyHeartbeatDurationFromUptime
+
+            val heartbeatReportMetrics = hourlyHeartbeatReport.metrics
+            val heartbeatReportInternalMetrics = hourlyHeartbeatReport.internalMetrics
+
+            clientRateLimitCollector.collect(
+                collectionTime = collectionTime,
+                internalHeartbeatReportMetrics = heartbeatReportInternalMetrics,
+            )
+
+            // If there were no heartbeat internal metrics, then fallback to include some core values.
+            val internalMetrics = heartbeatReportInternalMetrics.ifEmpty { fallbackInternalMetrics }
+            uploadHeartbeat(
+                batteryStatsFile = batteryStatsResult.batteryStatsFileToUpload,
+                collectionTime = collectionTime,
+                heartbeatInterval = hourlyHeartbeatDuration,
+                heartbeatReportMetrics = heartbeatReportMetrics +
+                    batteryStatsResult.aggregatedMetrics +
+                    inMemoryHeartbeats +
+                    propertiesStoreMetrics,
+                heartbeatReportInternalMetrics = internalMetrics +
+                    batteryStatsResult.internalAggregatedMetrics +
+                    inMemoryInternalHeartbeats +
+                    propertiesStoreInternalMetrics,
+                reportType = HOURLY_HEARTBEAT_REPORT_TYPE.lowercase(),
+                reportName = null,
+                overrideSoftwareVersion = hourlyHeartbeatReport.softwareVersion,
+            )
+
+            // Add batterystats and others to the HRT file.
+            hourlyHeartbeatReport.hrt?.let { hrtFile ->
+                val hrtMetricsToAdd = batteryStatsResult.batteryStatsHrt +
+                    inMemoryHrtRollups +
+                    propertiesStore.hrtRollups(timestampMs = collectionTime.timestamp.toEpochMilli())
+                if (hrtMetricsToAdd.isNotEmpty()) {
+                    mergeHrtIntoFile(hrtFile, hrtMetricsToAdd)
+                }
+            }
+
+            uploadHighResMetrics(
+                highResFile = hourlyHeartbeatReport.hrt,
+                metricReport = hourlyHeartbeatReport,
+            )
+        }
 
         heartbeatReport.dailyHeartbeatReport?.let { report ->
             uploadHeartbeat(
                 batteryStatsFile = null,
                 collectionTime = collectionTime,
-                heartbeatInterval = (report.endTimestampMs - report.startTimestampMs).toDuration(MILLISECONDS),
+                heartbeatInterval = (report.endTimestampMs - report.startTimestampMs)
+                    .toDuration(MILLISECONDS),
                 heartbeatReportMetrics = report.metrics +
                     inMemoryHeartbeats +
                     propertiesStoreMetrics,
                 heartbeatReportInternalMetrics = report.internalMetrics +
-                    inMemoryMetrics.internalHeartbeatMetrics() +
+                    inMemoryInternalHeartbeats +
                     propertiesStoreInternalMetrics,
                 reportType = DAILY_HEARTBEAT_REPORT_TYPE.lowercase(),
                 reportName = null,
                 overrideMonitoringResolution = Resolution.LOW,
+                overrideSoftwareVersion = report.softwareVersion,
             )
         }
 
@@ -273,23 +321,13 @@ class MetricsCollectionTask @Inject constructor(
                     heartbeatReportInternalMetrics = session.internalMetrics,
                     reportType = SESSION_REPORT_TYPE.lowercase(),
                     reportName = session.reportName,
+                    overrideSoftwareVersion = session.softwareVersion,
                 )
             }
 
-        // Add batterystats and others to the HRT file.
-        heartbeatReport.hrt?.let { hrtFile ->
-            val hrtMetricsToAdd = batteryStatsResult.batteryStatsHrt +
-                inMemoryHrtRollups +
-                propertiesStore.hrtRollups(timestampMs = collectionTime.timestamp.toEpochMilli())
-            if (hrtMetricsToAdd.isNotEmpty()) {
-                mergeHrtIntoFile(hrtFile, hrtMetricsToAdd)
-            }
-        }
-
-        uploadHighResMetrics(
-            highResFile = heartbeatReport.hrt,
-            metricReport = heartbeatReport.hourlyHeartbeatReport,
-        )
+        // Always record sysprops and app versions at the start of the heartbeat (and the end above).
+        deviceSystemProperties?.let { systemPropertiesCollector.record(it, propertiesStore) }
+        appVersions?.let { appVersionsCollector.record(it, propertiesStore) }
     }
 
     private suspend fun uploadHighResMetrics(
@@ -308,7 +346,12 @@ class MetricsCollectionTask @Inject constructor(
             mimeTypes = listOf(HIGH_RES_METRICS_MIME_TYPE),
             reason = HIGH_RES_METRICS_REASON,
         )
-        enqueueUpload.enqueue(highResFile, metadata, collectionTime = combinedTimeProvider.now())
+        enqueueUpload.enqueue(
+            highResFile,
+            metadata,
+            collectionTime = combinedTimeProvider.now(),
+            overrideSoftwareVersion = metricReport.softwareVersion,
+        )
     }
 
     private suspend fun uploadHeartbeat(
@@ -320,6 +363,7 @@ class MetricsCollectionTask @Inject constructor(
         reportType: String,
         reportName: String?,
         overrideMonitoringResolution: Resolution? = null,
+        overrideSoftwareVersion: String? = null,
     ) {
         enqueueUpload.enqueue(
             // Note: this is the only upload type which may not have a file. To avoid changing the entire PreparedUpload
@@ -335,6 +379,7 @@ class MetricsCollectionTask @Inject constructor(
             ),
             collectionTime = collectionTime,
             overrideMonitoringResolution = overrideMonitoringResolution,
+            overrideSoftwareVersion = overrideSoftwareVersion,
         )
     }
 

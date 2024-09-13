@@ -2,6 +2,12 @@ LOCAL_PATH := $(call my-dir)
 
 include $(LOCAL_PATH)/bort_src_gen.mk
 
+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 30 && echo true),true)
+  _BORT_ETC_PATH := $(TARGET_OUT_SYSTEM_EXT_ETC)
+else
+  _BORT_ETC_PATH := $(TARGET_OUT_ETC)
+endif
+
 
 # Check that ensures MemfaultBort.x509.pem matches signature of MemfaultBort.apk
 ################################################################################
@@ -31,7 +37,7 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := com.memfault.bort.xml
 LOCAL_MODULE_CLASS := ETC
-LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/permissions
+LOCAL_MODULE_PATH := $(_BORT_ETC_PATH)/permissions
 BORT_XML_TARGET := $(LOCAL_MODULE_PATH)/$(LOCAL_MODULE)
 $(call bort_src_gen,$(LOCAL_PATH)/com.memfault.bort.xml.in,$(BORT_XML_TARGET))
 LOCAL_ADDITIONAL_DEPENDENCIES := $(BORT_XML_TARGET)
@@ -57,6 +63,7 @@ LOCAL_REQUIRED_MODULES := com.memfault.bort.xml CheckMemfaultBortSignature
 
 # The priv-app folder
 TARGET_OUT_DATA_APPS_PRIVILEGED := $(TARGET_OUT_DATA)/priv-app
+LOCAL_SYSTEM_EXT_MODULE := true
 include $(BUILD_PREBUILT)
 
 # MemfaultBortOta.apk
@@ -66,7 +73,7 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := com.memfault.bort.ota.xml
 LOCAL_MODULE_CLASS := ETC
-LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/permissions
+LOCAL_MODULE_PATH := $(_BORT_ETC_PATH)/permissions
 BORT_XML_TARGET := $(LOCAL_MODULE_PATH)/$(LOCAL_MODULE)
 $(call bort_src_gen,$(LOCAL_PATH)/com.memfault.bort.ota.xml.in,$(BORT_XML_TARGET))
 LOCAL_ADDITIONAL_DEPENDENCIES := $(BORT_XML_TARGET)
@@ -92,6 +99,7 @@ LOCAL_REQUIRED_MODULES := com.memfault.bort.ota.xml CheckMemfaultBortOtaSignatur
 
 # The priv-app folder
 TARGET_OUT_DATA_APPS_PRIVILEGED := $(TARGET_OUT_DATA)/priv-app
+LOCAL_SYSTEM_EXT_MODULE := true
 include $(BUILD_PREBUILT)
 
 
@@ -101,7 +109,7 @@ include $(BUILD_PREBUILT)
 include $(CLEAR_VARS)
 LOCAL_MODULE := com.memfault.usagereporter.xml
 LOCAL_MODULE_CLASS := ETC
-LOCAL_MODULE_PATH := $(TARGET_OUT_ETC)/permissions
+LOCAL_MODULE_PATH := $(_BORT_ETC_PATH)/permissions
 USAGE_REPORTER_XML_TARGET := $(LOCAL_MODULE_PATH)/$(LOCAL_MODULE)
 $(call bort_src_gen,$(LOCAL_PATH)/com.memfault.usagereporter.xml.in,$(USAGE_REPORTER_XML_TARGET))
 LOCAL_ADDITIONAL_DEPENDENCIES := $(USAGE_REPORTER_XML_TARGET)
@@ -126,6 +134,7 @@ LOCAL_REQUIRED_MODULES := com.memfault.usagereporter.xml
 
 # The priv-app folder
 TARGET_OUT_DATA_APPS_PRIVILEGED := $(TARGET_OUT_DATA)/priv-app
+LOCAL_SYSTEM_EXT_MODULE := true
 include $(BUILD_PREBUILT)
 
 include $(LOCAL_PATH)/reporting-libs/reporting-lib-java/Android.mk

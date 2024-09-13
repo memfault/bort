@@ -35,9 +35,11 @@ data class DeviceInfo(
                     "${getBuildFingerprint()}::${props[settings.androidBuildVersionKey] ?: "unknown"}"
             }
             return DeviceInfo(
-                settings.overriddenSerialNumber ?: props[settings.androidSerialNumberKey] ?: getFallbackAndroidId(),
-                hardwareVersionFromSettingsAndSystemProperties(settings, props),
-                softwareVersion,
+                deviceSerial = settings.overriddenSerialNumber
+                    ?: props[settings.androidSerialNumberKey]
+                    ?: getFallbackAndroidId(),
+                hardwareVersion = hardwareVersionFromSettingsAndSystemProperties(settings, props),
+                softwareVersion = softwareVersion,
             )
         }
 

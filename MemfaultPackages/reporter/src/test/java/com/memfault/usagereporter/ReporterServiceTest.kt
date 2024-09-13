@@ -61,7 +61,6 @@ class ReporterServiceTest {
             getSendReply = { replier::sendReply },
             enqueueCommand = enqueueCommand,
             b2BClientServer = mockk(),
-            reporterMetrics = mockk(),
             reporterSettings = mockk(),
             createPipe = { arrayOf(readFd, writeFd) },
         )

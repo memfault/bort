@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 class AppVersionsCollectorTest {
     val store: DevicePropertiesStore = mockk(relaxed = true)
@@ -50,6 +51,8 @@ class AppVersionsCollectorTest {
                 get() = false
             override val operationalCrashesExclusions: List<String>
                 get() = emptyList()
+            override val pollingInterval: Duration
+                get() = 15.minutes
         },
         packageManagerClient = pmClient,
     )
@@ -64,7 +67,7 @@ class AppVersionsCollectorTest {
                 Package(id = BCE_ID, versionName = BCE_VERSION),
             ),
         )
-        collector.updateAppVersions(store)
+        collector.collect()?.let { appVersions -> collector.record(appVersions, store) }
         coVerifyAll {
             store.upsert(
                 name = "version.$ABC_ID",
@@ -86,7 +89,7 @@ class AppVersionsCollectorTest {
 
     @Test fun packageManagerNotCalledIfNoRegexes() = runTest {
         packages = emptyList()
-        collector.updateAppVersions(store)
+        collector.collect()?.let { appVersions -> collector.record(appVersions, store) }
         verify { pmClient wasNot Called }
         verify { store wasNot Called }
     }
@@ -102,7 +105,7 @@ class AppVersionsCollectorTest {
                 Package(id = BCE_ID, versionName = BCE_VERSION),
             ),
         )
-        collector.updateAppVersions(store)
+        collector.collect()?.let { appVersions -> collector.record(appVersions, store) }
         coVerify(exactly = 3) { store.upsert(any(), any<String>(), false) }
     }
 

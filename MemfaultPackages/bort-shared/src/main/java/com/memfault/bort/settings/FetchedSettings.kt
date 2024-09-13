@@ -121,6 +121,15 @@ data class FetchedSettings(
     @Serializable(with = DurationAsMillisecondsLong::class)
     val dropBoxPollingInterval: BoxedDuration = 15.minutes.boxed(),
 
+    @SerialName("drop_box.other_tags")
+    val dropBoxOtherTags: Set<String> = setOf(
+        "SYSTEM_AUDIT",
+        "SYSTEM_BOOT",
+        "SYSTEM_FSCK",
+        "SYSTEM_RECOVERY_LOG",
+        "SYSTEM_RESTART",
+    ),
+
     @SerialName("drop_box.java_exceptions.rate_limiting_settings")
     val dropBoxJavaExceptionsRateLimitingSettings: RateLimitingSettings,
 
@@ -150,6 +159,13 @@ data class FetchedSettings(
     @SerialName("drop_box.continuous_logfile.rate_limiting_settings")
     val dropBoxContinuousLogFileLimitingSettings: RateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 4,
+        defaultPeriod = 60.minutes.boxed(),
+        maxBuckets = 1,
+    ),
+
+    @SerialName("drop_box.other_tags.rate_limiting_settings")
+    val dropBoxOtherTagsRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
+        defaultCapacity = 15,
         defaultPeriod = 60.minutes.boxed(),
         maxBuckets = 1,
     ),
@@ -275,6 +291,10 @@ data class FetchedSettings(
 
     @SerialName("metrics.data_source_enabled")
     val metricsDataSourceEnabled: Boolean,
+
+    @SerialName("metrics.polling_interval_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val metricsPollingInterval: BoxedDuration = 5.minutes.boxed(),
 
     @SerialName("metrics.properties_use_service")
     val metricsPropertiesUseService: Boolean = true,

@@ -2,6 +2,7 @@ package com.memfault.bort.metrics.database
 
 import android.app.Application
 import androidx.annotation.VisibleForTesting
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -41,13 +42,13 @@ val PREVIOUS_METRICS_DB_NAMES = listOf(
         DbMetricMetadata::class,
         DbMetricValue::class,
     ],
-    version = 1,
+    version = 2,
     // See room.schemaLocation in build.gradle for configuration of export location.
     exportSchema = true,
     // When we bump the version, enable auto-generated migrations by uncommenting:
-    // autoMigrations = [
-    //     AutoMigration (from = 1, to = 2),
-    // ],
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2),
+    ],
 )
 @TypeConverters(MetricsConverters::class)
 abstract class MetricsDb : RoomDatabase() {
@@ -70,6 +71,7 @@ data class DbReport(
     val startTimeMs: Long,
     val endTimeMs: Long? = null,
     val name: String? = null,
+    val softwareVersion: String? = null,
 )
 
 @Entity(

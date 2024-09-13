@@ -11,7 +11,6 @@ import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.dropbox.enqueueOneTimeDropBoxQueryTask
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.shared.goAsync
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -61,12 +60,10 @@ class DropBoxEntryAddedReceiver @Inject constructor(
         }
         Logger.v("Using intent for $thisTag")
 
-        goAsync {
-            dropBoxProcessedEntryCursorProvider.handleTimeFromEntryAddedIntent(intent)
+        dropBoxProcessedEntryCursorProvider.handleTimeFromEntryAddedIntent(intent)
 
-            // Note we're not using the extras (tag, time & dropped count) of the intent.
-            // The task will attempt to query and process any dropbox entry that has not been processed.
-            enqueueOneTimeDropBoxQueryTask(context)
-        }
+        // Note we're not using the extras (tag, time & dropped count) of the intent.
+        // The task will attempt to query and process any dropbox entry that has not been processed.
+        enqueueOneTimeDropBoxQueryTask(context)
     }
 }

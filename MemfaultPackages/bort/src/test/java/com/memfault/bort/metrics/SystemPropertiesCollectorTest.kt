@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 class SystemPropertiesCollectorTest {
     @Test
@@ -36,6 +37,7 @@ class SystemPropertiesCollectorTest {
             override val cachePackageManagerReport: Boolean = true
             override val recordImei: Boolean = true
             override val operationalCrashesExclusions: List<String> = emptyList()
+            override val pollingInterval: Duration = 15.minutes
         }
         val deviceImei = "12345678987654321"
         val telephony: TelephonyManager = mockk {
@@ -82,7 +84,7 @@ class SystemPropertiesCollectorTest {
             dumpsterClient = dumpsterClient,
             application = application,
         )
-        collector.updateSystemProperties(store)
+        collector.collect()?.let { collector.record(it, store) }
         coVerify(exactly = 1) {
             store.upsert(name = "sysprop.a", value = "a", internal = false)
             store.upsert(name = "sysprop.c", value = "c", internal = false)

@@ -89,11 +89,10 @@ suspend fun applyReporterServiceSettings(
             connection.setLogLevel(settingsProvider.minLogcatLevel).onFailure {
                 Logger.w("could not send log level to reporter service", it)
             }
-            val metricCollectionPeriod = if (isBortEnabled) {
-                settingsProvider.metricsSettings.reporterCollectionInterval
-            } else {
-                ZERO
-            }
+            // Now that Bort collects temperature metrics, reporter does not. Note: temperature is the only metric
+            // supported by reporter; if we ever add new ones, add a new message for configuring them. This is left here
+            // in case an older version of UsageReporter is installed, so its metric collection will be disabled.
+            val metricCollectionPeriod = ZERO
             connection.setMetricsCollectionInterval(metricCollectionPeriod).onFailure {
                 Logger.w("could not send metric collection interval to reporter service", it)
             }

@@ -86,7 +86,6 @@ class DynamicSettingsProviderTest {
             storedSettingsPreferenceProvider = storedSettingsPreferenceProvider,
             dumpsterCapabilities = dumpsterCapabilities,
             projectKeyProvider = projectKeyProvider,
-            cachedClientServerMode = mockk(),
             devMode = mockk(),
         )
 
@@ -114,7 +113,7 @@ class DynamicSettingsProviderTest {
         val prefProvider = object : ReadonlyFetchedSettingsProvider {
             override fun get(): FetchedSettings = SETTINGS_FIXTURE.toSettings()
         }
-        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities, mockk(), mockk(), projectKeyProvider)
+        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities, mockk(), projectKeyProvider)
         assertThat(provider.logcatSettings.collectionMode).isEqualTo(CONTINUOUS)
     }
 
@@ -127,7 +126,7 @@ class DynamicSettingsProviderTest {
             override fun get(): FetchedSettings = SETTINGS_FIXTURE.toSettings()
         }
 
-        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities, mockk(), mockk(), projectKeyProvider)
+        val provider = DynamicSettingsProvider(prefProvider, dumpsterCapabilities, mockk(), projectKeyProvider)
 
         assertThat(provider.logcatSettings.collectionMode).isEqualTo(PERIODIC)
     }
@@ -142,7 +141,7 @@ class DynamicSettingsProviderTest {
             override fun get(): FetchedSettings = defaultSettings
         }
 
-        val provider = DynamicSettingsProvider(prefProvider, mockk(), mockk(), mockk(), projectKeyProvider)
+        val provider = DynamicSettingsProvider(prefProvider, mockk(), mockk(), projectKeyProvider)
 
         assertThat(provider.otaSettings.downloadNetworkConstraint)
             .isEqualTo(if (allowMeteredConnection) CONNECTED else UNMETERED)
@@ -158,7 +157,7 @@ class DynamicSettingsProviderTest {
             override fun get(): FetchedSettings = defaultSettings
         }
 
-        val provider = DynamicSettingsProvider(prefProvider, mockk(), mockk(), mockk(), projectKeyProvider)
+        val provider = DynamicSettingsProvider(prefProvider, mockk(), mockk(), projectKeyProvider)
 
         assertThat(provider.otaSettings.downloadNetworkConstraint)
             .isEqualTo(NetworkType.valueOf(networkType))
@@ -302,6 +301,7 @@ private val EXPECTED_SETTINGS = EXPECTED_SETTINGS_DEFAULT.copy(
     storageUsageReporterTempMaxStorageBytes = 10000001,
     storageBortTempMaxStorageBytes = 250000001,
     batteryStatsCollectSummary = true,
+    metricsPollingInterval = 61.seconds.boxed(),
 )
 
 internal val SETTINGS_FIXTURE = """
@@ -415,6 +415,7 @@ internal val SETTINGS_FIXTURE = """
                 "metrics.system_properties": ["ro.build.type", "persist.sys.timezone"],
                 "metrics.app_versions": [],
                 "metrics.max_num_app_versions": 50,
+                "metrics.polling_interval_ms": 61000,
                 "metrics.reporter_collection_interval_ms": 600000,
                 "ota.update_check_interval_ms": 43200000,
                 "package_manager.command_timeout_ms" : 60000,

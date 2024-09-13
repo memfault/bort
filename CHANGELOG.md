@@ -1,5 +1,57 @@
 # Memfault Bort Changelog
 
+## v5.0.0 - September 12, 2024
+
+### :boom: Breaking Changes
+
+- Bort has been moved from the `system` partition to the `system-ext` partition.
+  This enables the use of Generic System Images.
+- The AOSP patches to `product/mainline.mk`/`mainline_system.mk` (Android 11)
+  and `product/generic_system.mk` (Android 12+) have been removed. These were
+  required to whitelist Bort in the `system` partition. These were the only
+  required AOSP patches if using Android 9+, meaning that all remaining AOSP
+  patches are now optional, to enhance Bort functionality (except if using
+  Android 8).
+- To support this change, we have forked the Bort SDK because of
+  backwards-incompatible `bp` file changes required to support `system-ext`. We
+  will continue to support Android 8-10 on the `8-10` branch, and the `master`
+  branch will support android versions 11+. No other work is required other than
+  making sure to check out the correct branch - the AOSP build will fail if
+  using the wrong branch.
+- You will need to remove the aforementioned patch, if already applied and
+  committed to your AOSP repo.
+
+### :rocket: New Features
+
+- Added the ability for Bort to upload any DropBoxManager tags, without the need
+  to add specific processing for each in the SDK. This is configurable from the
+  dashboard - by default we will start collecting `SYSTEM_AUDIT`, `SYSTEM_BOOT`,
+  `SYSTEM_FSCK`, `SYSTEM_RECOVERY_LOG`, `SYSTEM_RESTART` entries, which can be
+  viewed on the Device Timeline.
+
+### :construction: Fixes
+
+Bug fixes in the Bort SDK are now broken out into their own section in this
+changelog.
+
+- Fixed a bug where Bort would drop reboot events after a factory reset, if
+  `RUNTIME_ENABLE_REQUIRED=true` and Bort was not enabled at the time of boot.
+  Bort will now upload the latest reboot when it is enabled, if not already
+  processed.
+
+### :chart_with_upwards_trend: Improvements
+
+- Store the software version alongside a metric report, so that metrics will not
+  be associated with the wrong software version in the case of an OTA update.
+- Also, collect metrics immediately after boot, if an OTA update was just
+  installed - reducing the potential for metrics to be assigned to the wrong
+  software version.
+
+### :house: Internal
+
+- Refactored HRT file generation.
+- Switched to using the Room gradle plugin.
+
 ## v4.19.0 - August 13, 2024
 
 ### :rocket: New Features

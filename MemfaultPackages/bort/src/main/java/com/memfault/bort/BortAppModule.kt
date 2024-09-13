@@ -539,10 +539,14 @@ abstract class BortAppModule {
             )
 
         @Provides
-        fun dataScrubber(settingsProvider: SettingsProvider): DataScrubber = DataScrubber(
-            settingsProvider.dataScrubbingSettings.rules.filterIsInstance(LineScrubbingCleaner::class.java) +
-                CustomLogScrubber,
-        )
+        fun lineScrubbingCleaners(settingsProvider: SettingsProvider): LineScrubbingCleaners = LineScrubbingCleaners {
+            settingsProvider.dataScrubbingSettings.rules.filterIsInstance<LineScrubbingCleaner>() +
+                CustomLogScrubber
+        }
+
+        @Provides
+        fun dataScrubber(lineScrubbingCleaners: LineScrubbingCleaners): DataScrubber =
+            DataScrubber(lineScrubbingCleaners)
 
         @Provides
         fun kernelOopsDetector(
