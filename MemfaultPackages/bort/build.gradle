@@ -1,5 +1,3 @@
-import static com.memfault.bort.buildsrc.BortSettingsDownloaderKt.getBortSettingsAssetsPath
-
 apply plugin: 'com.android.application'
 apply plugin: 'com.squareup.anvil'
 apply plugin: 'dagger.hilt.android.plugin'
@@ -8,6 +6,7 @@ apply plugin: 'kotlin-kapt'
 apply plugin: 'kotlinx-serialization'
 apply from: rootProject.file("properties.gradle")
 apply plugin: 'common-android'
+apply plugin: 'androidx.room'
 
 def keystoreProperties = loadBortKeystoreProperties()
 def keystoreFilePath = getKeystoreFilePath()
@@ -33,12 +32,6 @@ android {
         buildConfigField "Boolean", "BORT_LITE", bortProperty("BORT_LITE") ?: "false"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-
-        javaCompileOptions {
-          annotationProcessorOptions {
-            arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
-          }
-        }
     }
 
     signingConfigs {
@@ -63,6 +56,10 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+}
+
+room {
+    schemaDirectory "$projectDir/schemas"
 }
 
 kapt {

@@ -13,4 +13,5 @@ cc_library_shared {
         "com/memfault/dumpster/IDumpsterBasicCommandListener.aidl",
         "com/memfault/dumpster/IDumpster.aidl",
     ],
+    system_ext_specific: true,
 }

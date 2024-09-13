@@ -14,6 +14,16 @@ cc_library_shared {
         "libbinder",
         "libutils",
     ],
+    system_ext_specific: true,
+}
+
+java_library {
+    name: "libstructuredaidl-java",
+
+    srcs: ["com/memfault/bort/internal/ILogger.aidl"],
+    aidl: {
+        local_include_dirs: ["."],
+    },
 }
 
 cc_library_shared {
@@ -38,4 +48,5 @@ cc_library_shared {
     ],
     local_include_dirs: ["deps/rapidjson-1.1.0/include"],
     export_include_dirs: ["clients/libmflt-reporting/"],
+    system_ext_specific: true,
 }

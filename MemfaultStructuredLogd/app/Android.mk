@@ -19,5 +19,6 @@ LOCAL_DEX_PREOPT := false
 
 LOCAL_INIT_RC := ../memfault_structured_logd.rc
 
+LOCAL_SYSTEM_EXT_MODULE := true
 # Tell it to build an APK
 include $(BUILD_PACKAGE)

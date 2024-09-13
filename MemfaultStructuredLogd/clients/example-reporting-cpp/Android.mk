@@ -7,4 +7,5 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS := -Wall -Werror -Wextra -Wno-unused-parameter -fexceptions
 LOCAL_CLANG := true
 LOCAL_SHARED_LIBRARIES := libmflt-reporting
+LOCAL_SYSTEM_EXT_MODULE := true
 include $(BUILD_EXECUTABLE)

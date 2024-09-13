@@ -5,15 +5,19 @@ import kotlinx.serialization.Serializable
 import org.kocakosm.jblake2.Blake2b
 import java.lang.StringBuilder
 
+fun interface LineScrubbingCleaners {
+    operator fun invoke(): List<LineScrubbingCleaner>
+}
+
 interface LineScrubbingCleaner {
     fun clean(line: String): String
 }
 
 class DataScrubber(
-    private val cleaners: List<LineScrubbingCleaner> = listOf(),
+    private val cleaners: LineScrubbingCleaners,
     private val hash: (line: String) -> String = ::blake2b,
 ) {
-    operator fun invoke(line: String): String = cleaners.fold(line) { data, matcher ->
+    operator fun invoke(line: String): String = cleaners().fold(line) { data, matcher ->
         matcher.clean(data)
     }
 

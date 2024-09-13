@@ -41,11 +41,13 @@ interface DropBoxSettings {
     val metricReportRateLimitingSettings: RateLimitingSettings
     val marFileRateLimitingSettings: RateLimitingSettings
     val continuousLogFileRateLimitingSettings: RateLimitingSettings
+    val otherDropBoxEntryRateLimitingSettings: RateLimitingSettings
     val excludedTags: Set<String>
     val forceEnableWtfTags: Boolean
     val scrubTombstones: Boolean
     val processImmediately: Boolean
     val pollingInterval: Duration
+    val otherTags: Set<String>
 }
 
 interface BatteryStatsSettings {
@@ -69,6 +71,7 @@ interface MetricsSettings {
     val cachePackageManagerReport: Boolean
     val recordImei: Boolean
     val operationalCrashesExclusions: List<String>
+    val pollingInterval: Duration
 }
 
 interface LogcatSettings {

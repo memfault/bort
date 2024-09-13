@@ -36,6 +36,7 @@ class DevicePropertiesStoreTest {
         override val cachePackageManagerReport: Boolean = true
         override val recordImei: Boolean = false
         override val operationalCrashesExclusions: List<String> = emptyList()
+        override val pollingInterval: Duration get() = 15.minutes
     }
 
     private val combinedTimeProvider = FakeCombinedTimeProvider

@@ -14,5 +14,6 @@ LOCAL_STATIC_ANDROID_LIBRARIES := memfault-reporting-lib
 LOCAL_PACKAGE_NAME := ReportingJavaTestApp
 LOCAL_PRIVATE_PLATFORM_APIS := true
 
+LOCAL_SYSTEM_EXT_MODULE := true
 # Tell it to build an APK
 include $(BUILD_PACKAGE)

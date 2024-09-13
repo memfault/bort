@@ -1,11 +1,5 @@
 package com.memfault.bort.metrics
 
-import android.content.ContentResolver
-import android.content.ContentValues
-import android.content.Context
-import android.net.Uri
-import androidx.room.Room
-import androidx.test.core.app.ApplicationProvider
 import assertk.all
 import assertk.assertThat
 import assertk.assertions.containsOnly
@@ -33,11 +27,8 @@ import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONA
 import com.memfault.bort.metrics.custom.CustomMetrics
 import com.memfault.bort.metrics.custom.CustomReport
 import com.memfault.bort.metrics.custom.MetricReport
-import com.memfault.bort.metrics.custom.RealCustomMetrics
 import com.memfault.bort.metrics.database.DbDump
 import com.memfault.bort.metrics.database.MetricsDb
-import com.memfault.bort.reporting.FinishReport
-import com.memfault.bort.reporting.MetricValue
 import com.memfault.bort.reporting.NumericAgg
 import com.memfault.bort.reporting.NumericAgg.COUNT
 import com.memfault.bort.reporting.NumericAgg.MAX
@@ -46,22 +37,13 @@ import com.memfault.bort.reporting.NumericAgg.MIN
 import com.memfault.bort.reporting.NumericAgg.SUM
 import com.memfault.bort.reporting.RemoteMetricsService
 import com.memfault.bort.reporting.Reporting
-import com.memfault.bort.reporting.StartReport
 import com.memfault.bort.reporting.StateAgg
 import com.memfault.bort.reporting.StateAgg.TIME_PER_HOUR
 import com.memfault.bort.reporting.StateAgg.TIME_TOTALS
-import com.memfault.bort.settings.DailyHeartbeatEnabled
-import com.memfault.bort.settings.HighResMetricsEnabled
-import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.time.AbsoluteTime
-import com.memfault.bort.tokenbucket.TokenBucketStore
-import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
-import org.junit.After
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -70,7 +52,6 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import java.io.IOException
 import java.time.Instant
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -91,81 +72,15 @@ class MetricsIntegrationTest {
         mapOf("operational_crashes" to JsonPrimitive(0.0)) +
             mapOf(*keys)
 
-    @get:Rule val tempFolder: TemporaryFolder = TemporaryFolder.builder().assureDeletion().build()
+    @get:Rule(order = 0)
+    val tempFolder: TemporaryFolder = TemporaryFolder.builder().assureDeletion().build()
 
-    private lateinit var db: MetricsDb
-    private lateinit var dao: CustomMetrics
+    @get:Rule(order = 1)
+    val metricsDbTestEnvironment: MetricsDbTestEnvironment =
+        MetricsDbTestEnvironment(temporaryFolder = tempFolder)
 
-    private val dailyHeartbeatEnabled = object : DailyHeartbeatEnabled {
-        var enabled: Boolean = false
-        override fun invoke(): Boolean = enabled
-    }
-
-    private var rateLimited = false
-    private val tokenBucketStore = mockk<TokenBucketStore> {
-        every { takeSimple(any(), any(), any()) } answers { !rateLimited }
-    }
-
-    private val highResMetricsEnabled = HighResMetricsEnabled { false }
-
-    @Before
-    fun setup() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        db = Room.inMemoryDatabaseBuilder(context, MetricsDb::class.java)
-            .fallbackToDestructiveMigration()
-            .allowMainThreadQueries()
-            .build()
-
-        dao = RealCustomMetrics(
-            db = db,
-            temporaryFileFactory = TestTemporaryFileFactory,
-            dailyHeartbeatEnabled = dailyHeartbeatEnabled,
-            highResMetricsEnabled = highResMetricsEnabled,
-            sessionMetricsTokenBucketStore = tokenBucketStore,
-        )
-
-        val contentResolver = mockk<ContentResolver> {
-            every { insert(any(), any()) } answers {
-                runBlocking {
-                    val uri = it.invocation.args[0] as Uri
-                    val values = it.invocation.args[1] as ContentValues
-                    when (uri) {
-                        RemoteMetricsService.URI_ADD_CUSTOM_METRIC -> {
-                            val metricJson = values.getAsString(RemoteMetricsService.KEY_CUSTOM_METRIC)
-                            val metricValue = MetricValue.fromJson(metricJson)
-                            dao.add(metricValue)
-                            uri
-                        }
-
-                        RemoteMetricsService.URI_START_CUSTOM_REPORT -> {
-                            val startJson = values.getAsString(RemoteMetricsService.KEY_CUSTOM_METRIC)
-                            val startValue = StartReport.fromJson(startJson)
-                            if (dao.start(startValue) != -1L) uri else null
-                        }
-
-                        RemoteMetricsService.URI_FINISH_CUSTOM_REPORT -> {
-                            val finishJson = values.getAsString(RemoteMetricsService.KEY_CUSTOM_METRIC)
-                            val finishValue = FinishReport.fromJson(finishJson)
-                            if (dao.finish(finishValue) != -1L) uri else null
-                        }
-
-                        else -> {
-                            error("Unhandled uri: $uri")
-                        }
-                    }
-                }
-            }
-        }
-        RemoteMetricsService.context = mockk {
-            every { getContentResolver() } returns contentResolver
-        }
-    }
-
-    @After
-    @Throws(IOException::class)
-    fun teardown() {
-        db.close()
-    }
+    private val db: MetricsDb get() = metricsDbTestEnvironment.db
+    private val dao: CustomMetrics get() = metricsDbTestEnvironment.dao
 
     @Test
     fun `happy path heartbeat`() = runTest {
@@ -206,7 +121,7 @@ class MetricsIntegrationTest {
 
     @Test
     fun `happy path daily heartbeats`() = runTest {
-        dailyHeartbeatEnabled.enabled = true
+        metricsDbTestEnvironment.dailyHeartbeatEnabledValue = true
 
         val now = System.currentTimeMillis() - 1.days.inWholeMilliseconds
 
@@ -250,7 +165,7 @@ class MetricsIntegrationTest {
 
     @Test
     fun `daily heartbeats all aggregations`() = runTest {
-        dailyHeartbeatEnabled.enabled = true
+        metricsDbTestEnvironment.dailyHeartbeatEnabledValue = true
 
         val now = System.currentTimeMillis()
 
@@ -658,38 +573,44 @@ class MetricsIntegrationTest {
         state.state(true, 0)
 
         dao.collectHeartbeat(endTimestampMs = 4).apply {
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::startTimestampMs).isEqualTo(0)
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::endTimestampMs).isEqualTo(4)
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
-                "bool_1.total_secs" to JsonPrimitive(0),
-                "bool_1.secs/hour" to JsonPrimitive(3600),
+            assertThat(hourlyHeartbeatReport).all {
+                prop(MetricReport::startTimestampMs).isEqualTo(0)
+                prop(MetricReport::endTimestampMs).isEqualTo(4)
+                prop(MetricReport::metrics).containsOnly(
+                    "bool_1.total_secs" to JsonPrimitive(0),
+                    "bool_1.secs/hour" to JsonPrimitive(3600),
 
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
-            )
+                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
+                )
+            }
         }
 
         val report2EndMs = 3.minutes.inWholeMilliseconds - 1.seconds.inWholeMilliseconds + 4
         dao.collectHeartbeat(endTimestampMs = report2EndMs).apply {
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::startTimestampMs).isEqualTo(4)
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::endTimestampMs).isEqualTo(report2EndMs)
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
-                "bool_1.total_secs" to JsonPrimitive(3.minutes.inWholeSeconds - 1),
-                "bool_1.secs/hour" to JsonPrimitive(3600),
+            assertThat(hourlyHeartbeatReport).all {
+                prop(MetricReport::startTimestampMs).isEqualTo(4)
+                prop(MetricReport::endTimestampMs).isEqualTo(report2EndMs)
+                prop(MetricReport::metrics).containsOnly(
+                    "bool_1.total_secs" to JsonPrimitive(3.minutes.inWholeSeconds - 1),
+                    "bool_1.secs/hour" to JsonPrimitive(3600),
 
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
-            )
+                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
+                )
+            }
         }
 
         val report3EndMs = 2.hours.inWholeMilliseconds + 3.minutes.inWholeMilliseconds
         dao.collectHeartbeat(endTimestampMs = report3EndMs).apply {
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::startTimestampMs).isEqualTo(report2EndMs)
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::endTimestampMs).isEqualTo(report3EndMs)
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
-                "bool_1.total_secs" to JsonPrimitive(2.hours.inWholeSeconds),
-                "bool_1.secs/hour" to JsonPrimitive(3600),
+            assertThat(hourlyHeartbeatReport).all {
+                prop(MetricReport::startTimestampMs).isEqualTo(report2EndMs)
+                prop(MetricReport::endTimestampMs).isEqualTo(report3EndMs)
+                prop(MetricReport::metrics).containsOnly(
+                    "bool_1.total_secs" to JsonPrimitive(2.hours.inWholeSeconds),
+                    "bool_1.secs/hour" to JsonPrimitive(3600),
 
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
-            )
+                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
+                )
+            }
         }
     }
 
@@ -700,30 +621,34 @@ class MetricsIntegrationTest {
 
         val report1End = 1.hours.inWholeMilliseconds
         dao.collectHeartbeat(endTimestampMs = report1End).apply {
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::startTimestampMs).isEqualTo(0)
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::endTimestampMs).isEqualTo(report1End)
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
-                "bool_1.total_secs" to JsonPrimitive(3600),
-                "bool_1.secs/hour" to JsonPrimitive(3600),
+            assertThat(hourlyHeartbeatReport).all {
+                prop(MetricReport::startTimestampMs).isEqualTo(0)
+                prop(MetricReport::endTimestampMs).isEqualTo(report1End)
+                prop(MetricReport::metrics).containsOnly(
+                    "bool_1.total_secs" to JsonPrimitive(3600),
+                    "bool_1.secs/hour" to JsonPrimitive(3600),
 
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
-            )
+                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
+                )
+            }
         }
 
         state.state(false, 1.hours.inWholeMilliseconds + 5.seconds.inWholeMilliseconds)
 
         val report2End = 1.hours.inWholeMilliseconds + 15.minutes.inWholeMilliseconds
         dao.collectHeartbeat(endTimestampMs = report2End).apply {
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::startTimestampMs).isEqualTo(report1End)
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::endTimestampMs).isEqualTo(report2End)
-            assertThat(hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
-                "bool_1.total_secs" to JsonPrimitive(5),
-                "bool_0.total_secs" to JsonPrimitive(895),
-                "bool_1.secs/hour" to JsonPrimitive(20),
-                "bool_0.secs/hour" to JsonPrimitive(3580),
+            assertThat(hourlyHeartbeatReport).all {
+                prop(MetricReport::startTimestampMs).isEqualTo(report1End)
+                prop(MetricReport::endTimestampMs).isEqualTo(report2End)
+                prop(MetricReport::metrics).containsOnly(
+                    "bool_1.total_secs" to JsonPrimitive(5),
+                    "bool_0.total_secs" to JsonPrimitive(895),
+                    "bool_1.secs/hour" to JsonPrimitive(20),
+                    "bool_0.secs/hour" to JsonPrimitive(3580),
 
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
-            )
+                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
+                )
+            }
         }
     }
 
@@ -790,7 +715,7 @@ class MetricsIntegrationTest {
         }
 
         Reporting.report()
-            .counter(name = CrashFreeHoursMetricLogger.OPERATIONAL_CRASHES_METRIC_KEY)
+            .counter(name = OPERATIONAL_CRASHES_METRIC_KEY)
             .incrementBy(3)
 
         Reporting.finishSession("session-1")

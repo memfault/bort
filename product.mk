@@ -31,3 +31,5 @@ ifeq ($(TARGET_BUILD_BORT_UNDER_TEST),1)
                         reporting-client-example-c \
                         ReportingJavaTestApp
 endif
+
+include $(BORT_PATH)/version_check.mk

@@ -20,7 +20,6 @@ import androidx.work.WorkInfo.Companion.STOP_REASON_UNKNOWN
 import androidx.work.WorkInfo.Companion.STOP_REASON_USER
 import com.memfault.bort.DevMode
 import com.memfault.bort.DumpsterCapabilities
-import com.memfault.bort.clientserver.CachedClientServerMode
 import com.memfault.bort.dagger.InjectSet
 import com.memfault.bort.settings.DynamicSettingsProvider
 import com.memfault.bort.settings.FetchedSettingsUpdate
@@ -62,7 +61,6 @@ abstract class PeriodicWorkRequester {
     class PeriodicWorkManager @Inject constructor(
         private val periodicWorkRequesters: InjectSet<PeriodicWorkRequester>,
         private val dumpsterCapabilities: DumpsterCapabilities,
-        private val cachedClientServerMode: CachedClientServerMode,
         private val devMode: DevMode,
         private val projectKeyProvider: ProjectKeyProvider,
         private val settingsProvider: SettingsProvider,
@@ -73,7 +71,6 @@ abstract class PeriodicWorkRequester {
                     override fun get() = input.old
                 },
                 dumpsterCapabilities,
-                cachedClientServerMode,
                 devMode,
                 projectKeyProvider,
             )
@@ -82,7 +79,6 @@ abstract class PeriodicWorkRequester {
                     override fun get() = input.new
                 },
                 dumpsterCapabilities,
-                cachedClientServerMode,
                 devMode,
                 projectKeyProvider,
             )
