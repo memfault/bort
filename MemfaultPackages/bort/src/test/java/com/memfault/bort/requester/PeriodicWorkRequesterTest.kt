@@ -2,7 +2,6 @@ package com.memfault.bort.requester
 
 import com.memfault.bort.DevMode
 import com.memfault.bort.DumpsterCapabilities
-import com.memfault.bort.clientserver.CachedClientServerMode
 import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
 import com.memfault.bort.settings.DynamicSettingsProvider
 import com.memfault.bort.settings.FetchedSettingsUpdate
@@ -55,7 +54,6 @@ internal class PeriodicWorkRequesterTest {
     )
     private val requesters = setOf(requester)
     private val dumpsterCapabilities: DumpsterCapabilities = mockk()
-    private val cachedClientServerMode: CachedClientServerMode = mockk()
     private val devMode: DevMode = mockk()
     private val projectKeyProvider: ProjectKeyProvider = mockk()
     private val settingsProvider = DynamicSettingsProvider(
@@ -63,14 +61,12 @@ internal class PeriodicWorkRequesterTest {
             override fun get() = newSettings
         },
         dumpsterCapabilities,
-        cachedClientServerMode,
         devMode,
         projectKeyProvider,
     )
     private val manager = PeriodicWorkManager(
         periodicWorkRequesters = requesters,
         dumpsterCapabilities = dumpsterCapabilities,
-        cachedClientServerMode = cachedClientServerMode,
         devMode = devMode,
         projectKeyProvider = projectKeyProvider,
         settingsProvider = settingsProvider,

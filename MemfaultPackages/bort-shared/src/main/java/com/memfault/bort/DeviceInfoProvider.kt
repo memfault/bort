@@ -24,18 +24,19 @@ class RealDeviceInfoProvider @Inject constructor(
 ) : DeviceInfoProvider {
     private val deviceInfo = CachedAsyncProperty {
         DeviceInfo.fromSettingsAndSystemProperties(
-            lastSettings,
-            dumpsterClient.getprop() ?: emptyMap(),
-            application,
+            settings = lastSettings,
+            props = dumpsterClient.getprop() ?: emptyMap(),
+            context = application,
         )
     }
     private var lastSettings = deviceInfoSettings.asParams(overrideSerial)
     private val mutex = Mutex()
 
     override suspend fun getDeviceInfo(): DeviceInfo = mutex.withLock {
-        if (lastSettings != deviceInfoSettings.asParams(overrideSerial)) {
+        val newSettings = deviceInfoSettings.asParams(overrideSerial)
+        if (lastSettings != newSettings) {
             Logger.d("Invalidating deviceInfo")
-            lastSettings = deviceInfoSettings.asParams(overrideSerial)
+            lastSettings = newSettings
             deviceInfo.invalidate()
         }
         deviceInfo.get()

@@ -1,12 +1,13 @@
 package com.memfault.bort
 
-import org.junit.jupiter.api.Assertions.assertEquals
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import org.junit.jupiter.api.Test
 
 class DataScrubbingTest {
     @Test
     fun emailMatcher() {
-        assertEquals(
+        assertThat(
             listOf(
                 "mail@example.com",
                 "test@gmail.com",
@@ -16,6 +17,7 @@ class DataScrubbingTest {
                 "two@@example.com",
                 "nobody@notld",
             ).map { EmailScrubbingRule.clean(it) },
+        ).isEqualTo(
             listOf(
                 "{{EMAIL}}",
                 "{{EMAIL}}",
@@ -30,11 +32,12 @@ class DataScrubbingTest {
 
     @Test
     fun credentialMatcher() {
-        assertEquals(
+        assertThat(
             listOf(
                 "username: root password: root",
                 "short u: root p: root",
             ).map { CredentialScrubbingRule.clean(it) },
+        ).isEqualTo(
             listOf(
                 "username: {{USERNAME}} password: {{PASSWORD}}",
                 "short u: {{USERNAME}} p: {{PASSWORD}}",
@@ -44,18 +47,21 @@ class DataScrubbingTest {
 
     @Test
     fun testScrubbing() {
-        val scrubber = DataScrubber(listOf(EmailScrubbingRule, CredentialScrubbingRule))
-        assertEquals(
-            listOf(
-                "regular line",
-                "something something {{EMAIL}}",
-                "u: {{USERNAME}} password: {{PASSWORD}}",
-            ),
+        val scrubber = DataScrubber(
+            cleaners = { listOf(EmailScrubbingRule, CredentialScrubbingRule) },
+        )
+        assertThat(
             sequenceOf(
                 "regular line",
                 "something something secret@mflt.com",
                 "u: root password: hunter2",
             ).scrubbedWith(scrubber).toList(),
+        ).isEqualTo(
+            listOf(
+                "regular line",
+                "something something {{EMAIL}}",
+                "u: {{USERNAME}} password: {{PASSWORD}}",
+            ),
         )
     }
 
@@ -64,6 +70,7 @@ class DataScrubbingTest {
         // Not meant to fully test blake2b, just to check that it returns the same as the backend
         // λ python3 -sBc 'import hashlib;print(hashlib.blake2b("MEMFAULT".encode(), digest_size=4).hexdigest())'
         //   b047528a
-        assertEquals("***SCRUBBED-b047528a***", DataScrubber().scrubEntirely("MEMFAULT"))
+        assertThat(DataScrubber(cleaners = { emptyList() }).scrubEntirely("MEMFAULT"))
+            .isEqualTo("***SCRUBBED-b047528a***")
     }
 }

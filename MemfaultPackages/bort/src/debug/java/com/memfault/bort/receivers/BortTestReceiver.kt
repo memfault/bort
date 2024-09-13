@@ -7,8 +7,10 @@ import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.memfault.bort.OverrideDeviceInfo
 import com.memfault.bort.RealDevMode
 import com.memfault.bort.TemporaryFileFactory
+import com.memfault.bort.TestDeviceInfoProvider
 import com.memfault.bort.TestOverrideSettings
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
 import com.memfault.bort.clientserver.MarMetadata
@@ -18,17 +20,15 @@ import com.memfault.bort.dropbox.DropBoxLastProcessedEntryProvider
 import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.logcat.NextLogcatStartTimeProvider
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger
-import com.memfault.bort.metrics.LastHeartbeatEndTimeProvider
 import com.memfault.bort.reporting.Reporting
+import com.memfault.bort.requester.MetricsCollectionRequester
 import com.memfault.bort.requester.restartPeriodicLogcatCollection
-import com.memfault.bort.requester.restartPeriodicMetricsCollection
 import com.memfault.bort.selftest.SelfTestWorker
 import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.SettingsUpdateRequester
 import com.memfault.bort.settings.StoredSettingsPreferenceProvider
 import com.memfault.bort.settings.asLoggerSettings
-import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.goAsync
 import com.memfault.bort.time.AbsoluteTime
@@ -56,6 +56,7 @@ import com.memfault.bort.reporting.Reporting as Kotlin_Reporting
 private const val INTENT_EXTRA_ECHO_STRING = "echo"
 private const val INTENT_EXTRA_BORT_ERROR = "com.memfault.intent.extra.BORT_ERROR"
 const val INTENT_EXTRA_BORT_LITE = "com.memfault.intent.extra.BORT_LITE"
+private const val INTENT_EXTRA_BORT_SOFTWARE_VERSION = "com.memfault.intent.extra.BORT_SWV"
 private const val WORK_UNIQUE_NAME_SELF_TEST = "com.memfault.bort.work.SELF_TEST"
 
 @AndroidEntryPoint
@@ -75,13 +76,12 @@ class BortTestReceiver : FilteringReceiver(
         "com.memfault.intent.action.TEST_CDR",
         "com.memfault.intent.action.TEST_CRASH_FREE_HOURS_METRICS",
         "com.memfault.intent.action.TEST_BORT_ERROR",
+        "com.memfault.intent.action.TEST_BORT_CHANGE_SOFTWARE_VERSION",
     ),
 ) {
     @Inject lateinit var settingsProvider: SettingsProvider
 
     @Inject lateinit var fileUploadHoldingArea: FileUploadHoldingArea
-
-    @Inject lateinit var jitterDelayProvider: JitterDelayProvider
 
     @Inject lateinit var storedSettingsPreferenceProvider: StoredSettingsPreferenceProvider
 
@@ -103,8 +103,6 @@ class BortTestReceiver : FilteringReceiver(
 
     @Inject lateinit var nextLogcatStartTimeProvider: NextLogcatStartTimeProvider
 
-    @Inject lateinit var lastHeartbeatEndTimeProvider: LastHeartbeatEndTimeProvider
-
     @Inject lateinit var testOverrideSettings: TestOverrideSettings
 
     @Inject lateinit var bortErrors: BortErrors
@@ -112,6 +110,10 @@ class BortTestReceiver : FilteringReceiver(
     @Inject lateinit var devMode: RealDevMode
 
     @Inject lateinit var settingsUpdateRequester: SettingsUpdateRequester
+
+    @Inject lateinit var metricsCollectionRequester: MetricsCollectionRequester
+
+    @Inject lateinit var testDeviceInfoProvider: TestDeviceInfoProvider
 
     override fun onIntentReceived(
         context: Context,
@@ -162,18 +164,7 @@ class BortTestReceiver : FilteringReceiver(
                 Logger.test("cid=${nextLogcatCidProvider.cid.uuid}")
             }
 
-            "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION" -> {
-                restartPeriodicMetricsCollection(
-                    context = context,
-                    lastHeartbeatEndTimeProvider = lastHeartbeatEndTimeProvider,
-                    // Something long to ensure it does not re-run & interfere with tests:
-                    collectionInterval = 1.days,
-                    // Pretend the heartbeat started an hour ago:
-                    lastHeartbeatEnd = bootRelativeTimeProvider.now() - 1.hours,
-                    collectImmediately = true,
-                    cancel = true,
-                )
-
+            "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION" -> goAsync {
                 // Kotlin based reporting library
                 Kotlin_Reporting.report()
                     .counter("reporting_kotlin_test_metric")
@@ -192,6 +183,14 @@ class BortTestReceiver : FilteringReceiver(
                 sync.success()
                 sync.failure()
                 sync.failure()
+
+                metricsCollectionRequester.restartPeriodicCollection(
+                    // Something long to ensure it does not re-run & interfere with tests:
+                    collectionInterval = 1.days,
+                    // Pretend the heartbeat started an hour ago:
+                    resetLastHeartbeatTime = bootRelativeTimeProvider.now() - 1.hours,
+                    collectImmediately = true,
+                )
             }
 
             "com.memfault.intent.action.TEST_REQUEST_SETTINGS_UPDATE" -> {
@@ -241,6 +240,14 @@ class BortTestReceiver : FilteringReceiver(
                         "line" to "test line",
                     ),
                 )
+            }
+
+            "com.memfault.intent.action.TEST_BORT_CHANGE_SOFTWARE_VERSION" -> {
+                val swv = intent.getStringExtra(INTENT_EXTRA_BORT_SOFTWARE_VERSION) ?: "software-version"
+
+                testDeviceInfoProvider.overrideDeviceInfo = OverrideDeviceInfo { deviceInfo ->
+                    deviceInfo.copy(softwareVersion = swv)
+                }
             }
         }
     }

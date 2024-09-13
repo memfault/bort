@@ -31,6 +31,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.time.Duration
 
 private const val WORK_TAG_PERIODIC = "DROPBOX_QUERY"
 private const val WORK_TAG_ONE_OFF = "DROPBOX_POLL"
@@ -181,4 +182,7 @@ class DropboxRequester @Inject constructor(
     override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean {
         return old.dropBoxSettings.pollingInterval != new.dropBoxSettings.pollingInterval
     }
+
+    suspend fun isScheduledAt(settings: SettingsProvider): Duration? =
+        if (enabled(settings)) dropBoxSettings.pollingInterval else null
 }

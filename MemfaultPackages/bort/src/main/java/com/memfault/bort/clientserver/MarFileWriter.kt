@@ -177,7 +177,7 @@ class MarFileWriter @Inject constructor(
     }
 }
 
-fun DeviceInfo.asDevice(projectKey: String) = MarDevice(
+fun DeviceInfo.asMarDevice(projectKey: String) = MarDevice(
     projectKey = projectKey,
     hardwareVersion = hardwareVersion,
     softwareVersion = softwareVersion,

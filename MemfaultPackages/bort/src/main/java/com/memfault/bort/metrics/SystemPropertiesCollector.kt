@@ -12,6 +12,11 @@ import com.memfault.bort.shared.ClientServerMode
 import com.memfault.bort.shared.Logger
 import javax.inject.Inject
 
+data class DeviceSystemProperties(
+    val properties: Map<String, String>,
+    val propertyTypes: Map<String, String>,
+)
+
 /**
  * Collects system properties of interest, and passes them on to the device properties database.
  */
@@ -20,12 +25,19 @@ class SystemPropertiesCollector @Inject constructor(
     private val dumpsterClient: DumpsterClient,
     private val application: Application,
 ) {
-    suspend fun updateSystemProperties(devicePropertiesStore: DevicePropertiesStore) {
-        val systemProperties = dumpsterClient.getprop() ?: return
-        val systemPropertyTypes = dumpsterClient.getpropTypes() ?: return
+    suspend fun collect(): DeviceSystemProperties? {
+        val systemProperties = dumpsterClient.getprop() ?: return null
+        val systemPropertyTypes = dumpsterClient.getpropTypes() ?: return null
+        return DeviceSystemProperties(
+            properties = systemProperties,
+            propertyTypes = systemPropertyTypes,
+        )
+    }
+
+    fun record(deviceSystemProperties: DeviceSystemProperties, devicePropertiesStore: DevicePropertiesStore) {
         updateSystemPropertiesWith(
-            systemProperties = systemProperties,
-            systemPropertyTypes = systemPropertyTypes,
+            systemProperties = deviceSystemProperties.properties,
+            systemPropertyTypes = deviceSystemProperties.propertyTypes,
             devicePropertiesStore = devicePropertiesStore,
         )
         if (settings.recordImei) {

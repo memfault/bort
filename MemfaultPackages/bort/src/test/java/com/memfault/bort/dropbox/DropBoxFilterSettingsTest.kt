@@ -48,11 +48,13 @@ class DropBoxFilterSettingsTest {
         override val metricReportRateLimitingSettings = mockRateLimitingSettings
         override val marFileRateLimitingSettings = mockRateLimitingSettings
         override val continuousLogFileRateLimitingSettings = mockRateLimitingSettings
+        override val otherDropBoxEntryRateLimitingSettings = mockRateLimitingSettings
         override val excludedTags get() = mockGetExcludedTags
         override val forceEnableWtfTags: Boolean = true
         override val scrubTombstones: Boolean = false
         override val processImmediately: Boolean = true
         override val pollingInterval: Duration = 15.minutes
+        override val otherTags: Set<String> = emptySet()
     }
 
     @BeforeEach

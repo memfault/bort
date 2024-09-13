@@ -2,7 +2,6 @@ package com.memfault.bort.receivers
 
 import android.content.Context
 import android.content.Intent
-import android.provider.Settings
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.ReporterServiceConnector
@@ -85,16 +84,14 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
     @Inject
     lateinit var nextLogcatStartTimeProvider: NextLogcatStartTimeProvider
 
-    private fun onPackageReplaced() {
-        goAsync {
-            periodicWorkManager.scheduleTasksAfterBootOrEnable(
-                bortEnabled = bortEnabledProvider.isEnabled(),
-                justBooted = false,
-            )
-        }
+    private suspend fun onPackageReplaced() {
+        periodicWorkManager.scheduleTasksAfterBootOrEnable(
+            bortEnabled = bortEnabledProvider.isEnabled(),
+            justBooted = false,
+        )
     }
 
-    private fun onBootCompleted(context: Context) {
+    private suspend fun onBootCompleted() {
         Logger.logEvent("boot")
 
         if (linuxRebootTracker.checkAndUnset()) {
@@ -103,33 +100,28 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         }
         crashHandler.onBoot()
 
-        goAsync {
-            val bortEnabled = bortEnabledProvider.isEnabled()
-            // Note - this doesn't do anything if Bort is disabled (this method isn't called).
-            dumpsterClient.setBortEnabled(bortEnabled)
-            dumpsterClient.setStructuredLogEnabled(settingsProvider.structuredLogSettings.dataSourceEnabled)
-            // Pass the new settings to structured logging (after we enable/disable it)
-            reloadCustomEventConfigFrom(settingsProvider.structuredLogSettings)
-            clientDeviceInfoSender.maybeSendDeviceInfoToServer()
+        val bortEnabled = bortEnabledProvider.isEnabled()
+        // Note - this doesn't do anything if Bort is disabled (this method isn't called).
+        dumpsterClient.setBortEnabled(bortEnabled)
+        dumpsterClient.setStructuredLogEnabled(settingsProvider.structuredLogSettings.dataSourceEnabled)
+        // Pass the new settings to structured logging (after we enable/disable it)
+        reloadCustomEventConfigFrom(settingsProvider.structuredLogSettings)
+        clientDeviceInfoSender.maybeSendDeviceInfoToServer()
 
-            applyReporterServiceSettings(
-                reporterServiceConnector = reporterServiceConnector,
-                settingsProvider = settingsProvider,
-                bortEnabledProvider = bortEnabledProvider,
-            )
+        applyReporterServiceSettings(
+            reporterServiceConnector = reporterServiceConnector,
+            settingsProvider = settingsProvider,
+            bortEnabledProvider = bortEnabledProvider,
+        )
 
-            continuousLoggingController.configureContinuousLogging()
+        continuousLoggingController.configureContinuousLogging()
 
-            if (settingsProvider.rebootEventsSettings.dataSourceEnabled) {
-                val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
-                bootCountTracker.trackIfNeeded(bootCount)
-            }
+        bootCountTracker.trackIfNeeded()
 
-            periodicWorkManager.scheduleTasksAfterBootOrEnable(
-                bortEnabled = bortEnabledProvider.isEnabled(),
-                justBooted = false,
-            )
-        }
+        periodicWorkManager.scheduleTasksAfterBootOrEnable(
+            bortEnabled = bortEnabledProvider.isEnabled(),
+            justBooted = true,
+        )
     }
 
     private fun onTimeChanged() {
@@ -137,10 +129,10 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
         dropBoxProcessedEntryCursorProvider.handleTimeChange()
     }
 
-    override fun onReceivedAndEnabled(context: Context, intent: Intent, action: String) {
+    override fun onReceivedAndEnabled(context: Context, intent: Intent, action: String) = goAsync {
         when (action) {
             Intent.ACTION_MY_PACKAGE_REPLACED -> onPackageReplaced()
-            Intent.ACTION_BOOT_COMPLETED -> onBootCompleted(context)
+            Intent.ACTION_BOOT_COMPLETED -> onBootCompleted()
             Intent.ACTION_TIME_CHANGED -> onTimeChanged()
         }
     }

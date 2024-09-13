@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics.custom
 
+import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.battery.BATTERY_CHARGING_METRIC
 import com.memfault.bort.battery.BATTERY_LEVEL_METRIC
@@ -8,8 +9,11 @@ import com.memfault.bort.connectivity.CONNECTIVITY_TYPE_METRIC
 import com.memfault.bort.connectivity.ConnectivityTimeCalculator
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_CRASHES_METRIC_KEY
 import com.memfault.bort.metrics.database.DAILY_HEARTBEAT_REPORT_TYPE
+import com.memfault.bort.metrics.database.DbReport
+import com.memfault.bort.metrics.database.DbReportBuilder
 import com.memfault.bort.metrics.database.DerivedAggregation
 import com.memfault.bort.metrics.database.HOURLY_HEARTBEAT_REPORT_TYPE
+import com.memfault.bort.metrics.database.HrtFileFactory
 import com.memfault.bort.metrics.database.MetricsDb
 import com.memfault.bort.metrics.database.SESSION_REPORT_TYPE
 import com.memfault.bort.reporting.FinishReport
@@ -23,17 +27,29 @@ import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Note that the software version isn't "changed" if it wasn't known to begin with (because it was null).
+ */
+suspend fun CustomMetrics.softwareVersionChanged(deviceSoftwareVersion: String): Boolean {
+    val heartbeat = startedHeartbeatOrNull()
+    return heartbeat != null && heartbeat.softwareVersion != deviceSoftwareVersion
+}
+
 interface CustomMetrics {
     suspend fun add(metric: MetricValue): Long
     suspend fun start(start: StartReport): Long
     suspend fun finish(finish: FinishReport): Long
-    suspend fun collectHeartbeat(endTimestampMs: Long): CustomReport
+    suspend fun startedHeartbeatOrNull(): DbReport?
+
+    suspend fun collectHeartbeat(
+        endTimestampMs: Long,
+        forceEndAllReports: Boolean = false,
+    ): CustomReport
 }
 
 private val SYNC_METRICS = setOf(
@@ -60,30 +76,37 @@ class RealCustomMetrics @Inject constructor(
     private val dailyHeartbeatEnabled: DailyHeartbeatEnabled,
     private val highResMetricsEnabled: HighResMetricsEnabled,
     @SessionMetrics private val sessionMetricsTokenBucketStore: TokenBucketStore,
+    private val deviceInfoProvider: DeviceInfoProvider,
 ) : CustomMetrics {
     private val mutex = Mutex()
+
+    private val dbReportBuilder = DbReportBuilder { report ->
+        report.copy(
+            softwareVersion = deviceInfoProvider.getDeviceInfo().softwareVersion,
+        )
+    }
 
     override suspend fun add(metric: MetricValue): Long = mutex.withLock {
         if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
             metric.eventName == OPERATIONAL_CRASHES_METRIC_KEY
         ) {
-            db.dao().insertAllReports(metric)
+            db.dao().insertAllReports(metric, dbReportBuilder)
         } else if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
             metric.eventName == CONNECTIVITY_TYPE_METRIC
         ) {
-            db.dao().insertAllReports(metric)
+            db.dao().insertAllReports(metric, dbReportBuilder)
         } else if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
             metric.eventName in SYNC_METRICS
         ) {
-            db.dao().insertAllReports(metric)
+            db.dao().insertAllReports(metric, dbReportBuilder)
         } else if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
             metric.eventName in BATTERY_METRICS
         ) {
-            db.dao().insert(metric, overrideReportType = DAILY_HEARTBEAT_REPORT_TYPE)
+            db.dao().insert(metric, dbReportBuilder, overrideReportType = DAILY_HEARTBEAT_REPORT_TYPE)
         } else if (metric.reportType == SESSION_REPORT_TYPE) {
             db.dao().insertSessionMetric(metric)
         } else if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE) {
-            db.dao().insert(metric)
+            db.dao().insert(metric, dbReportBuilder)
         } else {
             -1
         }
@@ -98,11 +121,13 @@ class RealCustomMetrics @Inject constructor(
                         startReport = start,
                         hourlyHeartbeatReportType = HOURLY_HEARTBEAT_REPORT_TYPE,
                         latestMetricKeys = listOf(CONNECTIVITY_TYPE_METRIC),
+                        dbReportBuilder = dbReportBuilder,
                     )
                 } else {
                     -1
                 }
             }
+
             else -> {
                 -1
             }
@@ -117,7 +142,13 @@ class RealCustomMetrics @Inject constructor(
         }
     }
 
-    override suspend fun collectHeartbeat(endTimestampMs: Long): CustomReport = mutex.withLock {
+    override suspend fun startedHeartbeatOrNull(): DbReport? =
+        db.dao().singleStartedReport(reportType = HOURLY_HEARTBEAT_REPORT_TYPE)
+
+    override suspend fun collectHeartbeat(
+        endTimestampMs: Long,
+        forceEndAllReports: Boolean,
+    ): CustomReport = mutex.withLock {
         val report = db.dao().collectHeartbeat(
             dailyHeartbeatReportType = if (dailyHeartbeatEnabled()) {
                 DAILY_HEARTBEAT_REPORT_TYPE
@@ -125,10 +156,12 @@ class RealCustomMetrics @Inject constructor(
                 null
             },
             endTimestampMs = endTimestampMs,
-            hrtFile = if (highResMetricsEnabled()) {
-                temporaryFileFactory.createTemporaryFile(suffix = "hrt").useFile { file, preventDeletion ->
-                    preventDeletion()
-                    file
+            hrtFileFactory = if (highResMetricsEnabled()) {
+                HrtFileFactory {
+                    temporaryFileFactory.createTemporaryFile(suffix = "hrt").useFile { file, preventDeletion ->
+                        preventDeletion()
+                        file
+                    }
                 }
             } else {
                 null
@@ -145,6 +178,8 @@ class RealCustomMetrics @Inject constructor(
                 aggregations
             },
             dailyHeartbeatReportMetricsForSessions = BATTERY_METRICS.toList(),
+            dbReportBuilder = dbReportBuilder,
+            forceEndAllReports = forceEndAllReports,
         )
 
         // Perform additional modifications on the generated heartbeat and session reports.
@@ -204,10 +239,8 @@ data class CustomReport(
     val hourlyHeartbeatReport: MetricReport,
     val dailyHeartbeatReport: MetricReport?,
     val sessions: List<MetricReport> = emptyList(),
-    val hrt: File?,
 )
 
-@Serializable
 data class MetricReport(
     val version: Int,
     val startTimestampMs: Long,
@@ -216,4 +249,6 @@ data class MetricReport(
     val reportName: String? = null,
     val metrics: Map<String, JsonPrimitive>,
     val internalMetrics: Map<String, JsonPrimitive> = mapOf(),
+    val hrt: File?,
+    val softwareVersion: String?,
 )

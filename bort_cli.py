@@ -26,23 +26,26 @@ PLACEHOLDER_BORT_AOSP_PATCH_VERSION = "manually_patched"
 PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_BORT_OTA_APP_ID = "vnd.myandroid.bort.otaappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
+PLACEHOLDER_SYSTEM = "__SYSTEM_PATH__"
 RELEASES = range(8, 14 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 GRADLE_PROPERTIES = os.path.join(SCRIPT_DIR, "MemfaultPackages", "gradle.properties")
 PYTHON_MIN_VERSION = (3, 6, 0)
 USAGE_REPORTER_APPLICATION_ID = "com.memfault.usagereporter"
-USAGE_REPORTER_APK_PATH = (
-    r"package:/system/priv-app/MemfaultUsageReporter/MemfaultUsageReporter.apk"
-)
-MEMFAULT_DUMPSTATE_RUNNER_PATH = "/system/bin/MemfaultDumpstateRunner"
-MEMFAULT_INIT_RC_PATH = "/etc/init/memfault_init.rc"
-MEMFAULT_DUMPSTER_PATH = "/system/bin/MemfaultDumpster"
+USAGE_REPORTER_APK_PATH = r"package:/(system|system_ext|system/system_ext)/priv-app/MemfaultUsageReporter/MemfaultUsageReporter.apk"
+MEMFAULT_DUMPSTATE_RUNNER_PATH = f"/{PLACEHOLDER_SYSTEM}/bin/MemfaultDumpstateRunner"
+MEMFAULT_INIT_RC_PATH = f"/{PLACEHOLDER_SYSTEM}/etc/init/memfault_init.rc"
+MEMFAULT_DUMPSTER_PATH = f"/{PLACEHOLDER_SYSTEM}/bin/MemfaultDumpster"
 MEMFAULT_DUMPSTER_DATA_PATH = "/data/system/MemfaultDumpster/"
-MEMFAULT_DUMPSTER_RC_PATH = "/etc/init/memfault_dumpster.rc"
-MEMFAULT_STRUCTURED_RC_PATH = "/etc/init/memfault_structured_logd.rc"
+MEMFAULT_DUMPSTER_RC_PATH = f"/{PLACEHOLDER_SYSTEM}/etc/init/memfault_dumpster.rc"
+MEMFAULT_STRUCTURED_RC_PATH = f"/{PLACEHOLDER_SYSTEM}/etc/init/memfault_structured_logd.rc"
 MEMFAULT_STRUCTURED_APPLICATION_ID = "com.memfault.structuredlogd"
-BORT_APK_PATH = r"package:/system/priv-app/MemfaultBort/MemfaultBort.apk"
-BORT_OTA_APK_PATH = r"package:/system/priv-app/MemfaultBortOta/MemfaultBortOta.apk"
+BORT_APK_PATH = (
+    r"package:/(system|system_ext|system/system_ext)/priv-app/MemfaultBort/MemfaultBort.apk"
+)
+BORT_OTA_APK_PATH = (
+    r"package:/(system|system_ext|system/system_ext)/priv-app/MemfaultBortOta/MemfaultBortOta.apk"
+)
 VENDOR_CIL_PATH = "/vendor/etc/selinux/vendor_sepolicy.cil"
 LOG_ENTRY_SEPARATOR = "============================================================"
 
@@ -782,6 +785,19 @@ class ValidateConnectedDevice(Command):
         self._vendor_feature_name = vendor_feature_name or bort_app_id
         self._errors = []
         self._ignore_enabled = ignore_enabled
+        sdk_version = self._query_sdk_version()
+        if not sdk_version:
+            sys.exit("Failure: could not get SDK version.")
+
+        self.sdk_version = sdk_version
+        if self.sdk_version >= 30:
+            self.path_placeholders = {
+                PLACEHOLDER_SYSTEM: "system_ext",
+            }
+        else:
+            self.path_placeholders = {
+                PLACEHOLDER_SYSTEM: "system",
+            }
 
     @classmethod
     def register(cls, create_parser):
@@ -843,7 +859,7 @@ class ValidateConnectedDevice(Command):
 
         self._errors.extend(
             _check_file_ownership_and_secontext(
-                path=MEMFAULT_DUMPSTATE_RUNNER_PATH,
+                path=_replace_placeholders(MEMFAULT_DUMPSTATE_RUNNER_PATH, self.path_placeholders),
                 mode="-rwxr-xr-x",
                 owner="root",
                 group="shell",
@@ -854,7 +870,7 @@ class ValidateConnectedDevice(Command):
 
         self._errors.extend(
             _check_file_ownership_and_secontext(
-                path=MEMFAULT_INIT_RC_PATH,
+                path=_replace_placeholders(MEMFAULT_INIT_RC_PATH, self.path_placeholders),
                 mode="-rw-r--r--",
                 owner="root",
                 group="root",
@@ -865,7 +881,7 @@ class ValidateConnectedDevice(Command):
 
         self._errors.extend(
             _check_file_ownership_and_secontext(
-                path=MEMFAULT_DUMPSTER_PATH,
+                path=_replace_placeholders(MEMFAULT_DUMPSTER_PATH, self.path_placeholders),
                 mode="-rwxr-xr-x",
                 owner="root",
                 group="shell",
@@ -876,7 +892,7 @@ class ValidateConnectedDevice(Command):
 
         self._errors.extend(
             _check_file_ownership_and_secontext(
-                path=MEMFAULT_DUMPSTER_RC_PATH,
+                path=_replace_placeholders(MEMFAULT_DUMPSTER_RC_PATH, self.path_placeholders),
                 mode="-rw-r--r--",
                 owner="root",
                 group="root",
@@ -925,7 +941,7 @@ class ValidateConnectedDevice(Command):
 
         self._errors.extend(
             _check_file_ownership_and_secontext(
-                path=MEMFAULT_STRUCTURED_RC_PATH,
+                path=_replace_placeholders(MEMFAULT_STRUCTURED_RC_PATH, self.path_placeholders),
                 mode="-rw-r--r--",
                 owner="root",
                 group="root",
@@ -1072,17 +1088,13 @@ Row: 1 key=requires_runtime_enable, value=true
             _log_errors(errors)
             sys.exit("Failure: device not found. No tests run.")
 
-        sdk_version = self._query_sdk_version()
-        if not sdk_version:
-            sys.exit("Failure: could not get SDK version.")
-
         build_type = self._query_build_type()
         if build_type == "user":
             logging.info(
                 "'%s' build detected. Skipping validation checks that require adb root!", build_type
             )
         else:
-            self._run_checks_requiring_root(sdk_version)
+            self._run_checks_requiring_root(self.sdk_version)
 
         self._errors.extend(
             _run_adb_shell_cmd_and_expect(
@@ -1129,7 +1141,7 @@ Row: 1 key=requires_runtime_enable, value=true
             _get_package_info, (self._bort_app_id, USAGE_REPORTER_APPLICATION_ID)
         )
 
-        self._check_bort_permissions(bort_package_info, sdk_version)
+        self._check_bort_permissions(bort_package_info, self.sdk_version)
         self._check_package_versions(bort_package_info, usage_reporter_package_info)
 
         self._errors.extend(

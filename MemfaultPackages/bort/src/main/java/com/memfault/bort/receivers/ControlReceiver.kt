@@ -21,6 +21,7 @@ import com.memfault.bort.OverrideSerial
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.RealDevMode
 import com.memfault.bort.ReporterServiceConnector
+import com.memfault.bort.boot.BootCountTracker
 import com.memfault.bort.broadcastReply
 import com.memfault.bort.clientserver.ClientDeviceInfoSender
 import com.memfault.bort.dropbox.DropBoxTagEnabler
@@ -45,9 +46,6 @@ import com.memfault.bort.tokenbucket.BugReportRequestStore
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.FileUploadHoldingArea
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -99,10 +97,12 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
 
     @Inject lateinit var overrideSerial: OverrideSerial
 
+    @Inject lateinit var bootCountTracker: BootCountTracker
+
     private fun allowedByRateLimit(): Boolean =
         tokenBucketStore.takeSimple(key = "control-requested", tag = "bugreport_request")
 
-    private fun onBugReportRequested(context: Context, intent: Intent) {
+    private suspend fun onBugReportRequested(context: Context, intent: Intent) {
         val request = try {
             BugReportRequest.fromIntent(intent)
         } catch (e: Exception) {
@@ -127,19 +127,18 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
         val timeout = intent.extras?.getLongOrNull(
             INTENT_EXTRA_BUG_REPORT_REQUEST_TIMEOUT_MS,
         )?.milliseconds ?: BugReportRequestTimeoutTask.DEFAULT_TIMEOUT
-        CoroutineScope(Dispatchers.Default).launch {
-            startBugReport.requestBugReport(
-                context,
-                pendingBugReportRequestAccessor,
-                request,
-                timeout,
-                settingsProvider.bugReportSettings,
-                builtInMetricsStore,
-            )
-        }
+
+        startBugReport.requestBugReport(
+            context,
+            pendingBugReportRequestAccessor,
+            request,
+            timeout,
+            settingsProvider.bugReportSettings,
+            builtInMetricsStore,
+        )
     }
 
-    private fun onBortEnabled(intent: Intent, context: Context) {
+    private suspend fun onBortEnabled(intent: Intent, context: Context) {
         // It doesn't make sense to take any action here if bort isn't configured to require runtime enabling
         // (we would get into a bad state where jobs are cancelled, but we can not re-enable).
         if (!bortEnabledProvider.requiresRuntimeEnable()) return
@@ -164,37 +163,40 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
         fileUploadHoldingArea.handleChangeBortEnabled()
         dropBoxEntryAddedReceiver.initialize()
 
-        goAsync {
-            applyReporterServiceSettings(
-                reporterServiceConnector = reporterServiceConnector,
-                settingsProvider = settingsProvider,
-                bortEnabledProvider = bortEnabledProvider,
-            )
+        applyReporterServiceSettings(
+            reporterServiceConnector = reporterServiceConnector,
+            settingsProvider = settingsProvider,
+            bortEnabledProvider = bortEnabledProvider,
+        )
 
-            periodicWorkManager.scheduleTasksAfterBootOrEnable(bortEnabled = isNowEnabled, justBooted = false)
+        periodicWorkManager.scheduleTasksAfterBootOrEnable(bortEnabled = isNowEnabled, justBooted = false)
 
-            dumpsterClient.setBortEnabled(isNowEnabled)
-            dumpsterClient.setStructuredLogEnabled(
-                isNowEnabled &&
-                    settingsProvider.structuredLogSettings.dataSourceEnabled,
-            )
-            continuousLoggingController.configureContinuousLogging()
-            // Pass the new settings to structured logging (after we enable/disable it)
-            reloadCustomEventConfigFrom(settingsProvider.structuredLogSettings)
-            clientDeviceInfoSender.maybeSendDeviceInfoToServer()
-
-            appUpgrade.handleUpgrade(context)
+        dumpsterClient.setBortEnabled(isNowEnabled)
+        dumpsterClient.setStructuredLogEnabled(
+            isNowEnabled &&
+                settingsProvider.structuredLogSettings.dataSourceEnabled,
+        )
+        if (isNowEnabled) {
+            // If bort was just enabled, record the last reboot (which may have been a factory reset that we would
+            // otherwise have missed because bort was disabled with the BOOT_COMPLETED intent fired).
+            bootCountTracker.trackIfNeeded()
         }
+        continuousLoggingController.configureContinuousLogging()
+        // Pass the new settings to structured logging (after we enable/disable it)
+        reloadCustomEventConfigFrom(settingsProvider.structuredLogSettings)
+        clientDeviceInfoSender.maybeSendDeviceInfoToServer()
+
+        appUpgrade.handleUpgrade(context)
     }
 
-    private fun onCollectMetrics() = CoroutineScope(Dispatchers.Default).launch {
-        if (!bortEnabledProvider.isEnabled()) return@launch
+    private suspend fun onCollectMetrics() {
+        if (!bortEnabledProvider.isEnabled()) return
         if (!devMode.isEnabled()) {
             Logger.d("Dev mode disabled: not collecting metrics")
-            return@launch
+            return
         }
         Logger.d("Metric collection requested")
-        metricsCollectionRequester.restartPeriodicCollection(resetLastHeartbeatTime = false, collectImmediately = true)
+        metricsCollectionRequester.restartPeriodicCollection(collectImmediately = true)
     }
 
     private fun onUpdateConfig() {
@@ -203,22 +205,18 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
             Logger.d("Dev mode disabled: not updating config")
             return
         }
-        goAsync {
-            Logger.d("Settings update requested")
-            settingsUpdateRequester.restartSettingsUpdate(delayAfterSettingsUpdate = false, cancel = true)
-        }
+        Logger.d("Settings update requested")
+        settingsUpdateRequester.restartSettingsUpdate(delayAfterSettingsUpdate = false, cancel = true)
     }
 
-    private fun onDevMode(intent: Intent, context: Context) {
+    private suspend fun onDevMode(intent: Intent, context: Context) {
         if (!bortEnabledProvider.isEnabled()) return
         if (!intent.hasExtra(INTENT_EXTRA_DEV_MODE_ENABLED)) return
         val enabled = intent.getBooleanExtra(
             INTENT_EXTRA_DEV_MODE_ENABLED,
             false, // never used, because we just checked hasExtra()
         )
-        goAsync {
-            devMode.setEnabled(enabled, context)
-        }
+        devMode.setEnabled(enabled, context)
     }
 
     private fun onChangeProjectKey(intent: Intent) {
@@ -237,7 +235,7 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
         overrideSerial.overriddenSerial = serial
     }
 
-    override fun onIntentReceived(context: Context, intent: Intent, action: String) {
+    override fun onIntentReceived(context: Context, intent: Intent, action: String) = goAsync {
         when (action) {
             INTENT_ACTION_BUG_REPORT_REQUESTED -> onBugReportRequested(context, intent)
             INTENT_ACTION_BORT_ENABLE -> onBortEnabled(intent, context)

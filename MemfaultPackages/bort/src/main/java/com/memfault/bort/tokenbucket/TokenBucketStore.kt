@@ -65,6 +65,9 @@ annotation class Anr
 annotation class Kmsg
 
 @Qualifier
+annotation class Other
+
+@Qualifier
 annotation class StructuredLog
 
 @Qualifier

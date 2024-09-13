@@ -5,7 +5,6 @@ import com.memfault.bort.BuildConfig
 import com.memfault.bort.DataScrubbingRule
 import com.memfault.bort.DevMode
 import com.memfault.bort.DumpsterCapabilities
-import com.memfault.bort.clientserver.CachedClientServerMode
 import com.memfault.bort.settings.LogcatCollectionMode.PERIODIC
 import com.memfault.bort.settings.NetworkConstraint.CONNECTED
 import com.memfault.bort.settings.NetworkConstraint.UNMETERED
@@ -16,10 +15,11 @@ import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.properties.ReadOnlyProperty
-import kotlin.reflect.KProperty
 import kotlin.time.Duration
 
 /**
@@ -34,16 +34,18 @@ import kotlin.time.Duration
 open class DynamicSettingsProvider @Inject constructor(
     private val storedSettingsPreferenceProvider: ReadonlyFetchedSettingsProvider,
     private val dumpsterCapabilities: DumpsterCapabilities,
-    private val cachedClientServerMode: CachedClientServerMode,
     private val devMode: DevMode,
     private val projectKeyProvider: ProjectKeyProvider,
 ) : SettingsProvider {
-    @Transient
-    private val settingsCache = CachedProperty {
-        storedSettingsPreferenceProvider.get()
-    }
+    private val _settingsFlow = MutableStateFlow(
+        storedSettingsPreferenceProvider.get(),
+    )
 
-    private val settings by settingsCache
+    val settingsChangedFlow: Flow<Unit>
+        get() = _settingsFlow.map { }
+
+    private val settings: FetchedSettings
+        get() = _settingsFlow.value
 
     override val minLogcatLevel: LogLevel
         get() = LogLevel.fromInt(settings.bortMinLogcatLevel) ?: LogLevel.VERBOSE
@@ -147,6 +149,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.marFileRateLimitingSettings
         override val continuousLogFileRateLimitingSettings: RateLimitingSettings
             get() = settings.dropBoxContinuousLogFileLimitingSettings
+        override val otherDropBoxEntryRateLimitingSettings: RateLimitingSettings
+            get() = settings.dropBoxOtherTagsRateLimitingSettings
         override val excludedTags: Set<String>
             get() = settings.dropBoxExcludedTags
         override val forceEnableWtfTags: Boolean
@@ -157,6 +161,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.dropBoxProcessImmediately || devMode.isEnabled()
         override val pollingInterval: Duration
             get() = settings.dropBoxPollingInterval.duration
+        override val otherTags: Set<String>
+            get() = settings.dropBoxOtherTags
     }
 
     override val metricsSettings = object : MetricsSettings {
@@ -184,6 +190,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.metricsRecordImei
         override val operationalCrashesExclusions: List<String>
             get() = settings.metricsOperationalCrashesExclusions
+        override val pollingInterval: Duration
+            get() = settings.metricsPollingInterval.duration
     }
 
     override val batteryStatsSettings = object : BatteryStatsSettings {
@@ -338,26 +346,6 @@ open class DynamicSettingsProvider @Inject constructor(
 
     override fun invalidate() {
         Logger.d("settings invalidating")
-        settingsCache.invalidate()
-    }
-}
-
-class CachedProperty<out T>(val factory: () -> T) : ReadOnlyProperty<Any, T> {
-    private var value: CachedValue<T> = CachedValue.Absent
-
-    override fun getValue(thisRef: Any, property: KProperty<*>): T {
-        return when (val cached = value) {
-            is CachedValue.Value -> cached.value
-            CachedValue.Absent -> factory().also { value = CachedValue.Value(it) }
-        }
-    }
-
-    fun invalidate() {
-        value = CachedValue.Absent
-    }
-
-    private sealed class CachedValue<out T> {
-        object Absent : CachedValue<Nothing>()
-        class Value<T>(val value: T) : CachedValue<T>()
+        _settingsFlow.value = storedSettingsPreferenceProvider.get()
     }
 }

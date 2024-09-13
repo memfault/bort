@@ -76,6 +76,7 @@ kotlin = ["kotlin-stdlib", "kotlin-coroutines", "kotlin-coroutines-android"]
 aaraar = { id = "sh.christian.aaraar", version = "0.0.12" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
+androidx-room = { id = "androidx.room", version.ref = "room" }
 dagger-anvil = { id = "com.squareup.anvil", version = "2.4.9" }
 dagger-hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 gradle-versions = { id = "com.github.ben-manes.versions", version = "0.46.0" }
