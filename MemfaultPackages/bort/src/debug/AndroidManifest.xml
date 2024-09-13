@@ -10,6 +10,7 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="com.memfault.intent.action.TEST_BORT_ECHO" />
                 <action android:name="com.memfault.intent.action.TEST_SELF_TEST" />
+                <action android:name="com.memfault.intent.action.TEST_BORT_CHANGE_SOFTWARE_VERSION" />
             </intent-filter>
         </receiver>
     </application>

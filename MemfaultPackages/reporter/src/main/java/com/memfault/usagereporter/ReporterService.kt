@@ -35,11 +35,9 @@ import com.memfault.bort.shared.VersionRequest
 import com.memfault.bort.shared.VersionResponse
 import com.memfault.usagereporter.UsageReporter.Companion.b2bClientServer
 import com.memfault.usagereporter.clientserver.B2BClientServer
-import com.memfault.usagereporter.metrics.ReporterMetrics
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
-import kotlin.time.Duration
 
 private const val COMMAND_EXECUTOR_MAX_THREADS = 2
 private const val COMMAND_EXECUTOR_TERMINATION_WAIT_SECS: Long = 30
@@ -54,7 +52,6 @@ class ReporterServiceMessageHandler(
     private val setLogLevel: (logLevel: LogLevel) -> Unit,
     private val getSendReply: (message: Message) -> SendReply,
     private val b2BClientServer: B2BClientServer,
-    private val reporterMetrics: ReporterMetrics,
     private val reporterSettings: ReporterSettingsPreferenceProvider,
     private val createPipe: CreatePipe,
 ) : Handler.Callback {
@@ -89,7 +86,7 @@ class ReporterServiceMessageHandler(
             is SetLogLevelRequest -> handleSetLogLevelRequest(serviceMessage.level, sendReply)
             is VersionRequest -> handleVersionRequest(sendReply)
             is ServerSendFileRequest -> handleSendFileRequest(serviceMessage, sendReply)
-            is SetMetricCollectionIntervalRequest -> handleSetMetricIntervalRequest(serviceMessage.interval, sendReply)
+            is SetMetricCollectionIntervalRequest -> handleSetMetricIntervalRequest(sendReply)
             is SetReporterSettingsRequest -> handleSettingsUpdate(serviceMessage, sendReply)
             null -> sendReply(ErrorResponse("Unknown Message: $message")).also {
                 Logger.e("Unknown Message: $message")
@@ -132,10 +129,8 @@ class ReporterServiceMessageHandler(
     }
 
     private fun handleSetMetricIntervalRequest(
-        interval: Duration,
         sendReply: (reply: ServiceMessage) -> Unit,
     ) {
-        reporterMetrics.setCollectionInterval(interval)
         sendReply(SetMetricCollectionIntervalResponse)
     }
 
@@ -152,8 +147,6 @@ class ReporterServiceMessageHandler(
 
 @AndroidEntryPoint
 class ReporterService : Service() {
-
-    @Inject lateinit var reporterMetrics: ReporterMetrics
 
     @Inject lateinit var reporterSettingsPreferenceProvider: ReporterSettingsPreferenceProvider
 
@@ -182,7 +175,6 @@ class ReporterService : Service() {
             },
             getSendReply = ::getSendReply,
             b2BClientServer = b2bClientServer,
-            reporterMetrics = reporterMetrics,
             reporterSettings = reporterSettingsPreferenceProvider,
             createPipe = ParcelFileDescriptor::createPipe,
         )

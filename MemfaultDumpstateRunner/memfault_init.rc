@@ -23,7 +23,7 @@ service memfault_dumpstatez /system/bin/dumpstate -S -d -z -q \
 # into Bort's filesystem sandboxed location. See MemfaultDumpstateRunner.cpp for
 # the source code of the program itself.
 
-service memfault_dumpstate_runner /system/bin/MemfaultDumpstateRunner
+service memfault_dumpstate_runner /system_ext/bin/MemfaultDumpstateRunner
     class core
     disabled
     oneshot

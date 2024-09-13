@@ -63,7 +63,10 @@ class LogcatCollectionRequester @Inject constructor(
     private val nextLogcatCidProvider: NextLogcatCidProvider,
     private val nextLogcatStartTimeProvider: NextLogcatStartTimeProvider,
 ) : PeriodicWorkRequester() {
-    override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
+    override suspend fun startPeriodic(
+        justBooted: Boolean,
+        settingsChanged: Boolean,
+    ) {
         val collectionInterval = maxOf(MINIMUM_COLLECTION_INTERVAL, logcatSettings.collectionInterval)
         Logger.test("Collecting logcat every ${collectionInterval.toDouble(DurationUnit.MINUTES)} minutes")
 
@@ -95,6 +98,12 @@ class LogcatCollectionRequester @Inject constructor(
             .asBortWorkInfo("logcat")
     }
 
-    override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
+    override suspend fun parametersChanged(
+        old: SettingsProvider,
+        new: SettingsProvider,
+    ): Boolean =
         old.logcatSettings.collectionInterval != new.logcatSettings.collectionInterval
+
+    suspend fun isScheduledAt(settings: SettingsProvider): Duration? =
+        if (enabled(settings)) logcatSettings.collectionInterval else null
 }

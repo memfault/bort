@@ -6,6 +6,8 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlin.time.Duration
 
 fun interface MetricReportEnabled : () -> Boolean
@@ -29,6 +31,7 @@ fun interface DropboxScrubTombstones : () -> Boolean
 fun interface CachePackageManagerReport : () -> Boolean
 fun interface DropBoxForceEnableWtfTags : () -> Boolean
 fun interface OperationalCrashesExclusions : () -> List<String>
+fun interface MetricsPollingIntervalFlow : () -> Flow<Duration>
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -36,7 +39,7 @@ abstract class BortSettingsModule {
     companion object {
         @Provides
         fun rulesConfig(settings: SettingsProvider) =
-            RulesConfig { settings.dataScrubbingSettings.rules.filterIsInstance(AndroidAppIdScrubbingRule::class.java) }
+            RulesConfig { settings.dataScrubbingSettings.rules.filterIsInstance<AndroidAppIdScrubbingRule>() }
 
         @Provides
         fun uploadCompression(settings: SettingsProvider) =
@@ -156,5 +159,9 @@ abstract class BortSettingsModule {
         @Provides
         fun operationalCrashesExclusions(settings: SettingsProvider): OperationalCrashesExclusions =
             OperationalCrashesExclusions { settings.metricsSettings.operationalCrashesExclusions }
+
+        @Provides
+        fun metricsPollingInterval(settingsFlow: SettingsFlow) =
+            MetricsPollingIntervalFlow { settingsFlow.settings.map { it.metricsSettings.pollingInterval } }
     }
 }

@@ -28,4 +28,5 @@ cc_binary {
         "liblog",
     ],
     init_rc: ["memfault_init.rc"],
+    system_ext_specific: true,
 }

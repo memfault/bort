@@ -58,6 +58,7 @@ class EnqueueUpload @Inject constructor(
          * here if we ever need them.
          **/
         overrideDebuggingResolution: Resolution? = null,
+        overrideSoftwareVersion: String? = null,
     ): Result<MarFileWithManifest> = withContext(ioCoroutineContext) {
         var manifest = createManifest(metadata, collectionTime, deviceInfoProvider, projectKey)
         overrideMonitoringResolution?.let {
@@ -65,6 +66,11 @@ class EnqueueUpload @Inject constructor(
         }
         overrideDebuggingResolution?.let {
             manifest = manifest.copy(debuggingResolution = it)
+        }
+        overrideSoftwareVersion?.let {
+            manifest = manifest.copy(
+                device = manifest.device.copy(softwareVersion = it),
+            )
         }
         val marFileWriteResult = marFileWriter.createMarFile(file, manifest)
 

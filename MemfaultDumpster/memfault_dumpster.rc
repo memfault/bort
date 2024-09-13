@@ -6,5 +6,5 @@ on post-fs-data
     mkdir /data/system/MemfaultDumpster/ 0700 root root
     wait /data/system/MemfaultDumpster/
 
-service memfault_dumpster /system/bin/MemfaultDumpster
+service memfault_dumpster /system_ext/bin/MemfaultDumpster
     class core

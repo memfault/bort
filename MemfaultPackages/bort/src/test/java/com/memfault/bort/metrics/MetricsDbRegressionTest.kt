@@ -3,10 +3,19 @@ package com.memfault.bort.metrics
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import assertk.all
 import assertk.assertThat
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
+import assertk.assertions.prop
 import assertk.assertions.text
+import com.memfault.bort.metrics.custom.CustomReport
+import com.memfault.bort.metrics.custom.MetricReport
+import com.memfault.bort.metrics.database.CalculateDerivedAggregations
+import com.memfault.bort.metrics.database.DbReportBuilder
+import com.memfault.bort.metrics.database.HOURLY_HEARTBEAT_REPORT_TYPE
+import com.memfault.bort.metrics.database.HrtFileFactory
 import com.memfault.bort.metrics.database.MetricsDao
 import com.memfault.bort.metrics.database.MetricsDb
 import com.memfault.bort.reporting.AggregationType
@@ -41,6 +50,34 @@ class MetricsDbRegressionTest {
     private lateinit var db: MetricsDb
     private lateinit var dao: MetricsDao
 
+    private val dbReportBuilder = DbReportBuilder { report ->
+        report.copy(
+            softwareVersion = "Android/aosp_arm64/generic_arm64:8.1.0/OC/root04302340:eng/test-keys::1.0.0",
+        )
+    }
+
+    private suspend fun MetricsDao.insert(metricValue: MetricValue): Long =
+        insert(metric = metricValue, dbReportBuilder = dbReportBuilder)
+
+    private suspend fun MetricsDao.collectHeartbeat(
+        hourlyHeartbeatReportType: String = HOURLY_HEARTBEAT_REPORT_TYPE,
+        dailyHeartbeatReportType: String? = null,
+        endTimestampMs: Long,
+        hrtFileFactory: HrtFileFactory?,
+        calculateDerivedAggregations: CalculateDerivedAggregations = CalculateDerivedAggregations { _, _, _, _ ->
+            emptyList()
+        },
+        dailyHeartbeatReportMetricsForSessions: List<String>? = null,
+    ): CustomReport = collectHeartbeat(
+        hourlyHeartbeatReportType = hourlyHeartbeatReportType,
+        dailyHeartbeatReportType = dailyHeartbeatReportType,
+        endTimestampMs = endTimestampMs,
+        hrtFileFactory = hrtFileFactory,
+        calculateDerivedAggregations = calculateDerivedAggregations,
+        dailyHeartbeatReportMetricsForSessions = dailyHeartbeatReportMetricsForSessions,
+        dbReportBuilder = dbReportBuilder,
+    )
+
     @Before
     fun createDB() {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -73,6 +110,7 @@ class MetricsDbRegressionTest {
                 }
                 """,
             ),
+            dbReportBuilder = dbReportBuilder,
         )
 
         dao.insert(
@@ -92,31 +130,34 @@ class MetricsDbRegressionTest {
         )
 
         val hrtFile = tempFolder.newFile()
+        val hrtFileFactory = HrtFileFactory { hrtFile }
 
-        val report = dao.collectHeartbeat("heartbeat", null, 123456789, hrtFile)
+        val report = dao.collectHeartbeat("heartbeat", null, 123456789, hrtFileFactory = hrtFileFactory)
 
-        assertThat(report.hourlyHeartbeatReport.version).isEqualTo(1)
-        assertThat(report.hourlyHeartbeatReport.startTimestampMs).isEqualTo(123456789L)
-        assertThat(report.hourlyHeartbeatReport.endTimestampMs).isEqualTo(123456789L)
-        assertThat(report.hourlyHeartbeatReport.metrics)
-            .isEqualTo(
-                mapOf(
-                    "CPU Usage.min" to JsonPrimitive(6.34),
-                    "CPU Usage.max" to JsonPrimitive(6.34),
-                    "CPU Usage.mean" to JsonPrimitive(6.34),
-                    "Screen State_On.total_secs" to JsonPrimitive(0),
-                ),
+        assertThat(report.hourlyHeartbeatReport).all {
+            prop(MetricReport::version).isEqualTo(1)
+            prop(MetricReport::startTimestampMs).isEqualTo(123456789L)
+            prop(MetricReport::endTimestampMs).isEqualTo(123456789L)
+            prop(MetricReport::metrics)
+                .isEqualTo(
+                    mapOf(
+                        "CPU Usage.min" to JsonPrimitive(6.34),
+                        "CPU Usage.max" to JsonPrimitive(6.34),
+                        "CPU Usage.mean" to JsonPrimitive(6.34),
+                        "Screen State_On.total_secs" to JsonPrimitive(0),
+                    ),
+                )
+
+            // check hd reports
+            prop(MetricReport::hrt).isNotNull().text().isEqualTo(
+                """{"schema_version":1,"start_time":123456789,"duration_ms":0,""" +
+                    """"report_type":"heartbeat","producer":{"version":"1","id":"bort"},""" +
+                    """"rollups":[{"metadata":{"string_key":"CPU Usage","metric_type":"gauge",""" +
+                    """"data_type":"double","internal":false},"data":[{"t":123456789,"value":6.34}]},""" +
+                    """{"metadata":{"string_key":"Screen State","metric_type":"property","data_type":"string",""" +
+                    """"internal":false},"data":[{"t":123456789,"value":"On"}]}]}""",
             )
-
-        // check hd reports
-        assertThat(hrtFile).text().isEqualTo(
-            """{"schema_version":1,"start_time":123456789,"duration_ms":0,""" +
-                """"report_type":"heartbeat","producer":{"version":"1","id":"bort"},""" +
-                """"rollups":[{"metadata":{"string_key":"CPU Usage","metric_type":"gauge",""" +
-                """"data_type":"double","internal":false},"data":[{"t":123456789,"value":6.34}]},""" +
-                """{"metadata":{"string_key":"Screen State","metric_type":"property","data_type":"string",""" +
-                """"internal":false},"data":[{"t":123456789,"value":"On"}]}]}""",
-        )
+        }
     }
 
     @Test
@@ -154,17 +195,19 @@ class MetricsDbRegressionTest {
 
         val report = dao.collectHeartbeat("heartbeat", null, 123456789, null)
 
-        assertThat(report.hourlyHeartbeatReport.version).isEqualTo(1)
-        assertThat(report.hourlyHeartbeatReport.startTimestampMs).isEqualTo(123456789)
-        assertThat(report.hourlyHeartbeatReport.endTimestampMs).isEqualTo(123456789)
-        assertThat(report.hourlyHeartbeatReport.reportType).isEqualTo("heartbeat")
-        assertThat(report.hourlyHeartbeatReport.metrics).isEqualTo(mapOf("public_metric.min" to JsonPrimitive(3.0)))
-        assertThat(report.hourlyHeartbeatReport.internalMetrics)
-            .isEqualTo(
-                mapOf(
-                    "internal_metric" to JsonPrimitive("a"),
-                ),
-            )
+        assertThat(report.hourlyHeartbeatReport).all {
+            prop(MetricReport::version).isEqualTo(1)
+            prop(MetricReport::startTimestampMs).isEqualTo(123456789)
+            prop(MetricReport::endTimestampMs).isEqualTo(123456789)
+            prop(MetricReport::reportType).isEqualTo("heartbeat")
+            prop(MetricReport::metrics).isEqualTo(mapOf("public_metric.min" to JsonPrimitive(3.0)))
+            prop(MetricReport::internalMetrics)
+                .isEqualTo(
+                    mapOf(
+                        "internal_metric" to JsonPrimitive("a"),
+                    ),
+                )
+        }
     }
 
     @Test
@@ -228,7 +271,7 @@ class MetricsDbRegressionTest {
         dao.collectHeartbeat(
             hourlyHeartbeatReportType = "heartbeat",
             endTimestampMs = 123456800,
-            hrtFile = hrtFile,
+            hrtFileFactory = { hrtFile },
         )
 
         @Suppress("LineLength")
@@ -280,21 +323,23 @@ class MetricsDbRegressionTest {
         val report = dao.collectHeartbeat(
             hourlyHeartbeatReportType = "heartbeat",
             endTimestampMs = 123456791L,
-            hrtFile = hrtFile,
+            hrtFileFactory = { hrtFile },
         )
 
-        assertThat(report.hourlyHeartbeatReport.reportType).isEqualTo("heartbeat")
-        assertThat(report.hourlyHeartbeatReport.startTimestampMs).isEqualTo(123456789)
-        assertThat(report.hourlyHeartbeatReport.endTimestampMs).isEqualTo(123456791)
-        assertThat(report.hourlyHeartbeatReport.version).isEqualTo(1)
-        assertThat(report.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf("screen_on.min" to JsonPrimitive(0.0)),
-        )
+        assertThat(report.hourlyHeartbeatReport).all {
+            prop(MetricReport::reportType).isEqualTo("heartbeat")
+            prop(MetricReport::startTimestampMs).isEqualTo(123456789)
+            prop(MetricReport::endTimestampMs).isEqualTo(123456791)
+            prop(MetricReport::version).isEqualTo(1)
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf("screen_on.min" to JsonPrimitive(0.0)),
+            )
 
-        @Suppress("ktlint:standard:max-line-length")
-        assertThat(hrtFile).text().isEqualTo(
-            """{"schema_version":1,"start_time":123456789,"duration_ms":2,"report_type":"heartbeat","producer":{"version":"1","id":"bort"},"rollups":[{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456789,"value":false},{"t":123456790,"value":true}]}]}""", // ktlint-disable standard_max-line-length
-        )
+            @Suppress("ktlint:standard:max-line-length")
+            assertThat(hrtFile).text().isEqualTo(
+                """{"schema_version":1,"start_time":123456789,"duration_ms":2,"report_type":"heartbeat","producer":{"version":"1","id":"bort"},"rollups":[{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456789,"value":false},{"t":123456790,"value":true}]}]}""", // ktlint-disable standard_max-line-length
+            )
+        }
     }
 
     @Test
@@ -394,7 +439,7 @@ class MetricsDbRegressionTest {
         dao.collectHeartbeat(
             hourlyHeartbeatReportType = "heartbeat",
             endTimestampMs = 123456791,
-            hrtFile = hrtFile1,
+            hrtFileFactory = { hrtFile1 },
         )
 
         val hrtFile2 = tempFolder.newFile()
@@ -402,7 +447,7 @@ class MetricsDbRegressionTest {
         dao.collectHeartbeat(
             hourlyHeartbeatReportType = "heartbeat",
             endTimestampMs = 123456792,
-            hrtFile = hrtFile2,
+            hrtFileFactory = { hrtFile2 },
         )
 
         assertThat(hrtFile2).text().isEqualTo(
@@ -471,7 +516,7 @@ class MetricsDbRegressionTest {
         dao.collectHeartbeat(
             hourlyHeartbeatReportType = "heartbeat",
             endTimestampMs = 123456791,
-            hrtFile = hrtFile,
+            hrtFileFactory = { hrtFile },
         )
 
         assertThat(hrtFile).text().isEqualTo(
@@ -516,21 +561,23 @@ class MetricsDbRegressionTest {
         val report = dao.collectHeartbeat(
             hourlyHeartbeatReportType = "heartbeat",
             endTimestampMs = 123456789,
-            hrtFile = null,
+            hrtFileFactory = null,
         )
 
-        assertThat(report.hourlyHeartbeatReport.reportType).isEqualTo("heartbeat")
-        assertThat(report.hourlyHeartbeatReport.startTimestampMs).isEqualTo(123456789)
-        assertThat(report.hourlyHeartbeatReport.endTimestampMs).isEqualTo(123456789)
-        assertThat(report.hourlyHeartbeatReport.version).isEqualTo(1)
-        assertThat(report.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf(
-                "CPU Usage.min" to JsonPrimitive(6.34),
-                "CPU Usage.max" to JsonPrimitive(6.34),
-                "CPU Usage.mean" to JsonPrimitive(6.34),
-                "Screen State_On.total_secs" to JsonPrimitive(0),
-            ),
-        )
+        assertThat(report.hourlyHeartbeatReport).all {
+            prop(MetricReport::reportType).isEqualTo("heartbeat")
+            prop(MetricReport::startTimestampMs).isEqualTo(123456789)
+            prop(MetricReport::endTimestampMs).isEqualTo(123456789)
+            prop(MetricReport::version).isEqualTo(1)
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf(
+                    "CPU Usage.min" to JsonPrimitive(6.34),
+                    "CPU Usage.max" to JsonPrimitive(6.34),
+                    "CPU Usage.mean" to JsonPrimitive(6.34),
+                    "Screen State_On.total_secs" to JsonPrimitive(0),
+                ),
+            )
+        }
     }
 
     @Test
@@ -570,20 +617,22 @@ class MetricsDbRegressionTest {
         val report = dao.collectHeartbeat(
             hourlyHeartbeatReportType = "heartbeat",
             endTimestampMs = 123456789,
-            hrtFile = null,
+            hrtFileFactory = null,
         )
 
-        assertThat(report.hourlyHeartbeatReport.reportType).isEqualTo("heartbeat")
-        assertThat(report.hourlyHeartbeatReport.startTimestampMs).isEqualTo(123456789)
-        assertThat(report.hourlyHeartbeatReport.endTimestampMs).isEqualTo(123456789)
-        assertThat(report.hourlyHeartbeatReport.version).isEqualTo(1)
-        assertThat(report.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf(
-                "CPU Usage.min" to JsonPrimitive(90.0),
-                "CPU Usage.max" to JsonPrimitive(100.0),
-                "CPU Usage.mean" to JsonPrimitive(95.0),
-            ),
-        )
+        assertThat(report.hourlyHeartbeatReport).all {
+            prop(MetricReport::reportType).isEqualTo("heartbeat")
+            prop(MetricReport::startTimestampMs).isEqualTo(123456789)
+            prop(MetricReport::endTimestampMs).isEqualTo(123456789)
+            prop(MetricReport::version).isEqualTo(1)
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf(
+                    "CPU Usage.min" to JsonPrimitive(90.0),
+                    "CPU Usage.max" to JsonPrimitive(100.0),
+                    "CPU Usage.mean" to JsonPrimitive(95.0),
+                ),
+            )
+        }
     }
 
     // Regression test for carryovers not inserting the startTimestamp in the report table
@@ -648,19 +697,21 @@ class MetricsDbRegressionTest {
         val report = dao.collectHeartbeat(
             hourlyHeartbeatReportType = "heartbeat",
             endTimestampMs = 230000000,
-            hrtFile = hrtFile,
+            hrtFileFactory = { hrtFile },
         )
 
-        assertThat(report.hourlyHeartbeatReport.reportType).isEqualTo("heartbeat")
-        assertThat(report.hourlyHeartbeatReport.startTimestampMs).isEqualTo(0)
-        assertThat(report.hourlyHeartbeatReport.endTimestampMs).isEqualTo(230000000)
-        assertThat(report.hourlyHeartbeatReport.version).isEqualTo(1)
-        assertThat(report.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf(
-                "screen_on_WIFI.secs/hour" to JsonPrimitive(3600),
-                "screen_on_NONE.secs/hour" to JsonPrimitive(0),
-            ),
-        )
+        assertThat(report.hourlyHeartbeatReport).all {
+            prop(MetricReport::reportType).isEqualTo("heartbeat")
+            prop(MetricReport::startTimestampMs).isEqualTo(0)
+            prop(MetricReport::endTimestampMs).isEqualTo(230000000)
+            prop(MetricReport::version).isEqualTo(1)
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf(
+                    "screen_on_WIFI.secs/hour" to JsonPrimitive(3600),
+                    "screen_on_NONE.secs/hour" to JsonPrimitive(0),
+                ),
+            )
+        }
     }
 
     private fun MetricValueKt(
@@ -729,16 +780,18 @@ class MetricsDbRegressionTest {
 
         val report = dao.collectHeartbeat("heartbeat", null, 6789, null)
 
-        assertThat(report.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf(
-                "cpu_load.min" to JsonPrimitive(1.0),
-                "cpu_load.max" to JsonPrimitive(2.0),
-                "cpu_load.sum" to JsonPrimitive(3.0),
-                "cpu_load.mean" to JsonPrimitive(1.5),
-                "cpu_load.count" to JsonPrimitive(2),
-                "cpu_load.latest" to JsonPrimitive(2.0),
-            ),
-        )
+        assertThat(report.hourlyHeartbeatReport).all {
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf(
+                    "cpu_load.min" to JsonPrimitive(1.0),
+                    "cpu_load.max" to JsonPrimitive(2.0),
+                    "cpu_load.sum" to JsonPrimitive(3.0),
+                    "cpu_load.mean" to JsonPrimitive(1.5),
+                    "cpu_load.count" to JsonPrimitive(2),
+                    "cpu_load.latest" to JsonPrimitive(2.0),
+                ),
+            )
+        }
     }
 
     @Test
@@ -810,12 +863,14 @@ class MetricsDbRegressionTest {
 
         val report = dao.collectHeartbeat("heartbeat", null, 7345, null)
 
-        assertThat(report.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf(
-                "screen_on.total_secs" to JsonPrimitive(3),
-                "screen_off.total_secs" to JsonPrimitive(2),
-            ),
-        )
+        assertThat(report.hourlyHeartbeatReport).all {
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf(
+                    "screen_on.total_secs" to JsonPrimitive(3),
+                    "screen_off.total_secs" to JsonPrimitive(2),
+                ),
+            )
+        }
     }
 
     @Test
@@ -887,21 +942,26 @@ class MetricsDbRegressionTest {
 
         val report = dao.collectHeartbeat("heartbeat", null, 1634074357043 + 4.hours.inWholeMilliseconds, null)
 
-        assertThat(report.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf(
-                "screen_on.secs/hour" to JsonPrimitive(2400),
-                "screen_off.secs/hour" to JsonPrimitive(1200),
-                "gps_on.secs/hour" to JsonPrimitive(2400),
-                "gps_off.secs/hour" to JsonPrimitive(1200),
-            ),
-        )
+        assertThat(report.hourlyHeartbeatReport).all {
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf(
+                    "screen_on.secs/hour" to JsonPrimitive(2400),
+                    "screen_off.secs/hour" to JsonPrimitive(1200),
+                    "gps_on.secs/hour" to JsonPrimitive(2400),
+                    "gps_off.secs/hour" to JsonPrimitive(1200),
+                ),
+            )
+        }
     }
 
     @Test
     fun `regression FinishNonExistingReport`() = runTest {
         val report = dao.collectHeartbeat("bogus", null, 12345, null)
-        assertThat(report.hourlyHeartbeatReport.metrics).isEmpty()
-        assertThat(report.hourlyHeartbeatReport.internalMetrics).isEmpty()
+
+        assertThat(report.hourlyHeartbeatReport).all {
+            prop(MetricReport::metrics).isEmpty()
+            prop(MetricReport::internalMetrics).isEmpty()
+        }
     }
 
     @Test
@@ -941,9 +1001,11 @@ class MetricsDbRegressionTest {
 
         val report = dao.collectHeartbeat("a", null, 98765, null)
 
-        assertThat(report.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf("metric_a.sum" to JsonPrimitive(1.0)),
-        )
+        assertThat(report.hourlyHeartbeatReport).all {
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf("metric_a.sum" to JsonPrimitive(1.0)),
+            )
+        }
     }
 
     @Test
@@ -983,12 +1045,14 @@ class MetricsDbRegressionTest {
 
         val report = dao.collectHeartbeat("a", null, 98765, null)
 
-        assertThat(report.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf(
-                "metric_a.latest" to JsonPrimitive(1.0),
-                "metric_b.latest" to JsonPrimitive(1.0),
-            ),
-        )
+        assertThat(report.hourlyHeartbeatReport).all {
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf(
+                    "metric_a.latest" to JsonPrimitive(1.0),
+                    "metric_b.latest" to JsonPrimitive(1.0),
+                ),
+            )
+        }
     }
 
     @Test
@@ -1012,12 +1076,14 @@ class MetricsDbRegressionTest {
 
         val report1 = dao.collectHeartbeat("rolling_report", null, 98765, null)
 
-        assertThat(report1.hourlyHeartbeatReport.reportType).isEqualTo("rolling_report")
-        assertThat(report1.hourlyHeartbeatReport.startTimestampMs).isEqualTo(67890)
-        assertThat(report1.hourlyHeartbeatReport.endTimestampMs).isEqualTo(98765)
-        assertThat(report1.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf("metric_a.latest" to JsonPrimitive(1.0)),
-        )
+        assertThat(report1.hourlyHeartbeatReport).all {
+            prop(MetricReport::reportType).isEqualTo("rolling_report")
+            prop(MetricReport::startTimestampMs).isEqualTo(67890)
+            prop(MetricReport::endTimestampMs).isEqualTo(98765)
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf("metric_a.latest" to JsonPrimitive(1.0)),
+            )
+        }
 
         dao.insert(
             MetricValueKt(
@@ -1038,15 +1104,17 @@ class MetricsDbRegressionTest {
 
         val report2 = dao.collectHeartbeat("rolling_report", null, 100000, null)
 
-        assertThat(report2.hourlyHeartbeatReport.reportType).isEqualTo("rolling_report")
-        assertThat(report2.hourlyHeartbeatReport.startTimestampMs).isEqualTo(98765)
-        assertThat(report2.hourlyHeartbeatReport.endTimestampMs).isEqualTo(100000)
-        assertThat(report2.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf(
-                "metric_a.latest" to JsonPrimitive(1.0),
-                "metric_b.latest" to JsonPrimitive(1.0),
-            ),
-        )
+        assertThat(report2.hourlyHeartbeatReport).all {
+            prop(MetricReport::reportType).isEqualTo("rolling_report")
+            prop(MetricReport::startTimestampMs).isEqualTo(98765)
+            prop(MetricReport::endTimestampMs).isEqualTo(100000)
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf(
+                    "metric_a.latest" to JsonPrimitive(1.0),
+                    "metric_b.latest" to JsonPrimitive(1.0),
+                ),
+            )
+        }
 
         dao.insert(
             MetricValueKt(
@@ -1067,26 +1135,30 @@ class MetricsDbRegressionTest {
 
         val report3 = dao.collectHeartbeat("rolling_report", null, 600000, null)
 
-        assertThat(report3.hourlyHeartbeatReport.reportType).isEqualTo("rolling_report")
-        assertThat(report3.hourlyHeartbeatReport.startTimestampMs).isEqualTo(100000)
-        assertThat(report3.hourlyHeartbeatReport.endTimestampMs).isEqualTo(600000)
-        assertThat(report3.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf(
-                "metric_a.latest" to JsonPrimitive(1.0),
-                "metric_b.latest" to JsonPrimitive(1.0),
-            ),
-        )
+        assertThat(report3.hourlyHeartbeatReport).all {
+            prop(MetricReport::reportType).isEqualTo("rolling_report")
+            prop(MetricReport::startTimestampMs).isEqualTo(100000)
+            prop(MetricReport::endTimestampMs).isEqualTo(600000)
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf(
+                    "metric_a.latest" to JsonPrimitive(1.0),
+                    "metric_b.latest" to JsonPrimitive(1.0),
+                ),
+            )
+        }
 
         val report4 = dao.collectHeartbeat("rolling_report", null, 700000, null)
 
-        assertThat(report4.hourlyHeartbeatReport.reportType).isEqualTo("rolling_report")
-        assertThat(report4.hourlyHeartbeatReport.startTimestampMs).isEqualTo(600000)
-        assertThat(report4.hourlyHeartbeatReport.endTimestampMs).isEqualTo(700000)
-        assertThat(report4.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf(
-                "metric_a.latest" to JsonPrimitive(1.0),
-            ),
-        )
+        assertThat(report4.hourlyHeartbeatReport).all {
+            prop(MetricReport::reportType).isEqualTo("rolling_report")
+            prop(MetricReport::startTimestampMs).isEqualTo(600000)
+            prop(MetricReport::endTimestampMs).isEqualTo(700000)
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf(
+                    "metric_a.latest" to JsonPrimitive(1.0),
+                ),
+            )
+        }
 
         // Even if the previous autostarted report did not produce metrics, it should have updated the timestamp
         dao.insert(
@@ -1108,14 +1180,16 @@ class MetricsDbRegressionTest {
 
         val report5 = dao.collectHeartbeat("rolling_report", null, 900000, null)
 
-        assertThat(report5.hourlyHeartbeatReport.reportType).isEqualTo("rolling_report")
-        assertThat(report5.hourlyHeartbeatReport.startTimestampMs).isEqualTo(700000)
-        assertThat(report5.hourlyHeartbeatReport.endTimestampMs).isEqualTo(900000)
-        assertThat(report5.hourlyHeartbeatReport.metrics).isEqualTo(
-            mapOf(
-                "metric_a.latest" to JsonPrimitive(1.0),
-                "metric_b.latest" to JsonPrimitive(1.0),
-            ),
-        )
+        assertThat(report5.hourlyHeartbeatReport).all {
+            prop(MetricReport::reportType).isEqualTo("rolling_report")
+            prop(MetricReport::startTimestampMs).isEqualTo(700000)
+            prop(MetricReport::endTimestampMs).isEqualTo(900000)
+            prop(MetricReport::metrics).isEqualTo(
+                mapOf(
+                    "metric_a.latest" to JsonPrimitive(1.0),
+                    "metric_b.latest" to JsonPrimitive(1.0),
+                ),
+            )
+        }
     }
 }

@@ -95,7 +95,7 @@ class ContinuousLogcatEntryProcessorTest {
 
         processor = ContinuousLogcatEntryProcessor(
             logcatSettings = logcatSettings,
-            dataScrubber = DataScrubber(listOf(EmailScrubbingRule)),
+            dataScrubber = DataScrubber(cleaners = { listOf(EmailScrubbingRule) }),
             packageManagerClient = mockPackageManagerClient,
             packageNameAllowList = mockPackageNameAllowList,
             temporaryFileFactory = TestTemporaryFileFactory,

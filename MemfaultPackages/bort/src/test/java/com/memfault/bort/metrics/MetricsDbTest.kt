@@ -12,9 +12,13 @@ import assertk.assertions.text
 import com.memfault.bort.metrics.custom.CustomReport
 import com.memfault.bort.metrics.custom.MetricReport
 import com.memfault.bort.metrics.database.Aggs
+import com.memfault.bort.metrics.database.CalculateDerivedAggregations
 import com.memfault.bort.metrics.database.DbDump
 import com.memfault.bort.metrics.database.DbMetricMetadata
 import com.memfault.bort.metrics.database.DbReport
+import com.memfault.bort.metrics.database.DbReportBuilder
+import com.memfault.bort.metrics.database.HOURLY_HEARTBEAT_REPORT_TYPE
+import com.memfault.bort.metrics.database.HrtFileFactory
 import com.memfault.bort.metrics.database.MetricsDao
 import com.memfault.bort.metrics.database.MetricsDb
 import com.memfault.bort.reporting.DataType
@@ -35,8 +39,11 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.File
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
+
+private const val SOFTWARE_VERSION = "Android/aosp_arm64/generic_arm64:8.1.0/OC/root04302340:eng/test-keys::1.0.0"
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [26])
@@ -45,6 +52,34 @@ class MetricsDbTest {
 
     private lateinit var db: MetricsDb
     private lateinit var dao: MetricsDao
+
+    private val dbReportBuilder = DbReportBuilder { report ->
+        report.copy(
+            softwareVersion = SOFTWARE_VERSION,
+        )
+    }
+
+    private suspend fun MetricsDao.insert(metricValue: MetricValue): Long =
+        insert(metric = metricValue, dbReportBuilder = dbReportBuilder)
+
+    private suspend fun MetricsDao.collectHeartbeat(
+        hourlyHeartbeatReportType: String = HOURLY_HEARTBEAT_REPORT_TYPE,
+        dailyHeartbeatReportType: String? = null,
+        endTimestampMs: Long,
+        hrtFileFactory: HrtFileFactory?,
+        calculateDerivedAggregations: CalculateDerivedAggregations = CalculateDerivedAggregations { _, _, _, _ ->
+            emptyList()
+        },
+        dailyHeartbeatReportMetricsForSessions: List<String>? = null,
+    ): CustomReport = collectHeartbeat(
+        hourlyHeartbeatReportType = hourlyHeartbeatReportType,
+        dailyHeartbeatReportType = dailyHeartbeatReportType,
+        endTimestampMs = endTimestampMs,
+        hrtFileFactory = hrtFileFactory,
+        calculateDerivedAggregations = calculateDerivedAggregations,
+        dailyHeartbeatReportMetricsForSessions = dailyHeartbeatReportMetricsForSessions,
+        dbReportBuilder = dbReportBuilder,
+    )
 
     @Before
     fun createDB() {
@@ -77,7 +112,7 @@ class MetricsDbTest {
             null,
         )
         dao.insert(counterValue)
-        val report = dao.collectHeartbeat(endTimestampMs = 123456789, hrtFile = null)
+        val report = dao.collectHeartbeat(endTimestampMs = 123456789, hrtFileFactory = null)
         assertThat(report).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -88,9 +123,10 @@ class MetricsDbTest {
                     metrics = mapOf("name.count" to JsonPrimitive(1)),
                     internalMetrics = mapOf(),
                     reportName = null,
+                    hrt = null,
+                    softwareVersion = SOFTWARE_VERSION,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = null,
             ),
         )
     }
@@ -147,8 +183,9 @@ class MetricsDbTest {
         dao.insert(val3)
 
         val hrtFile = tempFolder.newFile()
+        val hrtFileFactory = HrtFileFactory { hrtFile }
 
-        val report = dao.collectHeartbeat(endTimestampMs = 6000, hrtFile = hrtFile)
+        val report = dao.collectHeartbeat(endTimestampMs = 6000, hrtFileFactory = hrtFileFactory)
         assertThat(report).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -164,9 +201,10 @@ class MetricsDbTest {
                         "key_disconnected.total_secs" to JsonPrimitive(2),
                     ),
                     internalMetrics = mapOf(),
+                    hrt = hrtFile,
+                    softwareVersion = SOFTWARE_VERSION,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = hrtFile,
             ),
         )
         assertThat(hrtFile).text().isEqualTo(
@@ -195,7 +233,7 @@ class MetricsDbTest {
         )
         dao.insert(val1)
 
-        val report1 = dao.collectHeartbeat(endTimestampMs = 2000, hrtFile = null)
+        val report1 = dao.collectHeartbeat(endTimestampMs = 2000, hrtFileFactory = null)
         assertThat(report1).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -209,9 +247,10 @@ class MetricsDbTest {
                         "key_connected.total_secs" to JsonPrimitive(1),
                     ),
                     internalMetrics = mapOf(),
+                    hrt = null,
+                    softwareVersion = SOFTWARE_VERSION,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = null,
             ),
         )
 
@@ -249,8 +288,9 @@ class MetricsDbTest {
         dao.insert(val3)
 
         val hrtFile = tempFolder.newFile()
+        val hrtFileFactory = HrtFileFactory { hrtFile }
 
-        val report2 = dao.collectHeartbeat(endTimestampMs = 8000, hrtFile = hrtFile)
+        val report2 = dao.collectHeartbeat(endTimestampMs = 8000, hrtFileFactory = hrtFileFactory)
         assertThat(report2).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -266,9 +306,10 @@ class MetricsDbTest {
                         "key_disconnected.total_secs" to JsonPrimitive(2),
                     ),
                     internalMetrics = mapOf(),
+                    hrt = hrtFile,
+                    softwareVersion = SOFTWARE_VERSION,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = hrtFile,
             ),
         )
         assertThat(hrtFile).text().isEqualTo(
@@ -280,7 +321,7 @@ class MetricsDbTest {
 
     @Test
     fun missingReport() = runTest {
-        val report = dao.collectHeartbeat(endTimestampMs = 123456789, hrtFile = null)
+        val report = dao.collectHeartbeat(endTimestampMs = 123456789, hrtFileFactory = null)
         assertThat(report).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -290,9 +331,10 @@ class MetricsDbTest {
                     reportType = "Heartbeat",
                     metrics = mapOf(),
                     internalMetrics = mapOf(),
+                    hrt = null,
+                    softwareVersion = null,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = null,
             ),
         )
     }
@@ -313,8 +355,9 @@ class MetricsDbTest {
         )
 
         val hrtFile = tempFolder.newFile()
+        val hrtFileFactory = HrtFileFactory { hrtFile }
 
-        val report = dao.collectHeartbeat(endTimestampMs = 6000, hrtFile = hrtFile)
+        val report = dao.collectHeartbeat(endTimestampMs = 6000, hrtFileFactory = hrtFileFactory)
         assertThat(report).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -324,9 +367,10 @@ class MetricsDbTest {
                     reportType = "Heartbeat",
                     metrics = mapOf(),
                     internalMetrics = mapOf(),
+                    hrt = hrtFile,
+                    softwareVersion = null,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = hrtFile,
             ),
         )
         assertThat(hrtFile).text().isEqualTo(
@@ -386,7 +430,7 @@ class MetricsDbTest {
             null,
         )
         dao.insert(val3)
-        val report = dao.collectHeartbeat(endTimestampMs = 4, hrtFile = null)
+        val report = dao.collectHeartbeat(endTimestampMs = 4, hrtFileFactory = null)
         assertThat(report).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -396,9 +440,10 @@ class MetricsDbTest {
                     reportType = "Heartbeat",
                     metrics = mapOf("key.count" to JsonPrimitive(3)),
                     internalMetrics = mapOf(),
+                    hrt = null,
+                    softwareVersion = SOFTWARE_VERSION,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = null,
             ),
         )
     }
@@ -437,7 +482,7 @@ class MetricsDbTest {
             null,
         )
         dao.insert(val2)
-        val report = dao.collectHeartbeat(endTimestampMs = 4, hrtFile = null)
+        val report = dao.collectHeartbeat(endTimestampMs = 4, hrtFileFactory = null)
         assertThat(report).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -450,9 +495,10 @@ class MetricsDbTest {
                         "key.max" to JsonPrimitive(4.0),
                     ),
                     internalMetrics = mapOf(),
+                    hrt = null,
+                    softwareVersion = SOFTWARE_VERSION,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = null,
             ),
         )
     }
@@ -507,7 +553,7 @@ class MetricsDbTest {
             null,
         )
         dao.insert(val3)
-        val report = dao.collectHeartbeat(endTimestampMs = 4, hrtFile = null)
+        val report = dao.collectHeartbeat(endTimestampMs = 4, hrtFileFactory = null)
         assertThat(report).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -521,9 +567,10 @@ class MetricsDbTest {
                         "key.sum" to JsonPrimitive(9.0),
                     ),
                     internalMetrics = mapOf(),
+                    hrt = null,
+                    softwareVersion = SOFTWARE_VERSION,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = null,
             ),
         )
     }
@@ -554,7 +601,7 @@ class MetricsDbTest {
             assertThat(dump.values).hasSize(1)
         }
 
-        val report1 = dao.collectHeartbeat(endTimestampMs = 4, hrtFile = null)
+        val report1 = dao.collectHeartbeat(endTimestampMs = 4, hrtFileFactory = null)
         assertThat(report1).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -566,9 +613,10 @@ class MetricsDbTest {
                         "key.latest" to JsonPrimitive(1.0),
                     ),
                     internalMetrics = mapOf(),
+                    hrt = null,
+                    softwareVersion = SOFTWARE_VERSION,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = null,
             ),
         )
 
@@ -579,7 +627,7 @@ class MetricsDbTest {
             assertThat(dump.values).hasSize(1)
         }
 
-        val report2 = dao.collectHeartbeat(endTimestampMs = 8, hrtFile = null)
+        val report2 = dao.collectHeartbeat(endTimestampMs = 8, hrtFileFactory = null)
         assertThat(report2).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -591,9 +639,10 @@ class MetricsDbTest {
                         "key.latest" to JsonPrimitive(1.0),
                     ),
                     internalMetrics = mapOf(),
+                    hrt = null,
+                    softwareVersion = SOFTWARE_VERSION,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = null,
             ),
         )
     }
@@ -641,8 +690,16 @@ class MetricsDbTest {
         }
 
         val hrtFile1 = tempFolder.newFile()
+        val hrtFileFactory = object : HrtFileFactory {
+            var file: File? = null
+            override fun create(): File = checkNotNull(file)
+        }
+        hrtFileFactory.file = hrtFile1
 
-        val report1 = dao.collectHeartbeat(endTimestampMs = 3.days.inWholeMilliseconds + 1, hrtFile = hrtFile1)
+        val report1 = dao.collectHeartbeat(
+            endTimestampMs = 3.days.inWholeMilliseconds + 1,
+            hrtFileFactory = hrtFileFactory,
+        )
         assertThat(report1).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -654,9 +711,10 @@ class MetricsDbTest {
                         "key.latest" to JsonPrimitive(1.0),
                     ),
                     internalMetrics = mapOf(),
+                    hrt = hrtFile1,
+                    softwareVersion = SOFTWARE_VERSION,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = hrtFile1,
             ),
         )
 
@@ -674,8 +732,12 @@ class MetricsDbTest {
         )
 
         val hrtFile2 = tempFolder.newFile()
+        hrtFileFactory.file = hrtFile2
 
-        val report2 = dao.collectHeartbeat(endTimestampMs = 6.days.inWholeMilliseconds + 1, hrtFile = hrtFile2)
+        val report2 = dao.collectHeartbeat(
+            endTimestampMs = 6.days.inWholeMilliseconds + 1,
+            hrtFileFactory = hrtFileFactory,
+        )
         assertThat(report2).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -687,9 +749,10 @@ class MetricsDbTest {
                         "key.latest" to JsonPrimitive(1.0),
                     ),
                     internalMetrics = mapOf(),
+                    hrt = hrtFile2,
+                    softwareVersion = SOFTWARE_VERSION,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = hrtFile2,
             ),
         )
 
@@ -702,8 +765,12 @@ class MetricsDbTest {
         )
 
         val hrtFile3 = tempFolder.newFile()
+        hrtFileFactory.file = hrtFile3
 
-        val report3 = dao.collectHeartbeat(endTimestampMs = (6.days + 1.hours).inWholeMilliseconds, hrtFile = hrtFile3)
+        val report3 = dao.collectHeartbeat(
+            endTimestampMs = (6.days + 1.hours).inWholeMilliseconds,
+            hrtFileFactory = hrtFileFactory,
+        )
         assertThat(report3).isEqualTo(
             CustomReport(
                 hourlyHeartbeatReport = MetricReport(
@@ -713,9 +780,10 @@ class MetricsDbTest {
                     reportType = "Heartbeat",
                     metrics = mapOf(),
                     internalMetrics = mapOf(),
+                    hrt = null,
+                    softwareVersion = null,
                 ),
                 dailyHeartbeatReport = null,
-                hrt = hrtFile3,
             ),
         )
 

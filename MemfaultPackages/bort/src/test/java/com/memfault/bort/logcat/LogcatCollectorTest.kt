@@ -123,7 +123,7 @@ class LogcatCollectorTest {
             nextLogcatStartTimeProvider = startTimeProvider,
             nextLogcatCidProvider = cidProvider,
             now = { FAKE_NOW },
-            dataScrubber = DataScrubber(listOf(EmailScrubbingRule, CredentialScrubbingRule)),
+            dataScrubber = DataScrubber(cleaners = { listOf(EmailScrubbingRule, CredentialScrubbingRule) }),
             packageNameAllowList = mockPackageNameAllowList,
             packageManagerClient = mockPackageManagerClient,
             kernelOopsDetector = { kernelOopsDetector },

@@ -1,13 +1,14 @@
 package com.memfault.bort.requester
 
 import android.app.Application
-import android.content.Context
 import androidx.work.ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE
-import androidx.work.ExistingPeriodicWorkPolicy.UPDATE
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.metrics.LastHeartbeatEndTimeProvider
 import com.memfault.bort.metrics.MetricsCollectionTask
+import com.memfault.bort.metrics.custom.CustomMetrics
+import com.memfault.bort.metrics.custom.softwareVersionChanged
 import com.memfault.bort.periodicWorkRequest
 import com.memfault.bort.settings.MetricsSettings
 import com.memfault.bort.settings.SettingsProvider
@@ -26,65 +27,63 @@ private const val WORK_TAG = "METRICS_COLLECTION"
 private const val WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.METRICS_COLLECTION"
 private val MINIMUM_COLLECTION_INTERVAL = 15.minutes
 
-internal fun restartPeriodicMetricsCollection(
-    context: Context,
-    lastHeartbeatEndTimeProvider: LastHeartbeatEndTimeProvider,
-    collectionInterval: Duration,
-    lastHeartbeatEnd: BootRelativeTime? = null,
-    collectImmediately: Boolean = false,
-    cancel: Boolean,
-) {
-    lastHeartbeatEnd?.let {
-        lastHeartbeatEndTimeProvider.lastEnd = lastHeartbeatEnd
-    }
-
-    periodicWorkRequest<MetricsCollectionTask>(
-        collectionInterval,
-        workDataOf(),
-    ) {
-        addTag(WORK_TAG)
-        if (!collectImmediately) {
-            setInitialDelay(collectionInterval.toLong(DurationUnit.MILLISECONDS), TimeUnit.MILLISECONDS)
-        }
-    }.also { workRequest ->
-        WorkManager.getInstance(context)
-            .enqueueUniquePeriodicWork(
-                WORK_UNIQUE_NAME_PERIODIC,
-                if (cancel) CANCEL_AND_REENQUEUE else UPDATE,
-                workRequest,
-            )
-    }
-}
-
 @ContributesMultibinding(SingletonComponent::class)
 class MetricsCollectionRequester @Inject constructor(
     private val application: Application,
     private val lastHeartbeatEndTimeProvider: LastHeartbeatEndTimeProvider,
     private val metricsSettings: MetricsSettings,
     private val bootRelativeTimeProvider: BootRelativeTimeProvider,
+    private val deviceInfoProvider: DeviceInfoProvider,
+    private val customMetrics: CustomMetrics,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(
         justBooted: Boolean,
         settingsChanged: Boolean,
     ) {
-        restartPeriodicCollection(resetLastHeartbeatTime = justBooted, collectImmediately = false)
+        val collectImmediately = if (justBooted) {
+            val deviceSoftwareVersion = deviceInfoProvider.getDeviceInfo().softwareVersion
+
+            // Collect metrics immediately if there was a heartbeat, and the heartbeat's software version
+            // is not equal to the current device's software version. If there is no heartbeat then there's
+            // no data to collect. If there is a heartbeat then if the software version is null or different from the
+            // device's, finish that heartbeat and start a new one.
+            customMetrics.softwareVersionChanged(deviceSoftwareVersion)
+        } else {
+            false
+        }
+        restartPeriodicCollection(
+            resetLastHeartbeatTime = if (justBooted) bootRelativeTimeProvider.now() else null,
+            collectImmediately = collectImmediately,
+        )
     }
 
     fun restartPeriodicCollection(
-        resetLastHeartbeatTime: Boolean,
+        collectionInterval: Duration = maxOf(MINIMUM_COLLECTION_INTERVAL, metricsSettings.collectionInterval),
+        resetLastHeartbeatTime: BootRelativeTime? = null,
         collectImmediately: Boolean,
     ) {
-        val collectionInterval = maxOf(MINIMUM_COLLECTION_INTERVAL, metricsSettings.collectionInterval)
         Logger.test("Collecting metrics every ${collectionInterval.toDouble(DurationUnit.MINUTES)} minutes")
 
-        restartPeriodicMetricsCollection(
-            context = application,
-            lastHeartbeatEndTimeProvider = lastHeartbeatEndTimeProvider,
-            collectionInterval = collectionInterval,
-            lastHeartbeatEnd = if (resetLastHeartbeatTime) bootRelativeTimeProvider.now() else null,
-            collectImmediately = collectImmediately,
-            cancel = true,
-        )
+        resetLastHeartbeatTime?.let {
+            lastHeartbeatEndTimeProvider.lastEnd = it
+        }
+
+        periodicWorkRequest<MetricsCollectionTask>(
+            collectionInterval,
+            workDataOf(),
+        ) {
+            addTag(WORK_TAG)
+            if (!collectImmediately) {
+                setInitialDelay(collectionInterval.toLong(DurationUnit.MILLISECONDS), TimeUnit.MILLISECONDS)
+            }
+        }.also { workRequest ->
+            WorkManager.getInstance(application)
+                .enqueueUniquePeriodicWork(
+                    WORK_UNIQUE_NAME_PERIODIC,
+                    CANCEL_AND_REENQUEUE,
+                    workRequest,
+                )
+        }
     }
 
     override fun cancelPeriodic() {

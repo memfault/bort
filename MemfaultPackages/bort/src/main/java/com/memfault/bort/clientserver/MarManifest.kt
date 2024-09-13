@@ -186,7 +186,7 @@ sealed class MarMetadata {
             deviceInfoProvider: DeviceInfoProvider,
             projectKey: ProjectKey,
         ): MarManifest {
-            val device = deviceInfoProvider.getDeviceInfo().asDevice(projectKey())
+            val device = deviceInfoProvider.getDeviceInfo().asMarDevice(projectKey())
             return when (metadata) {
                 is HeartbeatMarMetadata -> MarManifest(
                     collectionTime = collectionTime,
