@@ -1,6 +1,7 @@
 package com.memfault.bort.metrics
 
 import com.memfault.bort.TemporaryFileFactory
+import com.memfault.bort.metrics.BatterystatsSummaryCollector.Companion.DP
 import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
 import com.memfault.bort.metrics.HighResTelemetry.Datum
 import com.memfault.bort.metrics.HighResTelemetry.MetricType
@@ -102,7 +103,7 @@ class BatterystatsSummaryCollector @Inject constructor(
                 hrt.add(rollup)
             }
 
-            // Screen off drain
+            // Screen off drain: old metric (to be deleted once we are using the new one, at some point)
             if (diff.screenOffRealtimeMs > 0 && diff.screenOffDrainPercent != null) {
                 val screenOffBatteryDrainPerHour =
                     JsonPrimitive(diff.screenOffDrainPercent.proRataValuePerHour(diff.screenOffRealtimeMs.milliseconds))
@@ -110,13 +111,33 @@ class BatterystatsSummaryCollector @Inject constructor(
                 report[SCREEN_OFF_BATTERY_DRAIN_PER_HOUR] = screenOffBatteryDrainPerHour
             }
 
-            // Screen on drain
+            // Screen off drain: new metrics
+            if (diff.screenOffDrainPercent != null) {
+                val screenOffDischargeDurationMs = JsonPrimitive(diff.screenOffRealtimeMs)
+                addHrtRollup(name = SCREEN_OFF_DISCHARGE_DURATION_MS, value = screenOffDischargeDurationMs)
+                report[SCREEN_OFF_DISCHARGE_DURATION_MS] = screenOffDischargeDurationMs
+                val screenOffPercentDrop = JsonPrimitive(diff.screenOffDrainPercent.roundTo(DP))
+                addHrtRollup(name = SCREEN_OFF_SOC_PCT_DROP, value = screenOffPercentDrop)
+                report[SCREEN_OFF_SOC_PCT_DROP] = screenOffPercentDrop
+            }
+
+            // Screen on drain: old metric (to be deleted once we are using the new one, at some point)
             val screenOnRealtimeMs = diff.batteryRealtimeMs - diff.screenOffRealtimeMs
             if (screenOnRealtimeMs > 0 && diff.screenOnDrainPercent != null) {
                 val screenOnBatteryDrainPerHour =
                     JsonPrimitive(diff.screenOnDrainPercent.proRataValuePerHour(screenOnRealtimeMs.milliseconds))
                 addHrtRollup(name = SCREEN_ON_BATTERY_DRAIN_PER_HOUR, value = screenOnBatteryDrainPerHour)
                 report[SCREEN_ON_BATTERY_DRAIN_PER_HOUR] = screenOnBatteryDrainPerHour
+            }
+
+            // Screen on drain: new metrics
+            if (diff.screenOnDrainPercent != null) {
+                val screenOnDischargeDurationMs = JsonPrimitive(screenOnRealtimeMs)
+                addHrtRollup(name = SCREEN_ON_DISCHARGE_DURATION_MS, value = screenOnDischargeDurationMs)
+                report[SCREEN_ON_DISCHARGE_DURATION_MS] = screenOnDischargeDurationMs
+                val screenOnPercentDrop = JsonPrimitive(diff.screenOnDrainPercent.roundTo(DP))
+                addHrtRollup(name = SCREEN_ON_SOC_PCT_DROP, value = screenOnPercentDrop)
+                report[SCREEN_ON_SOC_PCT_DROP] = screenOnPercentDrop
             }
 
             if (summary.batteryState.estimatedBatteryCapacity > 0) {
@@ -218,6 +239,11 @@ class BatterystatsSummaryCollector @Inject constructor(
         const val MIN_BATTERY_CAPACITY = "min_battery_capacity_mah"
         const val MAX_BATTERY_CAPACITY = "max_battery_capacity_mah"
         const val BATTERY_STATE_OF_HEALTH = "battery_state_of_health_%"
+        const val SCREEN_ON_DISCHARGE_DURATION_MS = "battery_screen_on_discharge_duration_ms"
+        const val SCREEN_ON_SOC_PCT_DROP = "battery_screen_on_soc_pct_drop"
+        const val SCREEN_OFF_DISCHARGE_DURATION_MS = "battery_screen_off_discharge_duration_ms"
+        const val SCREEN_OFF_SOC_PCT_DROP = "battery_screen_off_soc_pct_drop"
+        const val DP = 2
     }
 }
 
@@ -310,7 +336,7 @@ private operator fun PowerUseSummary.minus(other: PowerUseSummary) = PowerUseSum
     maxCapacityMah = maxCapacityMah - other.maxCapacityMah,
 )
 
-private fun Double.proRataValuePerHour(period: Duration, dp: Int = 2) =
+private fun Double.proRataValuePerHour(period: Duration, dp: Int = DP) =
     ((this / period.inWholeMilliseconds.toDouble()) * 1.hours.inWholeMilliseconds.toDouble()).roundTo(dp)
 
 fun Double.roundTo(n: Int): Double {
