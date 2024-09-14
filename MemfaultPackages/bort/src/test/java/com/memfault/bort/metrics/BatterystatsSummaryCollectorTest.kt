@@ -143,6 +143,13 @@ internal class BatterystatsSummaryCollectorTest {
                         createRollup(name = "battery_use_%/hour_unknown", value = 0.11),
                         // (114 / 3777 * 100) / 7.713471111111111 = 0.391298343321669
                         createRollup(name = "battery_use_%/hour_com.google.android.apps.maps", value = 0.39),
+                        // 27768496 - 13884248 = 13884248
+                        createRollup(name = "battery_screen_on_discharge_duration_ms", value = 13884248),
+                        // (1128 - 611) * 100 / 3777 = 13.688112258406142
+                        createRollup(name = "battery_screen_on_soc_pct_drop", value = 13.69),
+                        createRollup(name = "battery_screen_off_discharge_duration_ms", value = 13884248),
+                        // 611 * 100 / 3777 = 16.176859941752714
+                        createRollup(name = "battery_screen_off_soc_pct_drop", value = 16.18),
                     ),
                     aggregatedMetrics = mapOf(
                         "screen_off_battery_drain_%/hour" to JsonPrimitive(4.19),
@@ -152,6 +159,10 @@ internal class BatterystatsSummaryCollectorTest {
                         "min_battery_capacity_mah" to JsonPrimitive(3600f),
                         "max_battery_capacity_mah" to JsonPrimitive(3800f),
                         "battery_state_of_health_%" to JsonPrimitive(96.84615),
+                        "battery_screen_on_discharge_duration_ms" to JsonPrimitive(13884248),
+                        "battery_screen_on_soc_pct_drop" to JsonPrimitive(13.69),
+                        "battery_screen_off_discharge_duration_ms" to JsonPrimitive(13884248),
+                        "battery_screen_off_soc_pct_drop" to JsonPrimitive(16.18),
                     ),
                     internalAggregatedMetrics = emptyMap(),
                 ),
@@ -200,6 +211,10 @@ internal class BatterystatsSummaryCollectorTest {
                     createRollup(name = "battery_use_%/hour_com.google.android.youtube", value = 2.35),
                     // ((202 - 0) / 3777 * 100) / 0.66015 = 8.101431364503029
                     createRollup(name = "battery_use_%/hour_screen", value = 8.10),
+                    createRollup(name = "battery_screen_on_discharge_duration_ms", value = 1782405),
+                    createRollup(name = "battery_screen_on_soc_pct_drop", value = 0.79),
+                    createRollup(name = "battery_screen_off_discharge_duration_ms", value = 594135),
+                    createRollup(name = "battery_screen_off_soc_pct_drop", value = 1.99),
                 ),
                 aggregatedMetrics = mapOf(
                     "screen_off_battery_drain_%/hour" to JsonPrimitive(12.03),
@@ -209,6 +224,10 @@ internal class BatterystatsSummaryCollectorTest {
                     "min_battery_capacity_mah" to JsonPrimitive(3200f),
                     "max_battery_capacity_mah" to JsonPrimitive(3700f),
                     "battery_state_of_health_%" to JsonPrimitive(96.84615),
+                    "battery_screen_on_discharge_duration_ms" to JsonPrimitive(1782405),
+                    "battery_screen_on_soc_pct_drop" to JsonPrimitive(0.79),
+                    "battery_screen_off_discharge_duration_ms" to JsonPrimitive(594135),
+                    "battery_screen_off_soc_pct_drop" to JsonPrimitive(1.99),
                 ),
                 internalAggregatedMetrics = emptyMap(),
             ),
@@ -278,9 +297,17 @@ internal class BatterystatsSummaryCollectorTest {
                 batteryStatsFileToUpload = null,
                 batteryStatsHrt = setOf(
                     createRollup(name = "estimated_battery_capacity_mah", value = 1000f),
+                    createRollup(name = "battery_screen_on_discharge_duration_ms", value = 0),
+                    createRollup(name = "battery_screen_on_soc_pct_drop", value = 0.0),
+                    createRollup(name = "battery_screen_off_discharge_duration_ms", value = 0),
+                    createRollup(name = "battery_screen_off_soc_pct_drop", value = 0.0),
                 ),
                 aggregatedMetrics = mapOf(
                     "estimated_battery_capacity_mah" to JsonPrimitive(1000f),
+                    "battery_screen_on_discharge_duration_ms" to JsonPrimitive(0),
+                    "battery_screen_on_soc_pct_drop" to JsonPrimitive(0.0),
+                    "battery_screen_off_discharge_duration_ms" to JsonPrimitive(0),
+                    "battery_screen_off_soc_pct_drop" to JsonPrimitive(0.0),
                 ),
                 internalAggregatedMetrics = emptyMap(),
             ),
@@ -318,10 +345,18 @@ internal class BatterystatsSummaryCollectorTest {
                 batteryStatsHrt = setOf(
                     createRollup(name = "screen_on_battery_drain_%/hour", value = 4.0),
                     createRollup(name = "estimated_battery_capacity_mah", value = 1000f),
+                    createRollup(name = "battery_screen_on_discharge_duration_ms", value = 3600001),
+                    createRollup(name = "battery_screen_on_soc_pct_drop", value = 4.0),
+                    createRollup(name = "battery_screen_off_discharge_duration_ms", value = 0),
+                    createRollup(name = "battery_screen_off_soc_pct_drop", value = 6.0),
                 ),
                 aggregatedMetrics = mapOf(
                     "screen_on_battery_drain_%/hour" to JsonPrimitive(4.0),
                     "estimated_battery_capacity_mah" to JsonPrimitive(1000f),
+                    "battery_screen_on_discharge_duration_ms" to JsonPrimitive(3600001),
+                    "battery_screen_on_soc_pct_drop" to JsonPrimitive(4.0),
+                    "battery_screen_off_discharge_duration_ms" to JsonPrimitive(0),
+                    "battery_screen_off_soc_pct_drop" to JsonPrimitive(6.0),
                 ),
                 internalAggregatedMetrics = emptyMap(),
             ),
@@ -377,6 +412,10 @@ internal class BatterystatsSummaryCollectorTest {
                         createRollup(name = "min_battery_capacity_mah", value = 3600f),
                         createRollup(name = "max_battery_capacity_mah", value = 3800f),
                         createRollup(name = "battery_state_of_health_%", value = 25.641027),
+                        createRollup(name = "battery_screen_on_discharge_duration_ms", value = 1800000),
+                        createRollup(name = "battery_screen_on_soc_pct_drop", value = 5.0),
+                        createRollup(name = "battery_screen_off_discharge_duration_ms", value = 1800000),
+                        createRollup(name = "battery_screen_off_soc_pct_drop", value = 5.0),
                     ),
                     aggregatedMetrics = mapOf(
                         "screen_off_battery_drain_%/hour" to JsonPrimitive(10.0),
@@ -386,6 +425,10 @@ internal class BatterystatsSummaryCollectorTest {
                         "min_battery_capacity_mah" to JsonPrimitive(3600f),
                         "max_battery_capacity_mah" to JsonPrimitive(3800f),
                         "battery_state_of_health_%" to JsonPrimitive(25.641027),
+                        "battery_screen_on_discharge_duration_ms" to JsonPrimitive(1800000),
+                        "battery_screen_on_soc_pct_drop" to JsonPrimitive(5.0),
+                        "battery_screen_off_discharge_duration_ms" to JsonPrimitive(1800000),
+                        "battery_screen_off_soc_pct_drop" to JsonPrimitive(5.0),
                     ),
                     internalAggregatedMetrics = emptyMap(),
                 ),
@@ -460,6 +503,13 @@ internal class BatterystatsSummaryCollectorTest {
                         createRollup(name = "battery_use_%/hour_com.memfault.bort.ota", value = 0.11),
                         // (114 / 3777 * 100) / 7.713471111111111 = 0.391298343321669
                         createRollup(name = "battery_use_%/hour_com.google.android.apps.maps", value = 0.39),
+                        // 27768496 - 13884248 = 13884248
+                        createRollup(name = "battery_screen_on_discharge_duration_ms", value = 13884248),
+                        // (1128 - 611) * 100 / 3777 = 16.176859941752714
+                        createRollup(name = "battery_screen_on_soc_pct_drop", value = 13.69),
+                        createRollup(name = "battery_screen_off_discharge_duration_ms", value = 13884248),
+                        // 611 * 100 / 3777 = 16.176859941752714
+                        createRollup(name = "battery_screen_off_soc_pct_drop", value = 16.18),
                     ),
                     aggregatedMetrics = mapOf(
                         "screen_off_battery_drain_%/hour" to JsonPrimitive(4.19),
@@ -467,6 +517,10 @@ internal class BatterystatsSummaryCollectorTest {
                         "estimated_battery_capacity_mah" to JsonPrimitive(3777f),
                         "battery_use_%/hour_screen" to JsonPrimitive(0.75),
                         "battery_use_%/hour_gmaps" to JsonPrimitive(0.39),
+                        "battery_screen_on_discharge_duration_ms" to JsonPrimitive(13884248),
+                        "battery_screen_on_soc_pct_drop" to JsonPrimitive(13.69),
+                        "battery_screen_off_discharge_duration_ms" to JsonPrimitive(13884248),
+                        "battery_screen_off_soc_pct_drop" to JsonPrimitive(16.18),
                     ),
                     internalAggregatedMetrics = mapOf(
                         "battery_use_%/hour_bort" to JsonPrimitive(0.11),
