@@ -46,12 +46,12 @@ data class CrashFreeHoursState(
 )
 
 class CrashFreeHoursMetricLogger @Inject constructor() {
-    fun incrementOperationalHours(hours: Long) {
-        OPERATIONAL_HOURS_METRIC.increment(hours)
+    fun incrementOperationalHours(hours: Int) {
+        OPERATIONAL_HOURS_METRIC.incrementBy(by = hours)
     }
 
-    fun incrementCrashFreeHours(hours: Long) {
-        CRASH_FREE_HOURS_METRIC.increment(hours)
+    fun incrementCrashFreeHours(hours: Int) {
+        CRASH_FREE_HOURS_METRIC.incrementBy(by = hours)
     }
 
     companion object {
@@ -95,7 +95,7 @@ class CrashFreeHours @Inject constructor(
     override fun process() {
         val now = timeProvider.now().elapsedRealtime.duration
         val elapsed = now - storage.state.hourStartedAtElapsedRealtimeMs.toDuration(MILLISECONDS)
-        val elapsedHours = elapsed.inWholeHours
+        val elapsedHours = elapsed.inWholeHours.toInt()
 
         if (elapsedHours > 0) {
             metricLogger.incrementOperationalHours(elapsedHours)
