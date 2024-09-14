@@ -1,5 +1,22 @@
 # Memfault Bort Changelog
 
+## v5.1.0 - September 13, 2024
+
+### :construction: Fixes
+
+- Fixed Stability Device Vitals: a change to the way metrics are collected in
+  Bort 4.17.0 meant that `operational_hours` would erroneously be set to zero,
+  resulting in incorrect Stability Vital charts.
+
+### :chart_with_upwards_trend: Improvements
+
+- Added new screen on/off battery drain metrics:
+  `battery_screen_on_discharge_duration_ms`, `battery_screen_on_soc_pct_drop`,
+  `battery_screen_off_discharge_duration_ms`, `battery_screen_off_soc_pct_drop`.
+  These will replace `screen_off_battery_drain_%/hour`/
+  `screen_on_battery_drain_%/hour` in the future, once they are supported in the
+  Memfault dashboard (to more accurately track battery drain across the fleet).
+
 ## v5.0.0 - September 12, 2024
 
 ### :boom: Breaking Changes
