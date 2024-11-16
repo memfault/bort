@@ -1,0 +1,10 @@
+# All apps talk to these services from within the Android SDK internally.
+# https://cs.android.com/android/platform/superproject/main/+/main:packages/services/Car/car_product/sepolicy/private/surround_view.te;l=11
+allow memfault_structured_app {
+    content_capture_service
+    netstats_service
+}:service_manager find;
+
+# structuredlogd app writes to /dev/stune/foreground/tasks.
+# https://cs.android.com/android/platform/superproject/main/+/main:system/sepolicy/private/system_app.te;l=154
+allow memfault_structured_app cgroup:file w_file_perms;

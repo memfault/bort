@@ -1,14 +1,21 @@
 package com.memfault.bort.reporting;
 
 import android.annotation.SuppressLint;
+import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.net.Uri;
 import android.os.RemoteException;
 import android.util.Log;
 import com.memfault.bort.internal.ILogger;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import org.json.JSONException;
 
@@ -35,38 +42,123 @@ public class RemoteMetricsService {
 
   /** VisibleForTesting. */
   @SuppressLint("StaticFieldLeak")
-  public static Context context = null;
+  public static Context staticContext = null;
+
+  private final Context context;
+  private final ExecutorService executorService;
+
+  private RemoteMetricsService(Context context, ExecutorService executorService) {
+    this.context = context;
+    this.executorService = executorService;
+  }
+
+  private Context getContext() {
+    if (context != null) {
+      return context;
+    }
+    return staticContext;
+  }
+
+  public static class Builder {
+    private Context context;
+    private ExecutorService executorService;
+    private boolean immediate = false;
+
+    public RemoteMetricsService.Builder context(Context context) {
+      this.context = context;
+      return this;
+    }
+
+    public RemoteMetricsService.Builder executorService(ExecutorService executorService) {
+      this.executorService = executorService;
+      return this;
+    }
+
+    public RemoteMetricsService.Builder immediate(boolean immediate) {
+      this.immediate = immediate;
+      return this;
+    }
+
+    /**
+     * Builds the [RemoteMetricsService], with defaults if not provided.
+     */
+    public RemoteMetricsService build() {
+      ExecutorService builderExecutorService = executorService;
+      if (builderExecutorService == null) {
+        if (immediate) {
+          builderExecutorService = new ImmediateExecutorService();
+        } else {
+          builderExecutorService =
+              Executors.newSingleThreadExecutor(Executors.defaultThreadFactory());
+        }
+      }
+      return new RemoteMetricsService(context, builderExecutorService);
+    }
+  }
+
+  private static class ImmediateExecutorService extends AbstractExecutorService {
+    private boolean isShutdown = false;
+
+    @Override public void shutdown() {
+      isShutdown = true;
+    }
+
+    @Override public List<Runnable> shutdownNow() {
+      isShutdown = true;
+      return Collections.emptyList();
+    }
+
+    @Override public boolean isShutdown() {
+      return isShutdown;
+    }
+
+    @Override public boolean isTerminated() {
+      return isShutdown;
+    }
+
+    @Override public boolean awaitTermination(long timeout, TimeUnit unit) {
+      return isShutdown;
+    }
+
+    @Override public void execute(Runnable command) {
+      if (!isShutdown) {
+        command.run();
+      }
+    }
+  }
 
   /**
    * Record the MetricValue.
    */
-  public static void record(MetricValue event) {
+  public CompletableFuture<Void> record(MetricValue event) {
     if (event.reportType.equals(SESSION_REPORT)) {
       String errorMessage = isSessionNameValid(event.reportName);
       if (errorMessage != null) {
         android.util.Log.w(TAG, errorMessage);
-        return;
+        return CompletableFuture.completedFuture(null);
       }
     }
 
-    boolean recorded = recordToBort(event);
-    if (recorded) {
-      return;
-    }
+    return CompletableFuture.supplyAsync(() -> {
+      boolean recorded = recordToBort(event);
+      if (recorded) {
+        return null;
+      }
 
-    Log.w(TAG,
-        String.format("Bort Metrics not available, %s falling back to structuredlogd!",
-            event.eventName));
-    recordToStructuredLogd(event);
+      Log.w(TAG,
+          String.format("Bort Metrics not available, %s falling back to structuredlogd!",
+              event.eventName));
+      recordToStructuredLogd(event);
+      return null;
+    }, executorService);
   }
 
-  private static boolean recordToStructuredLogd(MetricValue event) {
+  private void recordToStructuredLogd(MetricValue event) {
     ILogger loggerInstance = RemoteLogger.get();
 
     if (loggerInstance != null) {
       try {
         loggerInstance.addValue(event.toJson());
-        return true;
       } catch (RemoteException | JSONException e) {
         Log.w(TAG, String.format("Failed to send metric to logger: %s", event.eventName), e);
       }
@@ -75,65 +167,86 @@ public class RemoteMetricsService {
           String.format("Logger is not ready, is memfault_structured enabled? %s was not recorded!",
               event.eventName));
     }
-    return false;
   }
 
   /**
    * Start the Report.
    */
-  public static boolean startReport(StartReport startReport) {
+  public CompletableFuture<Boolean> startReport(StartReport startReport) {
+    Context context = getContext();
     if (context == null) {
       android.util.Log.w(TAG, "No context to send metric: " + startReport);
-      return false;
+      return CompletableFuture.completedFuture(false);
     }
 
     if (startReport.reportType.equals(SESSION_REPORT)) {
       String errorMessage = isSessionNameValid(startReport.reportName);
       if (errorMessage != null) {
         android.util.Log.w(TAG, errorMessage);
-        return false;
+        return CompletableFuture.completedFuture(false);
       }
     }
 
-    try {
-      android.util.Log.w(TAG, "Sending start: " + startReport);
-      ContentValues values = new ContentValues();
-      values.put(KEY_CUSTOM_METRIC, startReport.toJson());
-      Uri result = context.getContentResolver().insert(URI_START_CUSTOM_REPORT, values);
-      return result != null;
-    } catch (Exception e) {
-      android.util.Log.w(TAG, "Error sending start: " + startReport, e);
+    return CompletableFuture.supplyAsync(() -> {
+      try {
+        ContentValues values = new ContentValues();
+        values.put(KEY_CUSTOM_METRIC, startReport.toJson());
+        ContentResolver contentResolver = context.getContentResolver();
+        if (contentResolver != null) {
+          Uri result = contentResolver.insert(URI_START_CUSTOM_REPORT, values);
+          boolean success = result != null;
+          if (!success) {
+            android.util.Log.w(TAG, "Error inserting start: " + startReport);
+          }
+          return success;
+        }
+      } catch (Exception e) {
+        android.util.Log.w(TAG, "Error sending start: " + startReport, e);
+      }
       return false;
-    }
+    }, executorService);
   }
 
   /**
    * Finish the Report.
    */
-  public static boolean finishReport(FinishReport finishReport) {
+  public CompletableFuture<Boolean> finishReport(FinishReport finishReport) {
+    Context context = getContext();
     if (context == null) {
       android.util.Log.w(TAG, "No context to send metric: " + finishReport);
-      return false;
+      return CompletableFuture.completedFuture(false);
     }
 
     if (finishReport.reportType.equals(SESSION_REPORT)) {
       String errorMessage = isSessionNameValid(finishReport.reportName);
       if (errorMessage != null) {
         android.util.Log.w(TAG, errorMessage);
-        return false;
+        return CompletableFuture.completedFuture(false);
       }
     }
 
-    try {
-      android.util.Log.w(TAG, "Sending finish: " + finishReport);
-      ContentValues values = new ContentValues();
-      values.put(KEY_CUSTOM_METRIC, finishReport.toJson());
-      Uri result = context.getContentResolver().insert(URI_FINISH_CUSTOM_REPORT, values);
-      return result != null;
-    } catch (Exception e) {
-      android.util.Log.w(TAG, "Error sending finish: " + finishReport, e);
+    return CompletableFuture.supplyAsync(() -> {
+      try {
+        ContentValues values = new ContentValues();
+        values.put(KEY_CUSTOM_METRIC, finishReport.toJson());
+        ContentResolver contentResolver = context.getContentResolver();
+        if (contentResolver != null) {
+          Uri result = contentResolver.insert(URI_FINISH_CUSTOM_REPORT, values);
+          boolean success = result != null;
+          if (!success) {
+            android.util.Log.w(TAG, "Error inserting finish: " + finishReport);
+          }
+          return success;
+        }
+      } catch (Exception e) {
+        android.util.Log.w(TAG, "Error sending finish: " + finishReport, e);
+      }
       return false;
-    }
+    }, executorService);
+  }
+
+  public void shutdown() {
+    executorService.shutdown();
   }
 
   /**
@@ -159,7 +272,8 @@ public class RemoteMetricsService {
     return null;
   }
 
-  private static boolean recordToBort(MetricValue event) {
+  private boolean recordToBort(MetricValue event) {
+    Context context = getContext();
     if (context == null) {
       android.util.Log.w(TAG, "No context to send metric: " + event);
       return false;
@@ -168,11 +282,18 @@ public class RemoteMetricsService {
     try {
       ContentValues values = new ContentValues();
       values.put(KEY_CUSTOM_METRIC, event.toJson());
-      Uri result = context.getContentResolver().insert(URI_ADD_CUSTOM_METRIC, values);
-      return result != null;
+      ContentResolver contentResolver = context.getContentResolver();
+      if (contentResolver != null) {
+        Uri result = contentResolver.insert(URI_ADD_CUSTOM_METRIC, values);
+        boolean success = result != null;
+        if (!success) {
+          android.util.Log.w(TAG, "Error inserting metric: " + event);
+        }
+        return success;
+      }
     } catch (Exception e) {
       android.util.Log.w(TAG, "Error sending metric: " + event, e);
-      return false;
     }
+    return false;
   }
 }

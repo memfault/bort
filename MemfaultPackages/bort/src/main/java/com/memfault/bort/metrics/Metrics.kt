@@ -10,7 +10,6 @@ import com.memfault.bort.parsers.Package
 import com.memfault.bort.reporting.NumericAgg
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
-import kotlinx.serialization.json.JsonPrimitive
 import java.util.Locale
 import javax.inject.Inject
 import com.memfault.bort.shared.BuildConfig as SharedBuildConfig
@@ -96,22 +95,17 @@ suspend fun updateBuiltinProperties(
     dumpsterClient: DumpsterClient,
     integrationChecker: IntegrationChecker,
     installationIdProvider: InstallationIdProvider,
-): Map<String, JsonPrimitive> {
-    val metrics = mutableMapOf<String, JsonPrimitive>()
-    metrics[BORT_VERSION_CODE] = JsonPrimitive(BuildConfig.VERSION_CODE)
+) {
     devicePropertiesStore.upsert(name = BORT_VERSION_CODE, value = BuildConfig.VERSION_CODE, internal = true)
 
-    metrics[BORT_VERSION_NAME] = JsonPrimitive(BuildConfig.VERSION_NAME)
     devicePropertiesStore.upsert(name = BORT_VERSION_NAME, value = BuildConfig.VERSION_NAME, internal = true)
 
-    metrics[BORT_UPSTREAM_VERSION_CODE] = JsonPrimitive(SharedBuildConfig.UPSTREAM_VERSION_CODE)
     devicePropertiesStore.upsert(
         name = BORT_UPSTREAM_VERSION_CODE,
         value = SharedBuildConfig.UPSTREAM_VERSION_CODE,
         internal = true,
     )
 
-    metrics[BORT_UPSTREAM_VERSION_NAME] = JsonPrimitive(SharedBuildConfig.UPSTREAM_VERSION_NAME)
     devicePropertiesStore.upsert(
         name = BORT_UPSTREAM_VERSION_NAME,
         value = SharedBuildConfig.UPSTREAM_VERSION_NAME,
@@ -119,7 +113,6 @@ suspend fun updateBuiltinProperties(
     )
 
     val usageReporterVersionCode = packageManagerClient.getUsageReporterVersion()?.versionCode ?: 0
-    metrics[USAGE_REPORTER_VERSION_CODE] = JsonPrimitive(usageReporterVersionCode)
     devicePropertiesStore.upsert(
         name = USAGE_REPORTER_VERSION_CODE,
         value = usageReporterVersionCode,
@@ -127,7 +120,6 @@ suspend fun updateBuiltinProperties(
     )
 
     val usageReporterVersionName = packageManagerClient.getUsageReporterVersion()?.versionName ?: ""
-    metrics[USAGE_REPORTER_VERSION_NAME] = JsonPrimitive(usageReporterVersionName)
     devicePropertiesStore.upsert(
         name = USAGE_REPORTER_VERSION_NAME,
         value = usageReporterVersionName,
@@ -135,24 +127,19 @@ suspend fun updateBuiltinProperties(
     )
 
     val dumpsterVersion = dumpsterClient.getDumpsterVersion()
-    metrics[DUMPSTER_VERSION] = JsonPrimitive(dumpsterVersion)
     devicePropertiesStore.upsert(name = DUMPSTER_VERSION, value = dumpsterVersion, internal = true)
 
-    metrics[RUNTIME_ENABLE_REQUIRED] = JsonPrimitive(BuildConfig.RUNTIME_ENABLE_REQUIRED)
     devicePropertiesStore.upsert(
         name = RUNTIME_ENABLE_REQUIRED,
         value = BuildConfig.RUNTIME_ENABLE_REQUIRED,
         internal = true,
     )
 
-    metrics[OS_VERSION] = JsonPrimitive(Build.VERSION.SDK_INT)
     devicePropertiesStore.upsert(name = OS_VERSION, value = Build.VERSION.SDK_INT, internal = true)
 
-    metrics[BORT_INSTALLATION_ID] = JsonPrimitive(installationIdProvider.id())
     devicePropertiesStore.upsert(name = BORT_INSTALLATION_ID, value = installationIdProvider.id(), internal = true)
 
-    metrics[BORT_PACKAGE_NAME] = JsonPrimitive(BuildConfig.APPLICATION_ID)
     devicePropertiesStore.upsert(name = BORT_PACKAGE_NAME, value = BuildConfig.APPLICATION_ID, internal = true)
 
-    return metrics + integrationChecker.checkIntegrationAndReport(devicePropertiesStore)
+    integrationChecker.checkIntegrationAndReport(devicePropertiesStore)
 }

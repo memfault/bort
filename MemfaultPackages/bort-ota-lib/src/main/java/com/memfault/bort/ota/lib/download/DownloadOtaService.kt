@@ -5,6 +5,8 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
 import android.system.Os
@@ -13,6 +15,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.memfault.bort.Default
+import com.memfault.bort.IO
 import com.memfault.bort.ota.lib.Action
 import com.memfault.bort.ota.lib.DEFAULT_STATE_PREFERENCE_FILE
 import com.memfault.bort.ota.lib.DOWNLOAD_PROGRESS_KEY
@@ -37,8 +41,6 @@ import com.memfault.bort.shared.InternalMetric.Companion.OTA_DOWNLOAD_SUCCESS_SP
 import com.memfault.bort.shared.InternalMetric.Companion.sendMetric
 import com.memfault.bort.shared.Logger
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
 import kotlinx.coroutines.channels.awaitClose
@@ -67,6 +69,7 @@ import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 import kotlin.math.max
 import kotlin.math.min
 
@@ -78,10 +81,16 @@ private const val EXTRA_URL = "extra_url"
  * A foreground service that downloads an OTA update to the expected folder. It shows a progress notification
  * and will issue update actions to the updater when the download succeeds or fails.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+
 @AndroidEntryPoint
 class DownloadOtaService : LifecycleService() {
     @Inject lateinit var updater: Updater
+
+    @IO @Inject
+    lateinit var ioCoroutineContext: CoroutineContext
+
+    @Default @Inject
+    lateinit var defaultCoroutineContext: CoroutineContext
     private lateinit var notificationManager: NotificationManagerCompat
     private lateinit var notificationBuilder: NotificationCompat.Builder
 
@@ -112,11 +121,15 @@ class DownloadOtaService : LifecycleService() {
         // Show a user-facing notification and start in the foreground so that the system does not kill us
         notificationManager = NotificationManagerCompat.from(this)
         notificationBuilder = setupForegroundNotification(this)
-        startForeground(NOTIFICATION_ID, notificationBuilder.build())
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notificationBuilder.build(), FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(NOTIFICATION_ID, notificationBuilder.build())
+        }
 
         val startMs = SystemClock.elapsedRealtime()
 
-        lifecycleScope.launch(Dispatchers.IO) {
+        lifecycleScope.launch(ioCoroutineContext) {
             download(url, targetFile)
                 .distinctUntilChangedBy { event ->
                     when (event) {
@@ -301,7 +314,7 @@ class DownloadOtaService : LifecycleService() {
                 setProgress(max, progress, false)
             }.build(),
         )
-        withContext(Dispatchers.Default) {
+        withContext(defaultCoroutineContext) {
             updater.perform(Action.DownloadProgress(progress))
         }
     }
@@ -316,7 +329,7 @@ class DownloadOtaService : LifecycleService() {
             }.build(),
         )
         downloadProgressStore.store(null)
-        withContext(Dispatchers.Default) {
+        withContext(defaultCoroutineContext) {
             updater.perform(Action.DownloadCompleted(targetFile.absolutePath))
         }
     }
@@ -330,7 +343,7 @@ class DownloadOtaService : LifecycleService() {
                 setProgress(0, 0, false)
             }.build(),
         )
-        withContext(Dispatchers.Default) {
+        withContext(defaultCoroutineContext) {
             updater.perform(Action.DownloadFailed)
         }
     }

@@ -9,6 +9,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -28,6 +29,8 @@ class ABUpdateActionHandlerTest {
     private lateinit var scheduleDownload: ScheduleDownload
     private lateinit var otaRulesProvider: OtaRulesProvider
     private lateinit var settingsProvider: SoftwareUpdateSettingsProvider
+
+    private val testScheduler = UnconfinedTestDispatcher()
 
     private val updateEngineCallbacks = mutableListOf<AndroidUpdateEngineCallback>()
     private val collectedStates = mutableListOf<State>()
@@ -93,6 +96,7 @@ class ABUpdateActionHandlerTest {
                 application = application,
                 otaRulesProvider = otaRulesProvider,
                 settingsProvider = settingsProvider,
+                defaultCoroutineContext = testScheduler,
             )
         handler.initialize()
     }

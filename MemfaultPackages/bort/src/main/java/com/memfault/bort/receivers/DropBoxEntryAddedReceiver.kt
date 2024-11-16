@@ -27,7 +27,8 @@ class DropBoxEntryAddedReceiver @Inject constructor(
     private var registered = false
 
     fun initialize() {
-        val enabled = bortEnabledProvider.isEnabled() && settingsProvider.dropBoxSettings.dataSourceEnabled &&
+        val enabled = bortEnabledProvider.isEnabled() &&
+            settingsProvider.dropBoxSettings.dataSourceEnabled &&
             settingsProvider.dropBoxSettings.processImmediately
         if (registered && !enabled) {
             application.unregisterReceiver(this)

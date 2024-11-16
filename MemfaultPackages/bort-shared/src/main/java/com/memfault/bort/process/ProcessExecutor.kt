@@ -19,7 +19,7 @@ class ProcessExecutor
 ) {
     suspend fun <T> execute(
         command: List<String>,
-        handleLines: (InputStream) -> T,
+        handleLines: suspend (InputStream) -> T,
     ): T? = withContext(ioDispatcher) {
         Logger.d("ProcessExecutor: executing $command")
         val process = runCatching {
@@ -27,7 +27,9 @@ class ProcessExecutor
         }.getOrNull() ?: return@withContext null
 
         try {
-            val output = handleLines(process.inputStream)
+            val output = process.inputStream.use {
+                handleLines(it)
+            }
 
             withTimeoutOrNull(basicCommandTimeout) {
                 runInterruptible {

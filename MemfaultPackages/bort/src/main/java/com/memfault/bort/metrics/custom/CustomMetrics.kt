@@ -4,14 +4,17 @@ import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.battery.BATTERY_CHARGING_METRIC
 import com.memfault.bort.battery.BATTERY_LEVEL_METRIC
-import com.memfault.bort.battery.BatterySessionVitalsCalculator
 import com.memfault.bort.connectivity.CONNECTIVITY_TYPE_METRIC
-import com.memfault.bort.connectivity.ConnectivityTimeCalculator
+import com.memfault.bort.dagger.InjectSet
+import com.memfault.bort.metrics.AggregateMetricFilter.filterAndRenameMetrics
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_CRASHES_METRIC_KEY
+import com.memfault.bort.metrics.custom.ReportType.Daily
+import com.memfault.bort.metrics.custom.ReportType.Hourly
+import com.memfault.bort.metrics.custom.ReportType.Session
+import com.memfault.bort.metrics.database.CalculateDerivedAggregations
 import com.memfault.bort.metrics.database.DAILY_HEARTBEAT_REPORT_TYPE
 import com.memfault.bort.metrics.database.DbReport
 import com.memfault.bort.metrics.database.DbReportBuilder
-import com.memfault.bort.metrics.database.DerivedAggregation
 import com.memfault.bort.metrics.database.HOURLY_HEARTBEAT_REPORT_TYPE
 import com.memfault.bort.metrics.database.HrtFileFactory
 import com.memfault.bort.metrics.database.MetricsDb
@@ -59,7 +62,7 @@ private val SYNC_METRICS = setOf(
     "sync_successful",
 )
 
-private val BATTERY_METRICS = setOf(
+val BATTERY_METRICS = setOf(
     BATTERY_CHARGING_METRIC,
     BATTERY_LEVEL_METRIC,
 )
@@ -77,6 +80,7 @@ class RealCustomMetrics @Inject constructor(
     private val highResMetricsEnabled: HighResMetricsEnabled,
     @SessionMetrics private val sessionMetricsTokenBucketStore: TokenBucketStore,
     private val deviceInfoProvider: DeviceInfoProvider,
+    private val derivedAggregations: InjectSet<CalculateDerivedAggregations>,
 ) : CustomMetrics {
     private val mutex = Mutex()
 
@@ -167,70 +171,17 @@ class RealCustomMetrics @Inject constructor(
                 null
             },
             calculateDerivedAggregations = { dbReport, endTimestamp, metrics, internalMetrics ->
-                val aggregations = mutableListOf<DerivedAggregation>()
-                aggregations += ConnectivityTimeCalculator.calculate(dbReport, endTimestamp, metrics, internalMetrics)
-                aggregations += BatterySessionVitalsCalculator.calculate(
-                    dbReport,
-                    endTimestamp,
-                    metrics,
-                    internalMetrics,
-                )
-                aggregations
+                derivedAggregations.flatMap { it.calculate(dbReport, endTimestamp, metrics, internalMetrics) }
             },
             dailyHeartbeatReportMetricsForSessions = BATTERY_METRICS.toList(),
             dbReportBuilder = dbReportBuilder,
             forceEndAllReports = forceEndAllReports,
         )
 
-        // Perform additional modifications on the generated heartbeat and session reports.
-        val updatedHourlyHeartbeat = report.hourlyHeartbeatReport.let { hourlyReport ->
-            val updatedMetrics = hourlyReport.metrics.toMutableMap()
-
-            // Always report operational_crashes even if it's 0.
-            updatedMetrics.putIfAbsent(OPERATIONAL_CRASHES_METRIC_KEY, JsonPrimitive(0.0))
-
-            hourlyReport.copy(
-                metrics = updatedMetrics,
-            )
-        }
-
-        val updatedDailyHeartbeat = report.dailyHeartbeatReport?.let { dailyReport ->
-            val updatedMetrics = dailyReport.metrics.toMutableMap()
-
-            // Always report operational_crashes even if it's 0.
-            updatedMetrics.putIfAbsent(OPERATIONAL_CRASHES_METRIC_KEY, JsonPrimitive(0.0))
-
-            dailyReport.copy(
-                metrics = updatedMetrics,
-            )
-        }
-
-        val updatedSessions = report.sessions.map { session ->
-            val updatedMetrics = session.metrics.toMutableMap()
-
-            // Always report operational_crashes even if it's 0.
-            updatedMetrics.putIfAbsent(OPERATIONAL_CRASHES_METRIC_KEY, JsonPrimitive(0.0))
-
-            // Remove the connectivity.type total time metrics.
-            updatedMetrics.keys.removeIf { key -> key.startsWith(CONNECTIVITY_TYPE_METRIC) }
-
-            val updatedInternalMetrics = session.internalMetrics.toMutableMap()
-
-            // Remove the session battery metrics.
-            updatedInternalMetrics.keys.removeIf { key ->
-                BATTERY_METRICS.any { metric -> key.startsWith(metric) }
-            }
-
-            session.copy(
-                metrics = updatedMetrics,
-                internalMetrics = updatedInternalMetrics,
-            )
-        }
-
         report.copy(
-            hourlyHeartbeatReport = updatedHourlyHeartbeat,
-            dailyHeartbeatReport = updatedDailyHeartbeat,
-            sessions = updatedSessions,
+            hourlyHeartbeatReport = report.hourlyHeartbeatReport.filterAndRenameMetrics(Hourly),
+            dailyHeartbeatReport = report.dailyHeartbeatReport?.filterAndRenameMetrics(Daily),
+            sessions = report.sessions.map { it.filterAndRenameMetrics(Session) },
         )
     }
 }
@@ -252,3 +203,9 @@ data class MetricReport(
     val hrt: File?,
     val softwareVersion: String?,
 )
+
+enum class ReportType {
+    Hourly,
+    Daily,
+    Session,
+}

@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.IO
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.parsers.BatteryStatsHistoryParser
@@ -12,12 +13,12 @@ import com.memfault.bort.shared.BatteryStatsCommand
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.BaseLinuxBootRelativeTime
 import com.memfault.bort.time.CombinedTime
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import java.io.OutputStream
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
@@ -58,6 +59,7 @@ class BatteryStatsHistoryCollector @Inject constructor(
     private val settings: BatteryStatsSettings,
     private val metricsCollectionInterval: MetricsCollectionInterval,
     private val bortErrors: BortErrors,
+    @IO private val ioCoroutineContext: CoroutineContext,
 ) {
     suspend fun collect(
         collectionTime: CombinedTime,
@@ -129,7 +131,6 @@ class BatteryStatsHistoryCollector @Inject constructor(
                 check(historyStart != 0L) { "Cursor already reset!" }
                 historyStart = 0
                 nextBatteryStatsHistoryStartProvider.historyStart = 0
-                Logger.logEvent("batterystats", "reset")
                 continue
             }
 
@@ -147,7 +148,6 @@ class BatteryStatsHistoryCollector @Inject constructor(
                     "batterystats historyStart < historyStartComparisonLimit: " +
                         "nextHistoryStart=$nextHistoryStart historyStartComparisonLimit=$historyStartComparisonLimit",
                 )
-                Logger.logEvent("batterystats", "limit")
                 continue
             }
 
@@ -161,7 +161,7 @@ class BatteryStatsHistoryCollector @Inject constructor(
         batteryStatsFile: File,
         historyStart: Long,
     ): BatteryStatsReport =
-        withContext(Dispatchers.IO) {
+        withContext(ioCoroutineContext) {
             batteryStatsFile.outputStream().use {
                 runBatteryStats.runBatteryStats(
                     it,

@@ -1,7 +1,9 @@
 package com.memfault.bort.shared
 
 import androidx.work.ListenableWorker.Result
+import com.memfault.bort.reporting.NumericAgg.MAX
 import com.memfault.bort.reporting.Reporting
+import kotlin.time.TimeSource
 
 interface JobReporter {
     /**
@@ -47,6 +49,7 @@ suspend fun runAndTrackExceptions(
     doWork: suspend () -> Result,
 ): Result {
     val id = jobReporter.onJobStarted(jobName)
+    val timing = TimeSource.Monotonic.markNow()
     return try {
         val result = doWork()
         jobReporter.onJobFinished(id, result.toString())
@@ -56,7 +59,16 @@ suspend fun runAndTrackExceptions(
         jobReporter.onJobError(jobName, t)
         JOB_EXCEPTION_METRIC.add("$jobName: ${t.stackTraceToString().take(500)}")
         throw t
+    } finally {
+        jobTimingMetric(jobName).record(timing.elapsedNow().inWholeMilliseconds)
     }
 }
+
+private fun jobTimingMetric(jobName: String) = Reporting.report()
+    .distribution(
+        name = "job_timing_ms_$jobName",
+        aggregations = listOf(MAX),
+        internal = true,
+    )
 
 private val JOB_EXCEPTION_METRIC = Reporting.report().event(name = "job_error", countInReport = true, internal = true)

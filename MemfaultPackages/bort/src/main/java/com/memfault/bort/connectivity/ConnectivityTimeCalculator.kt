@@ -5,11 +5,15 @@ import com.memfault.bort.metrics.database.CalculateDerivedAggregations
 import com.memfault.bort.metrics.database.DerivedAggregation
 import com.memfault.bort.reporting.DataType.DOUBLE
 import com.memfault.bort.reporting.MetricType.GAUGE
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
+import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
 
-object ConnectivityTimeCalculator : CalculateDerivedAggregations {
+@ContributesMultibinding(SingletonComponent::class)
+class ConnectivityTimeCalculator @Inject constructor() : CalculateDerivedAggregations {
 
     override fun calculate(
         startTimestampMs: Long,
@@ -84,9 +88,11 @@ object ConnectivityTimeCalculator : CalculateDerivedAggregations {
         internal = false,
     )
 
-    @VisibleForTesting
-    internal const val CONNECTED_TIME_METRIC = "connectivity_connected_time_ms"
+    companion object {
+        @VisibleForTesting
+        internal const val CONNECTED_TIME_METRIC = "connectivity_connected_time_ms"
 
-    @VisibleForTesting
-    internal const val EXPECTED_TIME_METRIC = "connectivity_expected_time_ms"
+        @VisibleForTesting
+        internal const val EXPECTED_TIME_METRIC = "connectivity_expected_time_ms"
+    }
 }

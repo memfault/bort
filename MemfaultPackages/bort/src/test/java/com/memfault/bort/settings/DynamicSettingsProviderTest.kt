@@ -20,6 +20,8 @@ import com.memfault.bort.time.boxed
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -91,17 +93,18 @@ class DynamicSettingsProviderTest {
 
         // The first call will use the value in resources
         assertThat(settings.minLogcatLevel).isEqualTo(LogLevel.VERBOSE)
+        val deviceInfoSettings = settings.deviceInfoSettings
 
         // The second call will still operate on a cached settings value
         assertThat(settings.minLogcatLevel).isEqualTo(LogLevel.VERBOSE)
-        assertThat(settings.deviceInfoSettings.androidHardwareVersionKey).isEqualTo(MODEL_KEY_OLD)
+        assertThat(deviceInfoSettings.androidHardwareVersionKey).isEqualTo(MODEL_KEY_OLD)
         assertThat(settings.httpApiSettings.zipCompressionLevel).isEqualTo(1)
 
         // This will cause settings to be reconstructed on the next call, which will
         // read the new min_log_level from shared preferences
         settings.invalidate()
         assertThat(settings.minLogcatLevel).isEqualTo(LogLevel.INFO)
-        assertThat(settings.deviceInfoSettings.androidHardwareVersionKey).isEqualTo(MODEL_KEY_NEW)
+        assertThat(deviceInfoSettings.androidHardwareVersionKey).isEqualTo(MODEL_KEY_NEW)
         assertThat(settings.httpApiSettings.zipCompressionLevel).isEqualTo(2)
     }
 
@@ -170,8 +173,6 @@ internal val EXPECTED_SETTINGS_DEFAULT = FetchedSettings(
     bortMinLogcatLevel = 5,
     bortMinStructuredLogLevel = 3,
     bortSettingsUpdateInterval = 1234.milliseconds.boxed(),
-    bortEventLogEnabled = true,
-    bortInternalLogToDiskEnabled = false,
     bugReportCollectionInterval = 1234.milliseconds.boxed(),
     bugReportDataSourceEnabled = false,
     bugReportFirstBugReportDelayAfterBoot = 5678.milliseconds.boxed(),
@@ -302,6 +303,7 @@ private val EXPECTED_SETTINGS = EXPECTED_SETTINGS_DEFAULT.copy(
     storageBortTempMaxStorageBytes = 250000001,
     batteryStatsCollectSummary = true,
     metricsPollingInterval = 61.seconds.boxed(),
+    logcat2MetricsConfig = JsonObject(mapOf("rules" to JsonArray(emptyList()))),
 )
 
 internal val SETTINGS_FIXTURE = """
@@ -313,7 +315,6 @@ internal val SETTINGS_FIXTURE = """
                 "bort.min_log_level": 5,
                 "bort.min_structured_log_level": 3,
                 "bort.event_log_enabled": true,
-                "bort.internal_log_to_disk_enabled": false,
                 "bort.settings_update_interval_ms": 1234,
                 "bug_report.collection_interval_ms": 1234,
                 "bug_report.data_source_enabled": false,
@@ -410,6 +411,10 @@ internal val SETTINGS_FIXTURE = """
                 "logcat.continuous_dump_threshold_bytes": 26214400,
                 "logcat.continuous_dump_threshold_time_ms": 900000,
                 "logcat.continuous_dump_wrapping_timeout_ms": 900000,
+                "logcat.logs2metrics_config": {
+                    "rules": [
+                    ]
+                },
                 "metrics.collection_interval_ms": 91011,
                 "metrics.data_source_enabled": false,
                 "metrics.system_properties": ["ro.build.type", "persist.sys.timezone"],

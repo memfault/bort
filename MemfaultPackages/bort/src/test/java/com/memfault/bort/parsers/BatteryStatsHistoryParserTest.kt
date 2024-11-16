@@ -503,4 +503,91 @@ class BatteryStatsHistoryParserTest {
                 result2.aggregatedMetrics["battery_discharge_rate_pct_per_hour_avg"],
         ).isTrue()
     }
+
+    @Test
+    fun testMinVoltage() = runTest {
+        val parser = BatteryStatsHistoryParser(
+            createFile(
+                content =
+                """
+                9,hsp,1,0,"Abort:Pending Wakeup Sources: 200f000.qcom,spmi:qcom,pm660@0:qpnp,fg battery qcom-step-chg "
+                9,h,123:TIME:1000000
+                9,h,0,Bv=6000
+                9,h,600000,Bv=3000
+                9,h,900000,Bv=9000
+                9,h,990000,Bv=3001
+                """.trimIndent(),
+            ),
+            bortErrors,
+        )
+        val result = parser.parseToCustomMetrics()
+        assertThat(result.aggregatedMetrics).all {
+            contains("min_battery_voltage" to JsonPrimitive(3.0))
+        }
+        coVerify { bortErrors wasNot Called }
+    }
+
+    @Test
+    fun testMinVoltageScale() = runTest {
+        val parser = BatteryStatsHistoryParser(
+            createFile(
+                content =
+                """
+                9,hsp,1,0,"Abort:Pending Wakeup Sources: 200f000.qcom,spmi:qcom,pm660@0:qpnp,fg battery qcom-step-chg "
+                9,h,123:TIME:1000000
+                9,h,0,Bv=6635
+                """.trimIndent(),
+            ),
+            bortErrors,
+        )
+        val result = parser.parseToCustomMetrics()
+        assertThat(result.aggregatedMetrics).all {
+            contains("min_battery_voltage" to JsonPrimitive(6.635))
+        }
+        coVerify { bortErrors wasNot Called }
+    }
+
+    @Test
+    fun testDefaultsExactly() = runTest {
+        val parser = BatteryStatsHistoryParser(
+            createFile(
+                content =
+                """
+                9,hsp,0,1000,"android"
+                9,h,0:RESET:TIME:1712915952498
+                9,h,0,Bl=100
+                9,h,1,Bl=99
+                """.trimIndent(),
+            ),
+            bortErrors,
+        )
+        val result = parser.parseToCustomMetrics()
+        assertThat(result.aggregatedMetrics).all {
+            containsOnly(
+                "cpu_running_ratio" to JsonPrimitive(0.0),
+                "cpu_resume_count_per_hour" to JsonPrimitive(0.0),
+                "cpu_suspend_count_per_hour" to JsonPrimitive(0.0),
+                "battery_health_not_good_ratio" to JsonPrimitive(0.0),
+                "audio_on_ratio" to JsonPrimitive(0.0),
+                "gps_on_ratio" to JsonPrimitive(0.0),
+                "screen_on_ratio" to JsonPrimitive(0.0),
+                "screen_brightness_light_or_bright_ratio" to JsonPrimitive(0.0),
+                "wifi_on_ratio" to JsonPrimitive(0.0),
+                "wifi_scan_ratio" to JsonPrimitive(0.0),
+                "wifi_radio_active_ratio" to JsonPrimitive(0.0),
+                "wifi_running_ratio" to JsonPrimitive(0.0),
+                "wifi_signal_strength_poor_or_very_poor_ratio" to JsonPrimitive(0.0),
+                "doze_full_ratio" to JsonPrimitive(0.0),
+                "doze_ratio" to JsonPrimitive(0.0),
+                "bluetooth_scan_ratio" to JsonPrimitive(0.0),
+                "phone_radio_active_ratio" to JsonPrimitive(0.0),
+                "phone_scanning_ratio" to JsonPrimitive(0.0),
+                "phone_signal_strength_none_ratio" to JsonPrimitive(0.0),
+                "phone_signal_strength_poor_ratio" to JsonPrimitive(0.0),
+                // Also the battery level but only because we need any extra value to make the parser work.
+                "battery_level_pct_avg" to JsonPrimitive(99.5),
+            )
+        }
+        coVerify { bortErrors wasNot Called }
+    }
 }

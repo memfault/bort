@@ -25,7 +25,9 @@ data class CommandRunnerOptions(
     fun toBundle(): Bundle =
         Bundle().apply {
             outFd?.let { putParcelable(OUT_FD, it) }
-            if (redirectErr) { putBoolean(REDIRECT_ERR, true) }
+            if (redirectErr) {
+                putBoolean(REDIRECT_ERR, true)
+            }
             putLong(TIMEOUT_MILLIS, timeout.inWholeMilliseconds)
             putParcelable(ID, ParcelUuid(id))
         }

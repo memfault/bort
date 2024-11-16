@@ -1,5 +1,6 @@
 package com.memfault.bort.parsers
 
+import android.os.Process
 import com.memfault.bort.BortJson
 import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsSummaryParseError
 import com.memfault.bort.diagnostics.BortErrors
@@ -132,14 +133,24 @@ class BatteryStatsSummaryParser @Inject constructor(
         val totalMaHScreenOff: Long,
     )
 
-    private fun ParserContext.uuidToName(uid: Int) = when {
-        // Every system UID's usage is assigned to "android"
-        uid <= UID_SYSTEM_MAX -> COMPONENT_ANDROID
-        else -> uids[uid] ?: COMPONENT_UNKNOWN
+    private fun ParserContext.uidToName(uid: Int): String {
+        // Use known fixed UIDs if we know the value
+        if (uid == Process.SYSTEM_UID) {
+            return COMPONENT_SYSTEM
+        }
+
+        // Otherwise use the package name from the top of the checkin
+        val uidName = uids[uid]
+        if (uidName != null) {
+            return uidName
+        }
+
+        // Else report as unknown
+        return COMPONENT_UNKNOWN
     }
 
     private fun ParserContext.componentName(drainType: String, uid: Int): String = when (drainType) {
-        UID -> uuidToName(uid)
+        UID -> uidToName(uid)
         else -> SYSTEM_COMPONENT_MAP[drainType] ?: drainType
     }
 
@@ -198,16 +209,17 @@ class BatteryStatsSummaryParser @Inject constructor(
         private const val I_UID = 1
         private const val I_TYPE = 2
         private const val I_CONTENT_START = 3
-        private const val UID_SYSTEM_MAX = 10000
-        private const val COMPONENT_ANDROID = "android"
+        private const val COMPONENT_SYSTEM = "system"
         private const val COMPONENT_UNKNOWN = "unknown"
         private const val UID = "uid"
+
+        // https://cs.android.com/android/platform/superproject/+/android14-qpr3-release:frameworks/base/core/java/android/os/BatteryStats.java;l=4402
         private val SYSTEM_COMPONENT_MAP = mapOf(
             "scrn" to "screen",
             "blue" to "bluetooth",
             "ambi" to "ambient",
-            "unacc" to COMPONENT_UNKNOWN,
-            "???" to COMPONENT_ANDROID,
+            "unacc" to "unaccounted",
+            "???" to "unknown_component",
         )
 
         // We might use some of these in the future - save some time by leaving the constants here.

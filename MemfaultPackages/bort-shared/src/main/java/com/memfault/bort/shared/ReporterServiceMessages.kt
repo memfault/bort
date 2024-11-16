@@ -117,9 +117,7 @@ abstract class ReporterServiceMessage : ServiceMessage {
 open class SimpleReporterServiceMessage(override val messageId: Int) : ReporterServiceMessage() {
     override fun toBundle(): Bundle = Bundle()
 
-    override fun hashCode(): Int {
-        return messageId
-    }
+    override fun hashCode(): Int = messageId
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

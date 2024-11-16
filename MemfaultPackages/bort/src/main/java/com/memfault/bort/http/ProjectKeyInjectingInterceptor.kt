@@ -28,9 +28,7 @@ class ProjectKeyInjectingInterceptor @Inject constructor(
 
     override val type: InterceptorType = PROJECT_KEY
 
-    override fun intercept(chain: Interceptor.Chain): Response {
-        return chain.proceed(transformRequest(chain.request()))
-    }
+    override fun intercept(chain: Interceptor.Chain): Response = chain.proceed(transformRequest(chain.request()))
 
     private fun transformRequest(originalRequest: Request): Request {
         val annotation = originalRequest.tag(Invocation::class.java)

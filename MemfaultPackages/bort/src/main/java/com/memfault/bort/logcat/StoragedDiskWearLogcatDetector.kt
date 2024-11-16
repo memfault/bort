@@ -1,8 +1,13 @@
 package com.memfault.bort.logcat
 
 import com.memfault.bort.parsers.LogcatLine
+import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.reporting.Reporting
-import javax.inject.Inject
+import com.memfault.bort.time.BaseAbsoluteTime
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.components.SingletonComponent
 
 internal data class StoragedDiskWearMetric(
     val version: String,
@@ -11,15 +16,20 @@ internal data class StoragedDiskWearMetric(
     val lifetimeB: Long,
 )
 
-class StoragedDiskWearLogcatDetector
-@Inject constructor() {
+@ContributesMultibinding(SingletonComponent::class)
+@AssistedFactory
+interface StoragedDiskWearLogcatDetectorFactory : LogcatLineProcessor.Factory {
+    override fun create(): StoragedDiskWearLogcatDetector
+}
+
+class StoragedDiskWearLogcatDetector @AssistedInject constructor() : LogcatLineProcessor {
 
     private val emmcVersionProperty = Reporting.report().stringProperty("disk_wear.emmc_version")
     private val eolProperty = Reporting.report().numberProperty("disk_wear.eol")
     private val lifetimeAProperty = Reporting.report().numberProperty("disk_wear.lifetime_a")
     private val lifetimeBProperty = Reporting.report().numberProperty("disk_wear.lifetime_b")
 
-    fun detect(line: LogcatLine) {
+    override suspend fun process(line: LogcatLine, packageManagerReport: PackageManagerReport) {
         val metric = detect(line.message)
 
         if (metric != null) {
@@ -29,6 +39,8 @@ class StoragedDiskWearLogcatDetector
             lifetimeBProperty.update(metric.lifetimeB)
         }
     }
+
+    override suspend fun finish(lastLogTime: BaseAbsoluteTime): Set<LogcatLineProcessorResult> = emptySet()
 
     internal fun detect(line: String?): StoragedDiskWearMetric? {
         if (line.isNullOrBlank()) return null

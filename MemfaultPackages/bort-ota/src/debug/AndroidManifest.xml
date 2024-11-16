@@ -2,7 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <application>
-        <activity android:name=".UpdateActivity">
+        <activity android:name=".UpdateActivity"
+            android:exported="true">
             <!-- Show the activity on launcher for debug -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -12,7 +13,8 @@
 
         <receiver
             android:name=".OtaTestReceiver"
-            tools:ignore="ExportedReceiver">
+            tools:ignore="ExportedReceiver"
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.TEST_BORT_OTA_ECHO" />
             </intent-filter>

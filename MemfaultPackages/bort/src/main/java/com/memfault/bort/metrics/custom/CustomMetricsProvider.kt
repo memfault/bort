@@ -35,9 +35,7 @@ class CustomMetricsProvider : ContentProvider() {
         )
     }
 
-    override fun onCreate(): Boolean {
-        return true
-    }
+    override fun onCreate(): Boolean = true
 
     override fun query(
         uri: Uri,

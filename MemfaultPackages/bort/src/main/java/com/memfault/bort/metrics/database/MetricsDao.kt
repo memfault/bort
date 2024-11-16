@@ -6,7 +6,6 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
 import com.memfault.bort.json.useJsonWriter
-import com.memfault.bort.metrics.AggregateMetricFilter
 import com.memfault.bort.metrics.custom.CustomReport
 import com.memfault.bort.metrics.custom.MetricReport
 import com.memfault.bort.metrics.database.DerivedAggregation.Companion.asMetrics
@@ -633,10 +632,8 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
             endTimestampMs = endTimestampMs,
             reportType = startReport.type,
             reportName = startReport.name,
-            metrics = derivedAggregations.asMetrics(internal = false) +
-                AggregateMetricFilter.filterAndRenameMetrics(metrics, internal = false),
-            internalMetrics = derivedAggregations.asMetrics(internal = true) +
-                AggregateMetricFilter.filterAndRenameMetrics(internalMetrics, internal = true),
+            metrics = derivedAggregations.asMetrics(internal = false) + metrics,
+            internalMetrics = derivedAggregations.asMetrics(internal = true) + internalMetrics,
             hrt = hrt,
             softwareVersion = startReport.softwareVersion,
         )
@@ -939,7 +936,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
         MAX(v.numberVal) as max,
         SUM(v.numberVal) as sum,
         AVG(v.numberVal) as mean,
-        COUNT(v.numberVal) as count
+        COUNT(v.timestampMs) as count
         FROM metric_values v
         WHERE v.metadataId IN (:metadataIds)
         AND v.timestampMs >= :startTimestampMs

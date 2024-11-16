@@ -3,6 +3,9 @@ package com.memfault.bort.parsers
 import com.memfault.bort.shared.LogcatCommand
 import com.memfault.bort.shared.LogcatFormat
 import com.memfault.bort.shared.LogcatFormatModifier
+import com.memfault.bort.shared.LogcatPriority
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -18,27 +21,31 @@ data class LogcatLine(
     val lineUpToTag: String? = null,
     val message: String? = null,
     val buffer: String? = null,
+    val tag: String? = null,
+    val priority: LogcatPriority? = null,
 )
 
 class LogcatParser(
-    val lines: Sequence<String>,
+    val lines: Flow<String>,
     val command: LogcatCommand,
     val uidDecoder: (String) -> Int = android.os.Process::getUidForName,
 ) {
     private var buffer: String? = null
 
     private val uidCache: MutableMap<String, Int?> = mutableMapOf()
+
     init {
         // The parsing assumes these formatting flags are used:
         check(
-            command.format == LogcatFormat.THREADTIME && command.formatModifiers.containsAll(
-                listOf(
-                    LogcatFormatModifier.NSEC,
-                    LogcatFormatModifier.UTC,
-                    LogcatFormatModifier.YEAR,
-                    LogcatFormatModifier.UID,
+            command.format == LogcatFormat.THREADTIME &&
+                command.formatModifiers.containsAll(
+                    listOf(
+                        LogcatFormatModifier.NSEC,
+                        LogcatFormatModifier.UTC,
+                        LogcatFormatModifier.YEAR,
+                        LogcatFormatModifier.UID,
+                    ),
                 ),
-            ),
         ) {
             "Unsupported logcat command: $command"
         }
@@ -55,7 +62,7 @@ class LogcatParser(
         return LogcatLine(message = line, buffer = buffer)
     }
 
-    fun parse(): Sequence<LogcatLine> {
+    fun parse(): Flow<LogcatLine> {
         val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.nnnnnnnnn Z")
         return lines.map { line ->
             LINE_REGEX.matchEntire(line)?.let { result ->
@@ -73,7 +80,17 @@ class LogcatParser(
                 //  java.util.regex.PatternSyntaxException: named capturing group is missing trailing '>' near index 6
                 val upToTag = result.groups.get(UP_TO_TAG_GROUP)?.value
                 val msg = result.groups.get(MSG_GROUP)?.value
-                LogcatLine(time, uid, upToTag, msg, buffer)
+                val tag = result.groups.get(TAG_GROUP)?.value
+                val priority = result.groups.get(PRIORITY_GROUP)?.value?.let { LogcatPriority.getByCliValue(it) }
+                LogcatLine(
+                    logTime = time,
+                    uid = uid,
+                    lineUpToTag = upToTag,
+                    message = msg,
+                    buffer = buffer,
+                    tag = tag,
+                    priority = priority,
+                )
             } ?: parseSeparator(line)
         }
     }
@@ -86,17 +103,19 @@ class LogcatParser(
         }
 }
 
-fun Sequence<String>.toLogcatLines(command: LogcatCommand): Sequence<LogcatLine> =
+fun Flow<String>.toLogcatLines(command: LogcatCommand): Flow<LogcatLine> =
     LogcatParser(this, command).parse()
 
 private val LINE_REGEX = Regex(
     """^(([0-9]+-[0-9]+-[0-9]+ [0-9]+:[0-9]+:[0-9]+\.[0-9]+ \+[0-9]+)""" +
         """\s+([a-zA-Z_\-0-9]+)""" +
-        """\s+[^:]+:""" + // everything up to tag:
+        """\s+[^:]+\s+([EWIDVFS])\s+([\w-]+)?\s*:""" + // everything up to tag:
         """\s+)(.*)$""",
 )
 
 private const val UP_TO_TAG_GROUP = 1
 private const val TIME_GROUP = 2
 private const val UID_GROUP = 3
-private const val MSG_GROUP = 4
+private const val PRIORITY_GROUP = 4
+private const val TAG_GROUP = 5
+private const val MSG_GROUP = 6

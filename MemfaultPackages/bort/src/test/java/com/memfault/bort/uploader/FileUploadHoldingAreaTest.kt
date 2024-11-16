@@ -23,7 +23,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.JsonObject
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -72,6 +72,7 @@ class FileUploadHoldingAreaTest {
             override val continuousLogDumpThresholdBytes: Int get() = TODO("Not used")
             override val continuousLogDumpThresholdTime: Duration get() = TODO("Not used")
             override val continuousLogDumpWrappingTimeout: Duration get() = TODO("Not used")
+            override val logs2metricsConfig: JsonObject get() = TODO("Not yet implemented")
         }
         fileUploadHoldingArea = FileUploadHoldingArea(
             sharedPreferences = mockSharedPreferences,

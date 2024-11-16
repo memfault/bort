@@ -71,6 +71,13 @@ class TestReceiver : BroadcastReceiver() {
                 Reporting.report()
                     .event("reporting-maven-kotlin-event", countInReport = true)
                     .add("evented")
+
+                Reporting.startSession("reporting-maven-kotlin-session")
+                val sessionDistribution = Reporting.session("reporting-maven-kotlin-session")
+                    .distribution("reporting-maven-kotlin-session-dist", aggregations = listOf(MIN))
+                sessionDistribution.record(10)
+                sessionDistribution.record(20)
+                Reporting.finishSession("reporting-maven-kotlin-session")
             }
         }
     }

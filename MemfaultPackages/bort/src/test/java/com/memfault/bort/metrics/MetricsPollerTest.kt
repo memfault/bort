@@ -2,21 +2,23 @@ package com.memfault.bort.metrics
 
 import com.memfault.bort.uploader.BortEnabledTestProvider
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import kotlin.time.Duration.Companion.seconds
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class MetricsPollerTest {
     private val bortEnabledProvider = BortEnabledTestProvider()
     private val pollingIntervalFlow = MutableStateFlow(1.seconds)
-    private val collector: MetricCollector = mockk(relaxed = true)
-    val metricsPoller = MetricsPoller(
+    private val collector: MetricCollector = mockk {
+        every { onChanged() } answers { flowOf(Unit) }
+    }
+    private val metricsPoller = MetricsPoller(
         bortEnabledProvider = bortEnabledProvider,
         metricsPollingInterval = { pollingIntervalFlow },
         collectors = setOf(collector),

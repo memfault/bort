@@ -3,6 +3,7 @@ package com.memfault.bort.java.reporting;
 import com.memfault.bort.reporting.AggregationType;
 import com.memfault.bort.reporting.DataType;
 import com.memfault.bort.reporting.MetricType;
+import com.memfault.bort.reporting.RemoteMetricsService;
 import com.memfault.bort.reporting.StateAgg;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,11 +20,9 @@ public class Event extends Metric {
   private static final DataType DATA_TYPE = STRING;
   private static final boolean CARRY_OVER_VALUE = false;
 
-  Event(String eventName, String reportType, boolean countInReport, boolean latestInReport,
-          String reportName) {
-    super(eventName,
-        reportType,
-        Event.<AggregationType>union(
+  Event(RemoteMetricsService remoteMetricsService, String eventName, String reportType,
+      boolean countInReport, boolean latestInReport, String reportName) {
+    super(remoteMetricsService, eventName, reportType, Event.<AggregationType>union(
             countInReport ? singletonList(COUNT) : emptyList(),
             latestInReport ? singletonList(StateAgg.LATEST_VALUE) : emptyList()),
         METRIC_TYPE,

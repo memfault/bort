@@ -8,9 +8,7 @@ import androidx.work.workDataOf
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskResult.SUCCESS
-import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.dropbox.DropboxRequester
-import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.periodicWorkRequest
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.Logger
@@ -64,18 +62,14 @@ class MetricsPollingRequester @Inject constructor(
         return settings.metricsSettings.pollingInterval.isPositive()
     }
 
-    override suspend fun diagnostics(): BortWorkInfo {
-        return WorkManager.getInstance(application)
-            .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
-            .asBortWorkInfo("metrics_polling")
-    }
+    override suspend fun diagnostics(): BortWorkInfo = WorkManager.getInstance(application)
+        .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
+        .asBortWorkInfo("metrics_polling")
 
     override suspend fun parametersChanged(
         old: SettingsProvider,
         new: SettingsProvider,
-    ): Boolean {
-        return old.metricsSettings.pollingInterval != new.metricsSettings.pollingInterval
-    }
+    ): Boolean = old.metricsSettings.pollingInterval != new.metricsSettings.pollingInterval
 
     companion object {
         private const val WORK_TAG_PERIODIC = "METRICS_POLLING_WAKE"
@@ -84,18 +78,16 @@ class MetricsPollingRequester @Inject constructor(
     }
 }
 
-class MetricsPollingWakeTask @Inject constructor(
-    override val getMaxAttempts: () -> Int,
-    override val metrics: BuiltinMetricsStore,
-) : Task<Unit>() {
-    override suspend fun doWork(
-        worker: TaskRunnerWorker,
-        input: Unit,
-    ): TaskResult {
+class MetricsPollingWakeTask
+@Inject constructor(
+    private val getMaxAttempts: () -> Int,
+) : Task<Unit> {
+    override fun getMaxAttempts(input: Unit) = 1
+
+    override suspend fun doWork(input: Unit): TaskResult {
         Logger.d("MetricsPollingWakeTask")
         return SUCCESS
     }
 
-    override fun convertAndValidateInputData(inputData: Data) {
-    }
+    override fun convertAndValidateInputData(inputData: Data) = Unit
 }

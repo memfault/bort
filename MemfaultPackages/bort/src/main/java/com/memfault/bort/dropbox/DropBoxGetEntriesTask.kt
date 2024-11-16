@@ -11,8 +11,6 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
-import com.memfault.bort.TaskRunnerWorker
-import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.oneTimeWorkRequest
 import com.memfault.bort.periodicWorkRequest
@@ -53,15 +51,14 @@ class DropBoxGetEntriesTask @Inject constructor(
     private val entryProcessors: DropBoxEntryProcessors,
     private val settings: DropBoxSettings,
     private val retryDelay: DropBoxRetryDelay,
-    override val metrics: BuiltinMetricsStore,
     private val dropBoxFilters: DropBoxFilters,
     private val processingMutex: DropboxProcessingMutex,
     private val dropBoxManager: Lazy<DropBoxManager>,
     private val crashHandler: CrashHandler,
-) : Task<Unit>() {
-    override val getMaxAttempts: () -> Int = { 1 }
+) : Task<Unit> {
+    override fun getMaxAttempts(input: Unit) = 1
     override fun convertAndValidateInputData(inputData: Data): Unit = Unit
-    override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult = doWork()
+    override suspend fun doWork(input: Unit): TaskResult = doWork()
 
     suspend fun doWork(): TaskResult {
         if (!settings.dataSourceEnabled or entryProcessors.map.isEmpty()) return TaskResult.SUCCESS
@@ -169,19 +166,14 @@ class DropboxRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override suspend fun enabled(settings: SettingsProvider): Boolean {
-        return dropBoxSettings.dataSourceEnabled
-    }
+    override suspend fun enabled(settings: SettingsProvider): Boolean = dropBoxSettings.dataSourceEnabled
 
-    override suspend fun diagnostics(): BortWorkInfo {
-        return WorkManager.getInstance(application)
-            .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
-            .asBortWorkInfo("dropbox")
-    }
+    override suspend fun diagnostics(): BortWorkInfo = WorkManager.getInstance(application)
+        .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
+        .asBortWorkInfo("dropbox")
 
-    override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean {
-        return old.dropBoxSettings.pollingInterval != new.dropBoxSettings.pollingInterval
-    }
+    override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
+        old.dropBoxSettings.pollingInterval != new.dropBoxSettings.pollingInterval
 
     suspend fun isScheduledAt(settings: SettingsProvider): Duration? =
         if (enabled(settings)) dropBoxSettings.pollingInterval else null

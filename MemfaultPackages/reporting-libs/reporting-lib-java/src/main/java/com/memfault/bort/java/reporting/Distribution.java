@@ -3,6 +3,7 @@ package com.memfault.bort.java.reporting;
 import com.memfault.bort.reporting.DataType;
 import com.memfault.bort.reporting.MetricType;
 import com.memfault.bort.reporting.NumericAgg;
+import com.memfault.bort.reporting.RemoteMetricsService;
 import java.util.List;
 
 import static com.memfault.bort.reporting.DataType.DOUBLE;
@@ -14,9 +15,9 @@ public class Distribution extends Metric {
   private static final DataType DATA_TYPE = DOUBLE;
   private static final boolean CARRY_OVER_VALUE = false;
 
-  Distribution(String eventName, String reportType, List<NumericAgg> aggregations,
-      String reportName) {
-    super(eventName, reportType, aggregations, METRIC_TYPE, DATA_TYPE,
+  Distribution(RemoteMetricsService remoteMetricsService, String eventName, String reportType,
+      List<NumericAgg> aggregations, String reportName) {
+    super(remoteMetricsService, eventName, reportType, aggregations, METRIC_TYPE, DATA_TYPE,
         CARRY_OVER_VALUE, reportName);
   }
 

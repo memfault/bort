@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.IO
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.metrics.BatterystatsSummaryCollector.Companion.DP
 import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
@@ -17,12 +18,12 @@ import com.memfault.bort.parsers.BatteryStatsSummaryParser.PowerUseSummary
 import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.shared.BatteryStatsCommand
 import com.memfault.bort.shared.Logger
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.float
 import java.math.RoundingMode
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
@@ -56,13 +57,14 @@ class BatterystatsSummaryCollector @Inject constructor(
     private val batteryStatsSummaryParser: BatteryStatsSummaryParser,
     private val batteryStatsSummaryProvider: BatteryStatsSummaryProvider,
     private val significantAppsProvider: SignificantAppsProvider,
+    @IO private val ioCoroutineContext: CoroutineContext,
 ) {
     suspend fun collectSummaryCheckin(): BatteryStatsResult {
         temporaryFileFactory.createTemporaryFile(
             "batterystats",
             suffix = ".txt",
         ).useFile { batteryStatsFile, _ ->
-            withContext(Dispatchers.IO) {
+            withContext(ioCoroutineContext) {
                 batteryStatsFile.outputStream().use {
                     runBatteryStats.runBatteryStats(
                         it,
@@ -162,7 +164,7 @@ class BatterystatsSummaryCollector @Inject constructor(
                 Internal because it may differ from the ESTIMATED_BATTERY_CAPACITY metric we are already
                 collecting. Long term we should compare these values and determine if they are the same or
                 one is more accurate
-                */
+                 */
                 addHrtRollup(
                     name = COMPUTED_BATTERY_CAPACITY,
                     value = computedCapacity,
@@ -192,30 +194,47 @@ class BatterystatsSummaryCollector @Inject constructor(
                 // Per-component power usage summary (only HRT, because we can't store per-app metrics).
                 diff.componentPowerUse.forEach { component ->
                     val componentName = component.name
+                    val matchesSignificantApp = significantApps.firstOrNull { it.packageName == componentName }
                     val componentDrainPercent = component.totalPowerPercent.proRataValuePerHour(reportBatteryDuration)
-                    if (componentDrainPercent > 0) {
-                        val componentUsePerHourName = "$COMPONENT_USE_PER_HOUR$componentName"
+                    if (componentDrainPercent > 0 || matchesSignificantApp != null) {
                         addHrtRollup(
-                            name = componentUsePerHourName,
+                            name = componentUseKeyFor(componentName),
                             value = JsonPrimitive(componentDrainPercent),
                         )
 
                         componentMetricsApps.firstOrNull { it == componentName }
                             ?.let {
-                                val key = "$COMPONENT_USE_PER_HOUR$componentName"
+                                val key = componentUseKeyFor(componentName)
                                 report[key] = JsonPrimitive(componentDrainPercent)
                             }
 
-                        significantApps.firstOrNull { it.packageName == componentName }
-                            ?.let { match ->
-                                val name = match.identifier
-                                val key = "$COMPONENT_USE_PER_HOUR$name"
-                                if (match.internal) {
-                                    internalReport[key] = JsonPrimitive(componentDrainPercent)
-                                } else {
-                                    report[key] = JsonPrimitive(componentDrainPercent)
-                                }
+                        matchesSignificantApp?.let { match ->
+                            val key = componentUseKeyFor(match.identifier)
+                            if (match.internal) {
+                                internalReport[key] = JsonPrimitive(componentDrainPercent)
+                            } else {
+                                report[key] = JsonPrimitive(componentDrainPercent)
                             }
+                        }
+                    }
+                }
+
+                // Log the top-draining app during this period (if it drained > 0%).
+                diff.componentPowerUse.maxByOrNull { it.totalPowerPercent }?.let {
+                    val componentDrainPercent = it.totalPowerPercent.proRataValuePerHour(reportBatteryDuration)
+                    if (componentDrainPercent > 0) {
+                        report[BATTERY_USE_TOP_COMPONENT_NAME] = JsonPrimitive(it.name)
+                        report[BATTERY_USE_TOP_COMPONENT_PERCENT] = JsonPrimitive(componentDrainPercent)
+                    }
+                }
+
+                // Ensure that we report zero for any significant apps which weren't reported for this period.
+                significantApps.forEach { app ->
+                    val key = componentUseKeyFor(app.identifier)
+                    if (app.internal) {
+                        internalReport.putIfAbsent(key, JsonPrimitive(0.0))
+                    } else {
+                        report.putIfAbsent(key, JsonPrimitive(0.0))
                     }
                 }
             }
@@ -243,7 +262,11 @@ class BatterystatsSummaryCollector @Inject constructor(
         const val SCREEN_ON_SOC_PCT_DROP = "battery_screen_on_soc_pct_drop"
         const val SCREEN_OFF_DISCHARGE_DURATION_MS = "battery_screen_off_discharge_duration_ms"
         const val SCREEN_OFF_SOC_PCT_DROP = "battery_screen_off_soc_pct_drop"
+        const val BATTERY_USE_TOP_COMPONENT_NAME = "battery_use_top_component_name"
+        const val BATTERY_USE_TOP_COMPONENT_PERCENT = "battery_use_top_component_pct"
         const val DP = 2
+
+        fun componentUseKeyFor(name: String): String = "$COMPONENT_USE_PER_HOUR$name"
     }
 }
 
@@ -339,6 +362,4 @@ private operator fun PowerUseSummary.minus(other: PowerUseSummary) = PowerUseSum
 private fun Double.proRataValuePerHour(period: Duration, dp: Int = DP) =
     ((this / period.inWholeMilliseconds.toDouble()) * 1.hours.inWholeMilliseconds.toDouble()).roundTo(dp)
 
-fun Double.roundTo(n: Int): Double {
-    return this.toBigDecimal().setScale(n, RoundingMode.HALF_UP).toDouble()
-}
+fun Double.roundTo(n: Int): Double = this.toBigDecimal().setScale(n, RoundingMode.HALF_UP).toDouble()

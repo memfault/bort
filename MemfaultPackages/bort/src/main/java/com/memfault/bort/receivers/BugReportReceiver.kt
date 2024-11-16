@@ -9,7 +9,6 @@ import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
 import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.ProcessingOptions
 import com.memfault.bort.TemporaryFileFactory
-import com.memfault.bort.addFileToZip
 import com.memfault.bort.broadcastReply
 import com.memfault.bort.clientserver.MarMetadata.BugReportMarMetadata
 import com.memfault.bort.fileExt.deleteSilently
@@ -21,8 +20,6 @@ import com.memfault.bort.shared.goAsync
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.uploader.EnqueueUpload
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
@@ -47,7 +44,6 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
         val requestId = intent.getStringExtra(INTENT_EXTRA_BUG_REPORT_REQUEST_ID)
         val (success, request) = getPendingRequest(requestId, context)
         Logger.v("Got bugreport path: $bugreportPath, request: $request")
-        Logger.logEvent("bugreport", "received")
         bugreportPath ?: return
 
         val file = File(bugreportPath)
@@ -59,24 +55,6 @@ class BugReportReceiver : BortEnabledFilteringReceiver(
         val collectionTime = combinedTimeProvider.now()
 
         goAsync {
-            withContext(Dispatchers.IO) {
-                // Add bort internal logs to the bugreport .zip file, if we have any.
-                temporaryFileFactory.createTemporaryFile(
-                    prefix = "internallog",
-                    suffix = null,
-                ).useFile { tempFile, _ ->
-                    val hasInternalLogFile = Logger.uploadAndDeleteLogFile(tempFile)
-                    if (hasInternalLogFile) {
-                        addFileToZip(
-                            zipFile = file,
-                            newFile = tempFile,
-                            newfileName = "bort_logs.txt",
-                            compressionLevel = zipCompressionLevel(),
-                        )
-                    }
-                }
-            }
-
             val dropBoxDataSourceEnabledAndSupported = settingsProvider.dropBoxSettings.dataSourceEnabled
 
             enqueueUpload.enqueue(

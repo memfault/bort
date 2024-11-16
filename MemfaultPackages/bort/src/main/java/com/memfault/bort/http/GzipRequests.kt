@@ -24,9 +24,7 @@ class GzipRequestInterceptor @Inject constructor() : RetrofitInterceptor {
 
     override val type: InterceptorType = GZIP
 
-    override fun intercept(chain: Interceptor.Chain): Response {
-        return chain.proceed(transformRequest(chain.request()))
-    }
+    override fun intercept(chain: Interceptor.Chain): Response = chain.proceed(transformRequest(chain.request()))
 
     fun transformRequest(originalRequest: Request): Request {
         val annotation = originalRequest.tag(Invocation::class.java)?.method()?.getAnnotation(

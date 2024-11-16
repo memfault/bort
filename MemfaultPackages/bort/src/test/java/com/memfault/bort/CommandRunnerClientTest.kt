@@ -20,7 +20,6 @@ import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -34,7 +33,6 @@ import java.io.InputStream
 import java.lang.IllegalArgumentException
 import kotlin.time.Duration.Companion.milliseconds
 
-@ExperimentalCoroutinesApi
 class CommandRunnerClientTest {
     lateinit var legacyMockInputStream: FileInputStream
     lateinit var mockInputStream: FileInputStream

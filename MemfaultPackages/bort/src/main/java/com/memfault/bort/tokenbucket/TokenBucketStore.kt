@@ -132,10 +132,6 @@ class RealTokenBucketStore(
                         "handleLinuxReboot tokenBucket key=$key " +
                             "previousBootTimeLeftOver=$previousBootTimeLeftOver",
                     )
-                    Logger.logEvent(
-                        "handleLinuxReboot tokenBucket key=$key " +
-                            "previousBootTimeLeftOver=$previousBootTimeLeftOver",
-                    )
                     val newValue = -previousBootTimeLeftOver.coerceAtLeast(Duration.ZERO) - BOOT_TIME
                     storedBucket.copy(periodStartElapsedRealtime = BoxedDuration(newValue))
                 },

@@ -11,6 +11,7 @@ import java.util.List;
 import static com.memfault.bort.reporting.MetricValue.MetricJsonFields.REPORTING_CLIENT_VERSION;
 
 public abstract class Metric {
+  final RemoteMetricsService remoteMetricsService;
   final String eventName;
   final String reportType;
   final List<? extends AggregationType> aggregations;
@@ -20,8 +21,10 @@ public abstract class Metric {
   /** Nullable. */
   final String reportName;
 
-  Metric(String eventName, String reportType, List<? extends AggregationType> aggregations,
-      MetricType metricType, DataType dataType, boolean carryOverValue, String reportName) {
+  Metric(RemoteMetricsService remoteMetricsService, String eventName, String reportType,
+      List<? extends AggregationType> aggregations, MetricType metricType, DataType dataType,
+      boolean carryOverValue, String reportName) {
+    this.remoteMetricsService = remoteMetricsService;
     this.reportType = reportType;
     this.aggregations = Collections.unmodifiableList(aggregations);
     this.eventName = eventName;
@@ -33,7 +36,7 @@ public abstract class Metric {
 
   void addMetric(String stringVal, Long timeMs) {
     dataType.verifyValueType(stringVal);
-    RemoteMetricsService.record(new MetricValue(
+    remoteMetricsService.record(new MetricValue(
         eventName, reportType, aggregations, false, metricType, dataType, carryOverValue,
         timeMs, stringVal, null, null, REPORTING_CLIENT_VERSION, reportName)
     );
@@ -41,7 +44,7 @@ public abstract class Metric {
 
   void addMetric(Double numberVal, Long timeMs) {
     dataType.verifyValueType(numberVal);
-    RemoteMetricsService.record(new MetricValue(
+    remoteMetricsService.record(new MetricValue(
         eventName, reportType, aggregations, false, metricType, dataType, carryOverValue,
         timeMs, null, numberVal, null, REPORTING_CLIENT_VERSION, reportName)
     );
@@ -49,7 +52,7 @@ public abstract class Metric {
 
   void addMetric(Boolean boolVal, Long timeMs) {
     dataType.verifyValueType(boolVal);
-    RemoteMetricsService.record(new MetricValue(
+    remoteMetricsService.record(new MetricValue(
         eventName, reportType, aggregations, false, metricType, dataType, carryOverValue,
         timeMs, null, null, boolVal, REPORTING_CLIENT_VERSION, reportName)
     );

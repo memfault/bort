@@ -3,6 +3,7 @@ package com.memfault.bort.java.reporting;
 import com.memfault.bort.reporting.DataType;
 import com.memfault.bort.reporting.MetricType;
 import com.memfault.bort.reporting.NumericAgg;
+import com.memfault.bort.reporting.RemoteMetricsService;
 import java.util.Collections;
 
 import static com.memfault.bort.reporting.DataType.DOUBLE;
@@ -14,8 +15,9 @@ public class Counter extends Metric {
   private static final DataType DATA_TYPE = DOUBLE;
   private static final boolean CARRY_OVER_VALUE = false;
 
-  Counter(String name, String reportType, boolean sumInReport, String reportName) {
-    super(name, reportType,
+  Counter(RemoteMetricsService remoteMetricsService, String name, String reportType,
+      boolean sumInReport, String reportName) {
+    super(remoteMetricsService, name, reportType,
         sumInReport ? Collections.singletonList(NumericAgg.SUM) : Collections.emptyList(),
         METRIC_TYPE, DATA_TYPE, CARRY_OVER_VALUE, reportName);
   }

@@ -96,11 +96,12 @@ dependencies {
     kapt deps.android.hilt.compiler
     kapt deps.dagger.hilt.compiler
 
+    testImplementation deps.test.androidx.test
+    testImplementation deps.test.androidx.work.testing
     // Required for unit tests to access JSONObject
     testImplementation deps.test.json
     testImplementation deps.test.mockWebServer
     testImplementation deps.test.robolectric
-    testImplementation deps.test.androidx.test
 }
 
 import java.nio.file.Paths

@@ -12,10 +12,10 @@ import sys
 
 INVALID_VALUES = {
     "vnd.myandroid.bortappid",
-    "vnd.myandroid.bort.otaappid",
     "vnd.myandroid.bortfeaturename",
 }
 
+OTA_PACKAGE = "vnd.myandroid.bort.otaappid"
 
 MAPPING = {
     # source file placeholder / preprocessor define name => bort.properties variable (and optional fallback)
@@ -105,7 +105,11 @@ def _get_replacements(mapping, bort_props):
                     placeholder, variables
                 )
             )
-        if replacement.value in INVALID_VALUES:
+        # We don't need to check for the OTA app ID being set if OTA is not being used.
+        invalid_values_to_check = set(INVALID_VALUES)
+        if os.environ.get("TARGET_USES_MFLT_OTA", "0") == "1":
+            invalid_values_to_check.add(OTA_PACKAGE)
+        if replacement.value in invalid_values_to_check:
             raise Exception(
                 "Invalid value '{}' for '{}'. Please change in bort.properties!".format(
                     replacement.value, replacement.prop_name

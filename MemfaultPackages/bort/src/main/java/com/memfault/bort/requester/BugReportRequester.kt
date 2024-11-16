@@ -178,15 +178,11 @@ class BugReportRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override suspend fun enabled(settings: SettingsProvider): Boolean {
-        return settings.bugReportSettings.dataSourceEnabled
-    }
+    override suspend fun enabled(settings: SettingsProvider): Boolean = settings.bugReportSettings.dataSourceEnabled
 
-    override suspend fun diagnostics(): BortWorkInfo {
-        return WorkManager.getInstance(application)
-            .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
-            .asBortWorkInfo("bugreport")
-    }
+    override suspend fun diagnostics(): BortWorkInfo = WorkManager.getInstance(application)
+        .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
+        .asBortWorkInfo("bugreport")
 
     override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
         // Note: not including firstBugReportDelayAfterBoot because that is only used immediately after booting.
@@ -209,7 +205,8 @@ class BugReportRequestWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result = runAndTrackExceptions(jobName = JOB_NAME, bortJobReporter) {
         if (bortEnabledProvider.isEnabled() &&
-            tokenBucketStore.takeSimple(tag = BUGREPORT_RATE_LIMITING_TAG) && captureBugReport()
+            tokenBucketStore.takeSimple(tag = BUGREPORT_RATE_LIMITING_TAG) &&
+            captureBugReport()
         ) {
             Result.success()
         } else {

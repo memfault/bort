@@ -85,7 +85,6 @@ class DropBoxGetEntriesTaskTest {
             entryProcessors = entryProcessors,
             settings = mockDropboxSettings,
             retryDelay = { retryDelay() },
-            metrics = mockk(relaxed = true),
             dropBoxManager = { dropBoxManager },
             dropBoxFilters = dropBoxFilters,
             processingMutex = DropboxProcessingMutex(),
@@ -223,7 +222,6 @@ class DropBoxGetEntriesTaskTest {
             entryProcessors = mapOfProcessors(),
             settings = mockDropboxSettings,
             retryDelay = { retryDelay() },
-            metrics = mockk(relaxed = true),
             dropBoxManager = { dropBoxManager },
             dropBoxFilters = dropBoxFilters,
             processingMutex = DropboxProcessingMutex(),
@@ -241,7 +239,6 @@ class DropBoxGetEntriesTaskTest {
                 override val dataSourceEnabled = false
             },
             retryDelay = { retryDelay() },
-            metrics = mockk(relaxed = true),
             dropBoxManager = { dropBoxManager },
             dropBoxFilters = dropBoxFilters,
             processingMutex = DropboxProcessingMutex(),
