@@ -33,11 +33,14 @@ class SystemPropertiesCollectorTest {
             override val appVersions = emptyList<String>()
             override val maxNumAppVersions: Int = 50
             override val reporterCollectionInterval = Duration.ZERO
-            override val propertiesUseMetricService: Boolean = true
             override val cachePackageManagerReport: Boolean = true
             override val recordImei: Boolean = true
             override val operationalCrashesExclusions: List<String> = emptyList()
             override val pollingInterval: Duration = 15.minutes
+            override val collectMemory: Boolean = true
+            override val thermalMetricsEnabled: Boolean get() = TODO("not used")
+            override val thermalCollectLegacyMetrics: Boolean get() = TODO("not used")
+            override val thermalCollectStatus: Boolean get() = TODO("not used")
         }
         val deviceImei = "12345678987654321"
         val telephony: TelephonyManager = mockk {
@@ -86,24 +89,26 @@ class SystemPropertiesCollectorTest {
         )
         collector.collect()?.let { collector.record(it, store) }
         coVerify(exactly = 1) {
-            store.upsert(name = "sysprop.a", value = "a", internal = false)
-            store.upsert(name = "sysprop.c", value = "c", internal = false)
-            store.upsert(name = "sysprop.1", value = 1L, internal = false)
-            store.upsert(name = "sysprop.1.2", value = 1.2, internal = false)
-            store.upsert(name = "sysprop.1.3", value = "1.3", internal = false)
-            store.upsert(name = "sysprop.true", value = true, internal = false)
+            store.upsert(name = "sysprop.a", value = "a", internal = false, timestamp = any())
+            store.upsert(name = "sysprop.c", value = "c", internal = false, timestamp = any())
+            store.upsert(name = "sysprop.1", value = 1L, internal = false, timestamp = any())
+            store.upsert(name = "sysprop.1.2", value = 1.2, internal = false, timestamp = any())
+            store.upsert(name = "sysprop.1.3", value = "1.3", internal = false, timestamp = any())
+            store.upsert(name = "sysprop.true", value = true, internal = false, timestamp = any())
             store.upsert(
                 name = "sysprop.vendor.memfault.bort.version.sdk",
                 value = "4.0",
                 internal = true,
+                timestamp = any(),
             )
             store.upsert(
                 name = "sysprop.vendor.memfault.bort.version.patch",
                 value = "4.1",
                 internal = true,
+                timestamp = any(),
             )
-            store.upsert(name = "sysprop.notypelisted", value = "notype", internal = false)
-            store.upsert(name = "phone.imei", value = deviceImei)
+            store.upsert(name = "sysprop.notypelisted", value = "notype", internal = false, timestamp = any())
+            store.upsert(name = "phone.imei", value = deviceImei, timestamp = any())
         }
     }
 }

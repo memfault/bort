@@ -29,13 +29,13 @@ class RuleBasedPackageNameAllowList @Inject constructor(
     // be enabled below).
     private val internalPackages = listOf(BuildConfig.APPLICATION_ID, APPLICATION_ID_MEMFAULT_USAGE_REPORTER)
 
-    override operator fun contains(packageName: String?): Boolean {
-        return packageName == null || !packageName.isValidAndroidApplicationId() ||
-            matchesRules(regexesFor(rulesConfig()), packageName)
-    }
+    override operator fun contains(packageName: String?): Boolean = packageName == null ||
+        !packageName.isValidAndroidApplicationId() ||
+        matchesRules(regexesFor(rulesConfig()), packageName)
 
     private fun matchesRules(regexes: List<Regex>, packageName: String): Boolean =
-        regexes.isEmpty() || regexes.any { it.containsMatchIn(packageName) } ||
+        regexes.isEmpty() ||
+            regexes.any { it.containsMatchIn(packageName) } ||
             internalPackages.any { it == packageName }
 
     private fun regexesFor(rulesConfig: List<AndroidAppIdScrubbingRule>): List<Regex> = cacheLock.withLock {

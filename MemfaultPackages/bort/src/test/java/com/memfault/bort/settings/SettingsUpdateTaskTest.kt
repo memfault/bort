@@ -1,11 +1,14 @@
 package com.memfault.bort.settings
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import androidx.work.Data
+import androidx.work.ListenableWorker.Result
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.DeviceInfo
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.FakeDeviceInfoProvider
-import com.memfault.bort.TaskResult
-import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.clientserver.CachedClientServerMode
 import com.memfault.bort.clientserver.ClientDeviceInfoPreferenceProvider
 import com.memfault.bort.clientserver.LinkedDeviceFileSender
@@ -13,30 +16,32 @@ import com.memfault.bort.settings.DeviceConfigUpdateService.DeviceConfigArgs
 import com.memfault.bort.shared.CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG
 import com.memfault.bort.shared.ClientServerMode
 import com.memfault.bort.test.util.TestTemporaryFileFactory
+import com.memfault.bort.uploader.mockTaskRunnerWorker
+import com.memfault.bort.uploader.mockWorkerFactory
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.confirmVerified
-import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonObject
 import okhttp3.ResponseBody.Companion.toResponseBody
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import retrofit2.HttpException
 import retrofit2.Response
 import java.net.SocketTimeoutException
-import java.util.UUID
 
+@RunWith(RobolectricTestRunner::class)
 class SettingsUpdateTaskTest {
-    private lateinit var worker: TaskRunnerWorker
+
+    private val context = ApplicationProvider.getApplicationContext<Context>()
+
     private lateinit var settingsUpdateHandler: SettingsUpdateHandler
     private var clientServerMode = ClientServerMode.DISABLED
-    private val cachedClientServerMode = object : CachedClientServerMode {
-        override suspend fun get(): ClientServerMode = clientServerMode
-    }
+    private val cachedClientServerMode = CachedClientServerMode { clientServerMode }
     private val linkedDeviceFileSender: LinkedDeviceFileSender = mockk(relaxed = true)
     private val temporaryFileFactory = TestTemporaryFileFactory
     private var clientDeviceInfo: DeviceConfigUpdateService.DeviceInfo? = null
@@ -45,13 +50,8 @@ class SettingsUpdateTaskTest {
         override fun get(): DeviceConfigUpdateService.DeviceInfo? = clientDeviceInfo
     }
 
-    @BeforeEach
+    @Before
     fun setup() {
-        worker = mockk {
-            every { id } returns UUID.randomUUID()
-            every { inputData } returns Data.EMPTY
-            every { runAttemptCount } returns 0
-        }
         settingsUpdateHandler = mockk(relaxed = true)
     }
 
@@ -61,20 +61,22 @@ class SettingsUpdateTaskTest {
             coEvery { deviceConfig(any()) } throws SerializationException("invalid data")
         }
         val samplingConfig = mockk<CurrentSamplingConfig>()
-        assertEquals(
-            TaskResult.SUCCESS,
-            SettingsUpdateTask(
-                deviceInfoProvider = FakeDeviceInfoProvider(),
-                metrics = mockk(relaxed = true),
-                settingsUpdateHandler = settingsUpdateHandler,
-                deviceConfigUpdateService = deviceConfigService,
-                samplingConfig = samplingConfig,
-                cachedClientServerMode = cachedClientServerMode,
-                linkedDeviceFileSender = linkedDeviceFileSender,
-                temporaryFileFactory = temporaryFileFactory,
-                clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
-            ).doWork(worker),
+        val task = SettingsUpdateTask(
+            deviceInfoProvider = FakeDeviceInfoProvider(),
+            settingsUpdateHandler = settingsUpdateHandler,
+            deviceConfigUpdateService = deviceConfigService,
+            samplingConfig = samplingConfig,
+            cachedClientServerMode = cachedClientServerMode,
+            linkedDeviceFileSender = linkedDeviceFileSender,
+            temporaryFileFactory = temporaryFileFactory,
+            clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
         )
+        val worker = mockTaskRunnerWorker<SettingsUpdateTask>(
+            context,
+            mockWorkerFactory(settingsUpdate = task),
+            Data.EMPTY,
+        )
+        assertThat(worker.doWork()).isEqualTo(Result.success())
 
         // Check that endpoint was called once, and nothing else
         coVerify {
@@ -91,20 +93,22 @@ class SettingsUpdateTaskTest {
                 HttpException(Response.error<Any>(500, "".toResponseBody()))
         }
         val samplingConfig = mockk<CurrentSamplingConfig>()
-        assertEquals(
-            TaskResult.SUCCESS,
-            SettingsUpdateTask(
-                deviceInfoProvider = FakeDeviceInfoProvider(),
-                metrics = mockk(relaxed = true),
-                settingsUpdateHandler = settingsUpdateHandler,
-                deviceConfigUpdateService = deviceConfigService,
-                samplingConfig = samplingConfig,
-                cachedClientServerMode = cachedClientServerMode,
-                linkedDeviceFileSender = linkedDeviceFileSender,
-                temporaryFileFactory = temporaryFileFactory,
-                clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
-            ).doWork(worker),
+        val task = SettingsUpdateTask(
+            deviceInfoProvider = FakeDeviceInfoProvider(),
+            settingsUpdateHandler = settingsUpdateHandler,
+            deviceConfigUpdateService = deviceConfigService,
+            samplingConfig = samplingConfig,
+            cachedClientServerMode = cachedClientServerMode,
+            linkedDeviceFileSender = linkedDeviceFileSender,
+            temporaryFileFactory = temporaryFileFactory,
+            clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
         )
+        val worker = mockTaskRunnerWorker<SettingsUpdateTask>(
+            context,
+            mockWorkerFactory(settingsUpdate = task),
+            Data.EMPTY,
+        )
+        assertThat(worker.doWork()).isEqualTo(Result.success())
 
         // Check that endpoint was called once, and nothing else
         coVerify {
@@ -121,20 +125,22 @@ class SettingsUpdateTaskTest {
                 SocketTimeoutException("failed to connect to /192.168.0.226")
         }
         val samplingConfig = mockk<CurrentSamplingConfig>()
-        assertEquals(
-            TaskResult.SUCCESS,
-            SettingsUpdateTask(
-                deviceInfoProvider = FakeDeviceInfoProvider(),
-                metrics = mockk(relaxed = true),
-                settingsUpdateHandler = settingsUpdateHandler,
-                deviceConfigUpdateService = deviceConfigService,
-                samplingConfig = samplingConfig,
-                cachedClientServerMode = cachedClientServerMode,
-                linkedDeviceFileSender = linkedDeviceFileSender,
-                temporaryFileFactory = temporaryFileFactory,
-                clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
-            ).doWork(worker),
+        val task = SettingsUpdateTask(
+            deviceInfoProvider = FakeDeviceInfoProvider(),
+            settingsUpdateHandler = settingsUpdateHandler,
+            deviceConfigUpdateService = deviceConfigService,
+            samplingConfig = samplingConfig,
+            cachedClientServerMode = cachedClientServerMode,
+            linkedDeviceFileSender = linkedDeviceFileSender,
+            temporaryFileFactory = temporaryFileFactory,
+            clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
         )
+        val worker = mockTaskRunnerWorker<SettingsUpdateTask>(
+            context,
+            mockWorkerFactory(settingsUpdate = task),
+            Data.EMPTY,
+        )
+        assertThat(worker.doWork()).isEqualTo(Result.success())
 
         // Check that endpoint was called once, and nothing else
         coVerify {
@@ -162,21 +168,23 @@ class SettingsUpdateTaskTest {
             coEvery { deviceConfig(any()) } answers { deviceConfigResponse }
         }
         val samplingConfig = mockk<CurrentSamplingConfig>(relaxed = true)
-
-        assertEquals(
-            TaskResult.SUCCESS,
-            SettingsUpdateTask(
-                deviceInfoProvider = FakeDeviceInfoProvider(),
-                metrics = mockk(relaxed = true),
-                settingsUpdateHandler = settingsUpdateHandler,
-                deviceConfigUpdateService = deviceConfigService,
-                samplingConfig = samplingConfig,
-                cachedClientServerMode = cachedClientServerMode,
-                linkedDeviceFileSender = linkedDeviceFileSender,
-                temporaryFileFactory = temporaryFileFactory,
-                clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
-            ).doWork(worker),
+        val task = SettingsUpdateTask(
+            deviceInfoProvider = FakeDeviceInfoProvider(),
+            settingsUpdateHandler = settingsUpdateHandler,
+            deviceConfigUpdateService = deviceConfigService,
+            samplingConfig = samplingConfig,
+            cachedClientServerMode = cachedClientServerMode,
+            linkedDeviceFileSender = linkedDeviceFileSender,
+            temporaryFileFactory = temporaryFileFactory,
+            clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
         )
+        val worker = mockTaskRunnerWorker<SettingsUpdateTask>(
+            context,
+            mockWorkerFactory(settingsUpdate = task),
+            Data.EMPTY,
+        )
+        assertThat(worker.doWork()).isEqualTo(Result.success())
+
         coVerify(exactly = 1) { deviceConfigService.deviceConfig(any()) }
         coVerify { settingsUpdateHandler.handleSettingsUpdate(settings) }
         coVerify {
@@ -252,20 +260,23 @@ class SettingsUpdateTaskTest {
             coEvery { deviceConfig(deviceConfigArgs_client) } answers { deviceConfigResponse_client }
         }
         val samplingConfig = mockk<CurrentSamplingConfig>(relaxed = true)
-        assertEquals(
-            TaskResult.SUCCESS,
-            SettingsUpdateTask(
-                deviceInfoProvider = deviceInfoProvider,
-                metrics = mockk(relaxed = true),
-                settingsUpdateHandler = settingsUpdateHandler,
-                deviceConfigUpdateService = deviceConfigService,
-                samplingConfig = samplingConfig,
-                cachedClientServerMode = cachedClientServerMode,
-                linkedDeviceFileSender = linkedDeviceFileSender,
-                temporaryFileFactory = temporaryFileFactory,
-                clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
-            ).doWork(worker),
+        val task = SettingsUpdateTask(
+            deviceInfoProvider = deviceInfoProvider,
+            settingsUpdateHandler = settingsUpdateHandler,
+            deviceConfigUpdateService = deviceConfigService,
+            samplingConfig = samplingConfig,
+            cachedClientServerMode = cachedClientServerMode,
+            linkedDeviceFileSender = linkedDeviceFileSender,
+            temporaryFileFactory = temporaryFileFactory,
+            clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
         )
+        val worker = mockTaskRunnerWorker<SettingsUpdateTask>(
+            context,
+            mockWorkerFactory(settingsUpdate = task),
+            Data.EMPTY,
+        )
+        assertThat(worker.doWork()).isEqualTo(Result.success())
+
         coVerify(exactly = 1) {
             deviceConfigService.deviceConfig(deviceConfigArgs_server)
             deviceConfigService.deviceConfig(deviceConfigArgs_client)

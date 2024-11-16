@@ -2,6 +2,7 @@ package com.memfault.bort.ota.lib
 
 import android.app.Application
 import android.os.RecoverySystem
+import com.memfault.bort.IO
 import com.memfault.bort.ota.lib.download.DownloadOtaService
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.InternalMetric
@@ -11,13 +12,11 @@ import com.memfault.bort.shared.InternalMetric.Companion.OTA_INSTALL_RECOVERY_VE
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 
 /**
  * This interface abstracts recovery interactions. On real devices, the RealRecoveryInterface will use RecoverySystem
@@ -47,7 +46,7 @@ class RealStartUpdatedownload @Inject constructor(
  *  3) Verifying the update package
  *  4) Install the update package
  */
-@OptIn(ExperimentalCoroutinesApi::class)
+
 class RecoveryBasedUpdateActionHandler @Inject constructor(
     private val recoveryInterface: RecoveryInterface,
     private val startUpdateDownload: StartUpdateDownload,
@@ -58,6 +57,7 @@ class RecoveryBasedUpdateActionHandler @Inject constructor(
     private val application: Application,
     private val otaRulesProvider: OtaRulesProvider,
     private val settingsProvider: SoftwareUpdateSettingsProvider,
+    @IO private val ioCoroutineContext: CoroutineContext,
 ) : UpdateActionHandler {
     override fun initialize() = Unit
 
@@ -157,7 +157,7 @@ class RecoveryBasedUpdateActionHandler @Inject constructor(
     }
 
     private suspend fun installUpdate(updatePath: File): Boolean =
-        withContext(Dispatchers.IO) {
+        withContext(ioCoroutineContext) {
             suspendCancellableCoroutine { continuation ->
                 try {
                     metricLogger.addMetric(InternalMetric(OTA_INSTALL_RECOVERY, synchronous = true))
@@ -176,8 +176,7 @@ class RecoveryBasedUpdateActionHandler @Inject constructor(
 
     private suspend fun verifyUpdate(
         updateFile: File,
-        dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    ) = withContext(dispatcher) {
+    ) = withContext(ioCoroutineContext) {
         suspendCancellableCoroutine<Boolean> { continuation ->
             try {
                 recoveryInterface.verifyOrThrow(updateFile)

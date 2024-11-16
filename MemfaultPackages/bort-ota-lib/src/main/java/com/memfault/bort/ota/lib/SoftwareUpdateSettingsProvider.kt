@@ -18,17 +18,14 @@ class RealSoftwareUpdateSettingsProvider @Inject constructor(
     private val settingsProvider: BortSoftwareUpdateSettingsFetcher,
     private val fallbackOtaSettings: FallbackOtaSettings,
 ) : SoftwareUpdateSettingsProvider {
-    private var _settings: SoftwareUpdateSettings = fetchSettings()
+    private var settings: SoftwareUpdateSettings = fetchSettings()
 
     override fun update() {
-        _settings = fetchSettings()
+        settings = fetchSettings()
     }
 
-    private fun fetchSettings(): SoftwareUpdateSettings {
-        return settingsProvider.settings() ?: fallbackOtaSettings.fallbackOtaSettings()
-    }
+    private fun fetchSettings(): SoftwareUpdateSettings =
+        settingsProvider.settings() ?: fallbackOtaSettings.fallbackOtaSettings()
 
-    override fun get(): SoftwareUpdateSettings {
-        return _settings
-    }
+    override fun get(): SoftwareUpdateSettings = settings
 }

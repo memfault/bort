@@ -4,13 +4,11 @@ import androidx.work.Data
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
-import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.clientserver.CachedClientServerMode
 import com.memfault.bort.clientserver.ClientDeviceInfoPreferenceProvider
 import com.memfault.bort.clientserver.LinkedDeviceFileSender
 import com.memfault.bort.clientserver.isServer
-import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.settings.FetchedDeviceConfigContainer.Companion.asSamplingConfig
 import com.memfault.bort.shared.CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG
 import com.memfault.bort.shared.Logger
@@ -19,7 +17,6 @@ import javax.inject.Inject
 
 class SettingsUpdateTask @Inject constructor(
     private val deviceInfoProvider: DeviceInfoProvider,
-    override val metrics: BuiltinMetricsStore,
     private val settingsUpdateHandler: SettingsUpdateHandler,
     private val deviceConfigUpdateService: DeviceConfigUpdateService,
     private val samplingConfig: CurrentSamplingConfig,
@@ -27,13 +24,10 @@ class SettingsUpdateTask @Inject constructor(
     private val linkedDeviceFileSender: LinkedDeviceFileSender,
     private val temporaryFileFactory: TemporaryFileFactory,
     private val clientDeviceInfoPreferenceProvider: ClientDeviceInfoPreferenceProvider,
-) : Task<Unit>() {
-    override val getMaxAttempts: () -> Int = { 1 }
+) : Task<Unit> {
+    override fun getMaxAttempts(input: Unit) = 1
 
-    override suspend fun doWork(
-        worker: TaskRunnerWorker,
-        input: Unit,
-    ): TaskResult {
+    override suspend fun doWork(input: Unit): TaskResult {
         val deviceInfo = deviceInfoProvider.getDeviceInfo()
         val deviceConfig: DecodedDeviceConfig = try {
             deviceConfigUpdateService.deviceConfig(
@@ -75,8 +69,7 @@ class SettingsUpdateTask @Inject constructor(
         }
     }
 
-    override fun convertAndValidateInputData(inputData: Data) {
-    }
+    override fun convertAndValidateInputData(inputData: Data) = Unit
 }
 
 suspend fun DecodedDeviceConfig.handleUpdate(

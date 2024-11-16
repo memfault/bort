@@ -31,7 +31,7 @@ public class StructuredLogdLoggerService extends ILogger.Stub {
    * compatibility.
    */
   @Deprecated
-  @Override public void log(long timestamp, String type, String data) throws RemoteException {
+  @Override public void log(long timestamp, String type, String data) {
     android.util.Log.e(TAG, "ILogger.log is deprecated, ignoring: " + data);
   }
 
@@ -41,8 +41,7 @@ public class StructuredLogdLoggerService extends ILogger.Stub {
    * compatibility.
    */
   @Deprecated
-  @Override public void logInternal(long timestamp, String type, String data)
-      throws RemoteException {
+  @Override public void logInternal(long timestamp, String type, String data) {
     android.util.Log.e(TAG, "ILogger.logInternal is deprecated, ignoring: " + data);
   }
 
@@ -52,7 +51,7 @@ public class StructuredLogdLoggerService extends ILogger.Stub {
    * compatibility.
    */
   @Deprecated
-  @Override public void triggerDump() throws RemoteException {
+  @Override public void triggerDump() {
     android.util.Log.e(TAG, "ILogger.triggerDump is deprecated, ignoring");
   }
 
@@ -62,14 +61,13 @@ public class StructuredLogdLoggerService extends ILogger.Stub {
    * compatibility.
    */
   @Deprecated
-  @Override public void reloadConfig(String config) throws RemoteException {
+  @Override public void reloadConfig(String config) {
     android.util.Log.e(TAG, "ILogger.reloadConfig is deprecated, ignoring");
   }
 
   @Override
-  public void startReport(String json) throws RemoteException {
+  public void startReport(String json) {
     try {
-      android.util.Log.v(TAG, "Sending start: " + json);
       ContentValues values = new ContentValues();
       values.put(KEY_CUSTOM_METRIC, json);
       contentResolver.insert(URI_START_CUSTOM_REPORT, values);
@@ -79,9 +77,8 @@ public class StructuredLogdLoggerService extends ILogger.Stub {
   }
 
   @Override
-  public void finishReport(String json) throws RemoteException {
+  public void finishReport(String json) {
     try {
-      android.util.Log.v(TAG, "Sending finish: " + json);
       ContentValues values = new ContentValues();
       values.put(KEY_CUSTOM_METRIC, json);
       contentResolver.insert(URI_FINISH_CUSTOM_REPORT, values);
@@ -91,9 +88,8 @@ public class StructuredLogdLoggerService extends ILogger.Stub {
   }
 
   @Override
-  public void addValue(String json) throws RemoteException {
+  public void addValue(String json) {
     try {
-      android.util.Log.v(TAG, "Sending metric: " + json);
       ContentValues values = new ContentValues();
       values.put(KEY_CUSTOM_METRIC, json);
       contentResolver.insert(URI_ADD_CUSTOM_METRIC, values);

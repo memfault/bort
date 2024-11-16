@@ -7,6 +7,7 @@ import android.content.Intent.ACTION_AIRPLANE_MODE_CHANGED
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.provider.Settings.Global
+import com.memfault.bort.Default
 import com.memfault.bort.android.NetworkCallbackEvent.OnAvailable
 import com.memfault.bort.android.NetworkCallbackEvent.OnCapabilitiesChanged
 import com.memfault.bort.android.NetworkCallbackEvent.OnLost
@@ -27,11 +28,11 @@ import com.memfault.bort.scopes.coroutineScope
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.shared.Logger
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -39,6 +40,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.CoroutineContext
 
 const val CONNECTIVITY_TYPE_METRIC = "connectivity.type"
 
@@ -50,6 +52,7 @@ class ConnectivityMetrics
     private val application: Application,
     private val bortEnabledProvider: BortEnabledProvider,
     private val connectivityManager: ConnectivityManager,
+    @Default private val defaultCoroutineContext: CoroutineContext,
 ) : Scoped {
     private val connectivityMetric = Reporting.report()
         .stateTracker<ConnectivityState>(
@@ -63,7 +66,7 @@ class ConnectivityMetrics
     private val replaySettingsFlow = MutableSharedFlow<Unit>()
 
     override fun onEnterScope(scope: Scope) {
-        scope.coroutineScope().launch {
+        scope.coroutineScope(defaultCoroutineContext).launch {
             registerAirplaneMode()
             registerConnectivity()
         }
@@ -78,7 +81,6 @@ class ConnectivityMetrics
         replaySettingsFlow.emit(Unit)
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     private fun CoroutineScope.registerAirplaneMode() {
         bortEnabledProvider.isEnabledFlow()
             .distinctUntilChanged()
@@ -90,6 +92,7 @@ class ConnectivityMetrics
                     emptyFlow()
                 }
             }
+            .flowOn(defaultCoroutineContext)
             .flatMapLatest { intent -> replaySettingsFlow.map { intent }.onStart { emit(intent) } }
             .onEach { intent ->
                 val hasState = intent.hasExtra("state")
@@ -104,7 +107,6 @@ class ConnectivityMetrics
     }
 
     @SuppressLint("MissingPermission")
-    @OptIn(ExperimentalCoroutinesApi::class)
     private fun CoroutineScope.registerConnectivity() {
         bortEnabledProvider.isEnabledFlow()
             .distinctUntilChanged()
@@ -187,9 +189,8 @@ class ConnectivityMetrics
         )
     }
 
-    private fun isAirplaneModeOn(context: Context): Boolean {
-        return Global.getInt(context.contentResolver, Global.AIRPLANE_MODE_ON, 0) != 0
-    }
+    private fun isAirplaneModeOn(context: Context): Boolean =
+        Global.getInt(context.contentResolver, Global.AIRPLANE_MODE_ON, 0) != 0
 }
 
 enum class ConnectivityState {

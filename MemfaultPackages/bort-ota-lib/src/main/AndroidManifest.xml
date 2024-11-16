@@ -1,34 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-  <!-- Allows for connectivity checks-->
-  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-  <application>
-    <receiver android:name=".BootCompleteReceiver">
-      <intent-filter>
-        <action android:name="android.intent.action.BOOT_COMPLETED" />
-        <action android:name="com.memfault.intent.action.OTA_SETTINGS_CHANGED" />
-      </intent-filter>
-    </receiver>
-
-    <receiver
-        android:name=".CheckForUpdatesReceiver"
-        android:permission="${bortControlPermission}">
-      <intent-filter>
-        <action android:name="com.memfault.intent.action.OTA_CHECK_FOR_UPDATES" />
-      </intent-filter>
-    </receiver>
-
-    <receiver
-        android:name=".ShellCheckForUpdatesReceiver"
-        android:permission="android.permission.DUMP">
-      <intent-filter>
-        <action android:name="com.memfault.intent.action.OTA_CHECK_FOR_UPDATES_SHELL" />
-      </intent-filter>
-    </receiver>
-
-    <service android:name=".download.DownloadOtaService" />
-  </application>
   <!-- Allows writing recovery-based OTA to /data/ota_package -->
   <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
   <!-- Allows the download service to work in the foreground -->
@@ -58,4 +30,48 @@
   <uses-permission
       android:name="android.permission.RECOVERY"
       tools:ignore="ProtectedPermissions" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+  <!-- Allows for connectivity checks-->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <application>
+    <receiver android:name=".BootCompleteReceiver"
+        android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+        <action android:name="com.memfault.intent.action.OTA_SETTINGS_CHANGED" />
+      </intent-filter>
+    </receiver>
+
+    <receiver
+        android:name=".CheckForUpdatesReceiver"
+        android:permission="${bortControlPermission}"
+        android:exported="true">
+      <intent-filter>
+        <action android:name="com.memfault.intent.action.OTA_CHECK_FOR_UPDATES" />
+      </intent-filter>
+    </receiver>
+
+    <receiver
+        android:name=".ShellCheckForUpdatesReceiver"
+        android:permission="android.permission.DUMP"
+        android:exported="true">
+      <intent-filter>
+        <action android:name="com.memfault.intent.action.OTA_CHECK_FOR_UPDATES_SHELL" />
+      </intent-filter>
+    </receiver>
+
+    <service android:name=".download.DownloadOtaService" android:foregroundServiceType="specialUse">
+      <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+          android:value="OTA Download"/>
+    </service>
+
+    <service
+        android:name="androidx.work.impl.foreground.SystemForegroundService"
+        android:foregroundServiceType="specialUse"
+        tools:node="merge" >
+      <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+          android:value="OTA Download"/>
+    </service>
+  </application>
 </manifest>

@@ -7,6 +7,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
@@ -27,6 +28,8 @@ class RecoveryBasedUpdateActionHandlerTest {
     private lateinit var scheduleDownload: ScheduleDownload
     private lateinit var otaRulesProvider: OtaRulesProvider
     private lateinit var settingsProvider: SoftwareUpdateSettingsProvider
+
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     private val collectedStates = mutableListOf<State>()
     private val collectedEvents = mutableListOf<Event>()
@@ -74,6 +77,7 @@ class RecoveryBasedUpdateActionHandlerTest {
                 application = application,
                 otaRulesProvider = otaRulesProvider,
                 settingsProvider = settingsProvider,
+                ioCoroutineContext = testDispatcher,
             )
     }
 

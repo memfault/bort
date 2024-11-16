@@ -408,7 +408,7 @@ class MetricsDbTest {
             false,
             2,
             null,
-            1.0,
+            5.0,
             null,
             2,
             null,
@@ -424,12 +424,28 @@ class MetricsDbTest {
             false,
             3,
             null,
-            1.0,
+            11.5,
             null,
             2,
             null,
         )
         dao.insert(val3)
+        val stringval1 = MetricValue(
+            "stringkey",
+            "Heartbeat",
+            listOf(COUNT),
+            false,
+            MetricType.PROPERTY,
+            DataType.STRING,
+            false,
+            4,
+            "string",
+            null,
+            null,
+            2,
+            null,
+        )
+        dao.insert(stringval1)
         val report = dao.collectHeartbeat(endTimestampMs = 4, hrtFileFactory = null)
         assertThat(report).isEqualTo(
             CustomReport(
@@ -438,7 +454,10 @@ class MetricsDbTest {
                     startTimestampMs = 1,
                     endTimestampMs = 4,
                     reportType = "Heartbeat",
-                    metrics = mapOf("key.count" to JsonPrimitive(3)),
+                    metrics = mapOf(
+                        "key.count" to JsonPrimitive(3),
+                        "stringkey.count" to JsonPrimitive(1),
+                    ),
                     internalMetrics = mapOf(),
                     hrt = null,
                     softwareVersion = SOFTWARE_VERSION,

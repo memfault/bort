@@ -16,6 +16,7 @@ import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Test
@@ -25,6 +26,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 internal class BatterystatsSummaryCollectorTest {
+    private val testScheduler = UnconfinedTestDispatcher()
     private val timeMs: Long = 123456789
     private val parser: BatteryStatsSummaryParser = mockk {
         coEvery { parse(any()) } answers { batteryStatsSummary }
@@ -38,9 +40,7 @@ internal class BatterystatsSummaryCollectorTest {
     }
     private var lastSummary: BatteryStatsSummary? = null
     private val provider = object : BatteryStatsSummaryProvider {
-        override fun get(): BatteryStatsSummary? {
-            return lastSummary
-        }
+        override fun get(): BatteryStatsSummary? = lastSummary
 
         override fun set(summary: BatteryStatsSummary) {
             lastSummary = summary
@@ -62,6 +62,7 @@ internal class BatterystatsSummaryCollectorTest {
         batteryStatsSummaryParser = parser,
         batteryStatsSummaryProvider = provider,
         significantAppsProvider = significantAppsProvider,
+        ioCoroutineContext = testScheduler,
     )
 
     private val CHECKIN_1_DISCHARGING = BatteryStatsSummary(
@@ -163,6 +164,8 @@ internal class BatterystatsSummaryCollectorTest {
                         "battery_screen_on_soc_pct_drop" to JsonPrimitive(13.69),
                         "battery_screen_off_discharge_duration_ms" to JsonPrimitive(13884248),
                         "battery_screen_off_soc_pct_drop" to JsonPrimitive(16.18),
+                        "battery_use_top_component_name" to JsonPrimitive("android"),
+                        "battery_use_top_component_pct" to JsonPrimitive(0.75),
                     ),
                     internalAggregatedMetrics = emptyMap(),
                 ),
@@ -228,6 +231,8 @@ internal class BatterystatsSummaryCollectorTest {
                     "battery_screen_on_soc_pct_drop" to JsonPrimitive(0.79),
                     "battery_screen_off_discharge_duration_ms" to JsonPrimitive(594135),
                     "battery_screen_off_soc_pct_drop" to JsonPrimitive(1.99),
+                    "battery_use_top_component_name" to JsonPrimitive("screen"),
+                    "battery_use_top_component_pct" to JsonPrimitive(8.10),
                 ),
                 internalAggregatedMetrics = emptyMap(),
             ),
@@ -482,6 +487,11 @@ internal class BatterystatsSummaryCollectorTest {
                     identifier = "gmaps",
                     internal = false,
                 ),
+                SignificantApp(
+                    packageName = "com.memfault.not.in.battery.output",
+                    identifier = "com.memfault.not.in.battery.output",
+                    internal = false,
+                ),
             ),
         )
 
@@ -517,10 +527,13 @@ internal class BatterystatsSummaryCollectorTest {
                         "estimated_battery_capacity_mah" to JsonPrimitive(3777f),
                         "battery_use_%/hour_screen" to JsonPrimitive(0.75),
                         "battery_use_%/hour_gmaps" to JsonPrimitive(0.39),
+                        "battery_use_%/hour_com.memfault.not.in.battery.output" to JsonPrimitive(0.0),
                         "battery_screen_on_discharge_duration_ms" to JsonPrimitive(13884248),
                         "battery_screen_on_soc_pct_drop" to JsonPrimitive(13.69),
                         "battery_screen_off_discharge_duration_ms" to JsonPrimitive(13884248),
                         "battery_screen_off_soc_pct_drop" to JsonPrimitive(16.18),
+                        "battery_use_top_component_name" to JsonPrimitive("screen"),
+                        "battery_use_top_component_pct" to JsonPrimitive(0.75),
                     ),
                     internalAggregatedMetrics = mapOf(
                         "battery_use_%/hour_bort" to JsonPrimitive(0.11),

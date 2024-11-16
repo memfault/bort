@@ -121,9 +121,8 @@ class MarUnsampledHoldingArea @Inject constructor(
     }
 
     @VisibleForTesting
-    internal fun manifestFileForMar(marFile: File): File {
-        return File(unsampledHoldingDirectory, "${marFile.name}.$MANIFEST_EXTENSION")
-    }
+    internal fun manifestFileForMar(marFile: File): File =
+        File(unsampledHoldingDirectory, "${marFile.name}.$MANIFEST_EXTENSION")
 
     companion object {
         private const val MANIFEST_EXTENSION = "manifest"

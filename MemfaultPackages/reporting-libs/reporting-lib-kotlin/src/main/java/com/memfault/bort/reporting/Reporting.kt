@@ -1,5 +1,7 @@
 package com.memfault.bort.reporting
 
+import android.app.Application
+import android.content.Context
 import com.memfault.bort.reporting.DataType.DOUBLE
 import com.memfault.bort.reporting.DataType.STRING
 import com.memfault.bort.reporting.MetricType.COUNTER
@@ -11,9 +13,63 @@ import com.memfault.bort.reporting.NumericAgg.COUNT
 import com.memfault.bort.reporting.NumericAgg.SUM
 import com.memfault.bort.reporting.RemoteMetricsService.HEARTBEAT_REPORT
 import com.memfault.bort.reporting.RemoteMetricsService.SESSION_REPORT
+import com.memfault.bort.reporting.ReportingClient.Report
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutorService
+
+private fun timestamp(): Long = System.currentTimeMillis()
 
 /**
- * Entry point to Memfault's Reporting library.
+ * Common interface for the Memfault Reporting library.
+ */
+public interface ReportingSdk {
+
+    /**
+     * Default report. Values are aggregated using the default heartbeat period.
+     */
+    public fun report(): Report
+
+    /**
+     * Session. Values are aggregated by the length of each individual session with the same name.
+     *
+     * Session [name]s must match [RemoteMetricsService.SESSION_NAME_REGEX] and not be a
+     * [RemoteMetricsService.RESERVED_REPORT_NAMES].
+     */
+    public fun session(name: String): Report
+
+    /**
+     * Start a session.
+     *
+     * Session [name]s must match [RemoteMetricsService.SESSION_NAME_REGEX] and not be a
+     * [RemoteMetricsService.RESERVED_REPORT_NAMES].
+     */
+    public fun startSession(
+        name: String,
+        timestampMs: Long = timestamp(),
+    ): CompletableFuture<Boolean>
+
+    /**
+     * Finish a session.
+     */
+    public fun finishSession(
+        name: String,
+        timestampMs: Long = timestamp(),
+    ): CompletableFuture<Boolean>
+
+    /**
+     * Shuts down the executor backing the Reporting library. The instance of the Reporting library will not process
+     * any more metrics.
+     */
+    public fun shutdown()
+}
+
+/**
+ * Simplest entry point into Memfault's Reporting library.
+ *
+ * Uses a singleton to record metrics into Memfault. By default, registers a ContentProvider to capture the static
+ * app context, and executes all requests on an [Executors.newSingleThreadExecutor].
+ *
+ * For more configuration options, use [ReportingClient].
  *
  * Sample usage:
  *
@@ -26,83 +82,101 @@ import com.memfault.bort.reporting.RemoteMetricsService.SESSION_REPORT
  *
  * See [Custom Metrics](https://mflt.io/android-custom-metrics) for more information.
  */
-public object Reporting {
-    /**
-     * Default report. Values are aggregated using the default Bort heartbeat period.
-     */
-    @JvmStatic
-    public fun report(): Report = Report(reportType = HEARTBEAT_REPORT)
+// For internal Memfault development, immediate is set to true for backwards compatibility. In the published library,
+// the Reporting object will now default to using a single thread executor, while the ReportingClient class is now
+// available if the less main-thread safe, immediate = true behavior is desired.
+public object Reporting : ReportingSdk by ReportingClient(
+    context = null,
+    executorService = null,
+    immediate = !BuildConfig.PUBLISHING,
+)
 
-    /**
-     * Session. Values are aggregated by the length of each individual session with the same name.
-     *
-     * Session [name]s must match [RemoteMetricsService.SESSION_NAME_REGEX] and not be a
-     * [RemoteMetricsService.RESERVED_REPORT_NAMES].
-     */
-    @JvmStatic
-    public fun session(name: String): Report {
-        return Report(reportType = SESSION_REPORT, reportName = name)
+/**
+ * Configurable entry point into Memfault's Reporting library.
+ *
+ * Provides a customizable class that can be used to record metrics into Memfault.
+ *
+ * - Pass in an Application Context to allow the ability to hide the MetricsInitProvider node in your
+ * AndroidManifest.xml, and avoid using a static Context.
+ * - Pass in a custom ExecutorService to allow scheduling the IPC calls on a different thread. If none is provided,
+ * work will be scheduled on an [Executors.newSingleThreadExecutor] by default, unless [immediate] is set to true.
+ *
+ * Sample usage:
+ *
+ * ```
+ * val reportingClient = ReportingClient(context = application)
+ *
+ * val counter = reportingClient
+ *     .counter("api-count", sumInReport=true)
+ * ...
+ * counter.increment()
+ * ```
+ *
+ * See [Custom Metrics](https://mflt.io/android-custom-metrics) for more information.
+ */
+public class ReportingClient @JvmOverloads constructor(
+    context: Context?,
+    executorService: ExecutorService?,
+    immediate: Boolean = false,
+) : ReportingSdk {
+    init {
+        require(context == null || context is Application) {
+            "A provided $context must be the Application Context."
+        }
     }
 
-    /**
-     * Convenience helper for recording a session within a single (longer) function call. The Session is started at
-     * the beginning of the [block], and stopped when the [block]'s scope ends.
-     *
-     * This class is inline so that [block] can be invoke coroutines if it is executed within a suspend function,
-     * without bringing the coroutine library into the reporting lib artifact.
-     */
-    public inline fun <R> withSession(
+    private val remoteMetricsService: RemoteMetricsService by lazy {
+        RemoteMetricsService.Builder()
+            .context(context)
+            .executorService(executorService)
+            .immediate(immediate)
+            .build()
+    }
+
+    public override fun report(): Report = Report(
+        remoteMetricsService = remoteMetricsService,
+        reportType = HEARTBEAT_REPORT,
+    )
+
+    public override fun session(name: String): Report = Report(
+        remoteMetricsService = remoteMetricsService,
+        reportType = SESSION_REPORT,
+        reportName = name,
+    )
+
+    public override fun startSession(
         name: String,
-        block: (session: Report) -> R,
-    ): R = try {
-        startSession(name = name)
-        val session = session(name)
-        block(session)
-    } finally {
-        finishSession(name = name)
-    }
-
-    /**
-     * Start a session.
-     *
-     * Session [name]s must match [RemoteMetricsService.SESSION_NAME_REGEX] and not be a
-     * [RemoteMetricsService.RESERVED_REPORT_NAMES].
-     */
-    public fun startSession(
-        name: String,
-        timestampMs: Long = timestamp(),
-    ): Boolean {
-        return RemoteMetricsService.startReport(
-            StartReport(
-                timestampMs,
-                REPORTING_CLIENT_VERSION,
-                SESSION_REPORT,
-                name,
-            ),
-        )
-    }
+        timestampMs: Long,
+    ): CompletableFuture<Boolean> = remoteMetricsService.startReport(
+        StartReport(
+            timestampMs,
+            REPORTING_CLIENT_VERSION,
+            SESSION_REPORT,
+            name,
+        ),
+    )
 
     /**
      * Finish a session.
      */
-    public fun finishSession(
+    public override fun finishSession(
         name: String,
-        timestampMs: Long = timestamp(),
-    ): Boolean {
-        return RemoteMetricsService.finishReport(
-            FinishReport(
-                timestampMs,
-                REPORTING_CLIENT_VERSION,
-                SESSION_REPORT,
-                /** startNextReport */ false,
-                name,
-            ),
-        )
-    }
+        timestampMs: Long,
+    ): CompletableFuture<Boolean> = remoteMetricsService.finishReport(
+        FinishReport(
+            timestampMs,
+            REPORTING_CLIENT_VERSION,
+            SESSION_REPORT,
+            /** startNextReport */
+            false,
+            name,
+        ),
+    )
 
-    private fun timestamp(): Long = System.currentTimeMillis()
+    public override fun shutdown(): Unit = remoteMetricsService.shutdown()
 
     public class Report internal constructor(
+        private val remoteMetricsService: RemoteMetricsService,
         public val reportType: String,
         public val reportName: String? = null,
     ) {
@@ -118,6 +192,7 @@ public object Reporting {
             sumInReport: Boolean = true,
             internal: Boolean = false,
         ): Counter = Counter(
+            remoteMetricsService = remoteMetricsService,
             name = name,
             reportType = reportType,
             reportName = reportName,
@@ -183,6 +258,7 @@ public object Reporting {
             aggregations: List<NumericAgg> = listOf(),
             internal: Boolean = false,
         ): Distribution = Distribution(
+            remoteMetricsService = remoteMetricsService,
             name = name,
             reportType = reportType,
             reportName = reportName,
@@ -205,6 +281,7 @@ public object Reporting {
             aggregations: List<StateAgg> = listOf(),
             internal: Boolean = false,
         ): StateTracker<T> = StateTracker(
+            remoteMetricsService = remoteMetricsService,
             name = name,
             reportType = reportType,
             reportName = reportName,
@@ -227,6 +304,7 @@ public object Reporting {
             aggregations: List<StateAgg> = listOf(),
             internal: Boolean = false,
         ): StringStateTracker = StringStateTracker(
+            remoteMetricsService = remoteMetricsService,
             name = name,
             reportType = reportType,
             reportName = reportName,
@@ -249,6 +327,7 @@ public object Reporting {
             aggregations: List<StateAgg> = listOf(),
             internal: Boolean = false,
         ): BoolStateTracker = BoolStateTracker(
+            remoteMetricsService = remoteMetricsService,
             name = name,
             reportType = reportType,
             reportName = reportName,
@@ -268,6 +347,7 @@ public object Reporting {
             addLatestToReport: Boolean = true,
             internal: Boolean = false,
         ): StringProperty = StringProperty(
+            remoteMetricsService = remoteMetricsService,
             name = name,
             reportType = reportType,
             reportName = reportName,
@@ -287,6 +367,7 @@ public object Reporting {
             addLatestToReport: Boolean = true,
             internal: Boolean = false,
         ): NumberProperty = NumberProperty(
+            remoteMetricsService = remoteMetricsService,
             name = name,
             reportType = reportType,
             reportName = reportName,
@@ -310,6 +391,7 @@ public object Reporting {
             latestInReport: Boolean = false,
             internal: Boolean = false,
         ): Event = Event(
+            remoteMetricsService = remoteMetricsService,
             name = name,
             reportType = reportType,
             reportName = reportName,
@@ -330,6 +412,7 @@ public object Reporting {
     public fun statsAggs(vararg aggregations: StateAgg): List<StateAgg> = aggregations.asList()
 
     public abstract class Metric internal constructor() {
+        internal abstract val remoteMetricsService: RemoteMetricsService
         internal abstract val name: String
         internal abstract val reportType: String
         internal abstract val reportName: String?
@@ -344,9 +427,9 @@ public object Reporting {
             stringVal: String? = null,
             numberVal: Double? = null,
             boolVal: Boolean? = null,
-        ) {
+        ): CompletableFuture<Void> {
             // Sends entire metric definition + current value over IPC to the logging/metrics daemon.
-            RemoteMetricsService.record(
+            return remoteMetricsService.record(
                 MetricValue(
                     name,
                     reportType,
@@ -367,6 +450,7 @@ public object Reporting {
     }
 
     public data class StringProperty internal constructor(
+        override val remoteMetricsService: RemoteMetricsService,
         override val name: String,
         override val reportType: String,
         override val reportName: String?,
@@ -382,11 +466,12 @@ public object Reporting {
         public fun update(
             value: String?,
             timestamp: Long = timestamp(),
-        ): Unit =
+        ): CompletableFuture<Void> =
             add(timeMs = timestamp, stringVal = value ?: "")
     }
 
     public data class NumberProperty internal constructor(
+        override val remoteMetricsService: RemoteMetricsService,
         override val name: String,
         override val reportType: String,
         override val reportName: String?,
@@ -402,35 +487,35 @@ public object Reporting {
         public fun update(
             value: Double?,
             timestamp: Long = timestamp(),
-        ): Unit =
+        ): CompletableFuture<Void> =
             add(timeMs = timestamp, numberVal = value)
 
         @JvmOverloads
         public fun update(
             value: Float?,
             timestamp: Long = timestamp(),
-        ): Unit =
+        ): CompletableFuture<Void> =
             add(timeMs = timestamp, numberVal = value?.toDouble())
 
         @JvmOverloads
         public fun update(
             value: Long?,
             timestamp: Long = timestamp(),
-        ): Unit =
+        ): CompletableFuture<Void> =
             add(timeMs = timestamp, numberVal = value?.toDouble())
 
         @JvmOverloads
         public fun update(
             value: Int?,
             timestamp: Long = timestamp(),
-        ): Unit =
+        ): CompletableFuture<Void> =
             add(timeMs = timestamp, numberVal = value?.toDouble())
 
         @JvmOverloads
         public fun update(
             value: Boolean?,
             timestamp: Long = timestamp(),
-        ): Unit =
+        ): CompletableFuture<Void> =
             add(timeMs = timestamp, numberVal = value?.asNumber())
     }
 
@@ -438,22 +523,24 @@ public object Reporting {
         private val successCounter: Counter,
         private val failureCounter: Counter,
     ) {
-        public fun record(successful: Boolean, timestamp: Long = timestamp()) {
-            if (successful) {
-                success(timestamp = timestamp)
-            } else {
-                failure(timestamp = timestamp)
-            }
+        public fun record(
+            successful: Boolean,
+            timestamp: Long = timestamp(),
+        ): CompletableFuture<Void> = if (successful) {
+            success(timestamp = timestamp)
+        } else {
+            failure(timestamp = timestamp)
         }
 
-        public fun success(timestamp: Long = timestamp()): Unit =
+        public fun success(timestamp: Long = timestamp()): CompletableFuture<Void> =
             successCounter.increment(timestamp = timestamp)
 
-        public fun failure(timestamp: Long = timestamp()): Unit =
+        public fun failure(timestamp: Long = timestamp()): CompletableFuture<Void> =
             failureCounter.increment(timestamp = timestamp)
     }
 
     public data class Counter internal constructor(
+        override val remoteMetricsService: RemoteMetricsService,
         override val name: String,
         override val reportType: String,
         override val reportName: String?,
@@ -469,24 +556,24 @@ public object Reporting {
         public fun incrementBy(
             byDouble: Double = 1.0,
             timestamp: Long = timestamp(),
-        ) {
-            add(timeMs = timestamp, numberVal = byDouble)
-        }
+        ): CompletableFuture<Void> = add(timeMs = timestamp, numberVal = byDouble)
 
         @JvmName("incrementByInt")
         @JvmOverloads
         public fun incrementBy(
             by: Int = 1,
             timestamp: Long = timestamp(),
-        ) {
-            add(timeMs = timestamp, numberVal = by.toDouble())
-        }
+        ): CompletableFuture<Void> = add(timeMs = timestamp, numberVal = by.toDouble())
 
         @JvmOverloads
-        public fun increment(timestamp: Long = timestamp()): Unit = incrementBy(1, timestamp = timestamp)
+        public fun increment(timestamp: Long = timestamp()): CompletableFuture<Void> = incrementBy(
+            1,
+            timestamp = timestamp,
+        )
     }
 
     public data class StateTracker<T : Enum<T>> internal constructor(
+        override val remoteMetricsService: RemoteMetricsService,
         override val name: String,
         override val reportType: String,
         override val reportName: String?,
@@ -507,6 +594,7 @@ public object Reporting {
     }
 
     public data class StringStateTracker internal constructor(
+        override val remoteMetricsService: RemoteMetricsService,
         override val name: String,
         override val reportType: String,
         override val reportName: String?,
@@ -527,6 +615,7 @@ public object Reporting {
     }
 
     public data class BoolStateTracker internal constructor(
+        override val remoteMetricsService: RemoteMetricsService,
         override val name: String,
         override val reportType: String,
         override val reportName: String?,
@@ -547,6 +636,7 @@ public object Reporting {
     }
 
     public data class Distribution internal constructor(
+        override val remoteMetricsService: RemoteMetricsService,
         override val name: String,
         override val reportType: String,
         override val reportName: String?,
@@ -575,6 +665,7 @@ public object Reporting {
     }
 
     public data class Event internal constructor(
+        override val remoteMetricsService: RemoteMetricsService,
         override val name: String,
         override val reportType: String,
         override val reportName: String?,
@@ -594,7 +685,7 @@ public object Reporting {
         public fun add(
             value: String,
             timestamp: Long = timestamp(),
-        ): Unit = add(timeMs = timestamp, stringVal = value)
+        ): CompletableFuture<Void> = add(timeMs = timestamp, stringVal = value)
     }
 }
 

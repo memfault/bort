@@ -18,6 +18,7 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.JsonObject
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration
@@ -37,27 +38,21 @@ open class DynamicSettingsProvider @Inject constructor(
     private val devMode: DevMode,
     private val projectKeyProvider: ProjectKeyProvider,
 ) : SettingsProvider {
-    private val _settingsFlow = MutableStateFlow(
+    private val settingsFlow = MutableStateFlow(
         storedSettingsPreferenceProvider.get(),
     )
 
     val settingsChangedFlow: Flow<Unit>
-        get() = _settingsFlow.map { }
+        get() = settingsFlow.map { }
 
     private val settings: FetchedSettings
-        get() = _settingsFlow.value
+        get() = settingsFlow.value
 
     override val minLogcatLevel: LogLevel
         get() = LogLevel.fromInt(settings.bortMinLogcatLevel) ?: LogLevel.VERBOSE
 
     override val minStructuredLogLevel: LogLevel
         get() = LogLevel.fromInt(settings.bortMinStructuredLogLevel) ?: LogLevel.INFO
-
-    override val eventLogEnabled: Boolean
-        get() = settings.bortEventLogEnabled
-
-    override val internalLogToDiskEnabled: Boolean
-        get() = settings.bortInternalLogToDiskEnabled
 
     override val isRuntimeEnableRequired: Boolean = BuildConfig.RUNTIME_ENABLE_REQUIRED
 
@@ -68,6 +63,10 @@ open class DynamicSettingsProvider @Inject constructor(
             } else {
                 UNMETERED
             }
+        override val uploadRequiresBatteryNotLow: Boolean
+            get() = settings.httpApiUploadNetworkConstraintRequireBatteryNotLow
+        override val uploadRequiresCharging: Boolean
+            get() = settings.httpApiUploadNetworkConstraintRequireCharging
         override val uploadCompressionEnabled
             get() = settings.httpApiUploadCompressionEnabled
         override val projectKey get() = projectKeyProvider.projectKey
@@ -101,7 +100,16 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.httpApiMaxMarUnsampledStorageBytes
     }
 
-    override val deviceInfoSettings get() = settings.deviceInfoSettings()
+    override val deviceInfoSettings get() = object : DeviceInfoSettings {
+        override val androidBuildFormat
+            get() = AndroidBuildFormat.getById(settings.deviceInfoAndroidBuildVersionSource)
+        override val androidBuildVersionKey
+            get() = settings.deviceInfoAndroidBuildVersionKey
+        override val androidHardwareVersionKey
+            get() = settings.deviceInfoAndroidHardwareVersionKey
+        override val androidSerialNumberKey
+            get() = settings.deviceInfoAndroidDeviceSerialKey
+    }
 
     override val sdkVersionInfo = BuildConfigSdkVersionInfo
 
@@ -182,8 +190,6 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.metricsMaxNumAppVersions
         override val reporterCollectionInterval: Duration
             get() = settings.metricsReporterCollectionInterval.duration
-        override val propertiesUseMetricService: Boolean
-            get() = settings.metricsPropertiesUseService
         override val cachePackageManagerReport: Boolean
             get() = settings.metricsCachePackages
         override val recordImei: Boolean
@@ -192,6 +198,14 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.metricsOperationalCrashesExclusions
         override val pollingInterval: Duration
             get() = settings.metricsPollingInterval.duration
+        override val collectMemory: Boolean
+            get() = settings.metricsCollectMemory
+        override val thermalMetricsEnabled: Boolean
+            get() = settings.metricsThermalMetricsEnabled
+        override val thermalCollectLegacyMetrics: Boolean
+            get() = settings.metricsThermalCollectLegacyMetrics
+        override val thermalCollectStatus: Boolean
+            get() = settings.metricsThermalCollectStatus
     }
 
     override val batteryStatsSettings = object : BatteryStatsSettings {
@@ -232,6 +246,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.logcatContinuousDumpThresholdTime.duration
         override val continuousLogDumpWrappingTimeout: Duration
             get() = settings.logcatContinuousDumpWrappingTimeout.duration
+        override val logs2metricsConfig: JsonObject
+            get() = settings.logcat2MetricsConfig
     }
 
     override val fileUploadHoldingAreaSettings = object : FileUploadHoldingAreaSettings {
@@ -248,6 +264,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.networkCollectionReceiveThresholdKb
         override val collectionTransmitThresholdKb: Long
             get() = settings.networkCollectionTransmitThresholdKb
+        override val collectLegacyMetrics: Boolean
+            get() = settings.networkCollectLegacyMetrics
     }
 
     override val rebootEventsSettings = object : RebootEventsSettings {
@@ -346,6 +364,6 @@ open class DynamicSettingsProvider @Inject constructor(
 
     override fun invalidate() {
         Logger.d("settings invalidating")
-        _settingsFlow.value = storedSettingsPreferenceProvider.get()
+        settingsFlow.value = storedSettingsPreferenceProvider.get()
     }
 }

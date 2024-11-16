@@ -2,6 +2,7 @@ package com.memfault.bort.settings
 
 import androidx.work.Constraints
 import com.memfault.bort.AndroidAppIdScrubbingRule
+import com.memfault.bort.logcat.Logs2MetricsRule
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -32,6 +33,7 @@ fun interface CachePackageManagerReport : () -> Boolean
 fun interface DropBoxForceEnableWtfTags : () -> Boolean
 fun interface OperationalCrashesExclusions : () -> List<String>
 fun interface MetricsPollingIntervalFlow : () -> Flow<Duration>
+fun interface Logs2MetricsRules : () -> List<Logs2MetricsRule>
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -163,5 +165,11 @@ abstract class BortSettingsModule {
         @Provides
         fun metricsPollingInterval(settingsFlow: SettingsFlow) =
             MetricsPollingIntervalFlow { settingsFlow.settings.map { it.metricsSettings.pollingInterval } }
+
+        @Provides
+        fun logs2Metrics(settings: SettingsProvider) =
+            Logs2MetricsRules {
+                Logs2MetricsRule.fromJson(settings.logcatSettings.logs2metricsConfig)
+            }
     }
 }

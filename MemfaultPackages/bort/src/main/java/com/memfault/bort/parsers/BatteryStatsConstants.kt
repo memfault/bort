@@ -59,9 +59,7 @@ object BatteryStatsConstants {
     const val ALARM = "alarm"
     const val START = "start"
 
-    fun <T : Enum<T>> enumNames(values: List<Enum<T>>): List<JsonPrimitive> {
-        return values.map { JsonPrimitive(it.name) }
-    }
+    fun <T : Enum<T>> enumNames(values: List<Enum<T>>): List<JsonPrimitive> = values.map { JsonPrimitive(it.name) }
 
     enum class Transition(
         val bool: Boolean,

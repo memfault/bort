@@ -63,10 +63,8 @@ class BortErrors @Inject constructor(
         }
     }
 
-    suspend fun getAllErrors(): List<BortError> {
-        return bortErrorsDb.dao()
-            .getAllBortErrorsForDiagnostics()
-    }
+    suspend fun getAllErrors(): List<BortError> = bortErrorsDb.dao()
+        .getAllBortErrorsForDiagnostics()
 
     suspend fun enqueueBortErrorsForUpload() {
         val errorsToUpload = bortErrorsDb.dao()

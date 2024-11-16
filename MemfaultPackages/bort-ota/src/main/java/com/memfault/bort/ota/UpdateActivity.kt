@@ -161,9 +161,7 @@ class UpdateFailedFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?,
-    ): View? {
-        return inflater.inflate(R.layout.update_failed_fragment, container, false)
-    }
+    ): View? = inflater.inflate(R.layout.update_failed_fragment, container, false)
 }
 
 class CheckingForUpdatesFragment : Fragment() {

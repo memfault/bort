@@ -13,7 +13,6 @@ import shlex
 import shutil
 import subprocess
 import sys
-import tempfile
 from string import Template
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
@@ -830,25 +829,20 @@ class ValidateConnectedDevice(Command):
         return self._getprop("ro.build.type")
 
     def _check_vendor_sepolicy_cil(self):
-        with tempfile.NamedTemporaryFile() as vendor_cil:
-            _, errors = _get_shell_cmd_output_and_errors(
-                description="Verifying selinux access rules",
-                cmd=_create_adb_command(
-                    ("pull", VENDOR_CIL_PATH, vendor_cil.name), device=self._device
-                ),
-            )
-            if not errors:
-                with open(vendor_cil.name, "r") as cil:
-                    rules = cil.read()
-                    if not re.search(
-                        r"allow .*_app_.* memfault_dumpster_service \(service_manager \(find\)\)",
-                        rules,
-                    ):
-                        errors.extend([
-                            "Expected a selinux rule (allow priv_app memfault_dumpster_service:service_manager find), please recheck integration - see https://mflt.io/android-sepolicy"
-                        ])
+        output, errors = _get_shell_cmd_output_and_errors(
+            description="Verifying selinux access rules",
+            cmd=_create_adb_command(("shell", "cat", VENDOR_CIL_PATH), device=self._device),
+        )
+        if output and not errors:
+            if not re.search(
+                r"allow .*_app_.* memfault_dumpster_service \(service_manager \(find\)\)",
+                output,
+            ):
+                errors.extend([
+                    "Expected a selinux rule (allow priv_app memfault_dumpster_service:service_manager find), please recheck integration - see https://mflt.io/android-sepolicy"
+                ])
 
-            return errors
+        return errors
 
     def _run_checks_requiring_root(self, sdk_version: int):
         _run_shell_cmd_and_expect(

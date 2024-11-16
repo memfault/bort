@@ -17,7 +17,7 @@ class DeviceInfoFromSettingsAndProperties {
     private fun deviceInfoParams(buildFormat: AndroidBuildFormat) = DeviceInfoParams(
         androidBuildFormat = buildFormat,
         androidBuildVersionKey = "ro.build.version.incremental",
-        androidHardwareVersionKey = "ro.product.board",
+        androidHardwareVersionKey = "ro.product.model",
         androidSerialNumberKey = "ro.serialno",
         overriddenSerialNumber = null,
     )
@@ -26,7 +26,7 @@ class DeviceInfoFromSettingsAndProperties {
     fun happyPathHardwareAndDeviceSerial() {
         val props = mapOf(
             "ro.serialno" to "SERIAL",
-            "ro.product.board" to "HARDWARE-XYZ",
+            "ro.product.model" to "HARDWARE-XYZ",
         )
         val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(
             settings,
@@ -42,7 +42,7 @@ class DeviceInfoFromSettingsAndProperties {
     fun happyPathHardwareAndDeviceSerial_overrideSerial() {
         val props = mapOf(
             "ro.serialno" to "SERIAL",
-            "ro.product.board" to "HARDWARE-XYZ",
+            "ro.product.model" to "HARDWARE-XYZ",
         )
         val deviceInfo = DeviceInfo.fromSettingsAndSystemProperties(
             settings.copy(overriddenSerialNumber = "OVERRIDE"),

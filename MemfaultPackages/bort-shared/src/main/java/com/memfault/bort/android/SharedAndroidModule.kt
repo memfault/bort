@@ -1,8 +1,10 @@
 package com.memfault.bort.android
 
+import android.app.ActivityManager
 import android.app.Application
 import android.app.usage.NetworkStatsManager
 import android.app.usage.StorageStatsManager
+import android.app.usage.UsageStatsManager
 import android.content.ContentResolver
 import android.content.pm.PackageManager
 import android.content.res.Resources
@@ -70,4 +72,12 @@ class SharedAndroidModule {
     @Provides
     fun batteryManager(application: Application): BatteryManager =
         application.getSystemService(BatteryManager::class.java)
+
+    @Provides
+    fun activityManager(application: Application): ActivityManager =
+        application.getSystemService(ActivityManager::class.java)
+
+    @Provides
+    fun usageStatsManager(application: Application): UsageStatsManager =
+        application.getSystemService(UsageStatsManager::class.java)
 }

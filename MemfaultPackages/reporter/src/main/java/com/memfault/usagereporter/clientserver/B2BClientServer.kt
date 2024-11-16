@@ -17,7 +17,6 @@ import com.memfault.usagereporter.clientserver.RealSendfileQueue.Companion.extra
 import com.memfault.usagereporter.getDropBoxManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.ChannelResult
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -65,7 +64,6 @@ interface B2BClientServer {
 
 fun clientServerUploadsDir(context: Context) = File(context.filesDir, "client-server-uploads")
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class RealB2BClientServer(
     private val clientServerMode: ClientServerMode,
     private val getDropBoxManager: () -> DropBoxManager?,
@@ -189,7 +187,6 @@ class RealASCWrapper(
 /**
  * Handles sending/receiving messages over an established socket connection.
  */
-@ExperimentalCoroutinesApi
 class ConnectionHandler(
     private val files: SendFileQueue,
     private val getDropBoxManager: () -> DropBoxManager?,

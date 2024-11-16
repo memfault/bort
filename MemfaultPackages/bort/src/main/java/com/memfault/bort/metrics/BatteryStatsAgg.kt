@@ -63,14 +63,33 @@ sealed class BatteryStatsAgg {
             if (value == state) count++
         }
 
-        override fun finish(elapsedMs: Long): List<Pair<String, JsonPrimitive>> {
-            return listOf(
-                Pair(
-                    metricName,
-                    JsonPrimitive(count.toDouble().perHour(elapsedMs.toDouble())),
-                ),
-            )
+        override fun finish(elapsedMs: Long): List<Pair<String, JsonPrimitive>> = listOf(
+            Pair(
+                metricName,
+                JsonPrimitive(count.toDouble().perHour(elapsedMs.toDouble())),
+            ),
+        )
+    }
+
+    class MinimumValueAggregator(
+        private val metricName: String,
+        private val scale: Double? = null,
+    ) : BatteryStatsAgg() {
+        private var minValue: Double? = null
+
+        override fun addValue(elapsedMs: Long, value: JsonPrimitive) {
+            value.doubleOrNull?.let { newValue ->
+                val prevMin = minValue
+                if (prevMin == null || newValue < prevMin) minValue = newValue
+            }
         }
+
+        override fun finish(elapsedMs: Long): List<Pair<String, JsonPrimitive>> = minValue
+            ?.let { value ->
+                val scaledValue = if (scale != null) value * scale else value
+                listOf(Pair(metricName, JsonPrimitive(scaledValue)))
+            }
+            ?: emptyList()
     }
 
     class MaximumValueAggregator(
@@ -85,11 +104,9 @@ sealed class BatteryStatsAgg {
             }
         }
 
-        override fun finish(elapsedMs: Long): List<Pair<String, JsonPrimitive>> {
-            return maxValue?.let {
-                listOf(Pair(metricName, JsonPrimitive(it)))
-            } ?: emptyList()
-        }
+        override fun finish(elapsedMs: Long): List<Pair<String, JsonPrimitive>> = maxValue?.let {
+            listOf(Pair(metricName, JsonPrimitive(it)))
+        } ?: emptyList()
     }
 
     class BatteryLevelAggregator : BatteryStatsAgg() {

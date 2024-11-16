@@ -14,7 +14,8 @@
         >
 
         <activity android:name=".UpdateActivity"
-            android:launchMode="singleTask">
+            android:launchMode="singleTask"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.settings.SYSTEM_UPDATE_SETTINGS" />
             </intent-filter>

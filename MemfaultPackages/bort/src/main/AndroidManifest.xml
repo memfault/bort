@@ -73,13 +73,15 @@
 
         <receiver
             android:name=".receivers.BugReportReceiver"
-            android:permission="android.permission.DUMP">
+            android:permission="android.permission.DUMP"
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.BUGREPORT_FINISHED" />
             </intent-filter>
         </receiver>
 
-        <receiver android:name=".receivers.SystemEventReceiver">
+        <receiver android:name=".receivers.SystemEventReceiver"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
@@ -89,7 +91,8 @@
 
         <receiver
             android:name=".receivers.ControlReceiver"
-            android:permission="${bortControlPermission}">
+            android:permission="${bortControlPermission}"
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.BORT_ENABLE" />
                 <action android:name="com.memfault.intent.action.REQUEST_BUG_REPORT" />
@@ -99,7 +102,8 @@
         <!-- Used for controlling the SDK from the ADB shell, which has the DUMP permission -->
         <receiver
             android:name=".receivers.ShellControlReceiver"
-            android:permission="android.permission.DUMP">
+            android:permission="android.permission.DUMP"
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.BORT_ENABLE" />
                 <action android:name="com.memfault.intent.action.REQUEST_BUG_REPORT" />
@@ -115,7 +119,8 @@
         <!-- Deprecated receiver. Please use the ControlReceiver instead. -->
         <receiver
             android:name=".receivers.RequestBugReportReceiver"
-            android:permission="android.permission.DUMP">
+            android:permission="android.permission.DUMP"
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.REQUEST_BUG_REPORT" />
             </intent-filter>
@@ -124,7 +129,8 @@
         <!-- Deprecated receiver. Please use the ControlReceiver instead. -->
         <receiver
             android:name=".receivers.BortEnableReceiver"
-            android:permission="android.permission.DUMP">
+            android:permission="android.permission.DUMP"
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.BORT_ENABLE" />
             </intent-filter>
@@ -132,13 +138,15 @@
 
         <receiver
             android:name=".receivers.MetricsReceiver"
-            android:permission="com.memfault.bort.permission.ADD_INTERNAL_METRICS">
+            android:permission="com.memfault.bort.permission.ADD_INTERNAL_METRICS"
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.INTERNAL_METRIC" />
             </intent-filter>
         </receiver>
 
-        <receiver android:name=".receivers.ChargeStateReceiver">
+        <receiver android:name=".receivers.ChargeStateReceiver"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.ACTION_POWER_CONNECTED"/>
                 <action android:name="android.intent.action.ACTION_POWER_DISCONNECTED"/>

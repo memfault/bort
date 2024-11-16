@@ -120,26 +120,24 @@ class ReporterClient(
             }
         }
 
-    suspend fun sendFileToLinkedDevice(file: File, dropboxTag: String): StdResult<Unit> {
-        return withVersion(
-            context = "uploadfile",
-            minimumVersion = MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS,
+    suspend fun sendFileToLinkedDevice(file: File, dropboxTag: String): StdResult<Unit> = withVersion(
+        context = "uploadfile",
+        minimumVersion = MINIMUM_VALID_VERSION_FILE_UPLOAD_V2_REPORTER_SETTINGS,
+    ) {
+        val descriptor = ParcelFileDescriptor.open(
+            file,
+            ParcelFileDescriptor.MODE_READ_ONLY,
+            MAIN_THREAD_HANDLER,
         ) {
-            val descriptor = ParcelFileDescriptor.open(
-                file,
-                ParcelFileDescriptor.MODE_READ_ONLY,
-                MAIN_THREAD_HANDLER,
-            ) {
-                file.deleteSilently()
-            }
-            try {
-                send(ServerSendFileRequest(dropboxTag, descriptor)) { _: ServerSendFileResponse -> }
-            } finally {
-                // Always close the pfd. We expect it to be normally closed by the service (using an
-                // AutoCloseInputStream) but make sure. Not using `use {}` for this, because that can potentially
-                // throw if the resource is already closed (and there wasn't a caught exception).
-                descriptor.closeQuietly()
-            }
+            file.deleteSilently()
+        }
+        try {
+            send(ServerSendFileRequest(dropboxTag, descriptor)) { _: ServerSendFileResponse -> }
+        } finally {
+            // Always close the pfd. We expect it to be normally closed by the service (using an
+            // AutoCloseInputStream) but make sure. Not using `use {}` for this, because that can potentially
+            // throw if the resource is already closed (and there wasn't a caught exception).
+            descriptor.closeQuietly()
         }
     }
 

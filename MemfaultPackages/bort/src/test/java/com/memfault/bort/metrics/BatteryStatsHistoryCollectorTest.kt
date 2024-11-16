@@ -12,6 +12,7 @@ import io.mockk.coEvery
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -28,6 +29,8 @@ data class FakeNextBatteryStatsHistoryStartProvider(
 ) : NextBatteryStatsHistoryStartProvider
 
 class BatteryStatsHistoryCollectorTest {
+    private val testScheduler = UnconfinedTestDispatcher()
+
     lateinit var collector: BatteryStatsHistoryCollector
     lateinit var nextBatteryStatsHistoryStartProvider: NextBatteryStatsHistoryStartProvider
     lateinit var mockRunBatteryStats: RunBatteryStats
@@ -65,6 +68,7 @@ class BatteryStatsHistoryCollectorTest {
             settings,
             { 1.hours },
             bortErrors,
+            ioCoroutineContext = testScheduler,
         )
     }
 

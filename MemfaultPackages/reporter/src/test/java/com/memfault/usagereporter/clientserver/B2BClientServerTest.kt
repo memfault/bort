@@ -13,7 +13,6 @@ import io.mockk.spyk
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -32,7 +31,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.milliseconds
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class B2BClientServerTest {
     lateinit var uploadDir: File
     lateinit var cacheDir: File
@@ -136,16 +134,12 @@ class B2BClientServerTest {
             tempDirectory = cacheDir,
         )
         val channel = object : ASCWrapper {
-            override suspend fun writeMessage(message: BortMessage) {
-                throw IOException("failed")
-            }
+            override suspend fun writeMessage(message: BortMessage): Unit = throw IOException("failed")
 
             override suspend fun readMessages(
                 directory: File,
                 scope: CoroutineScope,
-            ): ReceiveChannel<BortMessage> {
-                return Channel()
-            }
+            ): ReceiveChannel<BortMessage> = Channel()
         }
         val incomingMessages = Channel<BortMessage>()
         val filesChannel = Channel<File?>()
@@ -173,9 +167,7 @@ class B2BClientServerTest {
             override suspend fun readMessages(
                 directory: File,
                 scope: CoroutineScope,
-            ): ReceiveChannel<BortMessage> {
-                return Channel()
-            }
+            ): ReceiveChannel<BortMessage> = Channel()
         }
         val incomingMessages = Channel<BortMessage>()
         val filesChannel = Channel<File?>()

@@ -53,7 +53,9 @@ data class InternalMetric(
         fun fromIntent(intent: Intent): InternalMetric? = try {
             val json = intent.getStringExtra(CONTENT_VALUES_KEY) ?: ""
             Json.decodeFromString(serializer(), json)
-        } catch (ex: SerializationException) { null }
+        } catch (ex: SerializationException) {
+            null
+        }
 
         fun Context.sendMetric(internalMetric: InternalMetric) = sendBroadcast(
             Intent(INTENT_ACTION_INTERNAL_METRIC).apply {

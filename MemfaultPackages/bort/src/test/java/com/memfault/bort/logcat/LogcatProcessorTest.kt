@@ -1,9 +1,12 @@
 package com.memfault.bort.logcat
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.BortJson
 import com.memfault.bort.CredentialScrubbingRule
 import com.memfault.bort.DataScrubber
 import com.memfault.bort.EmailScrubbingRule
+import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.PackageNameAllowList
 import com.memfault.bort.parsers.Package
@@ -13,75 +16,59 @@ import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.settings.RateLimitingSettings
 import com.memfault.bort.shared.LogcatCommand
 import com.memfault.bort.shared.LogcatFilterSpec
+import com.memfault.bort.shared.LogcatFormat
+import com.memfault.bort.shared.LogcatFormatModifier
 import com.memfault.bort.shared.LogcatPriority
 import com.memfault.bort.shared.LogcatPrioritySerializer
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.time.AbsoluteTime
-import com.memfault.bort.time.BaseAbsoluteTime
 import com.memfault.bort.time.boxed
+import com.memfault.bort.uploader.FileUploadHoldingArea
+import com.memfault.bort.uploader.PendingFileUploadEntry
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
-import io.mockk.verify
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.AfterEach
+import kotlinx.serialization.json.JsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.io.File
-import java.io.OutputStream
 import java.time.Instant
-import java.time.ZoneOffset
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.minutes
 
-data class FakeNextLogcatStartTimeProvider(
-    override var nextStart: BaseAbsoluteTime,
-) : NextLogcatStartTimeProvider
-
 private val FAKE_NOW = AbsoluteTime(Instant.ofEpochSecond(9999, 123456789))
 
-class LogcatCollectorTest {
-    lateinit var collector: LogcatCollector
-    lateinit var startTimeProvider: NextLogcatStartTimeProvider
-    lateinit var cidProvider: NextLogcatCidProvider
-    lateinit var logcatOutput: String
-    lateinit var mockPackageNameAllowList: PackageNameAllowList
-    lateinit var mockPackageManagerClient: PackageManagerClient
-    lateinit var kernelOopsDetector: LogcatLineProcessor
-    lateinit var selinuxViolationLogcatDetector: SelinuxViolationLogcatDetector
-    lateinit var logcatSettings: LogcatSettings
-    lateinit var logcatRunner: LogcatRunner
-    lateinit var storagedDiskWearLogcatDetector: StoragedDiskWearLogcatDetector
-    var tempFile: File? = null
+class LogcatProcessorTest {
+    private lateinit var processor: LogcatProcessor
+    private lateinit var cidProvider: NextLogcatCidProvider
+    private lateinit var logcatOutput: String
+    private lateinit var mockPackageNameAllowList: PackageNameAllowList
+    private lateinit var mockPackageManagerClient: PackageManagerClient
+    private lateinit var kernelOopsDetector: LogcatLineProcessor
+    private lateinit var selinuxViolationLogcatDetector: SelinuxViolationLogcatDetector
+    private lateinit var logcatSettings: LogcatSettings
+    private lateinit var storagedDiskWearLogcatDetector: StoragedDiskWearLogcatDetector
+    private val fileUploadHoldingArea: FileUploadHoldingArea = mockk {
+        every { add(any()) } answers { fileUploadEntry = arg(0) }
+    }
+    private var collectionMode = LogcatCollectionMode.PERIODIC
+    private var fileUploadEntry: PendingFileUploadEntry? = null
+    private val command = LogcatCommand(
+        format = LogcatFormat.THREADTIME,
+        formatModifiers = listOf(
+            LogcatFormatModifier.NSEC,
+            LogcatFormatModifier.UTC,
+            LogcatFormatModifier.YEAR,
+            LogcatFormatModifier.UID,
+        ),
+    )
 
     @BeforeEach
     fun setUp() {
-        val outputStreamSlot = slot<OutputStream>()
-        val commandSlot = slot<LogcatCommand>()
-        logcatRunner = mockk(relaxed = true) {
-            coEvery {
-                runLogcat(
-                    capture(outputStreamSlot),
-                    capture(commandSlot),
-                    any(),
-                    any(),
-                )
-            } answers {
-                logcatOutput.let { output ->
-                    checkNotNull(output)
-                    output.byteInputStream().use {
-                        it.copyTo(outputStreamSlot.captured)
-                    }
-                }
-            }
-        }
-        startTimeProvider = FakeNextLogcatStartTimeProvider(nextStart = AbsoluteTime(Instant.ofEpochSecond(0)))
         cidProvider = FakeNextLogcatCidProvider.incrementing()
 
         mockPackageManagerClient = mockk {
@@ -114,39 +101,39 @@ class LogcatCollectorTest {
             override val continuousLogDumpThresholdBytes: Int = 128 * 1024
             override val continuousLogDumpThresholdTime: Duration = 30.minutes
             override val continuousLogDumpWrappingTimeout: Duration = 30.minutes
+            override val logs2metricsConfig: JsonObject get() = TODO("not used")
         }
 
         storagedDiskWearLogcatDetector = StoragedDiskWearLogcatDetector()
+        val factories = setOf(
+            object : LogcatLineProcessor.Factory {
+                override fun create(): LogcatLineProcessor = kernelOopsDetector
+            },
+            object : LogcatLineProcessor.Factory {
+                override fun create(): LogcatLineProcessor = selinuxViolationLogcatDetector
+            },
+            object : LogcatLineProcessor.Factory {
+                override fun create(): LogcatLineProcessor = storagedDiskWearLogcatDetector
+            },
+        )
 
-        collector = LogcatCollector(
+        processor = LogcatProcessor(
             temporaryFileFactory = TestTemporaryFileFactory,
-            nextLogcatStartTimeProvider = startTimeProvider,
-            nextLogcatCidProvider = cidProvider,
-            now = { FAKE_NOW },
-            dataScrubber = DataScrubber(cleaners = { listOf(EmailScrubbingRule, CredentialScrubbingRule) }),
-            packageNameAllowList = mockPackageNameAllowList,
+            lineProcessorFactories = factories,
             packageManagerClient = mockPackageManagerClient,
-            kernelOopsDetector = { kernelOopsDetector },
-            selinuxViolationLogcatDetector = selinuxViolationLogcatDetector,
-            logcatSettings = logcatSettings,
-            logcatRunner = logcatRunner,
-            storagedDiskWearLogcatDetector = storagedDiskWearLogcatDetector,
+            packageNameAllowList = mockPackageNameAllowList,
+            dataScrubber = DataScrubber(cleaners = { listOf(EmailScrubbingRule, CredentialScrubbingRule) }),
+            combinedTimeProvider = FakeCombinedTimeProvider,
+            nextLogcatCidProvider = cidProvider,
+            fileUploadingArea = fileUploadHoldingArea,
         )
     }
 
-    @AfterEach
-    fun tearDown() {
-        tempFile?.delete()
-    }
-
-    private suspend fun collect() = collector.collect()
-        .also { result -> tempFile = result.file }
+    private suspend fun collect() = processor.process(logcatOutput.byteInputStream(), command, collectionMode)
 
     @Test
     fun happyPath() = runTest {
         val initialCid = cidProvider.cid
-        val nextStartInstant = Instant.ofEpochSecond(1234, 56789)
-        startTimeProvider.nextStart = AbsoluteTime(nextStartInstant)
         logcatOutput = """2021-01-18 12:34:02.000000000 +0000  9008  9008 I ServiceManager: Waiting...
             |2021-01-18 12:34:02.000000000 +0000  9008  9008 I PII: u: root p: hunter2
             |--------- beginning of kernel
@@ -158,6 +145,9 @@ class LogcatCollectorTest {
             |
         """.trimMargin()
         val result = collect()
+        val uploadEntry = fileUploadEntry
+        checkNotNull(result)
+        checkNotNull(uploadEntry)
         assertEquals(
             """2021-01-18 12:34:02.000000000 +0000  9008  9008 I ServiceManager: Waiting...
             |2021-01-18 12:34:02.000000000 +0000  9008  9008 I PII: u: {{USERNAME}} p: {{PASSWORD}}
@@ -169,66 +159,31 @@ class LogcatCollectorTest {
             |2021-01-18 12:34:02.000000000 +0000  9008  9008 W PackageManager: Installing app
             |
             """.trimMargin(),
-            result.file.readText(),
+            uploadEntry.file.readText(),
         )
-        assertEquals(nextStartInstant, result.command.recentSince?.toInstant(ZoneOffset.UTC))
-        assertEquals(initialCid, result.cid)
+        assertEquals(initialCid, uploadEntry.payload.cid)
         val nextCid = cidProvider.cid
         assertNotEquals(initialCid, nextCid)
-        assertEquals(nextCid, result.nextCid)
+        assertEquals(nextCid, uploadEntry.payload.nextCid)
         assertEquals(nextCid, cidProvider.cid)
-        assertEquals(
-            AbsoluteTime(Instant.ofEpochSecond(1610973242, 1)), // Note: +1 nsec
-            startTimeProvider.nextStart,
-        )
-        verify { kernelOopsDetector.process(any()) }
+        coVerify { kernelOopsDetector.process(any(), any()) }
         coVerify(exactly = 1) { kernelOopsDetector.finish(any()) }
-    }
-
-    @Test
-    fun whenLastLogLineFailedToParsefallbackToNowAsNextStart() = runTest {
-        logcatOutput = "foo bar"
-        val result = collect()
-        assertEquals(
-            FAKE_NOW,
-            startTimeProvider.nextStart,
-        )
-        assertNotNull(result)
-        verify { kernelOopsDetector.process(any()) }
-        coVerify(exactly = 1) { kernelOopsDetector.finish(any()) }
+        assertThat(result.timeStart).isEqualTo(Instant.ofEpochSecond(1610973242))
+        assertThat(result.timeEnd).isEqualTo(Instant.ofEpochSecond(1610973242, 1))
     }
 
     @Test
     fun useLastDateIflastLogLineIsSeparator() = runTest {
-        val nextStartInstant = Instant.ofEpochSecond(1234, 56789)
-        startTimeProvider.nextStart = AbsoluteTime(nextStartInstant)
         logcatOutput = """2021-01-18 12:34:02.000000000 +0000  9008  9008 I ServiceManager: Waiting...
             |--------- switch to main
             |
         """.trimMargin()
         val result = collect()
-        assertNotEquals(FAKE_NOW, startTimeProvider.nextStart)
-        assertEquals(
-            AbsoluteTime(Instant.ofEpochSecond(1610973242, 1)), // Note: +1 nsec
-            startTimeProvider.nextStart,
-        )
-        assertNotNull(result)
-        verify { kernelOopsDetector.process(any()) }
+        checkNotNull(result)
+        coVerify { kernelOopsDetector.process(any(), any()) }
         coVerify(exactly = 1) { kernelOopsDetector.finish(any()) }
-    }
-
-    @Test
-    fun emptyLogcatOutput() = runTest {
-        logcatOutput = ""
-        val initialCid = cidProvider.cid
-        val result = collect()
-        // Upload even when empty. If it is not uploaded, it causes confusion when there is no log file
-        // around an event of interest to be found ("what happened, is it a Bort bug?").
-        assertNotNull(result)
-        assertEquals("", result.file.readText())
-        // CID should have been rotated:
-        assertEquals(initialCid, result.cid)
-        assertNotEquals(initialCid, cidProvider.cid)
+        assertThat(result.timeStart).isEqualTo(Instant.ofEpochSecond(1610973242))
+        assertThat(result.timeEnd).isEqualTo(Instant.ofEpochSecond(1610973242, 1))
     }
 
     @Test

@@ -8,14 +8,18 @@ import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
+import com.memfault.bort.time.BaseAbsoluteTime
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.SelinuxViolations
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueUpload
 import com.memfault.bort.uploader.HandleEventOfInterest
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import dagger.hilt.components.SingletonComponent
 import okio.Buffer
 import java.time.Instant
-import javax.inject.Inject
 
 data class SelinuxViolation(
     val rawDenial: String,
@@ -35,15 +39,20 @@ data class SelinuxViolation(
 
 private fun Buffer.writeStringUtfNotNull(s: String?): Buffer = if (s != null) writeUtf8(s) else this
 
-class SelinuxViolationLogcatDetector
-@Inject constructor(
+@ContributesMultibinding(SingletonComponent::class)
+@AssistedFactory
+interface SelinuxViolationLogcatDetectorFactory : LogcatLineProcessor.Factory {
+    override fun create(): SelinuxViolationLogcatDetector
+}
+
+class SelinuxViolationLogcatDetector @AssistedInject constructor(
     private val combinedTimeProvider: CombinedTimeProvider,
     private val enqueueUpload: EnqueueUpload,
     private val handleEventOfInterest: HandleEventOfInterest,
     private val settingsProvider: SettingsProvider,
     @SelinuxViolations private val tokenBucketStore: TokenBucketStore,
-) {
-    suspend fun process(
+) : LogcatLineProcessor {
+    override suspend fun process(
         line: LogcatLine,
         packageManagerReport: PackageManagerReport,
     ) {
@@ -54,6 +63,8 @@ class SelinuxViolationLogcatDetector
         val violationOrNull = parse(line, packageManagerReport)
         violationOrNull?.let { record(it) }
     }
+
+    override suspend fun finish(lastLogTime: BaseAbsoluteTime): Set<LogcatLineProcessorResult> = emptySet()
 
     fun parse(
         line: LogcatLine,

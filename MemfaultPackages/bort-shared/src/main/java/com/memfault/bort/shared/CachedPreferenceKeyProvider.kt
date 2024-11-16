@@ -23,9 +23,7 @@ abstract class CachedPreferenceKeyProvider<T>(
     }
 
     @Synchronized
-    fun getValue(): T {
-        return cachedValue ?: pref.getValue().also { cachedValue = it }
-    }
+    fun getValue(): T = cachedValue ?: pref.getValue().also { cachedValue = it }
 
     @Synchronized
     fun remove() {
