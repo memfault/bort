@@ -5,8 +5,8 @@ import assertk.assertions.hasSize
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
-import com.memfault.bort.connectivity.ConnectivityTimeCalculator.CONNECTED_TIME_METRIC
-import com.memfault.bort.connectivity.ConnectivityTimeCalculator.EXPECTED_TIME_METRIC
+import com.memfault.bort.connectivity.ConnectivityTimeCalculator.Companion.CONNECTED_TIME_METRIC
+import com.memfault.bort.connectivity.ConnectivityTimeCalculator.Companion.EXPECTED_TIME_METRIC
 import com.memfault.bort.metrics.database.DerivedAggregation
 import com.memfault.bort.reporting.DataType
 import com.memfault.bort.reporting.MetricType
@@ -19,7 +19,7 @@ class ConnectivityTimeCalculatorTest {
 
     @Test fun `returns EMPTY if any inputs empty`() {
         assertThat(
-            ConnectivityTimeCalculator.calculateConnectedTimeMetrics(
+            ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
                 startTimestampMs = null,
                 endTimestampMs = null,
                 heartbeatReportMetrics = emptyMap(),
@@ -27,7 +27,7 @@ class ConnectivityTimeCalculatorTest {
         ).isEmpty()
 
         assertThat(
-            ConnectivityTimeCalculator.calculateConnectedTimeMetrics(
+            ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
                 startTimestampMs = 0,
                 endTimestampMs = 1.hours.inWholeMilliseconds,
                 heartbeatReportMetrics = emptyMap(),
@@ -35,7 +35,7 @@ class ConnectivityTimeCalculatorTest {
         ).isEmpty()
 
         assertThat(
-            ConnectivityTimeCalculator.calculateConnectedTimeMetrics(
+            ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
                 startTimestampMs = 0,
                 endTimestampMs = null,
                 heartbeatReportMetrics = mapOf(
@@ -45,7 +45,7 @@ class ConnectivityTimeCalculatorTest {
         ).isEmpty()
 
         assertThat(
-            ConnectivityTimeCalculator.calculateConnectedTimeMetrics(
+            ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
                 startTimestampMs = null,
                 endTimestampMs = 1.hours.inWholeMilliseconds,
                 heartbeatReportMetrics = mapOf(
@@ -56,7 +56,7 @@ class ConnectivityTimeCalculatorTest {
     }
 
     @Test fun `returns 1 hour difference`() {
-        val results = ConnectivityTimeCalculator.calculateConnectedTimeMetrics(
+        val results = ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
             startTimestampMs = 0,
             endTimestampMs = 1.hours.inWholeMilliseconds,
             heartbeatReportMetrics = mapOf(
@@ -73,7 +73,7 @@ class ConnectivityTimeCalculatorTest {
     }
 
     @Test fun `rounds 30m to 1h`() {
-        val results = ConnectivityTimeCalculator.calculateConnectedTimeMetrics(
+        val results = ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
             startTimestampMs = 0,
             endTimestampMs = 30.minutes.inWholeMilliseconds,
             heartbeatReportMetrics = mapOf(
@@ -90,7 +90,7 @@ class ConnectivityTimeCalculatorTest {
     }
 
     @Test fun `scales to 2 hours`() {
-        val results = ConnectivityTimeCalculator.calculateConnectedTimeMetrics(
+        val results = ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
             startTimestampMs = 0,
             endTimestampMs = 2.hours.inWholeMilliseconds,
             heartbeatReportMetrics = mapOf(
@@ -108,7 +108,7 @@ class ConnectivityTimeCalculatorTest {
     }
 
     @Test fun `returns 25 to 75 connected split in 1 hour`() {
-        val results = ConnectivityTimeCalculator.calculateConnectedTimeMetrics(
+        val results = ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
             startTimestampMs = 0,
             endTimestampMs = 1.hours.inWholeMilliseconds,
             heartbeatReportMetrics = mapOf(

@@ -44,14 +44,14 @@ class BortJobReporter @Inject constructor(
         bortErrors.add(JobError, mapOf("job" to jobName, "stacktrace" to e.stackTraceToString().take(STACKTRACE_SIZE)))
     }
 
-    suspend fun getLatestForEachJob(): List<BortJob> {
-        return bortErrorsDb.dao().getAllJobsMostRecentFirst().groupBy { it.jobName }.values.map { it.first() }
-            .map { it.asBortJob() }
-    }
+    suspend fun getLatestForEachJob(): List<BortJob> = bortErrorsDb.dao().getAllJobsMostRecentFirst().groupBy {
+        it.jobName
+    }.values.map { it.first() }
+        .map { it.asBortJob() }
 
-    suspend fun getIncompleteJobs(): List<BortJob> {
-        return bortErrorsDb.dao().getAllJobsMostRecentFirst().filter { it.endTimeMs == null }.map { it.asBortJob() }
-    }
+    suspend fun getIncompleteJobs(): List<BortJob> = bortErrorsDb.dao().getAllJobsMostRecentFirst().filter {
+        it.endTimeMs == null
+    }.map { it.asBortJob() }
 
     suspend fun jobStats(): Map<String, String> {
         val allJobs = bortErrorsDb.dao().getAllJobsMostRecentFirst()

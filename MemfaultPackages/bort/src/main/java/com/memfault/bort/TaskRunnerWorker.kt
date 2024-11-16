@@ -17,12 +17,12 @@ import com.memfault.bort.diagnostics.BortJobReporter
 import com.memfault.bort.dropbox.DropBoxGetEntriesTask
 import com.memfault.bort.logcat.LogcatCollectionTask
 import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.metrics.MAX_ATTEMPTS
 import com.memfault.bort.metrics.MetricsCollectionTask
 import com.memfault.bort.settings.SettingsUpdateTask
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.runAndTrackExceptions
 import com.memfault.bort.uploader.FileUploadTask
-import com.memfault.bort.uploader.limitAttempts
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
@@ -49,34 +49,14 @@ enum class TaskResult {
         }
 }
 
-abstract class Task<I> {
-    abstract val getMaxAttempts: () -> Int
-    abstract val metrics: BuiltinMetricsStore
+interface Task<I> {
+    suspend fun doWork(input: I): TaskResult
 
-    suspend fun doWork(worker: TaskRunnerWorker): TaskResult {
-        val input = try {
-            convertAndValidateInputData(worker.inputData)
-        } catch (e: Exception) {
-            return TaskResult.FAILURE.also {
-                Logger.e("Could not deserialize input data (id=${worker.id})", e)
-                finally(null)
-            }
-        }
-        return worker.limitAttempts(getMaxAttempts(input), metrics, { finally(input) }) {
-            doWork(worker, input)
-        }
-    }
+    fun finally(input: I?) = Unit
 
-    abstract suspend fun doWork(
-        worker: TaskRunnerWorker,
-        input: I,
-    ): TaskResult
+    fun getMaxAttempts(input: I): Int
 
-    open fun finally(input: I?) {}
-
-    open fun getMaxAttempts(input: I): Int = getMaxAttempts()
-
-    abstract fun convertAndValidateInputData(inputData: Data): I
+    fun convertAndValidateInputData(inputData: Data): I
 }
 
 inline fun <reified K : Task<*>> enqueueWorkOnce(
@@ -122,7 +102,7 @@ inline fun <reified K : Task<*>> periodicWorkRequest(
         .build()
 
 @HiltWorker
-class TaskRunnerWorker @AssistedInject constructor(
+open class TaskRunnerWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
     private val fileUpload: Provider<FileUploadTask>,
@@ -133,19 +113,18 @@ class TaskRunnerWorker @AssistedInject constructor(
     private val settings: Provider<SettingsUpdateTask>,
     private val marBatching: Provider<MarBatchingTask>,
     private val bortJobReporter: BortJobReporter,
+    private val builtInMetricsStore: BuiltinMetricsStore,
 ) : CoroutineWorker(appContext, params) {
 
-    private fun createTask(inputData: Data): Task<*>? {
-        return when (inputData.workDelegateClass) {
-            FileUploadTask::class.qualifiedName -> fileUpload.get()
-            DropBoxGetEntriesTask::class.qualifiedName -> dropBox.get()
-            MetricsCollectionTask::class.qualifiedName -> metrics.get()
-            BugReportRequestTimeoutTask::class.qualifiedName -> bugReportTimeout.get()
-            LogcatCollectionTask::class.qualifiedName -> logcat.get()
-            SettingsUpdateTask::class.qualifiedName -> settings.get()
-            MarBatchingTask::class.qualifiedName -> marBatching.get()
-            else -> null
-        }
+    open fun createTask(inputData: Data): Task<*>? = when (inputData.workDelegateClass) {
+        FileUploadTask::class.qualifiedName -> fileUpload.get()
+        DropBoxGetEntriesTask::class.qualifiedName -> dropBox.get()
+        MetricsCollectionTask::class.qualifiedName -> metrics.get()
+        BugReportRequestTimeoutTask::class.qualifiedName -> bugReportTimeout.get()
+        LogcatCollectionTask::class.qualifiedName -> logcat.get()
+        SettingsUpdateTask::class.qualifiedName -> settings.get()
+        MarBatchingTask::class.qualifiedName -> marBatching.get()
+        else -> null
     }
 
     override suspend fun doWork(): Result =
@@ -155,9 +134,35 @@ class TaskRunnerWorker @AssistedInject constructor(
                     Logger.e("Could not create task for inputData (id=$id)")
                 }
 
-                else -> task.doWork(this).toWorkerResult()
+                else -> doWork(task).toWorkerResult()
             }
         }
+
+    private suspend fun <T> doWork(task: Task<T>): TaskResult {
+        val input = try {
+            task.convertAndValidateInputData(inputData)
+        } catch (e: Exception) {
+            return TaskResult.FAILURE.also {
+                Logger.e("Could not deserialize input data (id=$id)", e)
+                task.finally(null)
+            }
+        }
+
+        val maxAttempts = task.getMaxAttempts(input)
+        return if (runAttemptCount > maxAttempts) {
+            Logger.e("Reached max attempts ($maxAttempts) for job $id with tags $tags")
+            builtInMetricsStore.increment("${MAX_ATTEMPTS}_$tags")
+            task.finally(input)
+            TaskResult.FAILURE
+        } else {
+            task.doWork(input)
+                .also { result ->
+                    if (result != TaskResult.RETRY) {
+                        task.finally(input)
+                    }
+                }
+        }
+    }
 }
 
 private const val WORK_DELEGATE_CLASS = "__WORK_DELEGATE_CLASS"

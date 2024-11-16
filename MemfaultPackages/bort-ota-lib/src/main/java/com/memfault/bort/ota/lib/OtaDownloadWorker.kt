@@ -1,6 +1,7 @@
 package com.memfault.bort.ota.lib
 
 import android.content.Context
+import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
 import androidx.annotation.VisibleForTesting
 import androidx.hilt.work.HiltWorker
 import androidx.work.BackoffPolicy
@@ -60,7 +61,7 @@ class OtaDownloadWorker @AssistedInject constructor(
         if (progressPercentage != lastReportedPercentage) {
             val builder = setupForegroundNotification(applicationContext)
             builder.setProgress(100, progressPercentage, false)
-            val foregroundInfo = ForegroundInfo(NOTIFICATION_ID, builder.build())
+            val foregroundInfo = ForegroundInfo(NOTIFICATION_ID, builder.build(), FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
             setForeground(foregroundInfo)
             lastReportedPercentage = progressPercentage
         }

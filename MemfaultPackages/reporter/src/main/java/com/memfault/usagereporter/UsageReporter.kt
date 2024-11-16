@@ -39,8 +39,6 @@ class UsageReporter : Application(), Configuration.Provider {
         Logger.initTags(tag = "mflt-report", testTag = "mflt-report-test")
         Logger.initSettings(
             LoggerSettings(
-                eventLogEnabled = true,
-                logToDisk = false,
                 minLogcatLevel = minLogcatLevel,
                 minStructuredLevel = LogLevel.INFO,
                 hrtEnabled = false,

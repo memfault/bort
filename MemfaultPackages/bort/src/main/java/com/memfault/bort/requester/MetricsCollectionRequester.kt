@@ -92,15 +92,11 @@ class MetricsCollectionRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override suspend fun enabled(settings: SettingsProvider): Boolean {
-        return settings.metricsSettings.dataSourceEnabled
-    }
+    override suspend fun enabled(settings: SettingsProvider): Boolean = settings.metricsSettings.dataSourceEnabled
 
-    override suspend fun diagnostics(): BortWorkInfo {
-        return WorkManager.getInstance(application)
-            .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
-            .asBortWorkInfo("metrics")
-    }
+    override suspend fun diagnostics(): BortWorkInfo = WorkManager.getInstance(application)
+        .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
+        .asBortWorkInfo("metrics")
 
     override suspend fun parametersChanged(
         old: SettingsProvider,

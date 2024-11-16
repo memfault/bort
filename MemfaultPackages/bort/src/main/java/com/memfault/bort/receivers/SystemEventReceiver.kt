@@ -17,7 +17,6 @@ import com.memfault.bort.settings.ContinuousLoggingController
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.applyReporterServiceSettings
 import com.memfault.bort.settings.reloadCustomEventConfigFrom
-import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.goAsync
 import com.memfault.bort.tokenbucket.Reboots
 import com.memfault.bort.tokenbucket.TokenBucketStore
@@ -92,8 +91,6 @@ class SystemEventReceiver : BortEnabledFilteringReceiver(
     }
 
     private suspend fun onBootCompleted() {
-        Logger.logEvent("boot")
-
         if (linuxRebootTracker.checkAndUnset()) {
             tokenBucketStoreRegistry.handleLinuxReboot()
             fileUploadHoldingArea.handleLinuxReboot()

@@ -17,7 +17,9 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
         freeCompilerArgs += "-opt-in=kotlin.RequiresOptIn"
         freeCompilerArgs += "-opt-in=kotlin.time.ExperimentalTime"
+        freeCompilerArgs += "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi"
         freeCompilerArgs += "-Xjvm-default=all"
+
         allWarningsAsErrors = true
     }
 }

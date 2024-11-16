@@ -74,7 +74,7 @@ class OtaNotifications
             .also { notificationManager.createNotificationChannel(it) }
 
         val intent = Intent(application, UpdateActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(application, 0, intent, 0)
+        val pendingIntent = PendingIntent.getActivity(application, 0, intent, PendingIntent.FLAG_IMMUTABLE)
 
         NotificationCompat.Builder(application, UPDATE_AVAILABLE)
             .setSmallIcon(R.drawable.ic_baseline_system_update_24)
@@ -106,7 +106,7 @@ class OtaNotifications
             .also { notificationManager.createNotificationChannel(it) }
 
         val intent = Intent(application, UpdateActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(application, 0, intent, 0)
+        val pendingIntent = PendingIntent.getActivity(application, 0, intent, PendingIntent.FLAG_IMMUTABLE)
 
         val title =
             if (success) {

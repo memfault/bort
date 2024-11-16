@@ -39,7 +39,5 @@ fun interface AndroidBootCount : () -> Int
 class RealAndroidBootCount @Inject constructor(
     private val contentResolver: ContentResolver,
 ) : AndroidBootCount {
-    override fun invoke(): Int {
-        return Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT)
-    }
+    override fun invoke(): Int = Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT)
 }

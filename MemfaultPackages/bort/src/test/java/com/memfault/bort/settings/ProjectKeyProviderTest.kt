@@ -19,9 +19,7 @@ class ProjectKeyProviderTest {
     private val preferenceProvider = object : ProjectKeyOverridePreferenceProvider {
         var storedKey: String? = null
 
-        override fun getValue(): String {
-            return storedKey ?: BUILT_IN_KEY
-        }
+        override fun getValue(): String = storedKey ?: BUILT_IN_KEY
 
         override fun setValue(newValue: String) {
             storedKey = newValue

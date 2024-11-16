@@ -4,6 +4,7 @@ import android.app.Application
 import com.memfault.bort.shared.BugReportRequest
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
@@ -24,7 +25,7 @@ class BugReportRequestTimeoutTaskTest {
     }
 
     @Test
-    fun timeout() {
+    fun timeout() = runTest {
         // When BugReportTimeoutTask runs and iff the requestId matches, it should clear the
         // pendingBugReportRequestAccessor and broadcast the status intent.
         val requestId = "foo"
@@ -37,7 +38,7 @@ class BugReportRequestTimeoutTaskTest {
                 ),
             ),
         )
-        BugReportRequestTimeoutTask(application, pendingBugReportRequestAccessor, mockk(relaxed = true))
+        BugReportRequestTimeoutTask(application, pendingBugReportRequestAccessor)
             .doWork(requestId)
         assertNull(pendingBugReportRequestAccessor.get())
         verify(exactly = 1) {
@@ -46,7 +47,7 @@ class BugReportRequestTimeoutTaskTest {
     }
 
     @Test
-    fun idMismatch() {
+    fun idMismatch() = runTest {
         // When BugReportTimeoutTask runs and the requestId does NOT match, it should do nothing.
         // This scenario could happen if the pendingBugReportRequestAccessor state and running timeout job got out
         // of sync somehow.
@@ -56,7 +57,7 @@ class BugReportRequestTimeoutTaskTest {
                 requestId = requestId,
             ),
         )
-        BugReportRequestTimeoutTask(application, pendingBugReportRequestAccessor, mockk(relaxed = true))
+        BugReportRequestTimeoutTask(application, pendingBugReportRequestAccessor)
             .doWork("bar")
         assertEquals(requestId, pendingBugReportRequestAccessor.get()?.requestId)
         verify(exactly = 0) {

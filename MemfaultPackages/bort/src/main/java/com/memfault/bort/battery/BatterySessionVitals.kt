@@ -6,7 +6,9 @@ import android.content.Intent.ACTION_BATTERY_CHANGED
 import android.os.BatteryManager
 import android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY
 import androidx.annotation.VisibleForTesting
+import com.memfault.bort.Default
 import com.memfault.bort.android.registerForIntents
+import com.memfault.bort.reporting.NumericAgg.LATEST_VALUE
 import com.memfault.bort.reporting.NumericAgg.VALUE_DROP
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.reporting.StateAgg.TIME_TOTALS
@@ -17,8 +19,10 @@ import com.memfault.bort.time.AbsoluteTimeProvider
 import com.squareup.anvil.annotations.ContributesBinding
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 
 // Note that these 2 metrics are removed from reports before they're uploaded.
 const val BATTERY_CHARGING_METRIC = "temp.battery.charging"
@@ -52,6 +56,7 @@ class RealBatterySessionVitals
     private val application: Application,
     private val absoluteTimeProvider: AbsoluteTimeProvider,
     private val batteryManager: BatteryManager,
+    @Default private val defaultCoroutineContext: CoroutineContext,
 ) : BatterySessionVitals, Scoped {
 
     private val chargingMetric by lazy {
@@ -72,9 +77,18 @@ class RealBatterySessionVitals
             )
     }
 
+    private val chargeCycleMetric = Reporting.report()
+        .distribution(
+            name = "battery.charge_cycle_count",
+            aggregations = listOf(
+                LATEST_VALUE,
+            ),
+        )
+
     override fun onEnterScope(scope: Scope) {
-        scope.coroutineScope().launch {
+        scope.coroutineScope(defaultCoroutineContext).launch {
             application.registerForIntents(ACTION_BATTERY_CHANGED)
+                .flowOn(defaultCoroutineContext)
                 .collect { intent ->
                     if (intent.action == ACTION_BATTERY_CHANGED) {
                         val now = absoluteTimeProvider().timestamp.toEpochMilli()
@@ -82,6 +96,7 @@ class RealBatterySessionVitals
                             isCharging = intent.isPlugged,
                             level = intent.batteryPercentage,
                             timestampMs = now,
+                            cycleCount = intent.cycleCount,
                         )
                     }
                 }
@@ -111,13 +126,24 @@ class RealBatterySessionVitals
     private val Intent.isPlugged: Boolean
         get() = getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) == 1
 
+    private val Intent.cycleCount: Int?
+        // Use the string because the constant was only added in API 34.
+        get() = getIntExtra("android.os.extra.CYCLE_COUNT", -1).let {
+            when (it) {
+                -1 -> null
+                else -> it
+            }
+        }
+
     @VisibleForTesting
     fun record(
         isCharging: Boolean,
         level: Double,
         timestampMs: Long,
+        cycleCount: Int? = null,
     ) {
         chargingMetric.state(isCharging, timestamp = timestampMs)
         levelMetric.record(level, timestamp = timestampMs)
+        cycleCount?.let { chargeCycleMetric.record(it.toLong(), timestamp = timestampMs) }
     }
 }

@@ -2,7 +2,6 @@ package com.memfault.bort
 
 import android.content.SharedPreferences
 import com.memfault.bort.settings.DataScrubbingSettings
-import com.memfault.bort.settings.DeviceInfoSettings
 import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.settings.DynamicSettingsProvider
 import com.memfault.bort.settings.HttpApiSettings
@@ -86,11 +85,5 @@ class TestSettingsProvider @Inject constructor(
             } else {
                 settings.dataScrubbingSettings.rules
             }
-    }
-
-    override val deviceInfoSettings = object : DeviceInfoSettings by settings.deviceInfoSettings {
-        // ro.product.board doesn't exist on android 8 base image (we added it on bort image)
-        override val androidHardwareVersionKey: String
-            get() = if (override()) "ro.product.cpu.abi" else settings.deviceInfoSettings.androidHardwareVersionKey
     }
 }

@@ -1,5 +1,6 @@
 package com.memfault.bort.dropbox
 
+import com.memfault.bort.Default
 import com.memfault.bort.dagger.InjectSet
 import com.memfault.bort.scopes.Scope
 import com.memfault.bort.scopes.Scoped
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.CoroutineContext
 
 interface DropBoxEntryProcessors {
     val map: Map<String, EntryProcessor>
@@ -31,18 +33,19 @@ interface DropBoxEntryProcessors {
 class RealDropBoxEntryProcessors @Inject constructor(
     private val processors: InjectSet<EntryProcessor>,
     private val settingsFlow: SettingsFlow,
+    @Default private val defaultCoroutineContext: CoroutineContext,
 ) : Scoped, DropBoxEntryProcessors {
 
     private fun processorsMap(): Map<String, EntryProcessor> =
         processors.flatMap { processor -> processor.tagPairs() }.toMap()
 
-    private val _mapCache = MutableStateFlow(processorsMap())
+    private val mapCache = MutableStateFlow(processorsMap())
 
     override val map: Map<String, EntryProcessor>
-        get() = _mapCache.value
+        get() = mapCache.value
 
     override fun onEnterScope(scope: Scope) {
-        scope.coroutineScope()
+        scope.coroutineScope(defaultCoroutineContext)
             .launch {
                 settingsFlow.settings
                     .map { settings ->
@@ -53,7 +56,7 @@ class RealDropBoxEntryProcessors @Inject constructor(
                         // Recalculate the processors map whenever the "other" tags change. The map doesn't need to be
                         // immediately up-to-date, but this allows us to avoid an app restart to re-generate the cached
                         // processors map.
-                        _mapCache.update { processorsMap() }
+                        mapCache.update { processorsMap() }
                     }
             }
     }

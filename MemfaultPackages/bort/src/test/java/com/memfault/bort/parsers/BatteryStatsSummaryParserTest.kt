@@ -1,5 +1,12 @@
 package com.memfault.bort.parsers
 
+import assertk.all
+import assertk.assertThat
+import assertk.assertions.containsExactlyInAnyOrder
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
+import assertk.assertions.isNull
+import assertk.assertions.prop
 import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsSummaryParseError
 import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.BatteryState
@@ -12,7 +19,6 @@ import io.mockk.Called
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -32,37 +38,40 @@ class BatteryStatsSummaryParserTest {
         val file = tempFolder.newFile()
         file.writeText(CHECKIN_CONTENT)
         val result = parser.parse(file)
-        assertEquals(
-            BatteryStatsSummary(
-                batteryState = BatteryState(
+        assertThat(result).isNotNull().all {
+            prop(BatteryStatsSummary::batteryState).isEqualTo(
+                BatteryState(
                     batteryRealtimeMs = 43722106,
                     startClockTimeMs = 1661068748155,
                     estimatedBatteryCapacity = 1000.0,
                     screenOffRealtimeMs = 43699893,
                 ),
-                dischargeData = DischargeData(totalMaH = 0, totalMaHScreenOff = 0),
-                powerUseItemData = setOf(
-                    PowerUseItemData(name = "unknown", totalPowerMaH = 156.0 + 32),
-                    PowerUseItemData(name = "cell", totalPowerMaH = 1.22),
-                    PowerUseItemData(name = "idle", totalPowerMaH = 1.21),
-                    PowerUseItemData(name = "android", totalPowerMaH = 1.21 + 0.0000270 + 0.159),
-                    PowerUseItemData(name = "screen", totalPowerMaH = 0.000856),
-                    PowerUseItemData(name = "com.memfault.smartfridge.bort", totalPowerMaH = 0.000671),
-                    PowerUseItemData(name = "com.android.systemui", totalPowerMaH = 0.0000741),
-                    PowerUseItemData(name = "com.memfault.smartfridge.bort.ota", totalPowerMaH = 0.0000313),
-                    PowerUseItemData(name = "com.android.providers.calendar", totalPowerMaH = 0.00000067),
-                    PowerUseItemData(name = "bluetooth", totalPowerMaH = 0.00000053),
-                ),
-                timestampMs = timeMs,
-                powerUseSummary = PowerUseSummary(
+            )
+            prop(BatteryStatsSummary::dischargeData).isEqualTo(DischargeData(totalMaH = 0, totalMaHScreenOff = 0))
+            prop(BatteryStatsSummary::powerUseItemData).containsExactlyInAnyOrder(
+                PowerUseItemData(name = "unaccounted", totalPowerMaH = 156.0),
+                PowerUseItemData(name = "unknown", totalPowerMaH = 32.159),
+                PowerUseItemData(name = "cell", totalPowerMaH = 1.22),
+                PowerUseItemData(name = "idle", totalPowerMaH = 1.21),
+                PowerUseItemData(name = "com.android.phone", totalPowerMaH = 1.21),
+                PowerUseItemData(name = "system", totalPowerMaH = 0.0000270),
+                PowerUseItemData(name = "screen", totalPowerMaH = 0.000856),
+                PowerUseItemData(name = "com.memfault.smartfridge.bort", totalPowerMaH = 0.000671),
+                PowerUseItemData(name = "com.android.systemui", totalPowerMaH = 0.0000741),
+                PowerUseItemData(name = "com.memfault.smartfridge.bort.ota", totalPowerMaH = 0.0000313),
+                PowerUseItemData(name = "com.android.providers.calendar", totalPowerMaH = 0.00000067),
+                PowerUseItemData(name = "bluetooth", totalPowerMaH = 0.00000053),
+            )
+            prop(BatteryStatsSummary::timestampMs).isEqualTo(timeMs)
+            prop(BatteryStatsSummary::powerUseSummary).isEqualTo(
+                PowerUseSummary(
                     originalBatteryCapacity = 3900.0,
                     computedCapacityMah = 3243.2,
                     minCapacityMah = 3237.0,
                     maxCapacityMah = 3354.0,
                 ),
-            ),
-            result,
-        )
+            )
+        }
         coVerify { bortErrors wasNot Called }
     }
 
@@ -71,10 +80,7 @@ class BatteryStatsSummaryParserTest {
         val file = tempFolder.newFile()
         file.writeText(INVALID_CONTENT)
         val result = parser.parse(file)
-        assertEquals(
-            null,
-            result,
-        )
+        assertThat(result).isNull()
         coVerify {
             bortErrors.add(
                 BatteryStatsSummaryParseError,
@@ -88,7 +94,7 @@ class BatteryStatsSummaryParserTest {
         val file = tempFolder.newFile()
         file.writeText(NO_BATTERY_CONTENT)
         val result = parser.parse(file)
-        assertEquals(
+        assertThat(result).isEqualTo(
             BatteryStatsSummary(
                 batteryState = BatteryState(
                     batteryRealtimeMs = 0,
@@ -109,8 +115,6 @@ class BatteryStatsSummaryParserTest {
                     maxCapacityMah = 0.0,
                 ),
             ),
-
-            result,
         )
         coVerify { bortErrors wasNot Called }
     }

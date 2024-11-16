@@ -6,6 +6,7 @@ import com.memfault.bort.metrics.BatteryStatsAgg
 import com.memfault.bort.metrics.BatteryStatsAgg.BatteryLevelAggregator
 import com.memfault.bort.metrics.BatteryStatsAgg.CountByNominalAggregator
 import com.memfault.bort.metrics.BatteryStatsAgg.MaximumValueAggregator
+import com.memfault.bort.metrics.BatteryStatsAgg.MinimumValueAggregator
 import com.memfault.bort.metrics.BatteryStatsAgg.TimeByNominalAggregator
 import com.memfault.bort.metrics.BatteryStatsResult
 import com.memfault.bort.metrics.HighResTelemetry.DataType
@@ -135,7 +136,17 @@ class BatteryStatsHistoryParser(
             dataType = DoubleType,
             aggregations = listOf(MaximumValueAggregator(metricName = "max_battery_temp")),
         ),
-        BatteryMetric(key = BATTERY_VOLTAGE, type = Gauge, dataType = DoubleType),
+        BatteryMetric(
+            key = BATTERY_VOLTAGE,
+            type = Gauge,
+            dataType = DoubleType,
+            aggregations = listOf(
+                MinimumValueAggregator(
+                    metricName = "min_battery_voltage",
+                    scale = 0.001,
+                ),
+            ),
+        ),
         BatteryMetric(key = BATTERY_COULOMB, type = Gauge, dataType = DoubleType),
         BatteryMetric(
             key = BATTERY_HEALTH,
@@ -357,9 +368,7 @@ class BatteryStatsHistoryParser(
         /**
          * Gather the aggregated metric(s).
          */
-        fun aggregates(): List<Pair<String, JsonPrimitive>> {
-            return aggregations.flatMap { it.finish(elapsedMs) }
-        }
+        fun aggregates(): List<Pair<String, JsonPrimitive>> = aggregations.flatMap { it.finish(elapsedMs) }
 
         /**
          * Add a value, at the current timestamp.

@@ -13,9 +13,13 @@ import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
@@ -24,6 +28,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 interface MetricCollector {
+    fun onChanged(): Flow<Any> = flowOf(Unit)
     suspend fun collect()
 }
 
@@ -40,15 +45,21 @@ class MetricsPoller @Inject constructor(
 
     @VisibleForTesting
     internal fun runPoller(scope: CoroutineScope) = scope.launch {
-        combine(bortEnabledProvider.isEnabledFlow(), metricsPollingInterval()) { enabled, interval ->
+        combine(
+            bortEnabledProvider.isEnabledFlow(),
+            metricsPollingInterval(),
+        ) { enabled, interval ->
             PollerSettings(enabled, interval)
         }
             .distinctUntilChanged()
-            .collectLatest {
-                Logger.d("MetricsPoller: enabled=${it.enabled} interval=${it.interval}")
-                while (it.enabled && it.interval.isPositive()) {
+            .flatMapLatest { settings ->
+                combine(collectors.map { collector -> collector.onChanged() }) { settings }
+            }
+            .collectLatest { settings ->
+                Logger.d("MetricsPoller: enabled=${settings.enabled} interval=${settings.interval}")
+                while (settings.enabled && settings.interval.isPositive()) {
                     collectMetrics(scope)
-                    delay(it.interval)
+                    delay(settings.interval)
                 }
             }
     }
@@ -57,11 +68,11 @@ class MetricsPoller @Inject constructor(
 
     private suspend fun collectMetrics(scope: CoroutineScope) {
         Logger.v("MetricsPoller: collectMetrics")
-        collectors.forEach {
+        collectors.forEach { collector ->
             scope.launch {
                 runCatching {
                     withTimeout(COLLECTION_TIMEOUT) {
-                        it.collect()
+                        collector.collect()
                     }
                 }
             }

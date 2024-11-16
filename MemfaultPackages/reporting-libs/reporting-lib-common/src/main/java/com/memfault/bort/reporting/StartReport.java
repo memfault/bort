@@ -41,4 +41,11 @@ public class StartReport {
     json.put(MetricValue.MetricJsonFields.REPORT_NAME, reportName);
     return json.toString();
   }
+
+  @Override public String toString() {
+    return "StartReport{"
+        + "reportType='" + reportType + '\''
+        + ", reportName='" + reportName + '\''
+        + '}';
+  }
 }

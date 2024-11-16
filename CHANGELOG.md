@@ -1,5 +1,74 @@
 # Memfault Bort Changelog
 
+## v5.2.0 - November 15, 2024
+
+### :rocket: New Features
+
+- Logs to Metrics: Bort can scan all captured log files (including those not
+  uploaded) for patterns, and record metrics based on the results. These can be
+  configured in the dashboard. See
+  [documentation](https://docs.memfault.com/docs/android/android-logging#converting-logs-into-metrics).
+- New Core Metric for CPU usage (`cpu_usage_pct`).
+- New Core Metrics for memory usage (`memory_pct`, `memory_pct_max`).
+- New Core Metric for storage usage (`storage_used_pct`).
+- New Core Metrics for network Usage (`connectivity_*`). These replace the
+  previous `network.*` metrics - those will no longer be collected, unless the
+  `Network Usage: Collect Legacy Metrics` is enabled in the dashboard.
+- New Core Metrics for thermals (`thermal_*`). These replace the previous
+  `temp.*` metrics - those will no longer be collected, unless the
+  `Collect legacy thermal metrics` is enabled in the dashboard.
+- Added a `min_battery_voltage` metric to report the lowest observed voltage.
+- New metric to capture the battery charge cycle count
+  (`battery.charge_cycle_count.latest`) - this only works on Android 14+. Note
+  that the previous metric added in 4.18.0 did not work.
+- New metrics (`thermal_status_*`) to capture thermal mitigation status.
+- New HRT metric (`device-powered`) capturing device shutdown/startup events.
+
+### :chart_with_upwards_trend: Improvements
+
+- Update the target SDK version to 34 (Android 14).
+- Updated to the default hardware version (`ro.product.model`) and software
+  version (`ro.build.version.incremental`) to match current defaults for new
+  projects.
+- Improve battery use attribution (including where usage would have previously
+  been assigned to `unknown`).
+- Added dashboard controls for `mar` upload job constraints (battery, charging
+  state).
+- Modified sepolicy to fix some `memfault_structured_app` violations.
+- Removed validation of the OTA application ID being configured, if OTA is not
+  being used (if `TARGET_USES_MFLT_OTA` is unset).
+- `reporting-lib-kotlin` supports asynchronous usage, when constructing a
+  `ReportingClient`.
+
+### :construction: Fixes
+
+- Fixed an issue which caused `COUNT` aggregations on non-numeric metric values
+  to always return zero. This was introduced in 4.17.0.
+- Fixed a bug in the SDK validation tool (`bort_cli.py`) which caused it to fail
+  when running on Windows.
+- Fixed a bug where the software/hardware version and device serial sysprops
+  would not be updated immediately if changed remotely via SDK settings (a
+  reboot may have been required for them to take effect).
+- `MemfaultStructuredLogdApp` will not crash if sepolicy is incorrectly
+  configured.
+- Always captured metrics for app versions/sysprops, in an edge-case where the
+  software version sysprop changed.
+
+### :house: Internal
+
+- Updated mockk.
+- Removed bort internal log-to-disk functionality (this was not used).
+- Removed local storage from `DevicePropertiesStore` - forward all internal
+  metrics using public APIs.
+- Bort no longer writes to the event log.
+- Refactored use of WorkManager.
+- Updated `ktlint` and reformatted some code.
+- Inject coroutine dispatchers in more places.
+- Record internal metrics for WorkManager job timing.
+- Fixed a flaky unit test (`DevicePropertiesStoreTest`).
+- Record zero values for per-app battery usage, for designated apps, instead of
+  ignoring them (currently, Bort SDK apps only).
+
 ## v5.1.0 - September 13, 2024
 
 ### :construction: Fixes

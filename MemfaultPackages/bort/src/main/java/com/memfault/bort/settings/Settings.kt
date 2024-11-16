@@ -8,6 +8,7 @@ import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatFilterSpec
 import com.memfault.bort.shared.LoggerSettings
 import com.memfault.bort.shared.SdkVersionInfo
+import kotlinx.serialization.json.JsonObject
 import kotlin.time.Duration
 
 enum class NetworkConstraint(
@@ -67,11 +68,14 @@ interface MetricsSettings {
     val appVersions: List<String>
     val maxNumAppVersions: Int
     val reporterCollectionInterval: Duration
-    val propertiesUseMetricService: Boolean
     val cachePackageManagerReport: Boolean
     val recordImei: Boolean
     val operationalCrashesExclusions: List<String>
     val pollingInterval: Duration
+    val collectMemory: Boolean
+    val thermalMetricsEnabled: Boolean
+    val thermalCollectLegacyMetrics: Boolean
+    val thermalCollectStatus: Boolean
 }
 
 interface LogcatSettings {
@@ -86,6 +90,7 @@ interface LogcatSettings {
     val continuousLogDumpThresholdBytes: Int
     val continuousLogDumpThresholdTime: Duration
     val continuousLogDumpWrappingTimeout: Duration
+    val logs2metricsConfig: JsonObject
 }
 
 interface FileUploadHoldingAreaSettings {
@@ -98,11 +103,15 @@ interface HttpApiSettings {
     val filesBaseUrl: String
     val deviceBaseUrl: String
     val uploadNetworkConstraint: NetworkConstraint
+    val uploadRequiresBatteryNotLow: Boolean
+    val uploadRequiresCharging: Boolean
     val uploadCompressionEnabled: Boolean
 
     val uploadConstraints: Constraints
         get() = Constraints.Builder()
             .setRequiredNetworkType(uploadNetworkConstraint.networkType)
+            .setRequiresBatteryNotLow(uploadRequiresBatteryNotLow)
+            .setRequiresCharging(uploadRequiresCharging)
             .build()
 
     val connectTimeout: Duration
@@ -123,6 +132,7 @@ interface NetworkUsageSettings {
     val dataSourceEnabled: Boolean
     val collectionReceiveThresholdKb: Long
     val collectionTransmitThresholdKb: Long
+    val collectLegacyMetrics: Boolean
 }
 
 interface RebootEventsSettings {
@@ -192,8 +202,6 @@ interface ChroniclerSettings {
 interface SettingsProvider {
     val minLogcatLevel: LogLevel
     val minStructuredLogLevel: LogLevel
-    val eventLogEnabled: Boolean
-    val internalLogToDiskEnabled: Boolean
     val isRuntimeEnableRequired: Boolean
 
     val httpApiSettings: HttpApiSettings
@@ -225,12 +233,13 @@ fun SettingsProvider.selectSettingsToMap(): Map<String, Any> = mapOf(
         "minLogcatLevel" to minLogcatLevel,
         "minStructuredLogLevel" to minStructuredLogLevel,
         "isRuntimeEnableRequired" to isRuntimeEnableRequired,
-        "eventLogEnabled" to eventLogEnabled,
     ),
     "Http Api Settings" to mapOf(
         "deviceBaseUrl" to httpApiSettings.deviceBaseUrl,
         "filesBaseUrl" to httpApiSettings.filesBaseUrl,
         "uploadNetworkConstraint" to httpApiSettings.uploadNetworkConstraint,
+        "uploadRequiresBatteryNotLow" to httpApiSettings.uploadRequiresBatteryNotLow,
+        "uploadRequiresCharging" to httpApiSettings.uploadRequiresCharging,
         "connectTimeout" to httpApiSettings.connectTimeout,
         "writeTimeout" to httpApiSettings.writeTimeout,
         "readTimeout" to httpApiSettings.readTimeout,
@@ -256,6 +265,8 @@ fun SettingsProvider.selectSettingsToMap(): Map<String, Any> = mapOf(
     "Metrics Settings" to mapOf(
         "dataSourceEnabled" to metricsSettings.dataSourceEnabled,
         "collectionInterval" to metricsSettings.collectionInterval,
+        "thermalMetricsEnabled" to metricsSettings.thermalMetricsEnabled,
+        "thermalCollectStatus" to metricsSettings.thermalCollectStatus,
     ),
     "BatteryStats Settings" to mapOf(
         "dataSourceEnabled" to batteryStatsSettings.dataSourceEnabled,
@@ -269,8 +280,6 @@ fun SettingsProvider.selectSettingsToMap(): Map<String, Any> = mapOf(
 )
 
 fun SettingsProvider.asLoggerSettings(): LoggerSettings = LoggerSettings(
-    eventLogEnabled = eventLogEnabled,
-    logToDisk = internalLogToDiskEnabled,
     minLogcatLevel = minLogcatLevel,
     minStructuredLevel = minStructuredLogLevel,
     hrtEnabled = structuredLogSettings.highResMetricsEnabled,

@@ -4,20 +4,20 @@ import androidx.work.Data
 import androidx.work.workDataOf
 import com.memfault.bort.BortJson
 import com.memfault.bort.FileUploader
+import com.memfault.bort.IO
 import com.memfault.bort.Payload
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
-import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.UPLOAD_FILE_FILE_MISSING
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.MaxUploadAttempts
 import com.memfault.bort.settings.UploadCompressionEnabled
 import com.memfault.bort.shared.Logger
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration.Companion.minutes
 
 val BACKOFF_DURATION = 5.minutes
@@ -39,9 +39,8 @@ data class FileUploadTaskInput(
         )
 
     companion object {
-        private fun deserializePayload(payload: String): Payload {
-            return BortJson.decodeFromString(Payload.serializer(), payload)
-        }
+        private fun deserializePayload(payload: String): Payload =
+            BortJson.decodeFromString(Payload.serializer(), payload)
 
         fun fromData(inputData: Data) =
             FileUploadTaskInput(
@@ -56,9 +55,14 @@ class FileUploadTask @Inject constructor(
     private val bortEnabledProvider: BortEnabledProvider,
     private val getUploadCompressionEnabled: UploadCompressionEnabled,
     private val maxUploadAttempts: MaxUploadAttempts,
-    override val metrics: BuiltinMetricsStore,
-) : Task<FileUploadTaskInput>() {
-    suspend fun upload(file: File, payload: Payload, shouldCompress: Boolean): TaskResult {
+    private val metrics: BuiltinMetricsStore,
+    @IO private val ioCoroutineContext: CoroutineContext,
+) : Task<FileUploadTaskInput> {
+    suspend fun upload(
+        file: File,
+        payload: Payload,
+        shouldCompress: Boolean,
+    ): TaskResult {
         fun fail(message: String): TaskResult {
             Logger.w("upload.failed", mapOf("message" to message, "file" to file.path))
             return TaskResult.FAILURE
@@ -96,11 +100,9 @@ class FileUploadTask @Inject constructor(
         }
     }
 
-    override suspend fun doWork(worker: TaskRunnerWorker, input: FileUploadTaskInput): TaskResult =
-        withContext(Dispatchers.IO) {
-            Logger.logEvent("upload", "start", worker.runAttemptCount.toString())
+    override suspend fun doWork(input: FileUploadTaskInput): TaskResult =
+        withContext(ioCoroutineContext) {
             upload(input.file, input.payload, input.shouldCompress).also {
-                Logger.logEvent("upload", "result", it.toString())
                 "UploadWorker result=$it payloadClass=${input.payload.payloadClassName()}".also { message ->
                     Logger.v(message)
                     Logger.test(message)
@@ -111,8 +113,7 @@ class FileUploadTask @Inject constructor(
     override fun convertAndValidateInputData(inputData: Data): FileUploadTaskInput =
         FileUploadTaskInput.fromData(inputData)
 
-    override val getMaxAttempts: () -> Int
-        get() = maxUploadAttempts
+    override fun getMaxAttempts(input: FileUploadTaskInput) = maxUploadAttempts()
 
     companion object {
         fun Payload.payloadClassName() = when (this) {

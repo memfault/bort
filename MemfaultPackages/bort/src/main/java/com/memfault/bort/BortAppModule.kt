@@ -8,8 +8,6 @@ import androidx.preference.PreferenceManager
 import com.memfault.bort.dagger.InjectSet
 import com.memfault.bort.diagnostics.BortErrorsDb
 import com.memfault.bort.http.RetrofitInterceptor
-import com.memfault.bort.logcat.KernelOopsDetector
-import com.memfault.bort.logcat.NoopLogcatLineProcessor
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.database.MetricsDb
 import com.memfault.bort.settings.AllowProjectKeyChange
@@ -547,16 +545,6 @@ abstract class BortAppModule {
         @Provides
         fun dataScrubber(lineScrubbingCleaners: LineScrubbingCleaners): DataScrubber =
             DataScrubber(lineScrubbingCleaners)
-
-        @Provides
-        fun kernelOopsDetector(
-            settingsProvider: SettingsProvider,
-            kernelOopsDetector: KernelOopsDetector,
-        ) = if (settingsProvider.logcatSettings.kernelOopsDataSourceEnabled) {
-            kernelOopsDetector
-        } else {
-            NoopLogcatLineProcessor
-        }
 
         @Provides
         @MarFileSampledHoldingDir

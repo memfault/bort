@@ -87,16 +87,12 @@ class LogcatCollectionRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override suspend fun enabled(settings: SettingsProvider): Boolean {
-        return settings.logcatSettings.dataSourceEnabled &&
-            settings.logcatSettings.collectionMode == LogcatCollectionMode.PERIODIC
-    }
+    override suspend fun enabled(settings: SettingsProvider): Boolean = settings.logcatSettings.dataSourceEnabled &&
+        settings.logcatSettings.collectionMode == LogcatCollectionMode.PERIODIC
 
-    override suspend fun diagnostics(): BortWorkInfo {
-        return WorkManager.getInstance(application)
-            .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
-            .asBortWorkInfo("logcat")
-    }
+    override suspend fun diagnostics(): BortWorkInfo = WorkManager.getInstance(application)
+        .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
+        .asBortWorkInfo("logcat")
 
     override suspend fun parametersChanged(
         old: SettingsProvider,

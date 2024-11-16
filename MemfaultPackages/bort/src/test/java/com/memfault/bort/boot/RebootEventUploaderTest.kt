@@ -1,6 +1,6 @@
 package com.memfault.bort.boot
 
-import com.memfault.bort.DEV_MODE_DISABLED
+import com.memfault.bort.DevModeDisabled
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.tokenbucket.MockTokenBucketFactory
 import com.memfault.bort.tokenbucket.MockTokenBucketStorage
@@ -38,7 +38,7 @@ class RebootEventUploaderTest {
                         defaultPeriod = 1.milliseconds,
                     )
                 },
-                devMode = DEV_MODE_DISABLED,
+                devMode = DevModeDisabled,
             ),
             linuxBootId = { "bootid" },
             enqueueUpload = enqueueUpload,

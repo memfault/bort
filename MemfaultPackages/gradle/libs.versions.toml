@@ -4,7 +4,7 @@ hilt = "2.49"
 kotlin = "1.9.23"
 kotlinx-coroutines = "1.8.0"
 room = "2.6.1"
-memfault-reporting = "1.4"
+memfault-reporting = "1.5"
 
 
 [libraries]
@@ -53,6 +53,7 @@ room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 
 # test
+test-androidx-work-testing = { module = "androidx.work:work-testing", version = "2.9.0" }
 test-assertk = { module = "com.willowtreeapps.assertk:assertk", version = "0.28.0" }
 test-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 test-json = { module = "org.json:json", version = "20230227" }
@@ -62,9 +63,9 @@ test-junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 test-junit-jupiter-vintage-engine = { module = "org.junit.vintage:junit-vintage-engine" }
 test-junit-jupiter-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 test-mockito-java = { module = "org.mockito:mockito-core", version = "5.5.0" }
-test-mockk = { module = "io.mockk:mockk", version = "1.13.3" }
+test-mockk = { module = "io.mockk:mockk", version = "1.13.12" }
 test-mockWebServer = { module = "com.squareup.okhttp3:mockwebserver", version = "4.11.0" }
-test-robolectric = { module = "org.robolectric:robolectric", version = "4.8" }
+test-robolectric = { module = "org.robolectric:robolectric", version = "4.13" }
 test-androidx-test = { module = "androidx.test:core", version = "1.5.0" }
 
 
@@ -81,5 +82,5 @@ dagger-anvil = { id = "com.squareup.anvil", version = "2.4.9" }
 dagger-hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 gradle-versions = { id = "com.github.ben-manes.versions", version = "0.46.0" }
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-kotlin-ktlint = { id = "org.jlleitschuh.gradle.ktlint", version = "11.3.2" }
+kotlin-ktlint = { id = "org.jlleitschuh.gradle.ktlint", version = "12.1.1" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

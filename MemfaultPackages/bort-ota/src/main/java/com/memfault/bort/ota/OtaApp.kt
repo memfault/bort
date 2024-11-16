@@ -37,8 +37,6 @@ class OtaApp : Application(), Configuration.Provider {
         Logger.initTags(tag = "bort-ota", testTag = "bort-ota-test")
         Logger.initSettings(
             LoggerSettings(
-                eventLogEnabled = true,
-                logToDisk = false,
                 minLogcatLevel = otaLoggerSettings.minLogcatLevel,
                 minStructuredLevel = LogLevel.INFO,
                 hrtEnabled = false,

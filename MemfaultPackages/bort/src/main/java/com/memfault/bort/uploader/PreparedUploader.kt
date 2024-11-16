@@ -8,9 +8,6 @@ import com.memfault.bort.Payload.MarPayload
 import com.memfault.bort.SOFTWARE_TYPE
 import com.memfault.bort.http.ProjectKeyAuthenticated
 import com.memfault.bort.http.gzip
-import com.memfault.bort.shared.Logger
-import com.squareup.anvil.annotations.ContributesBinding
-import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okhttp3.MediaType.Companion.toMediaType
@@ -80,60 +77,51 @@ interface PreparedUploadService {
     ): Response<Unit>
 }
 
-// Work around since vararg's can't be used in lambdas
-interface UploadEventLogger {
-    fun log(vararg strings: String) = Logger.logEvent(*strings)
-}
-
-@ContributesBinding(SingletonComponent::class)
-object NoOpUploadEventLogger : UploadEventLogger
-
 /**
  * A client to upload files to Memfault's ("prepared") file upload API.
  */
 class PreparedUploader @Inject constructor(
     private val preparedUploadService: PreparedUploadService,
     private val deviceInfoProvider: DeviceInfoProvider,
-    private val eventLogger: UploadEventLogger,
 ) {
 
     /**
      * Prepare a file upload.
      */
-    suspend fun prepare(file: File, kind: PrepareFileKind): Response<PrepareResult> =
+    suspend fun prepare(
+        file: File,
+        kind: PrepareFileKind,
+    ): Response<PrepareResult> =
         preparedUploadService.prepare(
             PrepareRequestData(
                 device = deviceInfoProvider.getDeviceInfo().asDevice(),
                 kind = kind,
                 size = file.length(),
             ),
-        ).also {
-            eventLogger.log("prepare")
-        }
+        )
 
     /**
      * Upload a prepared file from an FileInputStream or ByteArrayInputStream.
      */
-    suspend fun upload(file: File, uploadUrl: String, shouldCompress: Boolean = true): Response<Unit> {
-        return preparedUploadService.upload(
+    suspend fun upload(
+        file: File,
+        uploadUrl: String,
+        shouldCompress: Boolean = true,
+    ): Response<Unit> =
+        preparedUploadService.upload(
             url = uploadUrl,
             file = file.asRequestBody("application/octet-stream".toMediaType()).let {
                 if (shouldCompress) it.gzip() else it
             },
             contentEncoding = if (shouldCompress) "gzip" else null,
-        ).also {
-            eventLogger.log("upload", "done")
-        }
-    }
+        )
 
     /**
      * Commit an uploaded bug report.
      */
-    suspend fun commit(token: String, wrapper: Payload): Response<Unit> {
-        return when (wrapper) {
-            is MarPayload -> {
-                preparedUploadService.commitMar(wrapper.payload.copy(file = wrapper.payload.file.copy(token = token)))
-            }
+    suspend fun commit(token: String, wrapper: Payload): Response<Unit> = when (wrapper) {
+        is MarPayload -> {
+            preparedUploadService.commitMar(wrapper.payload.copy(file = wrapper.payload.file.copy(token = token)))
         }
     }
 }

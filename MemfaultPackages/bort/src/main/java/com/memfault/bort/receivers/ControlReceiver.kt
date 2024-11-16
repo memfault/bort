@@ -150,7 +150,6 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
         )
         val wasEnabled = bortEnabledProvider.isEnabled()
         Logger.test("wasEnabled=$wasEnabled isNowEnabled=$isNowEnabled")
-        Logger.logEventBortSdkEnabled(isNowEnabled)
         if (wasEnabled == isNowEnabled) {
             return
         }

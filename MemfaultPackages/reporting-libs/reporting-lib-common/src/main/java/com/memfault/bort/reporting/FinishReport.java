@@ -59,4 +59,11 @@ public class FinishReport {
 
     return json.toString();
   }
+
+  @Override public String toString() {
+    return "FinishReport{"
+        + "reportType='" + reportType + '\''
+        + ", reportName='" + reportName + '\''
+        + '}';
+  }
 }

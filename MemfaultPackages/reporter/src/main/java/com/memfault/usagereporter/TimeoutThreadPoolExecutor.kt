@@ -28,7 +28,8 @@ class TimeoutThreadPoolExecutor(nThreads: Int) : ThreadPoolExecutor(
         super.submit(task).also {
             timeoutExecutor.schedule(
                 {
-                    if (it.cancel(false /* mayInterruptIfRunning */)) {
+                    val mayInterruptIfRunning = false
+                    if (it.cancel(mayInterruptIfRunning)) {
                         task.handleTimeout()
                     }
                 },

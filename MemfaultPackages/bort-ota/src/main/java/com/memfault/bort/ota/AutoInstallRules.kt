@@ -37,18 +37,16 @@ class AutoInstallRules @Inject constructor(
     /**
      * Configure constraints for automatically downloading OTA updates.
      */
-    override fun downloadRules(ota: Ota): DownloadOtaRules {
-        return DownloadOtaRules(
-            // This refers to the method above.
-            canDownloadNowAfterConstraintsSatisfied = this::canAutoDownloadOtaUpdateNow,
-            // These constraints must be satisfied before the [canAutoDownloadOtaUpdateNow] runs.
-            overrideNetworkConstraint = null,
-            requiresStorageNotLowConstraint = true,
-            requiresBatteryNotLowConstraint = false,
-            requiresChargingConstraint = false,
-            useForegroundServiceForAbDownloads = false,
-        )
-    }
+    override fun downloadRules(ota: Ota): DownloadOtaRules = DownloadOtaRules(
+        // This refers to the method above.
+        canDownloadNowAfterConstraintsSatisfied = this::canAutoDownloadOtaUpdateNow,
+        // These constraints must be satisfied before the [canAutoDownloadOtaUpdateNow] runs.
+        overrideNetworkConstraint = null,
+        requiresStorageNotLowConstraint = true,
+        requiresBatteryNotLowConstraint = false,
+        requiresChargingConstraint = false,
+        useForegroundServiceForAbDownloads = false,
+    )
 
     /**
      * Custom rules defining whether an OTA update can be auto-installed right now on this device.
@@ -70,14 +68,12 @@ class AutoInstallRules @Inject constructor(
         return true
     }
 
-    override fun installRules(ota: Ota): InstallOtaRules {
-        return InstallOtaRules(
-            // This refers to the method above.
-            canInstallNowAfterConstraintsSatisfied = this::canAutoInstallOtaUpdateNow,
-            // These constraints must be satisfied before the [canAutoDownloadOtaUpdateNow] runs.
-            requiresStorageNotLowConstraint = false,
-            requiresBatteryNotLowConstraint = true,
-            requiresChargingConstraint = false,
-        )
-    }
+    override fun installRules(ota: Ota): InstallOtaRules = InstallOtaRules(
+        // This refers to the method above.
+        canInstallNowAfterConstraintsSatisfied = this::canAutoInstallOtaUpdateNow,
+        // These constraints must be satisfied before the [canAutoDownloadOtaUpdateNow] runs.
+        requiresStorageNotLowConstraint = false,
+        requiresBatteryNotLowConstraint = true,
+        requiresChargingConstraint = false,
+    )
 }

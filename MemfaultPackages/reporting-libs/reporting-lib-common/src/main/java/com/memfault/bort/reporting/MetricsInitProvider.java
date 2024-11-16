@@ -8,7 +8,7 @@ import android.net.Uri;
 public class MetricsInitProvider extends ContentProvider {
   @Override
   public boolean onCreate() {
-    RemoteMetricsService.context = getContext().getApplicationContext();
+    RemoteMetricsService.staticContext = getContext().getApplicationContext();
     return true;
   }
 

@@ -10,7 +10,5 @@ import com.memfault.bort.LineScrubbingCleaner
  * place of the input.
  */
 object CustomLogScrubber : LineScrubbingCleaner {
-    override fun clean(line: String): String {
-        return line
-    }
+    override fun clean(line: String): String = line
 }

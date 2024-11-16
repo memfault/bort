@@ -17,19 +17,14 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class MetricsIntegrationSoftwareVersionTest {
 
-    @get:Rule(order = 0)
-    val tempFolder: TemporaryFolder = TemporaryFolder.builder().assureDeletion().build()
-
-    @get:Rule(order = 1)
-    val metricsDbTestEnvironment: MetricsDbTestEnvironment =
-        MetricsDbTestEnvironment(temporaryFolder = tempFolder)
+    @get:Rule()
+    val metricsDbTestEnvironment = MetricsDbTestEnvironment()
 
     private val dao: CustomMetrics get() = metricsDbTestEnvironment.dao
 
@@ -104,7 +99,6 @@ class MetricsIntegrationSoftwareVersionTest {
                 prop(MetricReport::softwareVersion).isEqualTo("force-end")
                 prop(MetricReport::metrics).containsOnly(
                     "count.sum" to JsonPrimitive(1.0),
-                    "operational_crashes" to JsonPrimitive(0.0),
                 )
             }
 
@@ -112,7 +106,6 @@ class MetricsIntegrationSoftwareVersionTest {
                 prop(MetricReport::softwareVersion).isEqualTo("force-end")
                 prop(MetricReport::metrics).containsOnly(
                     "count.sum" to JsonPrimitive(1.0),
-                    "operational_crashes" to JsonPrimitive(0.0),
                 )
             }
 
@@ -120,7 +113,6 @@ class MetricsIntegrationSoftwareVersionTest {
                 prop(MetricReport::softwareVersion).isEqualTo("force-end")
                 prop(MetricReport::metrics).containsOnly(
                     "count.sum" to JsonPrimitive(2.0),
-                    "operational_crashes" to JsonPrimitive(0.0),
                 )
             }
         }
