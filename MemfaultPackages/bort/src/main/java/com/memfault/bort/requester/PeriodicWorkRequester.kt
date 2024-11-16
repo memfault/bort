@@ -145,18 +145,16 @@ private fun Int.reasonString(): String = when (this) {
     else -> "UNKNOWN_$this"
 }
 
-suspend fun Flow<List<WorkInfo>>.asBortWorkInfo(name: String): BortWorkInfo {
-    return firstOrNull()
-        ?.firstOrNull()
-        ?.let {
-            BortWorkInfo(
-                name = name,
-                state = it.state,
-                runAttemptCount = it.runAttemptCount,
-                nextScheduleTimeMillis = it.nextScheduleTimeMillis,
-                nextScheduleTimeLeft = (it.nextScheduleTimeMillis - System.currentTimeMillis()).milliseconds,
-                stopReason = it.stopReason.reasonString(),
-            )
-        }
-        ?: BortWorkInfo(name).also { Logger.w("asBortWorkInfo: job not found for name '$name'") }
-}
+suspend fun Flow<List<WorkInfo>>.asBortWorkInfo(name: String): BortWorkInfo = firstOrNull()
+    ?.firstOrNull()
+    ?.let {
+        BortWorkInfo(
+            name = name,
+            state = it.state,
+            runAttemptCount = it.runAttemptCount,
+            nextScheduleTimeMillis = it.nextScheduleTimeMillis,
+            nextScheduleTimeLeft = (it.nextScheduleTimeMillis - System.currentTimeMillis()).milliseconds,
+            stopReason = it.stopReason.reasonString(),
+        )
+    }
+    ?: BortWorkInfo(name).also { Logger.w("asBortWorkInfo: job not found for name '$name'") }

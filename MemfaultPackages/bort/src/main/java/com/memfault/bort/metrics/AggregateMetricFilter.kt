@@ -1,9 +1,16 @@
 package com.memfault.bort.metrics
 
+import androidx.annotation.VisibleForTesting
+import com.memfault.bort.connectivity.CONNECTIVITY_TYPE_METRIC
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.CRASH_FREE_HOURS_METRIC_KEY
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_CRASHES_METRIC_KEY
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_HOURS_METRIC_KEY
+import com.memfault.bort.metrics.RealCpuMetricReporter.Companion.METRIC_KEY_CPU_USAGE
 import com.memfault.bort.metrics.SystemPropertiesCollector.Companion.IMEI_METRIC
+import com.memfault.bort.metrics.custom.BATTERY_METRICS
+import com.memfault.bort.metrics.custom.MetricReport
+import com.memfault.bort.metrics.custom.ReportType
+import com.memfault.bort.metrics.custom.ReportType.Session
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
@@ -11,22 +18,50 @@ import kotlinx.serialization.json.JsonPrimitive
  * used to be created elsewhere (so that their naming/construction remains unchanged).
  */
 object AggregateMetricFilter {
+    fun MetricReport.filterAndRenameMetrics(reportType: ReportType) = copy(
+        metrics = filterAndRenameMetrics(
+            metrics,
+            internal = false,
+            reportType = reportType,
+        ),
+        internalMetrics = filterAndRenameMetrics(
+            internalMetrics,
+            internal = true,
+            reportType = reportType,
+        ),
+    )
+
     /**
      * We need to:
      *  - Rename some batterystats metrics, so that they are named the same as backend-generated metrics.
      *  - Filter out some batterystats metrics, which aren't used (e.g. time in OFF state).
      *  - Post-process some metrics.
      */
-    fun filterAndRenameMetrics(metrics: Map<String, JsonPrimitive>, internal: Boolean): Map<String, JsonPrimitive> {
-        return metrics.mapNotNull { metric ->
+    @VisibleForTesting
+    internal fun filterAndRenameMetrics(
+        metrics: Map<String, JsonPrimitive>,
+        internal: Boolean,
+        reportType: ReportType,
+    ): Map<String, JsonPrimitive> {
+        val mutableMetrics = metrics.mapNotNull { metric ->
             handleMetric(metric, internal)
-        }.toMap()
+        }.toMap().toMutableMap()
+        if (!internal) {
+            mutableMetrics.putIfAbsent(OPERATIONAL_CRASHES_METRIC_KEY, JsonPrimitive(0.0))
+        }
+        if (reportType == Session) {
+            mutableMetrics.keys.removeIf { key -> key.startsWith(CONNECTIVITY_TYPE_METRIC) }
+            mutableMetrics.keys.removeIf { key ->
+                BATTERY_METRICS.any { metric -> key.startsWith(metric) }
+            }
+        }
+        return mutableMetrics
     }
 
     private fun handleMetric(
         metric: Map.Entry<String, JsonPrimitive>,
         internal: Boolean,
-    ): Pair<String, JsonPrimitive> {
+    ): Pair<String, JsonPrimitive>? {
         if (!internal) {
             // Special case: app versions. Drop .latest.
             if (metric.key.startsWith("version.")) {
@@ -73,16 +108,60 @@ object AggregateMetricFilter {
             if (metric.key.endsWith(".latest")) return metric.key.removeSuffix(".latest") to metric.value
         }
 
-        // Network metrics: converts .sum to .latest. We converted network stats to a single value on a Distribution
-        // with a SUM aggregation so that it would add the total network usage over the 24 hour period, but it was
-        // previously calculated as an in-memory metric ending in .latest, so we want to keep that original name.
+        // Legacy Network metrics: converts .sum to .latest. We converted network stats to a single value on a
+        // Distribution with a SUM aggregation so that it would add the total network usage over the 24 hour period, but
+        // it was previously calculated as an in-memory metric ending in .latest, so we want to keep that original name.
         if ((metric.key.startsWith("network.app.") || metric.key.startsWith("network.total.")) &&
             metric.key.endsWith(".sum")
         ) {
             return (metric.key.removeSuffix(".sum") + ".latest") to metric.value
         }
 
+        // Device vitals: connectivity
+        if (metric.key.isNetworkMetric()) {
+            if (metric.key.endsWith(".latest")) {
+                return (metric.key.removeSuffix(".latest")) to metric.value
+            }
+            if (metric.key.endsWith(".sum")) {
+                return (metric.key.removeSuffix(".sum")) to metric.value
+            }
+        }
+
+        // Next level vitals:
+        if (metric.key == "$METRIC_KEY_CPU_USAGE.mean") {
+            return METRIC_KEY_CPU_USAGE to metric.value
+        }
+
+        // Memory vitals
+        if (metric.key == "memory_pct.mean") {
+            return "memory_pct" to metric.value
+        }
+        if (metric.key == "memory_pct.max") {
+            return "memory_pct_max" to metric.value
+        }
+
+        // Device vitals: storage
+        if (metric.key == "storage_used_pct.latest") {
+            return "storage_used_pct" to metric.value
+        }
+        // Device Vitals: thermal
+        if (metric.key.startsWith("thermal_") && metric.key.endsWith(".mean")) {
+            return metric.key.removeSuffix(".mean") to metric.value
+        }
+        if (metric.key.startsWith("thermal_") && metric.key.endsWith(".max")) {
+            return metric.key.removeSuffix(".max") + "_max" to metric.value
+        }
+        // We have the .min aggregation only for legacy metric names (ThermalDerivedCalculator) - it's not used for
+        // vitals. This won't remove temp.cpu_0 etc if legacy metrics are enabled.
+        if (metric.key.startsWith("thermal_") && metric.key.endsWith(".min")) {
+            return null
+        }
+
         // Untouched
         return metric.toPair()
     }
+
+    private fun String.isNetworkMetric(): Boolean = CONNECTIVITY_REGEX.matches(this)
+
+    private val CONNECTIVITY_REGEX = Regex("connectivity_.*(sent|recv)_bytes\\.(latest|sum)")
 }

@@ -1,12 +1,20 @@
 package com.memfault.bort.uploader
 
+import android.content.Context
 import androidx.work.Data
+import androidx.work.ListenableWorker
+import androidx.work.WorkerFactory
+import androidx.work.WorkerParameters
+import androidx.work.testing.TestListenableWorkerBuilder
 import com.memfault.bort.FakeDeviceInfoProvider
+import com.memfault.bort.Task
 import com.memfault.bort.TaskRunnerWorker
+import com.memfault.bort.addWorkDelegateClass
 import com.memfault.bort.http.ProjectKeyInjectingInterceptor
 import com.memfault.bort.kotlinxJsonConverterFactory
+import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.settings.BortEnabledProvider
-import io.mockk.every
+import com.memfault.bort.settings.SettingsUpdateTask
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +22,6 @@ import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockWebServer
 import retrofit2.Retrofit
 import java.io.File
-import java.util.UUID
 
 const val UPLOAD_URL = "https://test.com/abc"
 const val AUTH_TOKEN = "auth_token"
@@ -33,9 +40,6 @@ const val SECRET_KEY = "secretKey"
 internal fun createUploader(server: MockWebServer) =
     PreparedUploader(
         createRetrofit(server).create(PreparedUploadService::class.java),
-        eventLogger = object : UploadEventLogger {
-            override fun log(vararg strings: String) {}
-        },
         deviceInfoProvider = FakeDeviceInfoProvider(),
     )
 
@@ -54,14 +58,60 @@ fun loadTestFileFromResources() = File(
     PreparedUploaderTest::class.java.getResource("/test.txt")!!.path,
 )
 
-fun mockTaskRunnerWorker(
+inline fun <reified K : Task<*>> mockTaskRunnerWorker(
+    context: Context,
+    workerFactory: WorkerFactory,
     inputData: Data,
     runAttemptCount: Int = 1,
-) = mockk<TaskRunnerWorker> {
-    every { getRunAttemptCount() } returns runAttemptCount
-    every { getInputData() } returns inputData
-    every { id } returns UUID.randomUUID()
-    every { tags } returns emptySet()
+): TaskRunnerWorker = TestListenableWorkerBuilder<TaskRunnerWorker>(
+    context = context,
+    inputData = addWorkDelegateClass(
+        checkNotNull(K::class.qualifiedName),
+        inputData,
+    ),
+    runAttemptCount = runAttemptCount,
+).apply { setWorkerFactory(workerFactory) }
+    .build()
+
+private class TestTaskRunnerWorker(
+    appContext: Context,
+    params: WorkerParameters,
+    private val overrideTask: Task<*>?,
+    settingsUpdate: SettingsUpdateTask? = null,
+    fileUpload: FileUploadTask? = null,
+) : TaskRunnerWorker(
+    appContext = appContext,
+    params = params,
+    fileUpload = { fileUpload },
+    dropBox = { error("Unimplemented") },
+    metrics = { error("Unimplemented") },
+    bugReportTimeout = { error("Unimplemented") },
+    logcat = { error("Unimplemented") },
+    settings = { settingsUpdate },
+    marBatching = { error("Unimplemented") },
+    bortJobReporter = mockk(relaxed = true),
+    builtInMetricsStore = BuiltinMetricsStore(),
+) {
+    override fun createTask(inputData: Data): Task<*>? =
+        overrideTask ?: super.createTask(inputData)
+}
+
+fun mockWorkerFactory(
+    overrideTask: Task<*>? = null,
+    settingsUpdate: SettingsUpdateTask? = null,
+    fileUpload: FileUploadTask? = null,
+): WorkerFactory = object : WorkerFactory() {
+    override fun createWorker(
+        appContext: Context,
+        workerClassName: String,
+        workerParameters: WorkerParameters,
+    ): ListenableWorker = TestTaskRunnerWorker(
+        appContext = appContext,
+        params = workerParameters,
+        overrideTask = overrideTask,
+        settingsUpdate = settingsUpdate,
+        fileUpload = fileUpload,
+    )
 }
 
 class BortEnabledTestProvider(

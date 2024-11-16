@@ -66,7 +66,6 @@ private fun generateDevConfig(
                    "battery_stats.data_source_enabled" : true,
                    "battery_stats.command_timeout_ms" : 60000,
                    "bort.min_log_level" : ${getDefaultProperty("MINIMUM_LOG_LEVEL")?.toInt() ?: 5},
-                   "bort.event_log_enabled": true,
                    "bort.settings_update_interval_ms" : 86400000,
                    "bug_report.collection_interval_ms" : 43200000,
                    "bug_report.data_source_enabled" : true,
@@ -81,10 +80,10 @@ private fun generateDevConfig(
                        "max_buckets": 1
                    },
                    "data_scrubbing.rules": [],
-                   "device_info.android_build_version_key" : "${getDefaultProperty("ANDROID_BUILD_VERSION_KEY") ?: "ro.build.date.utc"}",
+                   "device_info.android_build_version_key" : "${getDefaultProperty("ANDROID_BUILD_VERSION_KEY") ?: "ro.build.version.incremental"}",
                    "device_info.android_build_version_source" : "${getDefaultProperty("ANDROID_BUILD_VERSION_SOURCE") ?: "build_fingerprint_and_system_property"}",
                    "device_info.android_device_serial_key" : "${getDefaultProperty("ANDROID_DEVICE_SERIAL_KEY") ?: "ro.serialno"}",
-                   "device_info.android_hardware_version_key" : "${getDefaultProperty("ANDROID_HARDWARE_VERSION_KEY") ?: "ro.product.board"}",
+                   "device_info.android_hardware_version_key" : "${getDefaultProperty("ANDROID_HARDWARE_VERSION_KEY") ?: "ro.product.model"}",
                    "drop_box.anrs.rate_limiting_settings": {
                        "default_capacity": 10,
                        "default_period_ms": 900000,

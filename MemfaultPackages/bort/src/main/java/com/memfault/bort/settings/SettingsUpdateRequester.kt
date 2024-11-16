@@ -60,11 +60,9 @@ class SettingsUpdateRequester @Inject constructor(
         return !cachedClientServerMode.isClient()
     }
 
-    override suspend fun diagnostics(): BortWorkInfo {
-        return WorkManager.getInstance(application)
-            .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
-            .asBortWorkInfo("settings")
-    }
+    override suspend fun diagnostics(): BortWorkInfo = WorkManager.getInstance(application)
+        .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)
+        .asBortWorkInfo("settings")
 
     override suspend fun parametersChanged(
         old: SettingsProvider,

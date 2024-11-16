@@ -99,23 +99,21 @@ class RegexLineCleaner(
     private val groups: List<Pair<String, Int>>,
 ) : LineScrubbingCleaner {
     private val matcher: Regex by lazy { regex.toRegex() }
-    override fun clean(line: String): String {
-        return matcher.find(line)?.let {
-            val transformed = StringBuilder(line)
-            groups.fold(0) { adjustedPos, (groupName, groupIdx) ->
-                val replacement = "{{$groupName}}"
-                it.groups[groupIdx]?.let { match ->
-                    transformed.replace(
-                        match.range.first + adjustedPos,
-                        match.range.last + adjustedPos + 1,
-                        replacement,
-                    )
-                    adjustedPos - (match.range.last - match.range.first + 1) + replacement.length
-                } ?: adjustedPos
-            }
-            transformed.toString()
-        } ?: line
-    }
+    override fun clean(line: String): String = matcher.find(line)?.let {
+        val transformed = StringBuilder(line)
+        groups.fold(0) { adjustedPos, (groupName, groupIdx) ->
+            val replacement = "{{$groupName}}"
+            it.groups[groupIdx]?.let { match ->
+                transformed.replace(
+                    match.range.first + adjustedPos,
+                    match.range.last + adjustedPos + 1,
+                    replacement,
+                )
+                adjustedPos - (match.range.last - match.range.first + 1) + replacement.length
+            } ?: adjustedPos
+        }
+        transformed.toString()
+    } ?: line
 }
 
 @Serializable

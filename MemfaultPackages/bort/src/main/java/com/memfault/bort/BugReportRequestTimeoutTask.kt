@@ -6,7 +6,6 @@ import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import com.memfault.bort.metrics.BuiltinMetricsStore
 import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -19,20 +18,17 @@ private const val TIMEOUT_WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.BU
 class BugReportRequestTimeoutTask @Inject constructor(
     private val application: Application,
     private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
-    override val metrics: BuiltinMetricsStore,
-) : Task<String?>() {
-    override val getMaxAttempts: () -> Int = { 1 }
+) : Task<String?> {
+    override fun getMaxAttempts(input: String?) = 1
     override fun convertAndValidateInputData(inputData: Data): String? =
         inputData.getString(REQUEST_ID_INPUT_DATA_KEY)
 
-    override suspend fun doWork(worker: TaskRunnerWorker, input: String?): TaskResult = doWork(input)
-
-    fun doWork(requestId: String?) = TaskResult.SUCCESS.also {
+    override suspend fun doWork(input: String?): TaskResult = TaskResult.SUCCESS.also {
         pendingBugReportRequestAccessor.compareAndSwap(null) {
             if (it == null) {
                 false
             } else {
-                it.requestId == requestId
+                it.requestId == input
             }
         }.also { (_, request) ->
             request?.broadcastReply(

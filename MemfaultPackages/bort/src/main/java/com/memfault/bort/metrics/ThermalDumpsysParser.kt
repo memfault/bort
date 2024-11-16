@@ -100,8 +100,8 @@ class RealCollectThermalDumpsys @Inject constructor(
     private val processExecutor: ProcessExecutor,
 ) : CollectThermalDumpsys {
     override suspend fun invoke(): List<ThermalMetric> {
-        val thermalDump = processExecutor.execute(listOf("dumpsys", "thermalservice")) {
-            it.bufferedReader().use { it.readText() }
+        val thermalDump = processExecutor.execute(listOf("dumpsys", "thermalservice")) { inputStream ->
+            inputStream.bufferedReader().use { bufferedReader -> bufferedReader.readText() }
         }
         if (thermalDump == null) {
             Logger.w("thermal dumpsys is null")

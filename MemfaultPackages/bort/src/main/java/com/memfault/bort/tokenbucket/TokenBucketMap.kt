@@ -7,9 +7,8 @@ class TokenBucketMap(
     private val maxBuckets: Int,
     private val tokenBucketFactory: TokenBucketFactory,
 ) {
-    private var map = initialMap.mapValues {
-            // TokenBucket is mutable -- make copies of our own:
-            (_, bucket) ->
+    private var map = initialMap.mapValues { (_, bucket) ->
+        // TokenBucket is mutable -- make copies of our own:
         bucket.copy()
     }.toMutableMap()
 

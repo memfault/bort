@@ -4,7 +4,8 @@
     <application>
         <receiver
             android:name=".receivers.BortTestReceiver"
-            tools:ignore="ExportedReceiver">
+            tools:ignore="ExportedReceiver"
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.TEST_SETTING_SET_PROJECT_KEY" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

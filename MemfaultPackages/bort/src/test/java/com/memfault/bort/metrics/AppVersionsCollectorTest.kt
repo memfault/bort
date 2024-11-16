@@ -43,8 +43,6 @@ class AppVersionsCollectorTest {
             override val maxNumAppVersions: Int
                 get() = maxNumberAppVersions
             override val reporterCollectionInterval: Duration = ZERO
-            override val propertiesUseMetricService: Boolean
-                get() = true
             override val cachePackageManagerReport: Boolean
                 get() = true
             override val recordImei: Boolean
@@ -53,6 +51,10 @@ class AppVersionsCollectorTest {
                 get() = emptyList()
             override val pollingInterval: Duration
                 get() = 15.minutes
+            override val collectMemory: Boolean = true
+            override val thermalMetricsEnabled: Boolean get() = TODO("not used")
+            override val thermalCollectLegacyMetrics: Boolean get() = TODO("not used")
+            override val thermalCollectStatus: Boolean get() = TODO("not used")
         },
         packageManagerClient = pmClient,
     )
@@ -73,16 +75,19 @@ class AppVersionsCollectorTest {
                 name = "version.$ABC_ID",
                 value = ABC_VERSION,
                 internal = false,
+                timestamp = any(),
             )
             store.upsert(
                 name = "version.$BCD_ID",
                 value = BCD_VERSION,
                 internal = false,
+                timestamp = any(),
             )
             store.upsert(
                 name = "version.$BCE_ID",
                 value = BCE_VERSION,
                 internal = false,
+                timestamp = any(),
             )
         }
     }
@@ -106,7 +111,7 @@ class AppVersionsCollectorTest {
             ),
         )
         collector.collect()?.let { appVersions -> collector.record(appVersions, store) }
-        coVerify(exactly = 3) { store.upsert(any(), any<String>(), false) }
+        coVerify(exactly = 3) { store.upsert(any(), any<String>(), false, timestamp = any()) }
     }
 
     companion object {

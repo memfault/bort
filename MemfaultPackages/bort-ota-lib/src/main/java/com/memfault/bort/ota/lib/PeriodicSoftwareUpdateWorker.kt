@@ -9,7 +9,7 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.memfault.bort.DEV_MODE_DISABLED
+import com.memfault.bort.DevModeDisabled
 import com.memfault.bort.shared.JitterDelayProvider
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.NoOpJobReporter
@@ -54,7 +54,7 @@ class PeriodicSoftwareUpdateWorker @AssistedInject constructor(
                 setInitialDelay(
                     JitterDelayProvider(
                         jitterDelayConfiguration = { JitterDelayProvider.ApplyJitter.APPLY },
-                        devMode = DEV_MODE_DISABLED,
+                        devMode = DevModeDisabled,
                     ).randomJitterDelay().toJavaDuration(),
                 )
             }.build()

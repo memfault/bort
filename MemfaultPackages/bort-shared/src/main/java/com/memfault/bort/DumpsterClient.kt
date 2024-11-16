@@ -222,17 +222,15 @@ class DumpsterClient @Inject constructor(
         }
     }
 
-    suspend fun getChargeCycleCount(): Int? =
-        withService<Int?>(minimumVersion = IDumpster.VERSION_CYCLE_COUNT) {
-            return runBasicCommand(IDumpster.CMD_ID_CYCLE_COUNT)?.toIntOrNull()
+    suspend fun getProcStat(): String? =
+        withService<String?>(minimumVersion = IDumpster.VERSION_PROC_STAT) {
+            return runBasicCommand(IDumpster.CMD_ID_PROC_STAT)
         }
 
     /**
      * Gets the available version of the MemfaultDumpster service, or null if the service is not available.
      */
-    fun availableVersion(): Int? {
-        return getServiceSilently()?.version
-    }
+    fun availableVersion(): Int? = getServiceSilently()?.version
 
     companion object {
         /**

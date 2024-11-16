@@ -74,10 +74,6 @@ class TokenBucket(
                 "feeding $tag: prevCount=$count now=$now " +
                     "_periodStartElapsedRealtime=$_periodStartElapsedRealtime periods=$periods",
             )
-            Logger.logEvent(
-                "feeding $tag: prevCount=$count now=$now " +
-                    "_periodStartElapsedRealtime=$_periodStartElapsedRealtime periods=$periods",
-            )
         }
         if (periods < 1.0) {
             return

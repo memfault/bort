@@ -21,8 +21,8 @@ import com.memfault.bort.connectivity.ConnectivityState
 import com.memfault.bort.connectivity.ConnectivityState.BLUETOOTH
 import com.memfault.bort.connectivity.ConnectivityState.NONE
 import com.memfault.bort.connectivity.ConnectivityState.WIFI
-import com.memfault.bort.connectivity.ConnectivityTimeCalculator.CONNECTED_TIME_METRIC
-import com.memfault.bort.connectivity.ConnectivityTimeCalculator.EXPECTED_TIME_METRIC
+import com.memfault.bort.connectivity.ConnectivityTimeCalculator.Companion.CONNECTED_TIME_METRIC
+import com.memfault.bort.connectivity.ConnectivityTimeCalculator.Companion.EXPECTED_TIME_METRIC
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_CRASHES_METRIC_KEY
 import com.memfault.bort.metrics.custom.CustomMetrics
 import com.memfault.bort.metrics.custom.CustomReport
@@ -48,7 +48,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -68,16 +67,10 @@ private val Int.hoursMs: Long
 @Config(sdk = [26])
 class MetricsIntegrationTest {
 
-    private fun defaultSessionsMapOf(vararg keys: Pair<String, JsonPrimitive>): Map<String, JsonPrimitive> =
-        mapOf("operational_crashes" to JsonPrimitive(0.0)) +
-            mapOf(*keys)
-
-    @get:Rule(order = 0)
-    val tempFolder: TemporaryFolder = TemporaryFolder.builder().assureDeletion().build()
-
-    @get:Rule(order = 1)
-    val metricsDbTestEnvironment: MetricsDbTestEnvironment =
-        MetricsDbTestEnvironment(temporaryFolder = tempFolder)
+    @get:Rule
+    val metricsDbTestEnvironment = MetricsDbTestEnvironment().apply {
+        highResMetricsEnabledValue = true
+    }
 
     private val db: MetricsDb get() = metricsDbTestEnvironment.db
     private val dao: CustomMetrics get() = metricsDbTestEnvironment.dao
@@ -90,8 +83,6 @@ class MetricsIntegrationTest {
 
         assertThat(report.hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
             "test.sum" to JsonPrimitive(1.0),
-
-            OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
         )
 
         assertThat(db.dao().dump()).isEqualTo(DbDump())
@@ -106,16 +97,12 @@ class MetricsIntegrationTest {
 
         assertThat(report1.hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
             "carryover.latest" to JsonPrimitive("test"),
-
-            OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
         )
 
         val report2 = dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis())
 
         assertThat(report2.hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
             "carryover.latest" to JsonPrimitive("test"),
-
-            OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
         )
     }
 
@@ -131,8 +118,6 @@ class MetricsIntegrationTest {
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 1.hours.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "test.sum" to JsonPrimitive(1.0),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
             prop(CustomReport::dailyHeartbeatReport).isNull()
         }
@@ -143,8 +128,6 @@ class MetricsIntegrationTest {
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 24.hours.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "test.sum" to JsonPrimitive(1.0),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
             prop(CustomReport::dailyHeartbeatReport).isNotNull().all {
                 prop(MetricReport::startTimestampMs).isEqualTo(now)
@@ -153,8 +136,6 @@ class MetricsIntegrationTest {
                 prop(MetricReport::reportName).isNull()
                 prop(MetricReport::metrics).containsOnly(
                     "test.sum" to JsonPrimitive(2.0),
-
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                 )
                 prop(MetricReport::internalMetrics).isEmpty()
             }
@@ -194,8 +175,6 @@ class MetricsIntegrationTest {
                 "state_OFF.total_secs" to JsonPrimitive(7200L),
                 "state.latest" to JsonPrimitive("OFF"),
                 "prop.latest" to JsonPrimitive("carry"),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
             prop(CustomReport::dailyHeartbeatReport).isNull()
         }
@@ -218,8 +197,6 @@ class MetricsIntegrationTest {
                 "state_NONE.total_secs" to JsonPrimitive(10800L),
                 "state.latest" to JsonPrimitive("NONE"),
                 "prop.latest" to JsonPrimitive("carried"),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
             prop(CustomReport::dailyHeartbeatReport).isNull()
         }
@@ -241,8 +218,6 @@ class MetricsIntegrationTest {
                 "state_OFF.total_secs" to JsonPrimitive(10800L),
                 "state.latest" to JsonPrimitive("OFF"),
                 "prop.latest" to JsonPrimitive("carried"),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::dailyHeartbeatReport).isNotNull().all {
@@ -265,8 +240,6 @@ class MetricsIntegrationTest {
                     "state_ON.total_secs" to JsonPrimitive(7200L),
                     "state.latest" to JsonPrimitive("OFF"),
                     "prop.latest" to JsonPrimitive("carried"),
-
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                 )
                 prop(MetricReport::internalMetrics).isEmpty()
             }
@@ -289,8 +262,6 @@ class MetricsIntegrationTest {
                 "dist.min" to JsonPrimitive(0.0),
                 "dist.mean" to JsonPrimitive(50.0),
                 "dist.max" to JsonPrimitive(100.0),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
         }
     }
@@ -314,8 +285,6 @@ class MetricsIntegrationTest {
                     "dist_1.total_secs" to JsonPrimitive(1.hours.inWholeSeconds),
                     "dist_2.secs/hour" to JsonPrimitive(30.minutes.inWholeSeconds),
                     "dist_2.total_secs" to JsonPrimitive(1.hours.inWholeSeconds),
-
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                 )
             }
         }
@@ -341,7 +310,7 @@ class MetricsIntegrationTest {
         assertThat(report2.sessions).single().prop(MetricReport::startTimestampMs).isEqualTo(0)
         assertThat(report2.sessions).single().prop(MetricReport::endTimestampMs).isEqualTo(2)
         assertThat(report2.sessions).single().prop(MetricReport::metrics).isEqualTo(
-            defaultSessionsMapOf("test.sum" to JsonPrimitive(1.0)),
+            mapOf("test.sum" to JsonPrimitive(1.0)),
         )
 
         assertThat(db.dao().dump()).isEqualTo(DbDump())
@@ -360,7 +329,7 @@ class MetricsIntegrationTest {
         assertThat(report1.sessions).single().prop(MetricReport::startTimestampMs).isEqualTo(0)
         assertThat(report1.sessions).single().prop(MetricReport::endTimestampMs).isEqualTo(1)
         assertThat(report1.sessions).single().prop(MetricReport::metrics).isEqualTo(
-            defaultSessionsMapOf(),
+            mapOf(),
         )
         assertThat(report1.sessions).single().prop(MetricReport::internalMetrics).isEmpty()
     }
@@ -369,9 +338,9 @@ class MetricsIntegrationTest {
     fun `happy path with session`() = runTest {
         val now = System.currentTimeMillis()
 
-        Reporting.withSession("session-1") { session ->
-            session.counter("test", sumInReport = true).increment()
-        }
+        Reporting.startSession("session-1")
+        Reporting.session("session-1").counter("test", sumInReport = true).increment()
+        Reporting.finishSession("session-1")
 
         val report1 = dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis())
 
@@ -381,7 +350,7 @@ class MetricsIntegrationTest {
         assertThat(report1.sessions).single().prop(MetricReport::startTimestampMs).isGreaterThanOrEqualTo(now)
         assertThat(report1.sessions).single().prop(MetricReport::endTimestampMs).isLessThan(System.currentTimeMillis())
         assertThat(report1.sessions).single().prop(MetricReport::metrics).isEqualTo(
-            defaultSessionsMapOf("test.sum" to JsonPrimitive(1.0)),
+            mapOf("test.sum" to JsonPrimitive(1.0)),
         )
     }
 
@@ -413,7 +382,7 @@ class MetricsIntegrationTest {
         assertThat(report1.sessions).single().prop(MetricReport::startTimestampMs).isEqualTo(0)
         assertThat(report1.sessions).single().prop(MetricReport::endTimestampMs).isEqualTo(2)
         assertThat(report1.sessions).single().prop(MetricReport::metrics).isEqualTo(
-            defaultSessionsMapOf(),
+            mapOf(),
         )
         assertThat(report1.sessions).single().prop(MetricReport::internalMetrics).isEmpty()
     }
@@ -429,7 +398,7 @@ class MetricsIntegrationTest {
             assertThat(sessions).single().prop(MetricReport::startTimestampMs).isEqualTo(0)
             assertThat(sessions).single().prop(MetricReport::endTimestampMs).isEqualTo(2)
             assertThat(sessions).single().prop(MetricReport::metrics).isEqualTo(
-                defaultSessionsMapOf("carryover.latest" to JsonPrimitive("test")),
+                mapOf("carryover.latest" to JsonPrimitive("test")),
             )
         }
 
@@ -449,7 +418,7 @@ class MetricsIntegrationTest {
             assertThat(sessions).single().prop(MetricReport::startTimestampMs).isEqualTo(0)
             assertThat(sessions).single().prop(MetricReport::endTimestampMs).isEqualTo(1)
             assertThat(sessions).single().prop(MetricReport::metrics).isEqualTo(
-                defaultSessionsMapOf("carryover.latest" to JsonPrimitive("test")),
+                mapOf("carryover.latest" to JsonPrimitive("test")),
             )
         }
 
@@ -471,7 +440,6 @@ class MetricsIntegrationTest {
             assertThat(sessions).single().prop(MetricReport::startTimestampMs).isEqualTo(0)
             assertThat(sessions).single().prop(MetricReport::endTimestampMs).isEqualTo(0)
             assertThat(sessions).single().prop(MetricReport::metrics).containsOnly(
-                "operational_crashes" to JsonPrimitive(0.0),
                 "state.latest" to JsonPrimitive("1"),
                 "state_1.total_secs" to JsonPrimitive(0L),
                 "state_1.secs/hour" to JsonPrimitive(0L),
@@ -504,7 +472,7 @@ class MetricsIntegrationTest {
             assertThat(sessions).index(0).prop(MetricReport::startTimestampMs).isEqualTo(0)
             assertThat(sessions).index(0).prop(MetricReport::endTimestampMs).isEqualTo(1)
             assertThat(sessions).index(0).prop(MetricReport::metrics).isEqualTo(
-                defaultSessionsMapOf(
+                mapOf(
                     "carryover.latest" to JsonPrimitive("a"),
                 ),
             )
@@ -513,7 +481,7 @@ class MetricsIntegrationTest {
             assertThat(sessions).index(1).prop(MetricReport::startTimestampMs).isEqualTo(1)
             assertThat(sessions).index(1).prop(MetricReport::endTimestampMs).isEqualTo(2)
             assertThat(sessions).index(1).prop(MetricReport::metrics).isEqualTo(
-                defaultSessionsMapOf(
+                mapOf(
                     "carryover.latest" to JsonPrimitive("b"),
                 ),
             )
@@ -541,7 +509,7 @@ class MetricsIntegrationTest {
             assertThat(sessions).index(0).prop(MetricReport::startTimestampMs).isEqualTo(0)
             assertThat(sessions).index(0).prop(MetricReport::endTimestampMs).isEqualTo(1)
             assertThat(sessions).index(0).prop(MetricReport::metrics).isEqualTo(
-                defaultSessionsMapOf(
+                mapOf(
                     "dist.latest" to JsonPrimitive(5.0),
                     "dist.sum" to JsonPrimitive(5.0),
                     "dist.count" to JsonPrimitive(1),
@@ -555,7 +523,7 @@ class MetricsIntegrationTest {
             assertThat(sessions).index(1).prop(MetricReport::startTimestampMs).isEqualTo(2)
             assertThat(sessions).index(1).prop(MetricReport::endTimestampMs).isEqualTo(4)
             assertThat(sessions).index(1).prop(MetricReport::metrics).isEqualTo(
-                defaultSessionsMapOf(
+                mapOf(
                     "dist.latest" to JsonPrimitive(20.0),
                     "dist.sum" to JsonPrimitive(30.0),
                     "dist.count" to JsonPrimitive(2),
@@ -579,8 +547,6 @@ class MetricsIntegrationTest {
                 prop(MetricReport::metrics).containsOnly(
                     "bool_1.total_secs" to JsonPrimitive(0),
                     "bool_1.secs/hour" to JsonPrimitive(3600),
-
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                 )
             }
         }
@@ -593,8 +559,6 @@ class MetricsIntegrationTest {
                 prop(MetricReport::metrics).containsOnly(
                     "bool_1.total_secs" to JsonPrimitive(3.minutes.inWholeSeconds - 1),
                     "bool_1.secs/hour" to JsonPrimitive(3600),
-
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                 )
             }
         }
@@ -607,8 +571,6 @@ class MetricsIntegrationTest {
                 prop(MetricReport::metrics).containsOnly(
                     "bool_1.total_secs" to JsonPrimitive(2.hours.inWholeSeconds),
                     "bool_1.secs/hour" to JsonPrimitive(3600),
-
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                 )
             }
         }
@@ -627,8 +589,6 @@ class MetricsIntegrationTest {
                 prop(MetricReport::metrics).containsOnly(
                     "bool_1.total_secs" to JsonPrimitive(3600),
                     "bool_1.secs/hour" to JsonPrimitive(3600),
-
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                 )
             }
         }
@@ -645,8 +605,6 @@ class MetricsIntegrationTest {
                     "bool_0.total_secs" to JsonPrimitive(895),
                     "bool_1.secs/hour" to JsonPrimitive(20),
                     "bool_0.secs/hour" to JsonPrimitive(3580),
-
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                 )
             }
         }
@@ -669,7 +627,7 @@ class MetricsIntegrationTest {
             assertThat(sessions).single().prop(MetricReport::endTimestampMs).isEqualTo(reportEndMs)
 
             assertThat(sessions).single().prop(MetricReport::metrics).isEqualTo(
-                defaultSessionsMapOf(
+                mapOf(
                     "sync_successful" to JsonPrimitive(1.0),
                 ),
             )
@@ -678,26 +636,28 @@ class MetricsIntegrationTest {
 
     @Test
     fun `add operational_crashes to all reports`() = runTest {
-        Reporting.report().event("event", latestInReport = true).add("test")
-        Reporting.startSession("session-1")
-        Reporting.startSession("session-2")
+        metricsDbTestEnvironment.excludeEverPresentMetrics = false
+
+        Reporting.report().event("event", latestInReport = true).add("test", timestamp = 1)
+        Reporting.startSession("session-1", timestampMs = 2)
+        Reporting.startSession("session-2", timestampMs = 3)
 
         val stringProperty = Reporting.session("session-2").stringProperty("string")
-        stringProperty.update("test-string")
+        stringProperty.update("test-string", timestamp = 4)
         val numberProperty = Reporting.session("session-2").numberProperty("number")
-        numberProperty.update(2L)
+        numberProperty.update(2L, timestamp = 5)
 
-        Reporting.startSession("session-3")
+        Reporting.startSession("session-3", timestampMs = 6)
         Reporting.session("session-3")
             .boolStateTracker("bool", aggregations = listOf(StateAgg.LATEST_VALUE))
-            .state(true)
-        Reporting.finishSession("session-3")
+            .state(true, timestamp = 7)
+        Reporting.finishSession("session-3", timestampMs = 8)
 
         Reporting.report()
             .counter(name = OPERATIONAL_CRASHES_METRIC_KEY)
-            .increment()
+            .increment(timestamp = 9)
 
-        dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis()).apply {
+        dao.collectHeartbeat(endTimestampMs = 10).apply {
             assertThat(hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "event.latest" to JsonPrimitive("test"),
 
@@ -708,7 +668,8 @@ class MetricsIntegrationTest {
 
             assertThat(sessions).single().prop(MetricReport::reportName).isEqualTo("session-3")
             assertThat(sessions).single().prop(MetricReport::metrics).isEqualTo(
-                defaultSessionsMapOf(
+                mapOf(
+                    "operational_crashes" to JsonPrimitive(0.0),
                     "bool.latest" to JsonPrimitive("1"),
                 ),
             )
@@ -716,12 +677,12 @@ class MetricsIntegrationTest {
 
         Reporting.report()
             .counter(name = OPERATIONAL_CRASHES_METRIC_KEY)
-            .incrementBy(3)
+            .incrementBy(3, timestamp = 11)
 
-        Reporting.finishSession("session-1")
-        Reporting.finishSession("session-2")
+        Reporting.finishSession("session-1", timestampMs = 12)
+        Reporting.finishSession("session-2", timestampMs = 13)
 
-        dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis()).apply {
+        dao.collectHeartbeat(endTimestampMs = 14).apply {
             assertThat(hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(3.0),
             )
@@ -730,13 +691,13 @@ class MetricsIntegrationTest {
 
             assertThat(sessions).index(0).prop(MetricReport::reportName).isEqualTo("session-1")
             assertThat(sessions).index(0).prop(MetricReport::metrics).isEqualTo(
-                defaultSessionsMapOf("operational_crashes" to JsonPrimitive(4.0)),
+                mapOf(OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(4.0)),
             )
 
             assertThat(sessions).index(1).prop(MetricReport::reportName).isEqualTo("session-2")
             assertThat(sessions).index(1).prop(MetricReport::metrics).isEqualTo(
-                defaultSessionsMapOf(
-                    "operational_crashes" to JsonPrimitive(4.0),
+                mapOf(
+                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(4.0),
                     "string.latest" to JsonPrimitive("test-string"),
                     "number.latest" to JsonPrimitive(2.0),
                 ),
@@ -746,42 +707,40 @@ class MetricsIntegrationTest {
 
     @Test
     fun `add sync and sync_memfault to all sessions`() = runTest {
-        Reporting.report().stringStateTracker("stringState").state("that")
-        Reporting.startSession("session-1")
-        Reporting.startSession("session-2")
+        Reporting.report().stringStateTracker("stringState").state("that", timestamp = 1)
+        Reporting.startSession("session-1", timestampMs = 2)
+        Reporting.startSession("session-2", timestampMs = 3)
 
         val memfaultSof = Reporting.report().successOrFailure("sync_memfault")
-        memfaultSof.success()
-        memfaultSof.success()
-        memfaultSof.failure()
+        memfaultSof.success(timestamp = 4)
+        memfaultSof.success(timestamp = 5)
+        memfaultSof.failure(timestamp = 6)
         val sof = Reporting.report().sync()
-        sof.failure()
-        sof.failure()
+        sof.failure(timestamp = 7)
+        sof.failure(timestamp = 8)
 
-        Reporting.session("session-2").sync().success()
-        Reporting.session("session-2").sync().failure()
+        Reporting.session("session-2").sync().success(timestamp = 9)
+        Reporting.session("session-2").sync().failure(timestamp = 10)
 
-        Reporting.finishSession("session-1")
-        Reporting.finishSession("session-2")
+        Reporting.finishSession("session-1", timestampMs = 11)
+        Reporting.finishSession("session-2", timestampMs = 12)
 
-        memfaultSof.failure()
-        sof.success()
+        memfaultSof.failure(timestamp = 13)
+        sof.success(timestamp = 14)
 
-        dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis()).apply {
+        dao.collectHeartbeat(endTimestampMs = 15).apply {
             assertThat(hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "sync_memfault_successful" to JsonPrimitive(2.0),
                 "sync_memfault_failure" to JsonPrimitive(2.0),
                 "sync_failure" to JsonPrimitive(2.0),
                 "sync_successful" to JsonPrimitive(1.0),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             assertThat(sessions).hasSize(2)
 
             assertThat(sessions).index(0).prop(MetricReport::reportName).isEqualTo("session-1")
             assertThat(sessions).index(0).prop(MetricReport::metrics).isEqualTo(
-                defaultSessionsMapOf(
+                mapOf(
                     "sync_memfault_successful" to JsonPrimitive(2.0),
                     "sync_memfault_failure" to JsonPrimitive(1.0),
                     "sync_failure" to JsonPrimitive(2.0),
@@ -790,7 +749,7 @@ class MetricsIntegrationTest {
 
             assertThat(sessions).index(1).prop(MetricReport::reportName).isEqualTo("session-2")
             assertThat(sessions).index(1).prop(MetricReport::metrics).isEqualTo(
-                defaultSessionsMapOf(
+                mapOf(
                     "sync_memfault_successful" to JsonPrimitive(2.0),
                     "sync_memfault_failure" to JsonPrimitive(1.0),
                     "sync_failure" to JsonPrimitive(3.0),
@@ -818,8 +777,6 @@ class MetricsIntegrationTest {
                 EXPECTED_TIME_METRIC to JsonPrimitive(2_000.0),
                 "connectivity.type_NONE.secs/hour" to JsonPrimitive(3600),
                 "connectivity.type_NONE.total_secs" to JsonPrimitive(2),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::sessions).isEmpty()
@@ -837,8 +794,6 @@ class MetricsIntegrationTest {
                 "connectivity.type_NONE.total_secs" to JsonPrimitive(8),
                 "connectivity.type_BLUETOOTH.secs/hour" to JsonPrimitive(720),
                 "connectivity.type_BLUETOOTH.total_secs" to JsonPrimitive(2),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::sessions).isEmpty()
@@ -856,14 +811,11 @@ class MetricsIntegrationTest {
                 "connectivity.type_BLUETOOTH.total_secs" to JsonPrimitive(2),
                 "connectivity.type_WIFI.secs/hour" to JsonPrimitive(3150),
                 "connectivity.type_WIFI.total_secs" to JsonPrimitive(14),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::sessions).single().prop(MetricReport::metrics).containsOnly(
                 CONNECTED_TIME_METRIC to JsonPrimitive(6_000.0),
                 EXPECTED_TIME_METRIC to JsonPrimitive(12_000.0),
-                "operational_crashes" to JsonPrimitive(0.0),
 
                 // Calculations
                 // "connectivity.type_NONE.secs/hour" to JsonPrimitive(1800),
@@ -888,6 +840,7 @@ class MetricsIntegrationTest {
             application = mockk(),
             absoluteTimeProvider = absoluteTimeProvider,
             batteryManager = mockk(),
+            defaultCoroutineContext = testScheduler,
         )
 
         batterySessionVitals.record(isCharging = false, level = 80.0, now)
@@ -910,8 +863,6 @@ class MetricsIntegrationTest {
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 30.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "sync_successful" to JsonPrimitive(1.0),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::sessions).hasSize(2)
@@ -919,7 +870,6 @@ class MetricsIntegrationTest {
             prop(CustomReport::sessions).index(0).all {
                 prop(MetricReport::reportName).isEqualTo("session-2")
                 prop(MetricReport::metrics).containsOnly(
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                     BATTERY_SOC_DROP_METRIC to JsonPrimitive(0.0),
                     BATTERY_DISCHARGE_DURATION_METRIC to JsonPrimitive(10_000.0),
                 )
@@ -928,7 +878,6 @@ class MetricsIntegrationTest {
             prop(CustomReport::sessions).index(1).all {
                 prop(MetricReport::reportName).isEqualTo("session-2")
                 prop(MetricReport::metrics).containsOnly(
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                     BATTERY_SOC_DROP_METRIC to JsonPrimitive(30.0),
                     BATTERY_DISCHARGE_DURATION_METRIC to JsonPrimitive(4_000.0),
                 )
@@ -946,8 +895,6 @@ class MetricsIntegrationTest {
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 60.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "sync_successful" to JsonPrimitive(1.0),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::sessions).hasSize(2)
@@ -957,7 +904,6 @@ class MetricsIntegrationTest {
                 prop(MetricReport::startTimestampMs).isEqualTo(now)
                 prop(MetricReport::endTimestampMs).isEqualTo(now + 60.seconds.inWholeMilliseconds)
                 prop(MetricReport::metrics).containsOnly(
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                     BATTERY_SOC_DROP_METRIC to JsonPrimitive(40.0),
                     BATTERY_DISCHARGE_DURATION_METRIC to JsonPrimitive(40_000.0),
                     "sync_successful" to JsonPrimitive(1.0),
@@ -969,7 +915,6 @@ class MetricsIntegrationTest {
                 prop(MetricReport::startTimestampMs).isEqualTo(now + 30.seconds.inWholeMilliseconds)
                 prop(MetricReport::endTimestampMs).isEqualTo(now + 60.seconds.inWholeMilliseconds)
                 prop(MetricReport::metrics).containsOnly(
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                     BATTERY_SOC_DROP_METRIC to JsonPrimitive(0.0),
                     BATTERY_DISCHARGE_DURATION_METRIC to JsonPrimitive(10_000.0),
                     "sync_successful" to JsonPrimitive(1.0),
@@ -986,6 +931,7 @@ class MetricsIntegrationTest {
             application = mockk(),
             absoluteTimeProvider = absoluteTimeProvider,
             batteryManager = mockk(),
+            defaultCoroutineContext = testScheduler,
         )
 
         batterySessionVitals.record(isCharging = false, level = 50.0, now)
@@ -1015,8 +961,6 @@ class MetricsIntegrationTest {
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 60.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "sync_successful" to JsonPrimitive(1.0),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::sessions).single().all {
@@ -1024,7 +968,6 @@ class MetricsIntegrationTest {
                 prop(MetricReport::startTimestampMs).isEqualTo(now)
                 prop(MetricReport::endTimestampMs).isEqualTo(now + 60.seconds.inWholeMilliseconds)
                 prop(MetricReport::metrics).containsOnly(
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                     BATTERY_SOC_DROP_METRIC to JsonPrimitive(40.0),
                     BATTERY_DISCHARGE_DURATION_METRIC to JsonPrimitive(50_000.0),
                 )
@@ -1040,6 +983,7 @@ class MetricsIntegrationTest {
             application = mockk(),
             absoluteTimeProvider = absoluteTimeProvider,
             batteryManager = mockk(),
+            defaultCoroutineContext = testScheduler,
         )
 
         batterySessionVitals.record(isCharging = true, level = 50.0, now)
@@ -1054,17 +998,13 @@ class MetricsIntegrationTest {
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 60.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "sync_successful" to JsonPrimitive(1.0),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::sessions).single().all {
                 prop(MetricReport::reportName).isEqualTo("session")
                 prop(MetricReport::startTimestampMs).isEqualTo(now)
                 prop(MetricReport::endTimestampMs).isEqualTo(now + 60.seconds.inWholeMilliseconds)
-                prop(MetricReport::metrics).containsOnly(
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
-                )
+                prop(MetricReport::metrics).isEmpty()
             }
         }
     }
@@ -1077,6 +1017,7 @@ class MetricsIntegrationTest {
             application = mockk(),
             absoluteTimeProvider = absoluteTimeProvider,
             batteryManager = mockk(),
+            defaultCoroutineContext = testScheduler,
         )
 
         batterySessionVitals.record(isCharging = true, level = 50.0, now)
@@ -1092,17 +1033,13 @@ class MetricsIntegrationTest {
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 60.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "sync_successful" to JsonPrimitive(1.0),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::sessions).single().all {
                 prop(MetricReport::reportName).isEqualTo("session")
                 prop(MetricReport::startTimestampMs).isEqualTo(now)
                 prop(MetricReport::endTimestampMs).isEqualTo(now + 60.seconds.inWholeMilliseconds)
-                prop(MetricReport::metrics).containsOnly(
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
-                )
+                prop(MetricReport::metrics).isEmpty()
             }
         }
     }
@@ -1115,6 +1052,7 @@ class MetricsIntegrationTest {
             application = mockk(),
             absoluteTimeProvider = absoluteTimeProvider,
             batteryManager = mockk(),
+            defaultCoroutineContext = testScheduler,
         )
 
         batterySessionVitals.record(isCharging = true, level = 50.0, now)
@@ -1135,8 +1073,6 @@ class MetricsIntegrationTest {
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 60.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "sync_successful" to JsonPrimitive(1.0),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::sessions).single().all {
@@ -1144,7 +1080,6 @@ class MetricsIntegrationTest {
                 prop(MetricReport::startTimestampMs).isEqualTo(now)
                 prop(MetricReport::endTimestampMs).isEqualTo(now + 60.seconds.inWholeMilliseconds)
                 prop(MetricReport::metrics).containsOnly(
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                     BATTERY_SOC_DROP_METRIC to JsonPrimitive(35.0),
                     BATTERY_DISCHARGE_DURATION_METRIC to JsonPrimitive(40_000.0),
                 )
@@ -1162,8 +1097,6 @@ class MetricsIntegrationTest {
         assertThat(dao.collectHeartbeat(endTimestampMs = now)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_on.total_secs" to JsonPrimitive(60),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
         }
 
@@ -1174,8 +1107,6 @@ class MetricsIntegrationTest {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_off.total_secs" to JsonPrimitive(25),
                 "state_on.total_secs" to JsonPrimitive(5),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
         }
     }
@@ -1188,6 +1119,7 @@ class MetricsIntegrationTest {
             application = mockk(),
             absoluteTimeProvider = absoluteTimeProvider,
             batteryManager = mockk(),
+            defaultCoroutineContext = testScheduler,
         )
 
         batterySessionVitals.record(isCharging = false, level = 50.0, now - 60.seconds.inWholeMilliseconds)
@@ -1198,8 +1130,6 @@ class MetricsIntegrationTest {
         assertThat(dao.collectHeartbeat(endTimestampMs = now)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "sync_successful" to JsonPrimitive(1.0),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::sessions).isEmpty()
@@ -1219,8 +1149,6 @@ class MetricsIntegrationTest {
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 60.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "sync_successful" to JsonPrimitive(1.0),
-
-                OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
             )
 
             prop(CustomReport::sessions).single().all {
@@ -1229,11 +1157,97 @@ class MetricsIntegrationTest {
                 prop(MetricReport::endTimestampMs).isEqualTo(now + 30.seconds.inWholeMilliseconds)
                 prop(MetricReport::metrics).containsOnly(
                     "sync_successful" to JsonPrimitive(1.0),
-                    OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(0.0),
                     BATTERY_SOC_DROP_METRIC to JsonPrimitive(0.0),
                     BATTERY_DISCHARGE_DURATION_METRIC to JsonPrimitive(30.seconds.inWholeMilliseconds.toDouble()),
                 )
             }
+        }
+    }
+
+    @Test
+    fun `Thermal aggregations`() = runTest {
+        val cpu1 = Reporting.report().distribution("thermal_cpu_CPU1_c", listOf(MIN, MAX, MEAN))
+        cpu1.record(3.5)
+        cpu1.record(5.0)
+        val cpu2 = Reporting.report().distribution("thermal_cpu_xxx_c", listOf(MIN, MAX, MEAN))
+        cpu2.record(9.0)
+        cpu2.record(1.0)
+        val battery = Reporting.report().distribution("thermal_battery_bat0_c", listOf(MIN, MAX, MEAN))
+        battery.record(1.0)
+        battery.record(2.0)
+        battery.record(4.5)
+
+        assertThat(dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis())).all {
+            prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
+                // Per-sensor
+                "thermal_cpu_CPU1_c" to JsonPrimitive(4.25),
+                "thermal_cpu_CPU1_c_max" to JsonPrimitive(5.0),
+                "thermal_cpu_xxx_c" to JsonPrimitive(5.0),
+                "thermal_cpu_xxx_c_max" to JsonPrimitive(9.0),
+                "thermal_battery_bat0_c" to JsonPrimitive(2.5),
+                "thermal_battery_bat0_c_max" to JsonPrimitive(4.5),
+                // CPU averages
+                "thermal_cpu_c" to JsonPrimitive(4.625),
+                "thermal_cpu_c_max" to JsonPrimitive(9.0),
+                // Battery averages
+                "thermal_battery_c" to JsonPrimitive(2.5),
+                "thermal_battery_c_max" to JsonPrimitive(4.5),
+                // Note that .min aggregations have been removed
+            )
+        }
+    }
+
+    @Test
+    fun `Thermal aggregations with legacy metrics`() = runTest {
+        metricsDbTestEnvironment.thermalCollectLegacyMetricsValue = true
+
+        val cpu1 = Reporting.report().distribution("thermal_cpu_CPU1_c", listOf(MIN, MAX, MEAN))
+        cpu1.record(3.5)
+        cpu1.record(5.0)
+        val cpu2 = Reporting.report().distribution("thermal_cpu_xxx_c", listOf(MIN, MAX, MEAN))
+        cpu2.record(9.0)
+        cpu2.record(1.0)
+        val battery = Reporting.report().distribution("thermal_battery_bat0_c", listOf(MIN, MAX, MEAN))
+        battery.record(1.0)
+        battery.record(2.0)
+        battery.record(4.5)
+
+        assertThat(dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis())).all {
+            prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
+                // Per-sensor
+                "thermal_cpu_CPU1_c" to JsonPrimitive(4.25),
+                "thermal_cpu_CPU1_c_max" to JsonPrimitive(5.0),
+                "thermal_cpu_xxx_c" to JsonPrimitive(5.0),
+                "thermal_cpu_xxx_c_max" to JsonPrimitive(9.0),
+                "thermal_battery_bat0_c" to JsonPrimitive(2.5),
+                "thermal_battery_bat0_c_max" to JsonPrimitive(4.5),
+                // CPU averages
+                "thermal_cpu_c" to JsonPrimitive(4.625),
+                "thermal_cpu_c_max" to JsonPrimitive(9.0),
+                // Battery averages
+                "thermal_battery_c" to JsonPrimitive(2.5),
+                "thermal_battery_c_max" to JsonPrimitive(4.5),
+                // Note that .min aggregations have been removed for new metrics, but are still here for legacy metrics
+                "temp.cpu_0.min" to JsonPrimitive(3.5),
+                "temp.cpu_0.mean" to JsonPrimitive(4.25),
+                "temp.cpu_0.max" to JsonPrimitive(5.0),
+                "temp.cpu_1.min" to JsonPrimitive(1.0),
+                "temp.cpu_1.mean" to JsonPrimitive(5.0),
+                "temp.cpu_1.max" to JsonPrimitive(9.0),
+            )
+        }
+    }
+
+    @Test
+    fun `Internal metrics renamed correctly`() = runTest {
+        val internalMetric =
+            Reporting.report().stringProperty("internal_metric", addLatestToReport = true, internal = true)
+        internalMetric.update("test value")
+
+        assertThat(dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis())).all {
+            prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::internalMetrics).containsOnly(
+                "internal_metric" to JsonPrimitive("test value"),
+            )
         }
     }
 }

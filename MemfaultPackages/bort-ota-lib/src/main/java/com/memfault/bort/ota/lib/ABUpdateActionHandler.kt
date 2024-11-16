@@ -6,6 +6,7 @@ import android.os.PowerManager
 import android.os.UpdateEngine
 import android.os.UpdateEngineCallback
 import android.util.Log
+import com.memfault.bort.Default
 import com.memfault.bort.shared.BortSharedJson
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.shared.Logger
@@ -13,10 +14,10 @@ import com.memfault.bort.shared.PreferenceKeyProvider
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.CoroutineContext
 
 fun interface RebootDevice : () -> Unit
 
@@ -41,12 +42,13 @@ class ABUpdateActionHandler @Inject constructor(
     private val otaRulesProvider: OtaRulesProvider,
     private val softwareUpdateChecker: SoftwareUpdateChecker,
     private val settingsProvider: SoftwareUpdateSettingsProvider,
+    @Default private val defaultCoroutineContext: CoroutineContext,
 ) : UpdateActionHandler {
     override fun initialize() {
         androidUpdateEngine.bind(object : AndroidUpdateEngineCallback {
             override fun onStatusUpdate(status: Int, percent: Float) {
                 Logger.d("onStatusUpdate: status=$status percent=$percent")
-                CoroutineScope(Dispatchers.Default).launch {
+                CoroutineScope(defaultCoroutineContext).launch {
                     when (status) {
                         UPDATE_ENGINE_STATUS_DOWNLOADING -> {
                             val cachedOta = cachedOtaProvider.get()
@@ -101,7 +103,7 @@ class ABUpdateActionHandler @Inject constructor(
 
             override fun onPayloadApplicationComplete(errorCode: Int) {
                 Logger.d("onPayloadApplicationComplete: errorCode=$errorCode")
-                CoroutineScope(Dispatchers.Default).launch {
+                CoroutineScope(defaultCoroutineContext).launch {
                     when (errorCode) {
                         UPDATE_ENGINE_ERROR_SUCCESS -> {}
                         UPDATE_ENGINE_ERROR_DOWNLOAD_TRANSFER_ERROR ->

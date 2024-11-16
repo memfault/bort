@@ -18,6 +18,7 @@ import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
 import java.time.Instant
 import javax.inject.Inject
+import kotlin.math.roundToLong
 import kotlin.time.toJavaDuration
 
 interface NetworkStatsCollector {
@@ -43,13 +44,13 @@ interface NetworkStatsCollector {
 }
 
 data class NetworkStatsUsage(
-    val rxKB: Long,
-    val txKB: Long,
+    val rxBytes: Long,
+    val txBytes: Long,
 ) {
     companion object {
         fun sum(vararg usages: NetworkStatsUsage?): NetworkStatsUsage = NetworkStatsUsage(
-            rxKB = usages.sumOf { it?.rxKB ?: 0L },
-            txKB = usages.sumOf { it?.txKB ?: 0L },
+            rxBytes = usages.sumOf { it?.rxBytes ?: 0L },
+            txBytes = usages.sumOf { it?.txBytes ?: 0L },
         )
     }
 }
@@ -181,6 +182,13 @@ class RealNetworkStatsCollector
         )
     }
 
+    private fun maybeCollectLegacyMetric(metric: () -> String): String? =
+        if (networkUsageSettings.collectLegacyMetrics) {
+            metric()
+        } else {
+            null
+        }
+
     override suspend fun record(
         collectionTime: CombinedTime,
         networkStatsResult: NetworkStatsResult,
@@ -192,6 +200,8 @@ class RealNetworkStatsCollector
             outMetric = TOTAL_ETHERNET_OUT_METRIC,
             usage = networkStatsResult.ethernetUsage,
             queryEndTime = queryEndTime,
+            legacyInMetric = maybeCollectLegacyMetric { TOTAL_ETHERNET_IN_METRIC_LEGACY },
+            legacyOutMetric = maybeCollectLegacyMetric { TOTAL_ETHERNET_OUT_METRIC_LEGACY },
         )
 
         recordTotalUsageMetric(
@@ -199,6 +209,8 @@ class RealNetworkStatsCollector
             outMetric = TOTAL_MOBILE_OUT_METRIC,
             usage = networkStatsResult.mobileUsage,
             queryEndTime = queryEndTime,
+            legacyInMetric = maybeCollectLegacyMetric { TOTAL_MOBILE_IN_METRIC_LEGACY },
+            legacyOutMetric = maybeCollectLegacyMetric { TOTAL_MOBILE_OUT_METRIC_LEGACY },
         )
 
         recordTotalUsageMetric(
@@ -206,6 +218,8 @@ class RealNetworkStatsCollector
             outMetric = TOTAL_WIFI_OUT_METRIC,
             usage = networkStatsResult.wifiUsage,
             queryEndTime = queryEndTime,
+            legacyInMetric = maybeCollectLegacyMetric { TOTAL_WIFI_IN_METRIC_LEGACY },
+            legacyOutMetric = maybeCollectLegacyMetric { TOTAL_WIFI_OUT_METRIC_LEGACY },
         )
 
         recordTotalUsageMetric(
@@ -213,14 +227,18 @@ class RealNetworkStatsCollector
             outMetric = TOTAL_BLUETOOTH_OUT_METRIC,
             usage = networkStatsResult.bluetoothUsage,
             queryEndTime = queryEndTime,
+            legacyInMetric = maybeCollectLegacyMetric { TOTAL_BLUETOOTH_IN_METRIC_LEGACY },
+            legacyOutMetric = maybeCollectLegacyMetric { TOTAL_BLUETOOTH_OUT_METRIC_LEGACY },
         )
 
         recordTotalUsageMetric(
             inMetric = TOTAL_ALL_IN_METRIC,
             outMetric = TOTAL_ALL_OUT_METRIC,
-            rxKB = networkStatsResult.totalUsages.map { it?.rxKB }.sumOf { it ?: 0L },
-            txKB = networkStatsResult.totalUsages.map { it?.txKB }.sumOf { it ?: 0L },
+            rxBytes = networkStatsResult.totalUsages.map { it?.rxBytes }.sumOf { it ?: 0L },
+            txBytes = networkStatsResult.totalUsages.map { it?.txBytes }.sumOf { it ?: 0L },
             queryEndTime = queryEndTime,
+            legacyInMetric = maybeCollectLegacyMetric { TOTAL_ALL_IN_METRIC_LEGACY },
+            legacyOutMetric = maybeCollectLegacyMetric { TOTAL_ALL_OUT_METRIC_LEGACY },
         )
 
         recordPerAppUsageMetric(
@@ -229,7 +247,6 @@ class RealNetworkStatsCollector
             wifiUsage = networkStatsResult.perAppWifiUsage,
             bluetoothUsage = networkStatsResult.perAppBluetoothUsage,
             totalUsage = networkStatsResult.totalPerAppUsage,
-            networkUsageSettings = networkUsageSettings,
             queryEndTime = queryEndTime,
         )
     }
@@ -239,14 +256,18 @@ class RealNetworkStatsCollector
         outMetric: String,
         usage: NetworkStatsSummary?,
         queryEndTime: Instant,
+        legacyInMetric: String?,
+        legacyOutMetric: String?,
     ) {
         usage?.let {
             recordTotalUsageMetric(
                 inMetric = inMetric,
                 outMetric = outMetric,
-                rxKB = usage.rxKB,
-                txKB = usage.txKB,
+                rxBytes = usage.rxBytes,
+                txBytes = usage.txBytes,
                 queryEndTime = queryEndTime,
+                legacyInMetric = legacyInMetric,
+                legacyOutMetric = legacyOutMetric,
             )
         }
     }
@@ -254,24 +275,28 @@ class RealNetworkStatsCollector
     private fun recordTotalUsageMetric(
         inMetric: String,
         outMetric: String,
-        rxKB: Long,
-        txKB: Long,
+        rxBytes: Long,
+        txBytes: Long,
         queryEndTime: Instant,
+        legacyInMetric: String?,
+        legacyOutMetric: String?,
     ) {
         fun record(
-            absoluteUsageKB: Long,
+            absoluteUsage: Long,
             metricName: String,
         ) {
             Reporting.report()
                 .distribution(name = metricName, aggregations = listOf(SUM))
                 .record(
-                    value = absoluteUsageKB,
+                    value = absoluteUsage,
                     timestamp = queryEndTime.toEpochMilli(),
                 )
         }
 
-        record(rxKB, inMetric)
-        record(txKB, outMetric)
+        record(rxBytes, inMetric)
+        record(txBytes, outMetric)
+        legacyInMetric?.let { record(rxBytes.bytesToKb(), it) }
+        legacyOutMetric?.let { record(txBytes.bytesToKb(), it) }
     }
 
     private suspend fun queryPerAppUsageMetric(
@@ -289,19 +314,19 @@ class RealNetworkStatsCollector
         val usageByPackage = mutableMapOf<String, NetworkStatsUsage>()
         for ((uid, summaries) in usagesByApp) {
             val packageName = packageManagerReport.uuidToName(uid)
-            val totalRxKB = summaries.sumOf { it.rxKB }
-            val totalTxKB = summaries.sumOf { it.txKB }
+            val totalRxBytes = summaries.sumOf { it.rxBytes }
+            val totalTxBytes = summaries.sumOf { it.txBytes }
 
             val packageUsageOrNull = usageByPackage[packageName]
             if (packageUsageOrNull != null) {
                 usageByPackage[packageName] = NetworkStatsUsage(
-                    rxKB = packageUsageOrNull.rxKB + totalRxKB,
-                    txKB = packageUsageOrNull.txKB + totalTxKB,
+                    rxBytes = packageUsageOrNull.rxBytes + totalRxBytes,
+                    txBytes = packageUsageOrNull.txBytes + totalTxBytes,
                 )
             } else {
                 usageByPackage[packageName] = NetworkStatsUsage(
-                    rxKB = totalRxKB,
-                    txKB = totalTxKB,
+                    rxBytes = totalRxBytes,
+                    txBytes = totalTxBytes,
                 )
             }
         }
@@ -309,13 +334,12 @@ class RealNetworkStatsCollector
         return usageByPackage
     }
 
-    private suspend fun recordPerAppUsageMetric(
+    private fun recordPerAppUsageMetric(
         ethernetUsage: Map<String, NetworkStatsUsage>,
         mobileUsage: Map<String, NetworkStatsUsage>,
         wifiUsage: Map<String, NetworkStatsUsage>,
         bluetoothUsage: Map<String, NetworkStatsUsage>,
         totalUsage: Map<String, NetworkStatsUsage>,
-        networkUsageSettings: NetworkUsageSettings,
         queryEndTime: Instant,
     ) {
         fun recordUsage(
@@ -324,16 +348,20 @@ class RealNetworkStatsCollector
             usage: NetworkStatsUsage?,
             internal: Boolean,
             recordZeroUsage: Boolean,
+            legacyInName: String?,
+            legacyOutName: String?,
         ) {
-            val absoluteUsageInKB = usage?.rxKB ?: 0L
-            val absoluteUsageOutKB = usage?.txKB ?: 0L
+            val absoluteUsageInBytes = usage?.rxBytes ?: 0L
+            val absoluteUsageOutBytes = usage?.txBytes ?: 0L
 
             mapOf(
-                inName to absoluteUsageInKB,
-                outName to absoluteUsageOutKB,
+                inName to absoluteUsageInBytes,
+                outName to absoluteUsageOutBytes,
+                legacyInName to absoluteUsageInBytes.bytesToKb(),
+                legacyOutName to absoluteUsageOutBytes.bytesToKb(),
             )
                 .forEach { (metricName, metricValue) ->
-                    if (recordZeroUsage || metricValue > 0) {
+                    if (metricName != null && (recordZeroUsage || metricValue > 0)) {
                         Reporting.report()
                             .distribution(
                                 name = metricName,
@@ -359,6 +387,8 @@ class RealNetworkStatsCollector
                     usage = totalUsage[app.packageName],
                     internal = app.internal,
                     recordZeroUsage = true,
+                    legacyInName = maybeCollectLegacyMetric { allAppInMetricName(app.identifier, legacyName = true) },
+                    legacyOutName = maybeCollectLegacyMetric { allAppOutMetricName(app.identifier, legacyName = true) },
                 )
 
                 mapOf(
@@ -373,6 +403,20 @@ class RealNetworkStatsCollector
                         usage = usageOrNull,
                         internal = app.internal,
                         recordZeroUsage = false,
+                        legacyInName = maybeCollectLegacyMetric {
+                            appInMetricName(
+                                connectivity,
+                                app.identifier,
+                                legacyName = true,
+                            )
+                        },
+                        legacyOutName = maybeCollectLegacyMetric {
+                            appOutMetricName(
+                                connectivity,
+                                app.identifier,
+                                legacyName = true,
+                            )
+                        },
                     )
                 }
             }
@@ -381,30 +425,52 @@ class RealNetworkStatsCollector
             connectivity: NetworkStatsConnectivity?,
             usageByPackage: Map<String, NetworkStatsUsage>,
         ) {
+            fun addMetric(
+                key: String,
+                value: Long,
+            ) {
+                Reporting.report()
+                    .distribution(name = key)
+                    .record(
+                        value = value,
+                        timestamp = queryEndTime.toEpochMilli(),
+                    )
+            }
+
             for ((packageName, usage) in usageByPackage) {
                 // Logs the package too if it exceeds the specified threshold.
-                if (usage.rxKB >= networkUsageSettings.collectionReceiveThresholdKb) {
-                    Reporting.report()
-                        .distribution(
-                            name = connectivity?.let { appInMetricName(connectivity, packageName) }
-                                ?: allAppInMetricName(packageName),
-                        )
-                        .record(
-                            value = usage.rxKB,
-                            timestamp = queryEndTime.toEpochMilli(),
-                        )
+                if (usage.rxBytes.bytesToKb() >= networkUsageSettings.collectionReceiveThresholdKb) {
+                    if (connectivity != null) {
+                        addMetric(appInMetricName(connectivity, packageName), usage.rxBytes)
+                        if (networkUsageSettings.collectLegacyMetrics) {
+                            addMetric(
+                                appInMetricName(connectivity, packageName, legacyName = true),
+                                usage.rxBytes.bytesToKb(),
+                            )
+                        }
+                    } else {
+                        addMetric(allAppInMetricName(packageName), usage.rxBytes)
+                        if (networkUsageSettings.collectLegacyMetrics) {
+                            addMetric(allAppInMetricName(packageName, legacyName = true), usage.rxBytes.bytesToKb())
+                        }
+                    }
                 }
 
-                if (usage.txKB >= networkUsageSettings.collectionTransmitThresholdKb) {
-                    Reporting.report()
-                        .distribution(
-                            name = connectivity?.let { appOutMetricName(connectivity, packageName) }
-                                ?: allAppOutMetricName(packageName),
-                        )
-                        .record(
-                            value = usage.txKB,
-                            timestamp = queryEndTime.toEpochMilli(),
-                        )
+                if (usage.txBytes.bytesToKb() >= networkUsageSettings.collectionTransmitThresholdKb) {
+                    if (connectivity != null) {
+                        addMetric(appOutMetricName(connectivity, packageName), usage.txBytes)
+                        if (networkUsageSettings.collectLegacyMetrics) {
+                            addMetric(
+                                appOutMetricName(connectivity, packageName, legacyName = true),
+                                usage.txBytes.bytesToKb(),
+                            )
+                        }
+                    } else {
+                        addMetric(allAppOutMetricName(packageName), usage.txBytes)
+                        if (networkUsageSettings.collectLegacyMetrics) {
+                            addMetric(allAppOutMetricName(packageName, legacyName = true), usage.txBytes.bytesToKb())
+                        }
+                    }
                 }
             }
         }
@@ -427,30 +493,63 @@ class RealNetworkStatsCollector
         private fun appInMetricName(
             connectivity: NetworkStatsConnectivity,
             packageName: String,
-        ) = "network.app.in.${connectivity.shortName}_$packageName"
+            legacyName: Boolean = false,
+        ) = if (legacyName) {
+            "network.app.in.${connectivity.shortName}_$packageName"
+        } else {
+            "connectivity_comp_${packageName}_${connectivity.shortName}_recv_bytes"
+        }
 
         private fun appOutMetricName(
             connectivity: NetworkStatsConnectivity,
             packageName: String,
-        ) = "network.app.out.${connectivity.shortName}_$packageName"
+            legacyName: Boolean = false,
+        ) = if (legacyName) {
+            "network.app.out.${connectivity.shortName}_$packageName"
+        } else {
+            "connectivity_comp_${packageName}_${connectivity.shortName}_sent_bytes"
+        }
 
         private fun allAppInMetricName(
             packageName: String,
-        ) = "network.app.in.all_$packageName"
+            legacyName: Boolean = false,
+        ) = if (legacyName) {
+            "network.app.in.all_$packageName"
+        } else {
+            "connectivity_comp_${packageName}_recv_bytes"
+        }
 
         private fun allAppOutMetricName(
             packageName: String,
-        ) = "network.app.out.all_$packageName"
+            legacyName: Boolean = false,
+        ) = if (legacyName) {
+            "network.app.out.all_$packageName"
+        } else {
+            "connectivity_comp_${packageName}_sent_bytes"
+        }
 
-        private const val TOTAL_ALL_IN_METRIC = "network.total.in.all"
-        private const val TOTAL_ALL_OUT_METRIC = "network.total.out.all"
-        private const val TOTAL_BLUETOOTH_IN_METRIC = "network.total.in.bt"
-        private const val TOTAL_BLUETOOTH_OUT_METRIC = "network.total.out.bt"
-        private const val TOTAL_ETHERNET_IN_METRIC = "network.total.in.eth"
-        private const val TOTAL_ETHERNET_OUT_METRIC = "network.total.out.eth"
-        private const val TOTAL_MOBILE_IN_METRIC = "network.total.in.mobile"
-        private const val TOTAL_MOBILE_OUT_METRIC = "network.total.out.mobile"
-        private const val TOTAL_WIFI_IN_METRIC = "network.total.in.wifi"
-        private const val TOTAL_WIFI_OUT_METRIC = "network.total.out.wifi"
+        private fun Long.bytesToKb() = (this / 1000.0).roundToLong()
+
+        private const val TOTAL_ALL_IN_METRIC = "connectivity_recv_bytes"
+        private const val TOTAL_ALL_OUT_METRIC = "connectivity_sent_bytes"
+        private const val TOTAL_BLUETOOTH_IN_METRIC = "connectivity_bt_recv_bytes"
+        private const val TOTAL_BLUETOOTH_OUT_METRIC = "connectivity_bt_sent_bytes"
+        private const val TOTAL_ETHERNET_IN_METRIC = "connectivity_eth_recv_bytes"
+        private const val TOTAL_ETHERNET_OUT_METRIC = "connectivity_eth_sent_bytes"
+        private const val TOTAL_MOBILE_IN_METRIC = "connectivity_mobile_recv_bytes"
+        private const val TOTAL_MOBILE_OUT_METRIC = "connectivity_mobile_sent_bytes"
+        private const val TOTAL_WIFI_IN_METRIC = "connectivity_wifi_recv_bytes"
+        private const val TOTAL_WIFI_OUT_METRIC = "connectivity_wifi_sent_bytes"
+
+        private const val TOTAL_ALL_IN_METRIC_LEGACY = "network.total.in.all"
+        private const val TOTAL_ALL_OUT_METRIC_LEGACY = "network.total.out.all"
+        private const val TOTAL_BLUETOOTH_IN_METRIC_LEGACY = "network.total.in.bt"
+        private const val TOTAL_BLUETOOTH_OUT_METRIC_LEGACY = "network.total.out.bt"
+        private const val TOTAL_ETHERNET_IN_METRIC_LEGACY = "network.total.in.eth"
+        private const val TOTAL_ETHERNET_OUT_METRIC_LEGACY = "network.total.out.eth"
+        private const val TOTAL_MOBILE_IN_METRIC_LEGACY = "network.total.in.mobile"
+        private const val TOTAL_MOBILE_OUT_METRIC_LEGACY = "network.total.out.mobile"
+        private const val TOTAL_WIFI_IN_METRIC_LEGACY = "network.total.in.wifi"
+        private const val TOTAL_WIFI_OUT_METRIC_LEGACY = "network.total.out.wifi"
     }
 }

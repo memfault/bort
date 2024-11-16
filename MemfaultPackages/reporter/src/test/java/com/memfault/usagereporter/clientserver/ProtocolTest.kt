@@ -135,7 +135,8 @@ internal class ProtocolTest {
         AsynchronousByteChannel by delegate {
         override fun <A : Any?> write(src: ByteBuffer, attachment: A, handler: CompletionHandler<Int, in A>) {
             val originalLimit = src.limit()
-            if (testConfig.delayFor > Duration.ZERO && testConfig.delayChunkSize > 0 &&
+            if (testConfig.delayFor > Duration.ZERO &&
+                testConfig.delayChunkSize > 0 &&
                 testConfig.delayChunkSize < src.remaining()
             ) {
                 // Limit will ensure that only this many bytes will be written.

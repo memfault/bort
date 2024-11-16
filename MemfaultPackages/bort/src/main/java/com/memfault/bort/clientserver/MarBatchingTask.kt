@@ -12,16 +12,15 @@ import androidx.work.workDataOf
 import com.memfault.bort.DeviceInfo
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.FileUploadToken
+import com.memfault.bort.IO
 import com.memfault.bort.MarFileUploadPayload
 import com.memfault.bort.Payload.MarPayload
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
-import com.memfault.bort.TaskRunnerWorker
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.diagnostics.BortErrorType.FileCleanupError
 import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.fileExt.md5Hex
-import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.oneTimeWorkRequest
 import com.memfault.bort.periodicWorkRequest
 import com.memfault.bort.reporting.NumericAgg
@@ -42,11 +41,11 @@ import com.memfault.bort.uploader.BACKOFF_DURATION
 import com.memfault.bort.uploader.EnqueuePreparedUploadTask
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.minutes
@@ -58,15 +57,15 @@ import kotlin.time.toJavaDuration
  * Batches up mar files in the holding area, placing batched files in the upload queue.
  */
 class MarBatchingTask @Inject constructor(
-    override val getMaxAttempts: MaxUploadAttempts,
+    private val maxUploadAttempts: MaxUploadAttempts,
     private val marFileHoldingArea: MarFileHoldingArea,
     private val deviceInfoProvider: DeviceInfoProvider,
-    override val metrics: BuiltinMetricsStore,
     private val enqueuePreparedUploadTask: EnqueuePreparedUploadTask,
     private val temporaryFileFactory: TemporaryFileFactory,
     private val storageSettings: StorageSettings,
     private val bortErrors: BortErrors,
-) : Task<Unit>() {
+    @IO private val ioCoroutineContext: CoroutineContext,
+) : Task<Unit> {
     private val bortTempDeletedMetric = Reporting.report().counter(
         name = "bort_temp_deleted",
         internal = true,
@@ -77,7 +76,9 @@ class MarBatchingTask @Inject constructor(
         internal = true,
     )
 
-    override suspend fun doWork(worker: TaskRunnerWorker, input: Unit): TaskResult = withContext(Dispatchers.IO) {
+    override fun getMaxAttempts(input: Unit): Int = maxUploadAttempts()
+
+    override suspend fun doWork(input: Unit): TaskResult = withContext(ioCoroutineContext) {
         try {
             temporaryFileFactory.temporaryFileDirectory?.let { tempDir ->
                 bortTempStorageUsedMetric.record(tempDir.directorySize())
@@ -208,15 +209,11 @@ class PeriodicMarUploadRequester @Inject constructor(
         MarBatchingTask.cancelPeriodic(application)
     }
 
-    override suspend fun enabled(settings: SettingsProvider): Boolean {
-        return settings.httpApiSettings.batchMarUploads
-    }
+    override suspend fun enabled(settings: SettingsProvider): Boolean = settings.httpApiSettings.batchMarUploads
 
-    override suspend fun diagnostics(): BortWorkInfo {
-        return WorkManager.getInstance(application)
-            .getWorkInfosForUniqueWorkFlow(MarBatchingTask.WORK_UNIQUE_NAME_PERIODIC)
-            .asBortWorkInfo("marbatching")
-    }
+    override suspend fun diagnostics(): BortWorkInfo = WorkManager.getInstance(application)
+        .getWorkInfosForUniqueWorkFlow(MarBatchingTask.WORK_UNIQUE_NAME_PERIODIC)
+        .asBortWorkInfo("marbatching")
 
     override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean =
         old.httpApiSettings.batchedMarUploadPeriod != new.httpApiSettings.batchedMarUploadPeriod

@@ -9,6 +9,7 @@ import com.memfault.bort.time.boxed
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -37,12 +38,6 @@ data class FetchedSettings(
 
     @SerialName("bort.min_structured_log_level")
     val bortMinStructuredLogLevel: Int = LogLevel.INFO.level,
-
-    @SerialName("bort.event_log_enabled")
-    val bortEventLogEnabled: Boolean,
-
-    @SerialName("bort.internal_log_to_disk_enabled")
-    val bortInternalLogToDiskEnabled: Boolean = false,
 
     @SerialName("bort.settings_update_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
@@ -189,6 +184,12 @@ data class FetchedSettings(
     @SerialName("http_api.upload_network_constraint_allow_metered_connection")
     val httpApiUploadNetworkConstraintAllowMeteredConnection: Boolean,
 
+    @SerialName("http_api.upload_network_constraint_require_battery_not_low")
+    val httpApiUploadNetworkConstraintRequireBatteryNotLow: Boolean = false,
+
+    @SerialName("http_api.upload_network_constraint_require_charging")
+    val httpApiUploadNetworkConstraintRequireCharging: Boolean = false,
+
     @SerialName("http_api.connect_timeout_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val httpApiConnectTimeout: BoxedDuration,
@@ -279,6 +280,11 @@ data class FetchedSettings(
     @Serializable(with = DurationAsMillisecondsLong::class)
     val logcatContinuousDumpWrappingTimeout: BoxedDuration = 15.minutes.boxed(),
 
+    // This is deliberately not deserialized here - I don't want to break deserialization of the entire SDK settings if
+    // it fails.
+    @SerialName("logcat.logs2metrics_config")
+    val logcat2MetricsConfig: JsonObject = JsonObject(mapOf()),
+
     @SerialName("metrics.cache_packages")
     val metricsCachePackages: Boolean = true,
 
@@ -289,15 +295,15 @@ data class FetchedSettings(
     @SerialName("metrics.operational_crashes_exclusions")
     val metricsOperationalCrashesExclusions: List<String> = listOf(),
 
+    @SerialName("metrics.collect_memory")
+    val metricsCollectMemory: Boolean = true,
+
     @SerialName("metrics.data_source_enabled")
     val metricsDataSourceEnabled: Boolean,
 
     @SerialName("metrics.polling_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val metricsPollingInterval: BoxedDuration = 5.minutes.boxed(),
-
-    @SerialName("metrics.properties_use_service")
-    val metricsPropertiesUseService: Boolean = true,
 
     @SerialName("metrics.system_properties")
     val metricsSystemProperties: List<String> = listOf("ro.build.type", "persist.sys.timezone"),
@@ -307,6 +313,18 @@ data class FetchedSettings(
 
     @SerialName("metrics.max_num_app_versions")
     val metricsMaxNumAppVersions: Int = 50,
+
+    @SerialName("metrics.thermal_enabled")
+    val metricsThermalMetricsEnabled: Boolean = true,
+
+    @SerialName("metrics.thermal_collect_legacy_metrics")
+    val metricsThermalCollectLegacyMetrics: Boolean = false,
+
+    @SerialName("metrics.thermal_collect_status")
+    val metricsThermalCollectStatus: Boolean = true,
+
+    @SerialName("network.collect_legacy_metrics")
+    val networkCollectLegacyMetrics: Boolean = false,
 
     @SerialName("network.data_source_enabled")
     val networkDataSourceEnabled: Boolean = true,

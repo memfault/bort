@@ -1,7 +1,7 @@
 package com.memfault.bort.tokenbucket
 
-import com.memfault.bort.DEV_MODE_DISABLED
 import com.memfault.bort.DevMode
+import com.memfault.bort.DevModeDisabled
 import com.memfault.bort.time.BoxedDuration
 import io.mockk.Called
 import io.mockk.spyk
@@ -52,7 +52,7 @@ class TokenBucketStoreTest {
                 storage = storageProvider,
                 getMaxBuckets = { 1 },
                 getTokenBucketFactory = { tokenBucketFactory },
-                devMode = DEV_MODE_DISABLED,
+                devMode = DevModeDisabled,
             ).edit {
                 // not making any changes to the map here
                 blockResult
@@ -85,7 +85,7 @@ class TokenBucketStoreTest {
                 storage = storage,
                 getMaxBuckets = { 1 },
                 getTokenBucketFactory = { tokenBucketFactory },
-                devMode = DEV_MODE_DISABLED,
+                devMode = DevModeDisabled,
             ).edit { map ->
                 val bucket = map.upsertBucket(key = key, capacity = capacity, period = period)
                 assertNotNull(bucket)
@@ -132,7 +132,7 @@ class TokenBucketStoreTest {
             storage = storage,
             getMaxBuckets = { 1 },
             getTokenBucketFactory = { tokenBucketFactory },
-            devMode = DEV_MODE_DISABLED,
+            devMode = DevModeDisabled,
         ).handleLinuxReboot(previousUptime = 38842.milliseconds)
 
         verify(exactly = 1) {
@@ -170,7 +170,7 @@ class TokenBucketStoreTest {
             storage = storage,
             getMaxBuckets = { 1 },
             getTokenBucketFactory = { tokenBucketFactory },
-            devMode = DEV_MODE_DISABLED,
+            devMode = DevModeDisabled,
         ).handleLinuxReboot(previousUptime = 12345.milliseconds)
 
         verify(exactly = 1) {
@@ -193,7 +193,7 @@ class TokenBucketStoreTest {
             storage = storageProvider,
             getMaxBuckets = { 1 },
             getTokenBucketFactory = { tokenBucketFactory },
-            devMode = DEV_MODE_DISABLED,
+            devMode = DevModeDisabled,
         )
         store.edit { }
         store.edit { }
@@ -219,7 +219,7 @@ class TokenBucketStoreTest {
             storage = storage,
             getMaxBuckets = { 1 },
             getTokenBucketFactory = { tokenBucketFactory },
-            devMode = DEV_MODE_DISABLED,
+            devMode = DevModeDisabled,
         )
         assertEquals(true, store.edit { it.isFull })
         assertEquals(false, store.edit { it.upsertBucket(key)?.take(tag = "test") })

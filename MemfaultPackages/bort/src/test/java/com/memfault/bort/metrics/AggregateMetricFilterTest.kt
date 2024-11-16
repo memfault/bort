@@ -1,6 +1,7 @@
 package com.memfault.bort.metrics
 
 import com.memfault.bort.metrics.AggregateMetricFilter.filterAndRenameMetrics
+import com.memfault.bort.metrics.custom.ReportType.Hourly
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -17,8 +18,9 @@ internal class AggregateMetricFilterTest {
             "random_metric" to JsonPrimitive(4.32),
             "sysprop.ro.build.type" to JsonPrimitive("user"),
             "version.com.x.y.z" to JsonPrimitive("v1"),
+            "operational_crashes" to JsonPrimitive(0.0),
         )
-        assertEquals(output, filterAndRenameMetrics(input, internal = false))
+        assertEquals(output, filterAndRenameMetrics(input, internal = false, reportType = Hourly))
     }
 
     @Test
@@ -37,6 +39,6 @@ internal class AggregateMetricFilterTest {
             "request_attempt" to JsonPrimitive(10),
             "usagereporter_version_code" to JsonPrimitive(10),
         )
-        assertEquals(output, filterAndRenameMetrics(input, internal = true))
+        assertEquals(output, filterAndRenameMetrics(input, internal = true, reportType = Hourly))
     }
 }

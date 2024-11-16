@@ -1,9 +1,6 @@
 package com.memfault.bort.metrics
 
 import android.os.RemoteException
-import com.memfault.bort.DumpsterClient
-import com.memfault.bort.reporting.NumericAgg.LATEST_VALUE
-import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.BaseLinuxBootRelativeTime
@@ -15,7 +12,6 @@ class BatteryStatsCollector @Inject constructor(
     private val batterystatsSummaryCollector: BatterystatsSummaryCollector,
     private val settings: BatteryStatsSettings,
     private val metrics: BuiltinMetricsStore,
-    private val dumpsterClient: DumpsterClient,
 ) {
     suspend fun collect(
         collectionTime: CombinedTime,
@@ -53,12 +49,6 @@ class BatteryStatsCollector @Inject constructor(
             BatteryStatsResult.EMPTY
         }
 
-        // Try to get charge cycle count
-        val chargeCycleCount = dumpsterClient.getChargeCycleCount()
-        chargeCycleCount?.let {
-            CHARGE_CYCLE_METRIC.record(it.toLong(), collectionTime.timestamp.toEpochMilli())
-        }
-
         return BatteryStatsResult(
             batteryStatsFileToUpload = historyResult.batteryStatsFileToUpload,
             batteryStatsHrt = historyResult.batteryStatsHrt + summaryResult.batteryStatsHrt,
@@ -66,10 +56,5 @@ class BatteryStatsCollector @Inject constructor(
             internalAggregatedMetrics = historyResult.internalAggregatedMetrics +
                 summaryResult.internalAggregatedMetrics,
         )
-    }
-
-    companion object {
-        private val CHARGE_CYCLE_METRIC =
-            Reporting.report().distribution("battery.charge_cycle_count", aggregations = listOf(LATEST_VALUE))
     }
 }

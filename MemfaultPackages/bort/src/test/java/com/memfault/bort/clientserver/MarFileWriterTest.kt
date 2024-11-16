@@ -143,6 +143,10 @@ internal class MarFileWriterTest {
             override val filesBaseUrl: String get() = TODO("Not used")
             override val deviceBaseUrl: String get() = TODO("Not used")
             override val uploadNetworkConstraint: NetworkConstraint get() = TODO("Not used")
+            override val uploadRequiresBatteryNotLow: Boolean
+                get() = TODO("Not used")
+            override val uploadRequiresCharging: Boolean
+                get() = TODO("Not used")
             override val uploadCompressionEnabled: Boolean get() = TODO("Not used")
             override val connectTimeout: Duration get() = TODO("Not used")
             override val writeTimeout: Duration get() = TODO("Not used")

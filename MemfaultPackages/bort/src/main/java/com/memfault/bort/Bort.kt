@@ -67,7 +67,7 @@ open class Bort : Application(), Configuration.Provider {
         }
 
         metrics.increment(BORT_STARTED)
-        logDebugInfo(bortEnabledProvider, settingsProvider)
+        logDebugInfo(settingsProvider)
         uptimeTracker.trackUptimeOnStart()
 
         // We want this to happen even if Bort is disabled.
@@ -94,31 +94,23 @@ open class Bort : Application(), Configuration.Provider {
     }
 
     private fun logDebugInfo(
-        bortEnabledProvider: BortEnabledProvider,
         settingsProvider: SettingsProvider,
     ) {
-        Logger.logEventBortSdkEnabled(bortEnabledProvider.isEnabled())
-
         with(settingsProvider) {
             Logger.initSettings(asLoggerSettings())
-            Logger.initLogFile(this@Bort)
-            Logger.logEvent(
-                "bort-oncreate",
-                "installationId=${installationIdProvider.id()}",
-                "appVersionName=${sdkVersionInfo.appVersionName}",
-                "appVersionCode=${sdkVersionInfo.appVersionCode}",
-                "currentGitSha=${sdkVersionInfo.currentGitSha}",
-                "upstreamGitSha=${sdkVersionInfo.upstreamGitSha}",
-                "upstreamVersionName=${sdkVersionInfo.upstreamVersionName}",
-                "upstreamVersionCode=${sdkVersionInfo.upstreamVersionCode}",
-                "bugreport.enabled=${bugReportSettings.dataSourceEnabled}",
-                "dropbox.enabled=${dropBoxSettings.dataSourceEnabled}",
-                "bugreport.periodic.limit.period=${bugReportSettings.periodicRateLimitingPercentOfPeriod}",
-            )
             Logger.i(
                 "bort.oncreate",
                 mapOf(
+                    "installationId" to installationIdProvider.id(),
                     "appVersionName" to sdkVersionInfo.appVersionName,
+                    "appVersionCode" to sdkVersionInfo.appVersionCode,
+                    "currentGitSha" to sdkVersionInfo.currentGitSha,
+                    "upstreamGitSha" to sdkVersionInfo.upstreamGitSha,
+                    "upstreamVersionName" to sdkVersionInfo.upstreamVersionName,
+                    "upstreamVersionCode" to sdkVersionInfo.upstreamVersionCode,
+                    "bugreport.enabled" to bugReportSettings.dataSourceEnabled,
+                    "dropbox.enabled" to dropBoxSettings.dataSourceEnabled,
+                    "bugreport.periodic.limit.period" to bugReportSettings.periodicRateLimitingPercentOfPeriod,
                 ),
             )
         }

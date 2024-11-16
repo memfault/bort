@@ -12,7 +12,6 @@ import com.memfault.cloud.sdk.MemfaultDeviceInfo
 import com.memfault.cloud.sdk.MemfaultOtaPackage
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -38,7 +37,6 @@ interface SoftwareUpdateChecker {
     suspend fun getLatestRelease(): Ota?
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
 @ContributesBinding(SingletonComponent::class)
 class MemfaultSoftwareUpdateChecker @Inject constructor(
     private val memfault: MemfaultCloud,

@@ -17,14 +17,12 @@ import kotlin.time.Duration.Companion.seconds
 class CrashFreeHoursTest {
     private var uptimeMs: Duration = 0.seconds
     private val timeProvider = object : BootRelativeTimeProvider {
-        override fun now(): BootRelativeTime {
-            return BootRelativeTime(
-                uptime = 0.hours.boxed(),
-                elapsedRealtime = uptimeMs.boxed(),
-                linuxBootId = "",
-                bootCount = 0,
-            )
-        }
+        override fun now(): BootRelativeTime = BootRelativeTime(
+            uptime = 0.hours.boxed(),
+            elapsedRealtime = uptimeMs.boxed(),
+            linuxBootId = "",
+            bootCount = 0,
+        )
     }
     private var storedState = CrashFreeHoursState()
     private val storage = object : CrashFreeHoursStorage {

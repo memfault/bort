@@ -204,7 +204,8 @@ class MetricsDbRegressionTest {
             prop(MetricReport::internalMetrics)
                 .isEqualTo(
                     mapOf(
-                        "internal_metric" to JsonPrimitive("a"),
+                        // Note that the .latest gets removed by [CustomMetrics], which isn't under test here.
+                        "internal_metric.latest" to JsonPrimitive("a"),
                     ),
                 )
         }
@@ -276,7 +277,7 @@ class MetricsDbRegressionTest {
 
         @Suppress("LineLength")
         assertThat(hrtFile).text().isEqualTo(
-            """{"schema_version":1,"start_time":123456789,"duration_ms":11,"report_type":"heartbeat","producer":{"version":"1","id":"bort"},"rollups":[{"metadata":{"string_key":"cpu_spiked","metric_type":"counter","data_type":"double","internal":false},"data":[{"t":123456789,"value":1.0},{"t":123456790,"value":1.0},{"t":123456791,"value":1.0}]}]}""", // ktlint-disable standard_max-line-length
+            """{"schema_version":1,"start_time":123456789,"duration_ms":11,"report_type":"heartbeat","producer":{"version":"1","id":"bort"},"rollups":[{"metadata":{"string_key":"cpu_spiked","metric_type":"counter","data_type":"double","internal":false},"data":[{"t":123456789,"value":1.0},{"t":123456790,"value":1.0},{"t":123456791,"value":1.0}]}]}""",
         )
     }
 
@@ -337,7 +338,7 @@ class MetricsDbRegressionTest {
 
             @Suppress("ktlint:standard:max-line-length")
             assertThat(hrtFile).text().isEqualTo(
-                """{"schema_version":1,"start_time":123456789,"duration_ms":2,"report_type":"heartbeat","producer":{"version":"1","id":"bort"},"rollups":[{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456789,"value":false},{"t":123456790,"value":true}]}]}""", // ktlint-disable standard_max-line-length
+                """{"schema_version":1,"start_time":123456789,"duration_ms":2,"report_type":"heartbeat","producer":{"version":"1","id":"bort"},"rollups":[{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456789,"value":false},{"t":123456790,"value":true}]}]}""",
             )
         }
     }
@@ -451,7 +452,7 @@ class MetricsDbRegressionTest {
         )
 
         assertThat(hrtFile2).text().isEqualTo(
-            """{"schema_version":1,"start_time":123456791,"duration_ms":1,"report_type":"heartbeat","producer":{"version":"1","id":"bort"},"rollups":[{"metadata":{"string_key":"screen_off","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456791,"value":true}]},{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456791,"value":true}]}]}""", // ktlint-disable standard_max-line-length
+            """{"schema_version":1,"start_time":123456791,"duration_ms":1,"report_type":"heartbeat","producer":{"version":"1","id":"bort"},"rollups":[{"metadata":{"string_key":"screen_off","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456791,"value":true}]},{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456791,"value":true}]}]}""",
         )
     }
 
@@ -520,7 +521,7 @@ class MetricsDbRegressionTest {
         )
 
         assertThat(hrtFile).text().isEqualTo(
-            """{"schema_version":1,"start_time":123456789,"duration_ms":2,"report_type":"heartbeat","producer":{"version":"1","id":"bort"},"rollups":[{"metadata":{"string_key":"screen_brightness","metric_type":"counter","data_type":"double","internal":false},"data":[{"t":123456790,"value":2.0}]},{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456789,"value":false}]},{"metadata":{"string_key":"screen_type","metric_type":"counter","data_type":"string","internal":false},"data":[{"t":123456789,"value":"1"}]}]}""", // ktlint-disable standard_max-line-length
+            """{"schema_version":1,"start_time":123456789,"duration_ms":2,"report_type":"heartbeat","producer":{"version":"1","id":"bort"},"rollups":[{"metadata":{"string_key":"screen_brightness","metric_type":"counter","data_type":"double","internal":false},"data":[{"t":123456790,"value":2.0}]},{"metadata":{"string_key":"screen_on","metric_type":"counter","data_type":"boolean","internal":false},"data":[{"t":123456789,"value":false}]},{"metadata":{"string_key":"screen_type","metric_type":"counter","data_type":"string","internal":false},"data":[{"t":123456789,"value":"1"}]}]}""",
         )
     }
 
@@ -714,7 +715,7 @@ class MetricsDbRegressionTest {
         }
     }
 
-    private fun MetricValueKt(
+    private fun metricValueKt(
         version: Int,
         reportType: String,
         timestamp: Long,
@@ -747,7 +748,7 @@ class MetricsDbRegressionTest {
     @Test
     fun `regression HappyPathNumerics`() = runTest {
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 2345,
@@ -763,7 +764,7 @@ class MetricsDbRegressionTest {
             ),
         )
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 3000,
@@ -797,7 +798,7 @@ class MetricsDbRegressionTest {
     @Test
     fun `regression HappyPathTimetotals`() = runTest {
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 2345,
@@ -813,7 +814,7 @@ class MetricsDbRegressionTest {
             ),
         )
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 3345,
@@ -829,7 +830,7 @@ class MetricsDbRegressionTest {
             ),
         )
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 4345,
@@ -845,7 +846,7 @@ class MetricsDbRegressionTest {
             ),
         )
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 6345,
@@ -876,7 +877,7 @@ class MetricsDbRegressionTest {
     @Test
     fun `regression TimePerHour`() = runTest {
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 1634074357043 + 1.hours.inWholeMilliseconds,
@@ -892,7 +893,7 @@ class MetricsDbRegressionTest {
             ),
         )
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 1634074357043 + 3.hours.inWholeMilliseconds,
@@ -908,7 +909,7 @@ class MetricsDbRegressionTest {
             ),
         )
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 1634074357043 + 1.hours.inWholeMilliseconds,
@@ -924,7 +925,7 @@ class MetricsDbRegressionTest {
             ),
         )
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 1634074357043 + 3.hours.inWholeMilliseconds,
@@ -967,7 +968,7 @@ class MetricsDbRegressionTest {
     @Test
     fun `regression MultipleReportsCrossContamination`() = runTest {
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "a",
                 timestamp = 67890,
@@ -983,7 +984,7 @@ class MetricsDbRegressionTest {
             ),
         )
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "b",
                 timestamp = 67890,
@@ -1011,7 +1012,7 @@ class MetricsDbRegressionTest {
     @Test
     fun `regression TwoLastValueMetrics`() = runTest {
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "a",
                 timestamp = 67890,
@@ -1027,7 +1028,7 @@ class MetricsDbRegressionTest {
             ),
         )
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "a",
                 timestamp = 67890,
@@ -1058,7 +1059,7 @@ class MetricsDbRegressionTest {
     @Test
     fun `regression StartNextReport`() = runTest {
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "rolling_report",
                 timestamp = 67890,
@@ -1086,7 +1087,7 @@ class MetricsDbRegressionTest {
         }
 
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "rolling_report",
                 timestamp = 100000,
@@ -1117,7 +1118,7 @@ class MetricsDbRegressionTest {
         }
 
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "rolling_report",
                 timestamp = 500000,
@@ -1162,7 +1163,7 @@ class MetricsDbRegressionTest {
 
         // Even if the previous autostarted report did not produce metrics, it should have updated the timestamp
         dao.insert(
-            MetricValueKt(
+            metricValueKt(
                 version = 1,
                 reportType = "rolling_report",
                 timestamp = 800000,

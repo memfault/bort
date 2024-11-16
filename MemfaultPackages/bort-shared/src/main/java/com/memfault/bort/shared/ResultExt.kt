@@ -14,11 +14,9 @@ import com.github.michaelbull.result.runCatching
 fun <V> Result.Companion.success(value: V) = Ok(value)
 fun <E> Result.Companion.failure(error: E) = Err(error)
 
-inline fun <R, T> Result<T, Throwable>.mapCatching(transform: (value: T) -> R): Result<R, Throwable> {
-    return when (this) {
-        is Ok<T> -> runCatching { transform(value) }
-        is Err<Throwable> -> this
-    }
+inline fun <R, T> Result<T, Throwable>.mapCatching(transform: (value: T) -> R): Result<R, Throwable> = when (this) {
+    is Ok<T> -> runCatching { transform(value) }
+    is Err<Throwable> -> this
 }
 
 inline val <V, E> Result<V, E>.isSuccess: Boolean

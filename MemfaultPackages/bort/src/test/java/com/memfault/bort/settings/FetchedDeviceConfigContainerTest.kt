@@ -17,8 +17,6 @@ class FetchedDeviceConfigContainerTest {
                         "sdk-settings": {
                             "battery_stats.command_timeout_ms": 60000,
                             "battery_stats.data_source_enabled": True,
-                            "bort.event_log_enabled": True,
-                            "bort.internal_log_to_disk_enabled": False,
                             "bort.min_log_level": 5,
                             "bort.min_structured_log_level": 3,
                             "bort.settings_update_interval_ms": 86400000,
@@ -39,7 +37,7 @@ class FetchedDeviceConfigContainerTest {
                             "device_info.android_build_version_key": "",
                             "device_info.android_build_version_source": "build_fingerprint_only",
                             "device_info.android_device_serial_key": "ro.serialno",
-                            "device_info.android_hardware_version_key": "ro.product.board",
+                            "device_info.android_hardware_version_key": "ro.product.model",
                             "drop_box.anrs.rate_limiting_settings": {
                                 "default_capacity": 10,
                                 "default_period_ms": 900000,
@@ -152,7 +150,6 @@ class FetchedDeviceConfigContainerTest {
                             "battery_stats.command_timeout_ms": 60000,
                             "battery_stats.data_source_enabled": True,
                             "bort.event_log_enabled": True,
-                            "bort.internal_log_to_disk_enabled": False,
                             "bort.min_log_level": 5,
                             "bort.min_structured_log_level": 3,
                             "bort.settings_update_interval_ms": 86400000,
@@ -173,7 +170,7 @@ class FetchedDeviceConfigContainerTest {
                             "device_info.android_build_version_key": "",
                             "device_info.android_build_version_source": "build_fingerprint_only",
                             "device_info.android_device_serial_key": "ro.serialno",
-                            "device_info.android_hardware_version_key": "ro.product.board",
+                            "device_info.android_hardware_version_key": "ro.product.model",
                             "drop_box.anrs.rate_limiting_settings": {
                                 "default_capacity": 10,
                                 "default_period_ms": 900000,

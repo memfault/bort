@@ -12,6 +12,7 @@ android {
     defaultConfig {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         minSdkVersion versions.minSdk
+        buildConfigField "boolean", "PUBLISHING", "${gradle.taskGraph.hasTask("publishToMavenRepository")}"
     }
 
     kotlinOptions {
@@ -27,6 +28,10 @@ android {
     }
 
     namespace 'com.memfault.bort.reporting'
+
+    buildFeatures {
+        buildConfig = true
+    }
 
     publishing {
         singleVariant("release")

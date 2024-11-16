@@ -11,13 +11,11 @@ import com.memfault.bort.settings.SETTINGS_FIXTURE
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.toSettings
 import io.mockk.mockk
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 
-@OptIn(ExperimentalCoroutinesApi::class)
 internal class PeriodicWorkRequesterTest {
     private val requester = object : PeriodicWorkRequester() {
         var started = false
@@ -26,7 +24,10 @@ internal class PeriodicWorkRequesterTest {
         var enabledOld = false
         var paramsChanged = false
 
-        override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
+        override suspend fun startPeriodic(
+            justBooted: Boolean,
+            settingsChanged: Boolean,
+        ) {
             started = true
         }
 
@@ -34,13 +35,17 @@ internal class PeriodicWorkRequesterTest {
             cancelled = true
         }
 
-        override suspend fun enabled(settings: SettingsProvider): Boolean {
-            return if (settings.metricsSettings.maxNumAppVersions == 1) enabledOld else enabled
-        }
+        override suspend fun enabled(settings: SettingsProvider): Boolean =
+            if (settings.metricsSettings.maxNumAppVersions == 1) {
+                enabledOld
+            } else {
+                enabled
+            }
 
-        override suspend fun parametersChanged(old: SettingsProvider, new: SettingsProvider): Boolean {
-            return paramsChanged
-        }
+        override suspend fun parametersChanged(
+            old: SettingsProvider,
+            new: SettingsProvider,
+        ): Boolean = paramsChanged
 
         override suspend fun diagnostics(): BortWorkInfo {
             TODO("Not used")

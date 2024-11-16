@@ -1,12 +1,9 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package com.memfault.usagereporter.clientserver
 
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.Logger
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import org.jetbrains.annotations.TestOnly

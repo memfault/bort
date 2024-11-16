@@ -8,7 +8,7 @@ interface DevMode {
     fun updateMetric()
 }
 
-object DEV_MODE_DISABLED : DevMode {
+object DevModeDisabled : DevMode {
     override fun isEnabled(): Boolean = false
     override fun updateMetric() = Unit
 }

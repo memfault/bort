@@ -33,7 +33,8 @@
 
         <receiver
             android:name=".BugReportStartReceiver"
-            android:permission="android.permission.DUMP">
+            android:permission="android.permission.DUMP"
+            android:exported="true">
             <intent-filter>
                 <action android:name="com.memfault.intent.action.BUG_REPORT_START" />
             </intent-filter>

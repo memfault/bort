@@ -4,8 +4,11 @@ import com.memfault.bort.metrics.database.CalculateDerivedAggregations
 import com.memfault.bort.metrics.database.DerivedAggregation
 import com.memfault.bort.reporting.DataType
 import com.memfault.bort.reporting.MetricType
+import com.squareup.anvil.annotations.ContributesMultibinding
+import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
+import javax.inject.Inject
 import kotlin.time.Duration.Companion.seconds
 
 const val BATTERY_DISCHARGE_DURATION_METRIC = "battery_discharge_duration_ms"
@@ -16,7 +19,8 @@ const val BATTERY_SOC_DROP_METRIC = "battery_soc_pct_drop"
  * Convert the [BATTERY_LEVEL_METRIC] and [BATTERY_CHARGING_METRIC] to the "battery_soc_pct_drop" and
  * "battery_discharge_duration_ms" device vitals.
  */
-object BatterySessionVitalsCalculator : CalculateDerivedAggregations {
+@ContributesMultibinding(SingletonComponent::class)
+class BatterySessionVitalsCalculator @Inject constructor() : CalculateDerivedAggregations {
     override fun calculate(
         startTimestampMs: Long,
         endTimestampMs: Long,

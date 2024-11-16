@@ -5,14 +5,14 @@ import android.app.usage.NetworkStatsManager
 import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Process
+import com.memfault.bort.IO
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import javax.inject.Inject
-import kotlin.math.roundToLong
+import kotlin.coroutines.CoroutineContext
 
 interface NetworkStatsQueries {
 
@@ -112,9 +112,6 @@ data class NetworkStatsSummary(
     val txBytes: Long,
     val txPackets: Long,
 ) {
-    val rxKB: Long = (rxBytes / 1000.0).roundToLong()
-    val txKB: Long = (txBytes / 1000.0).roundToLong()
-
     companion object {
         fun fromBucket(
             bucket: Bucket,
@@ -161,12 +158,13 @@ data class NetworkStatsSummary(
 class RealNetworkStatsQueries
 @Inject constructor(
     private val networkStatsManager: NetworkStatsManager,
+    @IO private val ioCoroutineContext: CoroutineContext,
 ) : NetworkStatsQueries {
     override suspend fun getTotalUsage(
         start: Instant,
         end: Instant,
         connectivity: NetworkStatsConnectivity,
-    ): NetworkStatsSummary? = withContext(Dispatchers.IO) {
+    ): NetworkStatsSummary? = withContext(ioCoroutineContext) {
         try {
             networkStatsManager.querySummaryForDevice(
                 connectivity.connectivityManagerNetworkType,
@@ -186,7 +184,7 @@ class RealNetworkStatsQueries
         start: Instant,
         end: Instant,
         connectivity: NetworkStatsConnectivity,
-    ): Map<Int, List<NetworkStatsSummary>> = withContext(Dispatchers.IO) {
+    ): Map<Int, List<NetworkStatsSummary>> = withContext(ioCoroutineContext) {
         val latestUsageByApp = mutableMapOf<Int, List<NetworkStatsSummary>>()
 
         networkStatsManager.querySummary(

@@ -8,7 +8,11 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.memfault.bort.DeviceInfo
 import com.memfault.bort.DeviceInfoProvider
+import com.memfault.bort.battery.BatterySessionVitalsCalculator
+import com.memfault.bort.connectivity.ConnectivityTimeCalculator
+import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_CRASHES_METRIC_KEY
 import com.memfault.bort.metrics.custom.CustomMetrics
+import com.memfault.bort.metrics.custom.CustomReport
 import com.memfault.bort.metrics.custom.RealCustomMetrics
 import com.memfault.bort.metrics.database.MetricsDb
 import com.memfault.bort.reporting.FinishReport
@@ -17,6 +21,8 @@ import com.memfault.bort.reporting.RemoteMetricsService
 import com.memfault.bort.reporting.StartReport
 import com.memfault.bort.settings.DailyHeartbeatEnabled
 import com.memfault.bort.settings.HighResMetricsEnabled
+import com.memfault.bort.settings.MetricsSettings
+import com.memfault.bort.settings.RateLimitingSettings
 import com.memfault.bort.test.util.TemporaryFolderTemporaryFileFactory
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import io.mockk.every
@@ -24,13 +30,14 @@ import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.rules.ExternalResource
 import org.junit.rules.TemporaryFolder
+import kotlin.time.Duration
 
-class MetricsDbTestEnvironment(
-    private val temporaryFolder: TemporaryFolder,
-) : ExternalResource() {
+class MetricsDbTestEnvironment : ExternalResource() {
 
     lateinit var db: MetricsDb
     lateinit var dao: CustomMetrics
+
+    private val temporaryFolder: TemporaryFolder = TemporaryFolder.builder().assureDeletion().build()
 
     var dailyHeartbeatEnabledValue: Boolean = false
     private val dailyHeartbeatEnabled = DailyHeartbeatEnabled { dailyHeartbeatEnabledValue }
@@ -50,7 +57,64 @@ class MetricsDbTestEnvironment(
     }
 
     var highResMetricsEnabledValue = false
+    var thermalCollectLegacyMetricsValue = false
     private val highResMetricsEnabled = HighResMetricsEnabled { highResMetricsEnabledValue }
+    private val metricsSettings = object : MetricsSettings {
+        override val dataSourceEnabled: Boolean get() = TODO("Not used")
+        override val dailyHeartbeatEnabled: Boolean get() = TODO("Not used")
+        override val sessionsRateLimitingSettings: RateLimitingSettings get() = TODO("Not used")
+        override val collectionInterval: Duration get() = TODO("Not used")
+        override val systemProperties: List<String> get() = TODO("Not used")
+        override val appVersions: List<String> get() = TODO("Not used")
+        override val maxNumAppVersions: Int get() = TODO("Not used")
+        override val reporterCollectionInterval: Duration get() = TODO("Not used")
+        override val cachePackageManagerReport: Boolean get() = TODO("Not used")
+        override val recordImei: Boolean get() = TODO("Not used")
+        override val operationalCrashesExclusions: List<String> get() = TODO("Not used")
+        override val pollingInterval: Duration get() = TODO("Not used")
+        override val collectMemory: Boolean get() = TODO("Not used")
+        override val thermalMetricsEnabled: Boolean get() = TODO("Not used")
+        override val thermalCollectLegacyMetrics: Boolean get() = thermalCollectLegacyMetricsValue
+        override val thermalCollectStatus: Boolean get() = TODO("Not used")
+    }
+
+    /**
+     * By default, exclude any metrics which get added to all reports (e.g. operational_crashes), so that we don't need
+     * to paste them everywhere in our unit tests. Include them by changing this setting for a specific test.
+     */
+    var excludeEverPresentMetrics = true
+
+    inner class TestCustomMetrics(
+        private val customMetrics: CustomMetrics,
+    ) : CustomMetrics by customMetrics {
+        override suspend fun collectHeartbeat(
+            endTimestampMs: Long,
+            forceEndAllReports: Boolean,
+        ): CustomReport {
+            val report = customMetrics.collectHeartbeat(
+                endTimestampMs = endTimestampMs,
+                forceEndAllReports = forceEndAllReports,
+            )
+            if (!excludeEverPresentMetrics) {
+                return report
+            } else {
+                return report.copy(
+                    hourlyHeartbeatReport = report.hourlyHeartbeatReport.copy(
+                        metrics = report.hourlyHeartbeatReport.metrics.minus(OPERATIONAL_CRASHES_METRIC_KEY),
+                    ),
+                    dailyHeartbeatReport = report.dailyHeartbeatReport?.copy(
+                        metrics = report.dailyHeartbeatReport?.metrics?.minus(OPERATIONAL_CRASHES_METRIC_KEY)
+                            ?: emptyMap(),
+                    ),
+                    sessions = report.sessions.map {
+                        it.copy(
+                            metrics = it.metrics.minus(OPERATIONAL_CRASHES_METRIC_KEY),
+                        )
+                    },
+                )
+            }
+        }
+    }
 
     override fun before() {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -58,15 +122,22 @@ class MetricsDbTestEnvironment(
             .fallbackToDestructiveMigration()
             .allowMainThreadQueries()
             .build()
+        temporaryFolder.create()
 
-        dao = RealCustomMetrics(
+        val customMetrics = RealCustomMetrics(
             db = db,
             temporaryFileFactory = TemporaryFolderTemporaryFileFactory(temporaryFolder),
             dailyHeartbeatEnabled = dailyHeartbeatEnabled,
             highResMetricsEnabled = highResMetricsEnabled,
             sessionMetricsTokenBucketStore = tokenBucketStore,
             deviceInfoProvider = deviceInfoProvider,
+            derivedAggregations = setOf(
+                BatterySessionVitalsCalculator(),
+                ConnectivityTimeCalculator(),
+                ThermalDerivedCalculator(metricsSettings),
+            ),
         )
+        dao = TestCustomMetrics(customMetrics)
 
         val contentResolver = mockk<ContentResolver> {
             every { insert(any(), any()) } answers {
@@ -100,12 +171,13 @@ class MetricsDbTestEnvironment(
                 }
             }
         }
-        RemoteMetricsService.context = mockk {
+        RemoteMetricsService.staticContext = mockk {
             every { getContentResolver() } returns contentResolver
         }
     }
 
     override fun after() {
         db.close()
+        temporaryFolder.delete()
     }
 }
