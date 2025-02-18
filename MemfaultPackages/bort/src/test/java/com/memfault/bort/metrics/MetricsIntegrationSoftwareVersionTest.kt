@@ -86,8 +86,10 @@ class MetricsIntegrationSoftwareVersionTest {
         )
 
         Reporting.report().counter("count").increment()
-        Reporting.startSession("session")
-        Reporting.session("session").counter("count").incrementBy(2)
+        Reporting.session("session").apply {
+            start()
+            counter("count").incrementBy(2)
+        }
 
         assertThat(
             dao.collectHeartbeat(

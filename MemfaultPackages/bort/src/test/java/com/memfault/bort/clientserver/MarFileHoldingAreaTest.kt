@@ -1,5 +1,7 @@
 package com.memfault.bort.clientserver
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.clientserver.MarFileWriterTest.Companion.FILE_CONTENT
@@ -18,7 +20,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -364,7 +365,7 @@ class MarFileHoldingAreaTest {
         marFile: MarFileWithManifest,
     ) {
         val sampledFile = File(sampledHoldingDirectory, marFile.marFile.name)
-        assertEquals(sampled, sampledFile.exists())
+        assertThat(sampledFile.exists()).isEqualTo(sampled)
         verify(exactly = if (unsampled) 1 else 0) { unsampledHoldingArea.add(marFile) }
     }
 }

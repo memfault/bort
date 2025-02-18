@@ -1,169 +1,150 @@
 package com.memfault.bort.shared
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
+import assertk.assertThat
+import assertk.assertions.containsExactly
+import org.junit.Test
 
 class BatteryStatsCommandTest {
     @Test
     fun c() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "-c"),
+        assertThat(
             BatteryStatsCommand(c = true).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "-c")
     }
 
     @Test
     fun checkin() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "--checkin"),
+        assertThat(
             BatteryStatsCommand(checkin = true).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "--checkin")
     }
 
     @Test
     fun proto() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "--proto"),
+        assertThat(
             BatteryStatsCommand(proto = true).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "--proto")
     }
 
     @Test
     fun history() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "--history"),
+        assertThat(
             BatteryStatsCommand(history = true).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "--history")
     }
 
     @Test
     fun historyStart() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "--history-start", "1234"),
+        assertThat(
             BatteryStatsCommand(historyStart = 1234).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "--history-start", "1234")
     }
 
     @Test
     fun charged() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "--charged"),
+        assertThat(
             BatteryStatsCommand(charged = true).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "--charged")
     }
 
     @Test
     fun daily() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "--daily"),
+        assertThat(
             BatteryStatsCommand(daily = true).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "--daily")
     }
 
     @Test
     fun reset() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "--reset"),
+        assertThat(
             BatteryStatsCommand(reset = true).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "--reset")
     }
 
     @Test
     fun write() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "--write"),
+        assertThat(
             BatteryStatsCommand(write = true).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "--write")
     }
 
     @Test
     fun newDaily() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "--new-daily"),
+        assertThat(
             BatteryStatsCommand(newDaily = true).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "--new-daily")
     }
 
     @Test
     fun readDaily() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "--read-daily"),
+        assertThat(
             BatteryStatsCommand(readDaily = true).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "--read-daily")
     }
 
     @Test
     fun settings() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "--settings"),
+        assertThat(
             BatteryStatsCommand(settings = true).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "--settings")
     }
 
     @Test
     fun cpu() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "--cpu"),
+        assertThat(
             BatteryStatsCommand(cpu = true).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "--cpu")
     }
 
     @Test
     fun help() {
-        assertEquals(
-            listOf("dumpsys", "batterystats", "-h"),
+        assertThat(
             BatteryStatsCommand(help = true).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "-h")
     }
 
     @Test
     fun optionFullHistory() {
         val option = BatteryStatsOption.FULL_HISTORY
-        assertEquals(
-            listOf("dumpsys", "batterystats", "enable", "full-history"),
+        assertThat(
             BatteryStatsCommand(
                 optionEnablement = BatteryStatsOptionEnablement(true, option),
             ).toList(),
-        )
-        assertEquals(
-            listOf("dumpsys", "batterystats", "disable", "full-history"),
+        ).containsExactly("dumpsys", "batterystats", "enable", "full-history")
+        assertThat(
             BatteryStatsCommand(
                 optionEnablement = BatteryStatsOptionEnablement(false, option),
             ).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "disable", "full-history")
     }
 
     @Test
     fun optionNoAutoReset() {
         val option = BatteryStatsOption.NO_AUTO_RESET
-        assertEquals(
-            listOf("dumpsys", "batterystats", "enable", "no-auto-reset"),
+        assertThat(
             BatteryStatsCommand(
                 optionEnablement = BatteryStatsOptionEnablement(true, option),
             ).toList(),
-        )
-        assertEquals(
-            listOf("dumpsys", "batterystats", "disable", "no-auto-reset"),
+        ).containsExactly("dumpsys", "batterystats", "enable", "no-auto-reset")
+        assertThat(
             BatteryStatsCommand(
                 optionEnablement = BatteryStatsOptionEnablement(false, option),
             ).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "disable", "no-auto-reset")
     }
 
     @Test
     fun optionPretendScreenOff() {
         val option = BatteryStatsOption.PRETEND_SCREEN_OFF
-        assertEquals(
-            listOf("dumpsys", "batterystats", "enable", "pretend-screen-off"),
+        assertThat(
             BatteryStatsCommand(
                 optionEnablement = BatteryStatsOptionEnablement(true, option),
             ).toList(),
-        )
-        assertEquals(
-            listOf("dumpsys", "batterystats", "disable", "pretend-screen-off"),
+        ).containsExactly("dumpsys", "batterystats", "enable", "pretend-screen-off")
+        assertThat(
             BatteryStatsCommand(
                 optionEnablement = BatteryStatsOptionEnablement(false, option),
             ).toList(),
-        )
+        ).containsExactly("dumpsys", "batterystats", "disable", "pretend-screen-off")
     }
 }

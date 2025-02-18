@@ -1,5 +1,9 @@
 package com.memfault.bort.dropbox
 
+import assertk.assertThat
+import assertk.assertions.containsExactly
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
 import com.memfault.bort.FakeBootRelativeTimeProvider
 import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.PackageManagerClient
@@ -22,11 +26,8 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 
 class TombstoneEntryProcessorTest {
     lateinit var processor: UploadingEntryProcessor<TombstoneUploadingEntryProcessorDelegate>
@@ -39,7 +40,7 @@ class TombstoneEntryProcessorTest {
     lateinit var crashHandler: CrashHandler
     private var allowedByRateLimit = true
 
-    @BeforeEach
+    @Before
     fun setUp() {
         mockEnqueueUpload = mockk(relaxed = true)
         mockHandleEventOfInterest = mockk(relaxed = true)
@@ -63,6 +64,7 @@ class TombstoneEntryProcessorTest {
                 },
                 tempFileFactory = TestTemporaryFileFactory,
                 scrubTombstones = { false },
+                useNativeCrashTombstones = { false },
                 operationalCrashesExclusions = { emptyList() },
             ),
             tempFileFactory = TestTemporaryFileFactory,
@@ -84,7 +86,7 @@ class TombstoneEntryProcessorTest {
         } returns PackageManagerReport(listOf(PACKAGE_FIXTURE))
         processor.process(mockEntry(text = EXAMPLE_TOMBSTONE))
         val metadata = marMetadataSlot.captured as MarMetadata.DropBoxMarMetadata
-        assertEquals(listOf(PACKAGE_FIXTURE.toUploaderPackage()), metadata.packages)
+        assertThat(metadata.packages).containsExactly(PACKAGE_FIXTURE.toUploaderPackage())
         coVerify(exactly = 1) { mockHandleEventOfInterest.handleEventOfInterest(any<BaseBootRelativeTime>()) }
     }
 
@@ -93,7 +95,7 @@ class TombstoneEntryProcessorTest {
         // Even though Bort's parsing failed to parse out the processName, ensure it's uploaded it anyway:
         processor.process(mockEntry(text = "not_empty_but_invalid"))
         val metadata = marMetadataSlot.captured as MarMetadata.DropBoxMarMetadata
-        assertTrue(metadata.packages.isEmpty())
+        assertThat(metadata.packages.isEmpty()).isTrue()
     }
 
     @Test
@@ -103,9 +105,9 @@ class TombstoneEntryProcessorTest {
         } returns PackageManagerReport(listOf(PACKAGE_FIXTURE))
 
         allowedByRateLimit = true
-        processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "SYSTEM_TOMBSTONE"))
+        processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "data_app_native_crash"))
         allowedByRateLimit = false
-        processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "SYSTEM_TOMBSTONE"))
+        processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "data_app_native_crash"))
         coVerify(exactly = 1) { mockEnqueueUpload.enqueue(any(), any(), any()) }
         coVerify(exactly = 1) {
             mockHandleEventOfInterest.handleEventOfInterest(any<BaseBootRelativeTime>())
@@ -117,13 +119,13 @@ class TombstoneEntryProcessorTest {
         every { mockPackageNameAllowList.contains(any()) } returns false
 
         processor.process(mockEntry(text = "not_empty_but_invalid"))
-        assertFalse(marMetadataSlot.isCaptured)
+        assertThat(marMetadataSlot.isCaptured).isFalse()
     }
 
     @Test
     fun doesNotEnqueueWhenEmpty() = runTest {
         processor.process(mockEntry(text = ""))
-        assertFalse(marMetadataSlot.isCaptured)
+        assertThat(marMetadataSlot.isCaptured).isFalse()
     }
 
     @Test

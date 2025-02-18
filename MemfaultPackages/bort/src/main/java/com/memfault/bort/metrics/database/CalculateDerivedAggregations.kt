@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics.database
 
+import com.memfault.bort.metrics.custom.ReportType
 import com.memfault.bort.reporting.DataType
 import com.memfault.bort.reporting.MetricType
 import kotlinx.serialization.json.JsonPrimitive
@@ -60,6 +61,7 @@ data class DerivedAggregation(
  */
 fun interface CalculateDerivedAggregations {
     fun calculate(
+        reportType: ReportType,
         startTimestampMs: Long,
         endTimestampMs: Long,
         metrics: Map<String, JsonPrimitive>,

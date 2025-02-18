@@ -1,5 +1,11 @@
 package com.memfault.bort.uploader
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
+import assertk.assertions.isNull
+import com.google.testing.junit.testparameterinjector.TestParameter
+import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.FileUploadToken
 import com.memfault.bort.MarFileUploadPayload
@@ -12,16 +18,13 @@ import okhttp3.mockwebserver.MockWebServer
 import okio.GzipSource
 import okio.buffer
 import org.junit.Rule
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
+import org.junit.Test
+import org.junit.runner.RunWith
 import java.nio.charset.Charset
 import java.util.concurrent.TimeUnit
 
-internal class PreparedUploaderTest {
+@RunWith(TestParameterInjector::class)
+class PreparedUploaderTest {
     @get:Rule
     val server = MockWebServer()
 
@@ -44,14 +47,13 @@ internal class PreparedUploaderTest {
         val result = TemporaryFile().useFile { file, _ ->
             createUploader(server).prepare(file, fileUploadPayload().kind())
         }
-        assertEquals(SECRET_KEY, server.takeRequest().getHeader(PROJECT_KEY_HEADER))
-        assertEquals(UPLOAD_URL, result.body()!!.data.upload_url)
-        assertEquals(AUTH_TOKEN, result.body()!!.data.token)
+        assertThat(server.takeRequest().getHeader(PROJECT_KEY_HEADER)).isEqualTo(SECRET_KEY)
+        assertThat(result.body()!!.data.upload_url).isEqualTo(UPLOAD_URL)
+        assertThat(result.body()!!.data.token).isEqualTo(AUTH_TOKEN)
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = [true, false])
-    fun uploadFile(shouldCompress: Boolean) = runTest {
+    @Test
+    fun uploadFile(@TestParameter shouldCompress: Boolean) = runTest {
         server.enqueue(
             MockResponse()
                 .setBody(UPLOAD_RESPONSE),
@@ -63,15 +65,14 @@ internal class PreparedUploaderTest {
             shouldCompress = shouldCompress,
         )
         val recordedRequest = server.takeRequest(5, TimeUnit.MILLISECONDS)
-        assertNotNull(recordedRequest)
+        assertThat(recordedRequest).isNotNull()
         // Project key should not be included
-        assertNull(recordedRequest!!.getHeader(PROJECT_KEY_HEADER))
-        assertEquals("PUT", recordedRequest.method)
-        assertEquals("application/octet-stream", recordedRequest.getHeader("Content-Type"))
-        assertEquals(if (shouldCompress) "gzip" else null, recordedRequest.getHeader("Content-Encoding"))
+        assertThat(recordedRequest!!.getHeader(PROJECT_KEY_HEADER)).isNull()
+        assertThat(recordedRequest.method).isEqualTo("PUT")
+        assertThat(recordedRequest.getHeader("Content-Type")).isEqualTo("application/octet-stream")
+        assertThat(recordedRequest.getHeader("Content-Encoding")).isEqualTo(if (shouldCompress) "gzip" else null)
         val text = loadTestFileFromResources().readText(Charset.defaultCharset())
-        assertEquals(
-            text,
+        assertThat(text).isEqualTo(
             recordedRequest.body.let {
                 if (shouldCompress) {
                     GzipSource(it).buffer()
@@ -99,16 +100,13 @@ internal class PreparedUploaderTest {
         )
         val recordedRequest = server.takeRequest(5, TimeUnit.MILLISECONDS)
         checkNotNull(recordedRequest)
-        assertEquals("/api/v0/upload/mar", recordedRequest.path)
-        assertEquals("application/json; charset=utf-8", recordedRequest.getHeader("Content-Type"))
-        assertEquals(SECRET_KEY, recordedRequest.getHeader(PROJECT_KEY_HEADER))
-        assertEquals(
-            (
-                """{"file":{"token":"someToken","md5":"aa","name":"logcat.txt"},""" +
-                    """"hardware_version":"HW-FOO","device_serial":"SN1234","software_version":"1.0.0",""" +
-                    """"software_type":"android-build"}""".trimMargin()
-                ),
-            recordedRequest.body.readUtf8(),
+        assertThat(recordedRequest.path).isEqualTo("/api/v0/upload/mar")
+        assertThat(recordedRequest.getHeader("Content-Type")).isEqualTo("application/json; charset=utf-8")
+        assertThat(recordedRequest.getHeader(PROJECT_KEY_HEADER)).isEqualTo(SECRET_KEY)
+        assertThat(recordedRequest.body.readUtf8()).isEqualTo(
+            """{"file":{"token":"someToken","md5":"aa","name":"logcat.txt"},""" +
+                """"hardware_version":"HW-FOO","device_serial":"SN1234","software_version":"1.0.0",""" +
+                """"software_type":"android-build"}""".trimMargin(),
         )
     }
 }

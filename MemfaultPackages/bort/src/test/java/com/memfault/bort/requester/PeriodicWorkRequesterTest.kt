@@ -1,5 +1,8 @@
 package com.memfault.bort.requester
 
+import assertk.assertThat
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
 import com.memfault.bort.DevMode
 import com.memfault.bort.DumpsterCapabilities
 import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
@@ -13,8 +16,6 @@ import com.memfault.bort.settings.toSettings
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
 
 internal class PeriodicWorkRequesterTest {
     private val requester = object : PeriodicWorkRequester() {
@@ -78,80 +79,66 @@ internal class PeriodicWorkRequesterTest {
     )
 
     @Test
-    fun cancelsTaskAfterSettingsChange() {
-        runTest {
-            requester.enabled = false
-            requester.enabledOld = false
-            requester.paramsChanged = false
-            manager.maybeRestartTasksAfterSettingsChange(oldAndNewSettings)
-            assertTrue(requester.cancelled)
-            assertFalse(requester.started)
-        }
+    fun cancelsTaskAfterSettingsChange() = runTest {
+        requester.enabled = false
+        requester.enabledOld = false
+        requester.paramsChanged = false
+        manager.maybeRestartTasksAfterSettingsChange(oldAndNewSettings)
+        assertThat(requester.cancelled).isTrue()
+        assertThat(requester.started).isFalse()
     }
 
     @Test
-    fun reschedulesTaskAfterSettingsChange_wasStopped() {
-        runTest {
-            requester.enabled = true
-            requester.enabledOld = false
-            requester.paramsChanged = false
-            manager.maybeRestartTasksAfterSettingsChange(oldAndNewSettings)
-            assertFalse(requester.cancelled)
-            assertTrue(requester.started)
-        }
+    fun reschedulesTaskAfterSettingsChange_wasStopped() = runTest {
+        requester.enabled = true
+        requester.enabledOld = false
+        requester.paramsChanged = false
+        manager.maybeRestartTasksAfterSettingsChange(oldAndNewSettings)
+        assertThat(requester.cancelled).isFalse()
+        assertThat(requester.started).isTrue()
     }
 
     @Test
-    fun reschedulesTaskAfterSettingsChange_paramsChanged() {
-        runTest {
-            requester.enabled = true
-            requester.enabledOld = true
-            requester.paramsChanged = true
-            manager.maybeRestartTasksAfterSettingsChange(oldAndNewSettings)
-            assertFalse(requester.cancelled)
-            assertTrue(requester.started)
-        }
+    fun reschedulesTaskAfterSettingsChange_paramsChanged() = runTest {
+        requester.enabled = true
+        requester.enabledOld = true
+        requester.paramsChanged = true
+        manager.maybeRestartTasksAfterSettingsChange(oldAndNewSettings)
+        assertThat(requester.cancelled).isFalse()
+        assertThat(requester.started).isTrue()
     }
 
     @Test
-    fun doesNothingAfterSettingsChange() {
-        runTest {
-            requester.enabled = true
-            requester.enabledOld = true
-            requester.paramsChanged = false
-            manager.maybeRestartTasksAfterSettingsChange(oldAndNewSettings)
-            assertFalse(requester.cancelled)
-            assertFalse(requester.started)
-        }
+    fun doesNothingAfterSettingsChange() = runTest {
+        requester.enabled = true
+        requester.enabledOld = true
+        requester.paramsChanged = false
+        manager.maybeRestartTasksAfterSettingsChange(oldAndNewSettings)
+        assertThat(requester.cancelled).isFalse()
+        assertThat(requester.started).isFalse()
     }
 
     @Test
-    fun schedulesAfterBoot() {
-        runTest {
-            requester.enabled = true
-            manager.scheduleTasksAfterBootOrEnable(bortEnabled = true, justBooted = true)
-            assertFalse(requester.cancelled)
-            assertTrue(requester.started)
-        }
+    fun schedulesAfterBoot() = runTest {
+        requester.enabled = true
+        manager.scheduleTasksAfterBootOrEnable(bortEnabled = true, justBooted = true)
+        assertThat(requester.cancelled).isFalse()
+        assertThat(requester.started).isTrue()
     }
 
     @Test
-    fun cancelsAfterBoot() {
-        runTest {
-            requester.enabled = false
-            manager.scheduleTasksAfterBootOrEnable(bortEnabled = true, justBooted = true)
-            assertTrue(requester.cancelled)
-            assertFalse(requester.started)
-        }
+    fun cancelsAfterBoot() = runTest {
+        requester.enabled = false
+        manager.scheduleTasksAfterBootOrEnable(bortEnabled = true, justBooted = true)
+        assertThat(requester.cancelled).isTrue()
+        assertThat(requester.started).isFalse()
     }
 
     @Test
-    fun cancelsAfterBortDisable() {
-        runTest {
-            requester.enabled = true
-            manager.scheduleTasksAfterBootOrEnable(bortEnabled = false, justBooted = false)
-            assertTrue(requester.cancelled)
-            assertFalse(requester.started)
-        }
+    fun cancelsAfterBortDisable() = runTest {
+        requester.enabled = true
+        manager.scheduleTasksAfterBootOrEnable(bortEnabled = false, justBooted = false)
+        assertThat(requester.cancelled).isTrue()
+        assertThat(requester.started).isFalse()
     }
 }

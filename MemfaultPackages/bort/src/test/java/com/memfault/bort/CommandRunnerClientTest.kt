@@ -1,6 +1,12 @@
 package com.memfault.bort
 
 import android.os.ParcelFileDescriptor
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotNull
+import assertk.assertions.isTrue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getError
 import com.memfault.bort.CommandRunnerMode.BortCreatesPipes
@@ -22,15 +28,10 @@ import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import org.junit.Before
+import org.junit.Test
 import java.io.FileInputStream
 import java.io.InputStream
-import java.lang.IllegalArgumentException
 import kotlin.time.Duration.Companion.milliseconds
 
 class CommandRunnerClientTest {
@@ -50,7 +51,7 @@ class CommandRunnerClientTest {
 
     var response: StdResult<RunCommandResponse>? = null
 
-    @BeforeEach
+    @Before
     fun setUp() {
         legacyMockInputStream = mockk(relaxed = true)
         mockInputStream = mockk(relaxed = true)
@@ -84,94 +85,78 @@ class CommandRunnerClientTest {
     }
 
     @Test
-    fun handleFailureFromBlock() {
+    fun handleFailureFromBlock() = runTest {
         val failure = Result.failure(Exception(""))
         coEvery { block(any()) } returns failure
-        runTest {
-            assertEquals(failure, client.run(block, sendRequest))
-        }
+
+        assertThat(client.run(block, sendRequest)).isEqualTo(failure)
     }
 
     @Test
-    fun handleFailureFromSendRequest() {
+    fun handleFailureFromSendRequest() = runTest {
         val failure = Result.failure(Exception(""))
         coEvery { sendRequest(any()) } answers { failure }
-        runTest {
-            assertEquals(failure, client.run(block, sendRequest))
-        }
+        assertThat(client.run(block, sendRequest)).isEqualTo(failure)
     }
 
     @Test
-    fun handleUnexpectedContinueMessage() {
-        assertNotNull(replyHandler)
+    fun handleUnexpectedContinueMessage() = runTest {
+        assertThat(replyHandler).isNotNull()
         replyHandler.replyChannel.trySend(ErrorResponse("Uh-oh"))
-        runTest {
-            assertEquals(
-                Result.success(true),
-                client.run(block, sendRequest),
-            )
-        }
+        assertThat(client.run(block, sendRequest)).isEqualTo(
+            Result.success(true),
+        )
     }
 
     @Test
-    fun handleUnexpectedResultResponse() {
+    fun handleUnexpectedResultResponse() = runTest {
         replyHandler.replyChannel.trySend(RunCommandContinue(pfd = mockWriteFd))
         replyHandler.replyChannel.trySend(ErrorResponse("Uh-oh"))
-        runTest {
-            assertEquals(
-                Result.success(true),
-                client.run(block, sendRequest),
-            )
-        }
-        assertTrue(response?.isFailure ?: false)
-        assertThrows<TimeoutCancellationException> {
+        assertThat(client.run(block, sendRequest)).isEqualTo(
+            Result.success(true),
+        )
+        assertThat(response?.isFailure ?: false).isTrue()
+        assertFailure {
             throw response?.getError()!!
-        }
+        }.isInstanceOf<TimeoutCancellationException>()
     }
 
     @Test
-    fun handleNullPfdResponse() {
+    fun handleNullPfdResponse() = runTest {
         replyHandler.replyChannel.trySend(RunCommandContinue(pfd = null))
         replyHandler.replyChannel.trySend(RunCommandResponse(exitCode = 123, didTimeout = false))
-        runTest {
-            assertEquals(
-                Result.success(true),
-                client.run(block, sendRequest),
-            )
-        }
-        assertTrue(response?.isFailure ?: false)
-        assertThrows<CancellationException> {
+        assertThat(client.run(block, sendRequest)).isEqualTo(
+            Result.success(true),
+        )
+        assertThat(response?.isFailure ?: false).isTrue()
+        assertFailure {
             throw response?.getError()!!
-        }
+        }.isInstanceOf<CancellationException>()
     }
 
     @Test
-    fun happyPath() {
+    fun happyPath() = runTest {
         replyHandler.replyChannel.trySend(RunCommandContinue(pfd = mockWriteFd))
         replyHandler.replyChannel.trySend(RunCommandResponse(exitCode = 123, didTimeout = false))
-        runTest {
-            assertEquals(
-                Result.success(true),
-                client.run(block, sendRequest),
-            )
-        }
+        assertThat(client.run(block, sendRequest)).isEqualTo(
+            Result.success(true),
+        )
         verify { gotInputStream(Result.success(mockInputStream)) }
-        assertEquals(Result.success(RunCommandResponse(exitCode = 123, didTimeout = false)), response)
+        assertThat(response).isEqualTo(Result.success(RunCommandResponse(exitCode = 123, didTimeout = false)))
     }
 
     @Test
-    fun legacyHappyPath() {
+    fun legacyHappyPath() = runTest {
         client = CommandRunnerClient(mockk(), BortCreatesPipes(legacyMockInputStream, legacyMockWriteFd))
 
         replyHandler.replyChannel.trySend(RunCommandContinue(pfd = null))
         replyHandler.replyChannel.trySend(RunCommandResponse(exitCode = 123, didTimeout = false))
-        runTest {
-            assertEquals(
-                Result.success(true),
-                client.run(block, sendRequest),
-            )
-        }
-        assertEquals(Result.success(RunCommandResponse(exitCode = 123, didTimeout = false)), response)
+
+        assertThat(client.run(block, sendRequest)).isEqualTo(
+            Result.success(true),
+        )
+
+        assertThat(response).isEqualTo(Result.success(RunCommandResponse(exitCode = 123, didTimeout = false)))
         coVerifyOrder {
             // The writeFd must be closed after the continue message has been received, see comment in run()
             legacyMockWriteFd.close()

@@ -13,7 +13,8 @@ import io.mockk.coVerifyAll
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Test
+import kotlinx.serialization.json.JsonObject
+import org.junit.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.hours
@@ -49,6 +50,7 @@ class AppVersionsCollectorTest {
                 get() = false
             override val operationalCrashesExclusions: List<String>
                 get() = emptyList()
+            override val operationalCrashesComponentGroups: JsonObject = JsonObject(emptyMap())
             override val pollingInterval: Duration
                 get() = 15.minutes
             override val collectMemory: Boolean = true

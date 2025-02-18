@@ -20,7 +20,6 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Test
-import org.junit.jupiter.api.Assertions.assertEquals
 import java.util.Locale
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -120,7 +119,7 @@ internal class BatterystatsSummaryCollectorTest {
             // 27768496/3600000=7.713471111111111
             // screen on = 0.5 screen off = 0.5
             // capacity = 3777
-            assertEquals(
+            assertThat(result).isEqualTo(
                 BatteryStatsResult(
                     batteryStatsFileToUpload = null,
                     batteryStatsHrt = setOf(
@@ -169,7 +168,6 @@ internal class BatterystatsSummaryCollectorTest {
                     ),
                     internalAggregatedMetrics = emptyMap(),
                 ),
-                result,
             )
         }
     }
@@ -184,7 +182,7 @@ internal class BatterystatsSummaryCollectorTest {
         // 2376540/3600000=0.66015
         // screen on = 0.75 screen off = 0.25
         // capacity = 3777
-        assertEquals(
+        assertThat(result).isEqualTo(
             BatteryStatsResult(
                 batteryStatsFileToUpload = null,
                 batteryStatsHrt = setOf(
@@ -236,7 +234,6 @@ internal class BatterystatsSummaryCollectorTest {
                 ),
                 internalAggregatedMetrics = emptyMap(),
             ),
-            result,
         )
     }
 
@@ -263,7 +260,7 @@ internal class BatterystatsSummaryCollectorTest {
         lastSummary = null
         batteryStatsSummary = CHECKIN_NO_BATTERY
         val result = summaryCollector.collectSummaryCheckin()
-        assertEquals(BatteryStatsResult.EMPTY, result)
+        assertThat(result).isEqualTo(BatteryStatsResult.EMPTY)
     }
 
     @Test
@@ -271,7 +268,7 @@ internal class BatterystatsSummaryCollectorTest {
         lastSummary = CHECKIN_NO_BATTERY
         batteryStatsSummary = CHECKIN_NO_BATTERY
         val result = summaryCollector.collectSummaryCheckin()
-        assertEquals(BatteryStatsResult.EMPTY, result)
+        assertThat(result).isEqualTo(BatteryStatsResult.EMPTY)
     }
 
     private val CHECKIN_CHARGING = BatteryStatsSummary(
@@ -297,7 +294,7 @@ internal class BatterystatsSummaryCollectorTest {
         lastSummary = CHECKIN_CHARGING
         batteryStatsSummary = CHECKIN_CHARGING
         val result = summaryCollector.collectSummaryCheckin()
-        assertEquals(
+        assertThat(result).isEqualTo(
             BatteryStatsResult(
                 batteryStatsFileToUpload = null,
                 batteryStatsHrt = setOf(
@@ -316,7 +313,6 @@ internal class BatterystatsSummaryCollectorTest {
                 ),
                 internalAggregatedMetrics = emptyMap(),
             ),
-            result,
         )
     }
 
@@ -344,7 +340,7 @@ internal class BatterystatsSummaryCollectorTest {
         lastSummary = CHECKIN_CHARGING
         batteryStatsSummary = CHECKIN_DISCHARGING
         val result = summaryCollector.collectSummaryCheckin()
-        assertEquals(
+        assertThat(result).isEqualTo(
             BatteryStatsResult(
                 batteryStatsFileToUpload = null,
                 batteryStatsHrt = setOf(
@@ -365,7 +361,6 @@ internal class BatterystatsSummaryCollectorTest {
                 ),
                 internalAggregatedMetrics = emptyMap(),
             ),
-            result,
         )
     }
 
@@ -397,7 +392,7 @@ internal class BatterystatsSummaryCollectorTest {
             lastSummary = null
             batteryStatsSummary = CHECKIN_LOW_USAGE
             val result = summaryCollector.collectSummaryCheckin()
-            assertEquals(
+            assertThat(result).isEqualTo(
                 BatteryStatsResult(
                     batteryStatsFileToUpload = null,
                     batteryStatsHrt = setOf(
@@ -437,7 +432,6 @@ internal class BatterystatsSummaryCollectorTest {
                     ),
                     internalAggregatedMetrics = emptyMap(),
                 ),
-                result,
             )
         }
     }

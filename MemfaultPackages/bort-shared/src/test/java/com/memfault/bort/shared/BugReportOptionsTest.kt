@@ -1,34 +1,36 @@
 package com.memfault.bort.shared
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import org.junit.Test
 
 class BugReportOptionsTest {
     @Test
     fun string() {
-        assertEquals(
-            "pkg/cls",
+        assertThat(
+
             BugReportRequest.Component(
                 "pkg",
                 "cls",
             ).toString(),
-        )
+        ).isEqualTo("pkg/cls")
     }
 
     @Test
     fun fromStringErrors() {
-        assertThrows<IllegalArgumentException> {
+        assertFailure {
             BugReportRequest.Component.fromString("")
-        }
-        assertThrows<IllegalArgumentException> {
+        }.isInstanceOf<IllegalArgumentException>()
+        assertFailure {
             BugReportRequest.Component.fromString("com.package.foo")
-        }
-        assertThrows<IllegalArgumentException> {
+        }.isInstanceOf<IllegalArgumentException>()
+        assertFailure {
             BugReportRequest.Component.fromString("com.package.foo/")
-        }
-        assertThrows<IllegalArgumentException> {
+        }.isInstanceOf<IllegalArgumentException>()
+        assertFailure {
             BugReportRequest.Component.fromString("/my.class")
-        }
+        }.isInstanceOf<IllegalArgumentException>()
     }
 }

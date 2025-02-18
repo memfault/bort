@@ -1,10 +1,11 @@
 package com.memfault.bort.zip
 
+import assertk.assertFailure
 import assertk.assertThat
+import assertk.assertions.isInstanceOf
 import assertk.assertions.isNull
 import org.junit.Rule
 import org.junit.Test
-import org.junit.jupiter.api.assertThrows
 import org.junit.rules.TemporaryFolder
 import java.util.zip.ZipException
 import java.util.zip.ZipFile
@@ -16,7 +17,7 @@ class ZipFilesTest {
     @Test
     fun openEmptyFileFailure() {
         val file = folder.newFile("empty")
-        assertThrows<ZipException> { ZipFile(file) }
+        assertFailure { ZipFile(file) }.isInstanceOf<ZipException>()
     }
 
     @Test

@@ -1,6 +1,6 @@
 package com.memfault.bort.metrics
 
-import org.junit.jupiter.api.Test
+import org.junit.Test
 
 class MetricsTest {
     @Test

@@ -8,16 +8,16 @@ import com.memfault.bort.reporting.RemoteMetricsService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import static com.memfault.bort.reporting.StateAgg.LATEST_VALUE;
 import static java.util.Arrays.asList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -79,7 +79,7 @@ public class JavaMetricTest {
     assertEquals(reportType, result.reportType);
     assertEquals(timeMs, result.timeMs);
     assertNull(result.stringVal);
-    assertEquals(1, result.numberVal);
+    assertEquals(1, result.numberVal, 0.001);
     assertNull(result.boolVal);
   }
 

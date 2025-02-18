@@ -156,8 +156,11 @@ void ContinuousLogcat::rebuild_log_format(const std::vector<std::string>& filter
   // add filters
   for (auto &filter : filter_specs) {
     ALOGT("clog: filter: %s", filter.c_str());
-    android_log_addFilterString(log_format.get(), filter.c_str());
+    android_log_addFilterRule(log_format.get(), filter.c_str());
   }
+
+  // silence all other tags and levels
+  android_log_addFilterRule(log_format.get(), "*:S");
 }
 
 void ContinuousLogcat::join() {
@@ -281,7 +284,9 @@ void ContinuousLogcat::run() {
       // Force-checked if line should be printed, in some android
       // versions, the filters are not passed to the logd backend
       // so we need to recheck them
-      if (!android_log_shouldPrintLine(log_format.get(), entry.tag, entry.priority)) {
+      if (!android_log_shouldPrintLine(log_format.get(),
+                                       std::string(entry.tag, entry.tagLen).c_str(),
+                                       entry.priority)) {
         continue;
       }
 

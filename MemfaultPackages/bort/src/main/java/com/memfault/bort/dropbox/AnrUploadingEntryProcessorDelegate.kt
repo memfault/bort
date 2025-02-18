@@ -21,12 +21,14 @@ class AnrUploadingEntryProcessorDelegate @Inject constructor(
     override val debugTag: String
         get() = "UPLOAD_ANR"
 
+    override val crashTag: String? = null
+
     override fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean =
         tokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
 
     override suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo = try {
         entryFile.inputStream().use {
-            EntryInfo(entry.tag, AnrParser(it).parse().packageName)
+            EntryInfo(tokenBucketKey = entry.tag, packageName = AnrParser(it).parse().packageName)
         }
     } catch (ex: Exception) {
         Logger.w("Unable to parse ANR", ex)

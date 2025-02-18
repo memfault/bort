@@ -1,20 +1,23 @@
 package com.memfault.bort.shared
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNotEqualTo
+import assertk.assertions.isNotNull
+import assertk.assertions.isTrue
+import org.junit.Test
 
 class ReporterServiceMessagesTest {
     @Test
     fun simpleMessage() {
-        assertEquals(
+        assertThat(
             SimpleReporterServiceMessage(1),
+        ).isEqualTo(
             SimpleReporterServiceMessage(1),
         )
-        assertNotEquals(
+        assertThat(
             SimpleReporterServiceMessage(SEND_FILE_TO_SERVER_REQ),
+        ).isNotEqualTo(
             SetLogLevelResponse,
         )
     }
@@ -22,8 +25,8 @@ class ReporterServiceMessagesTest {
     @Test
     fun errorResponseFromExceptionIncludesStackStrace() {
         ErrorResponse.fromException(Exception("Boom")).also {
-            assertNotNull(it.error)
-            assertTrue(it.error!!.contains(this::errorResponseFromExceptionIncludesStackStrace.name))
+            assertThat(it.error).isNotNull()
+            assertThat(it.error!!.contains(this::errorResponseFromExceptionIncludesStackStrace.name)).isTrue()
         }
     }
 }

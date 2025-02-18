@@ -7,6 +7,7 @@ import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.parsers.NativeBacktraceParser
 import com.memfault.bort.parsers.TombstoneParser
 import com.memfault.bort.settings.DropboxScrubTombstones
+import com.memfault.bort.settings.DropboxUseNativeCrashTombstones
 import com.memfault.bort.settings.OperationalCrashesExclusions
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.tokenbucket.TokenBucketStore
@@ -21,19 +22,35 @@ class TombstoneUploadingEntryProcessorDelegate @Inject constructor(
     @Tombstone private val tokenBucketStore: TokenBucketStore,
     private val tempFileFactory: TemporaryFileFactory,
     private val scrubTombstones: DropboxScrubTombstones,
+    private val useNativeCrashTombstones: DropboxUseNativeCrashTombstones,
     private val operationalCrashesExclusions: OperationalCrashesExclusions,
 ) : UploadingEntryProcessorDelegate {
-    override val tags = listOf("SYSTEM_TOMBSTONE")
+    override val tags: List<String>
+        get() = if (useNativeCrashTombstones()) {
+            listOf(
+                "data_app_native_crash",
+                "system_app_native_crash",
+                "system_server_native_crash",
+            )
+        } else {
+            listOf("SYSTEM_TOMBSTONE")
+        }
 
     override val debugTag: String
         get() = "UPLOAD_TOMBSTONE"
+
+    override val crashTag: String? = null
 
     override fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean =
         tokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
 
     override suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo {
         val processName = findProcessName(entryFile)
-        return EntryInfo(entry.tag, processName, getPackages(processName))
+        return EntryInfo(
+            tokenBucketKey = entry.tag,
+            packageName = processName,
+            packages = getPackages(processName),
+        )
     }
 
     override fun scrub(inputFile: File, tag: String): File {
