@@ -10,6 +10,7 @@ import com.memfault.bort.settings.RateLimitingSettings
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.double
 import org.junit.Rule
 import org.junit.Test
@@ -46,6 +47,7 @@ class MemoryMetricsCollectorTest {
         override val cachePackageManagerReport: Boolean get() = TODO("not used")
         override val recordImei: Boolean get() = TODO("not used")
         override val operationalCrashesExclusions: List<String> get() = TODO("not used")
+        override val operationalCrashesComponentGroups: JsonObject get() = TODO("not used")
         override val pollingInterval: Duration get() = TODO("not used")
         override val collectMemory: Boolean get() = collectMemoryValue
         override val thermalMetricsEnabled: Boolean get() = TODO("Not used")

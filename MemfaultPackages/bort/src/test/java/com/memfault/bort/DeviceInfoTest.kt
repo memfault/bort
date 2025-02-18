@@ -1,10 +1,11 @@
 package com.memfault.bort
 
 import android.content.Context
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.settings.AndroidBuildFormat
 import io.mockk.mockk
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
+import org.junit.Test
 
 val TEST_BUILD_FINGERPRINT = "Sony/H8314/H8314:9/52.0.A.3.163/772046555:user/release-keys"
 val fakeGetBuildFingerprint = { TEST_BUILD_FINGERPRINT }
@@ -34,8 +35,8 @@ class DeviceInfoFromSettingsAndProperties {
             context,
             getFallbackAndroidId = fallbackAndroidId,
         )
-        assertEquals("SERIAL", deviceInfo.deviceSerial)
-        assertEquals("HARDWARE-XYZ", deviceInfo.hardwareVersion)
+        assertThat(deviceInfo.deviceSerial).isEqualTo("SERIAL")
+        assertThat(deviceInfo.hardwareVersion).isEqualTo("HARDWARE-XYZ")
     }
 
     @Test
@@ -50,8 +51,8 @@ class DeviceInfoFromSettingsAndProperties {
             context,
             getFallbackAndroidId = fallbackAndroidId,
         )
-        assertEquals("OVERRIDE", deviceInfo.deviceSerial)
-        assertEquals("HARDWARE-XYZ", deviceInfo.hardwareVersion)
+        assertThat(deviceInfo.deviceSerial).isEqualTo("OVERRIDE")
+        assertThat(deviceInfo.hardwareVersion).isEqualTo("HARDWARE-XYZ")
     }
 
     @Test
@@ -66,7 +67,7 @@ class DeviceInfoFromSettingsAndProperties {
             context,
             getFallbackAndroidId = fallbackAndroidId,
         )
-        assertEquals("123", deviceInfo.softwareVersion)
+        assertThat(deviceInfo.softwareVersion).isEqualTo("123")
     }
 
     @Test
@@ -79,7 +80,7 @@ class DeviceInfoFromSettingsAndProperties {
             getBuildFingerprint = fakeGetBuildFingerprint,
             getFallbackAndroidId = fallbackAndroidId,
         )
-        assertEquals(TEST_BUILD_FINGERPRINT, deviceInfo.softwareVersion)
+        assertThat(deviceInfo.softwareVersion).isEqualTo(TEST_BUILD_FINGERPRINT)
     }
 
     @Test
@@ -95,10 +96,7 @@ class DeviceInfoFromSettingsAndProperties {
             getBuildFingerprint = fakeGetBuildFingerprint,
             getFallbackAndroidId = fallbackAndroidId,
         )
-        assertEquals(
-            "$TEST_BUILD_FINGERPRINT::123",
-            deviceInfo.softwareVersion,
-        )
+        assertThat(deviceInfo.softwareVersion).isEqualTo("$TEST_BUILD_FINGERPRINT::123")
     }
 
     @Test
@@ -109,9 +107,9 @@ class DeviceInfoFromSettingsAndProperties {
             context,
             getFallbackAndroidId = fallbackAndroidId,
         )
-        assertEquals("fallback", deviceInfo.deviceSerial)
-        assertEquals("unknown", deviceInfo.hardwareVersion)
-        assertEquals("unknown", deviceInfo.softwareVersion)
+        assertThat(deviceInfo.deviceSerial).isEqualTo("fallback")
+        assertThat(deviceInfo.hardwareVersion).isEqualTo("unknown")
+        assertThat(deviceInfo.softwareVersion).isEqualTo("unknown")
     }
 }
 
@@ -137,13 +135,12 @@ class DeviceInfoLegacy {
                 "ro.product.device" to "device",
             ),
         )
-        assertEquals("brand-product-device", hardwareVersion)
+        assertThat(hardwareVersion).isEqualTo("brand-product-device")
     }
 
     @Test
     fun happyPath() {
-        assertEquals(
-            "brand-product-device",
+        assertThat(
             DeviceInfo.getLegacyHardwareVersion(
                 mapOf(
                     "ro.product.brand" to "brand",
@@ -151,18 +148,17 @@ class DeviceInfoLegacy {
                     "ro.product.device" to "device",
                 ),
             ),
-        )
+        ).isEqualTo("brand-product-device")
     }
 
     @Test
     fun missingValues() {
-        assertEquals(
-            "device",
+        assertThat(
             DeviceInfo.getLegacyHardwareVersion(
                 mapOf(
                     "ro.product.device" to "device",
                 ),
             ),
-        )
+        ).isEqualTo("device")
     }
 }

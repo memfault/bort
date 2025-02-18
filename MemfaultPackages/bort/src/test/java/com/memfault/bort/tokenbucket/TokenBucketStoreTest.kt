@@ -1,16 +1,18 @@
 package com.memfault.bort.tokenbucket
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isNotNull
+import assertk.assertions.isTrue
 import com.memfault.bort.DevMode
 import com.memfault.bort.DevModeDisabled
 import com.memfault.bort.time.BoxedDuration
 import io.mockk.Called
 import io.mockk.spyk
 import io.mockk.verify
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 
@@ -32,7 +34,7 @@ class TokenBucketStoreTest {
     lateinit var tokenBucketFactory: TokenBucketFactory
     lateinit var mockElapsedRealtime: MockElapsedRealtime
 
-    @BeforeEach
+    @Before
     fun setUp() {
         mockElapsedRealtime = MockElapsedRealtime()
         tokenBucketFactory = MockTokenBucketFactory(
@@ -46,8 +48,7 @@ class TokenBucketStoreTest {
     fun editNoChange() {
         val storageProvider = spyk(MockTokenBucketStorage(map = StoredTokenBucketMap()))
         val blockResult = 1234
-        assertEquals(
-            blockResult,
+        assertThat(blockResult).isEqualTo(
             RealTokenBucketStore(
                 storage = storageProvider,
                 getMaxBuckets = { 1 },
@@ -79,8 +80,7 @@ class TokenBucketStoreTest {
         )
 
         val blockResult = 1234
-        assertEquals(
-            blockResult,
+        assertThat(blockResult).isEqualTo(
             RealTokenBucketStore(
                 storage = storage,
                 getMaxBuckets = { 1 },
@@ -88,7 +88,7 @@ class TokenBucketStoreTest {
                 devMode = DevModeDisabled,
             ).edit { map ->
                 val bucket = map.upsertBucket(key = key, capacity = capacity, period = period)
-                assertNotNull(bucket)
+                assertThat(bucket).isNotNull()
                 bucket?.take(tag = "test") // decrements count
                 blockResult
             },
@@ -221,12 +221,12 @@ class TokenBucketStoreTest {
             getTokenBucketFactory = { tokenBucketFactory },
             devMode = DevModeDisabled,
         )
-        assertEquals(true, store.edit { it.isFull })
-        assertEquals(false, store.edit { it.upsertBucket(key)?.take(tag = "test") })
+        assertThat(store.edit { it.isFull }).isTrue()
+        assertThat(store.edit { it.upsertBucket(key)?.take(tag = "test") }).isNotNull().isFalse()
         store.reset()
-        assertEquals(StoredTokenBucketMap(), storage.map)
-        assertEquals(false, store.edit { it.isFull })
-        assertEquals(true, store.edit { it.upsertBucket(key)?.take(tag = "test") })
+        assertThat(storage.map).isEqualTo(StoredTokenBucketMap())
+        assertThat(store.edit { it.isFull }).isFalse()
+        assertThat(store.edit { it.upsertBucket(key)?.take(tag = "test") }).isNotNull().isTrue()
     }
 
     @Test
@@ -254,7 +254,7 @@ class TokenBucketStoreTest {
             getTokenBucketFactory = { tokenBucketFactory },
             devMode = devMode,
         )
-        assertTrue(store.takeSimple(key = key, tag = "tag"))
+        assertThat(store.takeSimple(key = key, tag = "tag")).isTrue()
         verify { map wasNot Called }
         verify { storage wasNot Called }
     }

@@ -23,12 +23,7 @@ dependencies {
     testImplementation deps.jackson
     testImplementation deps.zjsonpatch
 
-    testImplementation platform(deps.test.junit.bom)
-    testImplementation deps.test.junit
-    testImplementation deps.test.junit.jupiter
-    testRuntimeOnly deps.test.junit.jupiter.vintage.engine
-    testRuntimeOnly deps.test.junit.jupiter.platform.launcher
-
     testImplementation deps.test.coroutines
+    testImplementation deps.test.junit
     testImplementation deps.test.mockk
 }

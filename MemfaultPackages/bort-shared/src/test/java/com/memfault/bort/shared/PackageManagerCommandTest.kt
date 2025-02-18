@@ -1,21 +1,27 @@
 package com.memfault.bort.shared
 
 import android.os.Bundle
+import assertk.assertThat
+import assertk.assertions.containsExactly
+import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
+import com.google.testing.junit.testparameterinjector.TestParameter
+import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import com.memfault.bort.shared.PackageManagerCommand.Util.isValidAndroidApplicationId
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.EnumSource
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
 
+@RunWith(TestParameterInjector::class)
 class PackageManagerCommandTest {
     lateinit var bundleFactory: () -> Bundle
     lateinit var outBundle: Bundle
 
-    @BeforeEach
+    @Before
     fun setUp() {
         outBundle = mockk(relaxed = true)
         bundleFactory = mockk(relaxed = true)
@@ -41,17 +47,15 @@ class PackageManagerCommandTest {
         HELP("-h", PackageManagerCommand(help = true)),
     }
 
-    @ParameterizedTest
-    @EnumSource
-    fun flags(testCase: FlagsTestCase) {
+    @Test
+    fun flags(@TestParameter testCase: FlagsTestCase) {
         val flag = testCase.flag
         val cmd = testCase.cmd.copy(bundleFactory = bundleFactory)
 
-        assertEquals(listOf("dumpsys", "package", flag), cmd.toList())
+        assertThat(cmd.toList()).containsExactly("dumpsys", "package", flag)
         cmd.toBundle()
         verify { outBundle.putBoolean(flag, true) }
-        assertEquals(
-            cmd,
+        assertThat(cmd).isEqualTo(
             PackageManagerCommand.fromBundle(
                 mockDeserializationBundle(flag = flag),
                 bundleFactory = bundleFactory,
@@ -62,11 +66,10 @@ class PackageManagerCommandTest {
     @Test
     fun cmd() {
         val cmd = PackageManagerCommand(cmdOrAppId = "com.memfault.bort", bundleFactory = bundleFactory)
-        assertEquals(listOf("dumpsys", "package", "com.memfault.bort"), cmd.toList())
+        assertThat(cmd.toList()).containsExactly("dumpsys", "package", "com.memfault.bort")
         cmd.toBundle()
         verify { outBundle.putString("CMD", "com.memfault.bort") }
-        assertEquals(
-            cmd,
+        assertThat(cmd).isEqualTo(
             PackageManagerCommand.fromBundle(
                 mockDeserializationBundle(cmd = "com.memfault.bort"),
                 bundleFactory = bundleFactory,
@@ -80,20 +83,15 @@ class PackageManagerCommandTest {
             every { getBoolean(any()) } returns false
             every { getString("CMD") } returns "&& bad command"
         }
-        assertEquals(
-            listOf("dumpsys", "package", "invalid.package.id"),
-            PackageManagerCommand.fromBundle(bundle).toList(),
-        )
+        assertThat(PackageManagerCommand.fromBundle(bundle).toList())
+            .containsExactly("dumpsys", "package", "invalid.package.id")
     }
 
     @Test
     fun isValidAndroidApplicationId() {
-        assertEquals(false, "".isValidAndroidApplicationId())
-        assertEquals(false, "myapp".isValidAndroidApplicationId())
-        assertEquals(false, "com myapp".isValidAndroidApplicationId())
-        assertEquals(true, "com.myapp".isValidAndroidApplicationId())
-    }
-
-    companion object {
+        assertThat("".isValidAndroidApplicationId()).isFalse()
+        assertThat("myapp".isValidAndroidApplicationId()).isFalse()
+        assertThat("com myapp".isValidAndroidApplicationId()).isFalse()
+        assertThat("com.myapp".isValidAndroidApplicationId()).isTrue()
     }
 }

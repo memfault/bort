@@ -1,9 +1,10 @@
 package com.memfault.bort.ota.lib
 
 import android.content.SharedPreferences
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import io.mockk.every
 import io.mockk.mockk
-import org.junit.Assert.assertEquals
 import org.junit.Test
 
 internal class StateTest {
@@ -42,6 +43,6 @@ internal class StateTest {
         // Can update this if default values change.
         val expectedState: State = State.UpdateAvailable(ota = ota)
         val deserializedState = stateStore.read()
-        assertEquals(expectedState, deserializedState)
+        assertThat(deserializedState).isEqualTo(expectedState)
     }
 }

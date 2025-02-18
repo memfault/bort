@@ -5,6 +5,8 @@ import android.os.Message
 import android.os.Messenger
 import android.os.ParcelFileDescriptor
 import android.os.RemoteException
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.shared.Command
 import com.memfault.bort.shared.CommandRunnerOptions
 import com.memfault.bort.shared.ErrorResponse
@@ -24,9 +26,8 @@ import io.mockk.mockk
 import io.mockk.mockkConstructor
 import io.mockk.slot
 import io.mockk.verify
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 
 data class UnknownMessage(override val messageId: Int = Int.MAX_VALUE) : ReporterServiceMessage() {
     override fun toBundle(): Bundle = Bundle()
@@ -45,7 +46,7 @@ class ReporterServiceTest {
     private val readFd: ParcelFileDescriptor = mockk(relaxed = true)
     private val writeFd: ParcelFileDescriptor = mockk()
 
-    @BeforeEach
+    @Before
     fun setUp() {
         mockkConstructor()
         replier = mockk(name = "replier", relaxed = true)
@@ -97,7 +98,7 @@ class ReporterServiceTest {
     fun setLogLevel() {
         messageHandler.handleServiceMessage(SetLogLevelRequest(LogLevel.TEST), mockk())
         verify(exactly = 1) { replier.sendReply(ofType(SetLogLevelResponse::class)) }
-        assertEquals(LogLevel.TEST, logLevel)
+        assertThat(logLevel).isEqualTo(LogLevel.TEST)
     }
 
     @Test
@@ -105,7 +106,7 @@ class ReporterServiceTest {
         val message: Message = mockk()
         val replyToMessenger: Messenger = mockk()
         message.replyTo = replyToMessenger
-        assertEquals(true, messageHandler.handleServiceMessage(TestRunCommandRequest(), message))
+        assertThat(messageHandler.handleServiceMessage(TestRunCommandRequest(), message)).isEqualTo(true)
 
         verify(exactly = 1) { replier.sendReply(RunCommandContinue(readFd)) }
 

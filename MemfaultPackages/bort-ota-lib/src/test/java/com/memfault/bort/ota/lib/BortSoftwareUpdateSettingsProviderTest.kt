@@ -5,6 +5,9 @@ import android.database.MatrixCursor
 import android.net.Uri
 import androidx.work.NetworkType.CONNECTED
 import androidx.work.NetworkType.UNMETERED
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
 import com.memfault.bort.shared.LegacySoftwareUpdateSettings
 import com.memfault.bort.shared.SoftwareUpdateSettings
 import com.memfault.bort.shared.SoftwareUpdateSettings.Companion.createCursor
@@ -13,8 +16,6 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -46,7 +47,7 @@ class BortSoftwareUpdateSettingsProviderTest {
     fun oldOtaNewBort() {
         cursor = createCursor(settings)
         val provider = LegacyProviderClient(resolver)
-        assertEquals(settings.asLegacyOtaSettings(), provider.settings())
+        assertThat(provider.settings()).isEqualTo(settings.asLegacyOtaSettings())
     }
 
     @Test
@@ -54,14 +55,14 @@ class BortSoftwareUpdateSettingsProviderTest {
         // This is what would have happened if we did not go to all this trouble to include "legacy" formatted settings.
         cursor = legacyCreateCursorWithNewFormat(settings)
         val provider = LegacyProviderClient(resolver)
-        assertNull(provider.settings())
+        assertThat(provider.settings()).isNull()
     }
 
     @Test
     fun newOtaNewBort() {
         cursor = createCursor(settings)
         val provider = BortSoftwareUpdateSettingsFetcher(resolver)
-        assertEquals(settings, provider.settings())
+        assertThat(provider.settings()).isEqualTo(settings)
     }
 
     @Test
@@ -69,7 +70,7 @@ class BortSoftwareUpdateSettingsProviderTest {
         cursor = legacyCreateCursor(settings.asLegacyOtaSettings())
         val provider = BortSoftwareUpdateSettingsFetcher(resolver)
         // Default value should be used for new field.
-        assertEquals(settings.copy(downloadNetworkTypeConstraint = UNMETERED), provider.settings())
+        assertThat(provider.settings()).isEqualTo(settings.copy(downloadNetworkTypeConstraint = UNMETERED))
     }
 
     /**

@@ -46,6 +46,8 @@ BORT_OTA_APK_PATH = (
     r"package:/(system|system_ext|system/system_ext)/priv-app/MemfaultBortOta/MemfaultBortOta.apk"
 )
 VENDOR_CIL_PATH = "/vendor/etc/selinux/vendor_sepolicy.cil"
+SYSTEM_EXT_CIL_PATH = "/system_ext/etc/selinux/system_ext_sepolicy.cil"
+CIL_PATHS = [VENDOR_CIL_PATH, SYSTEM_EXT_CIL_PATH]
 LOG_ENTRY_SEPARATOR = "============================================================"
 
 
@@ -828,21 +830,33 @@ class ValidateConnectedDevice(Command):
     def _query_build_type(self) -> Optional[str]:
         return self._getprop("ro.build.type")
 
-    def _check_vendor_sepolicy_cil(self):
-        output, errors = _get_shell_cmd_output_and_errors(
-            description="Verifying selinux access rules",
-            cmd=_create_adb_command(("shell", "cat", VENDOR_CIL_PATH), device=self._device),
-        )
-        if output and not errors:
-            if not re.search(
-                r"allow .*_app_.* memfault_dumpster_service \(service_manager \(find\)\)",
-                output,
-            ):
-                errors.extend([
-                    "Expected a selinux rule (allow priv_app memfault_dumpster_service:service_manager find), please recheck integration - see https://mflt.io/android-sepolicy"
-                ])
+    def _check_sepolicy_cil(self):
+        cmd_results = [
+            _get_shell_cmd_output_and_errors(
+                description="Verifying selinux access rules",
+                cmd=_create_adb_command(("shell", "cat", cil_path), device=self._device),
+            )
+            for cil_path in CIL_PATHS
+        ]
 
-        return errors
+        found_dumpster_service = any(
+            output
+            and not errors
+            and re.search(
+                r"allow .*_app_.* memfault_dumpster_service \(service_manager \(find\)\)", output
+            )
+            for (output, errors) in cmd_results
+        )
+
+        return (
+            []
+            if found_dumpster_service
+            else [errors for (_, errors) in cmd_results]
+            + [
+                f"Expected a selinux rule (allow priv_app memfault_dumpster_service:service_manager find)"
+                f" in one of {','.join(CIL_PATHS)}, please recheck integration - see https://mflt.io/android-sepolicy."
+            ]
+        )
 
     def _run_checks_requiring_root(self, sdk_version: int):
         _run_shell_cmd_and_expect(
@@ -957,7 +971,7 @@ class ValidateConnectedDevice(Command):
         )
 
         if sdk_version >= 28:
-            self._errors.extend(self._check_vendor_sepolicy_cil())
+            self._errors.extend(self._check_sepolicy_cil())
 
     def _check_bort_permissions(self, bort_package_info: Optional[str], sdk_version: int):
         for permission, min_sdk_version in (

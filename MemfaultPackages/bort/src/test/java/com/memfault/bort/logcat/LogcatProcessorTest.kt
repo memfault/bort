@@ -1,7 +1,9 @@
 package com.memfault.bort.logcat
 
 import assertk.assertThat
+import assertk.assertions.containsExactlyInAnyOrder
 import assertk.assertions.isEqualTo
+import assertk.assertions.isNotEqualTo
 import com.memfault.bort.BortJson
 import com.memfault.bort.CredentialScrubbingRule
 import com.memfault.bort.DataScrubber
@@ -31,10 +33,8 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
@@ -67,7 +67,7 @@ class LogcatProcessorTest {
         ),
     )
 
-    @BeforeEach
+    @Before
     fun setUp() {
         cidProvider = FakeNextLogcatCidProvider.incrementing()
 
@@ -148,7 +148,7 @@ class LogcatProcessorTest {
         val uploadEntry = fileUploadEntry
         checkNotNull(result)
         checkNotNull(uploadEntry)
-        assertEquals(
+        assertThat(uploadEntry.file.readText()).isEqualTo(
             """2021-01-18 12:34:02.000000000 +0000  9008  9008 I ServiceManager: Waiting...
             |2021-01-18 12:34:02.000000000 +0000  9008  9008 I PII: u: {{USERNAME}} p: {{PASSWORD}}
             |--------- beginning of kernel
@@ -159,13 +159,13 @@ class LogcatProcessorTest {
             |2021-01-18 12:34:02.000000000 +0000  9008  9008 W PackageManager: Installing app
             |
             """.trimMargin(),
-            uploadEntry.file.readText(),
+
         )
-        assertEquals(initialCid, uploadEntry.payload.cid)
+        assertThat(uploadEntry.payload.cid).isEqualTo(initialCid)
         val nextCid = cidProvider.cid
-        assertNotEquals(initialCid, nextCid)
-        assertEquals(nextCid, uploadEntry.payload.nextCid)
-        assertEquals(nextCid, cidProvider.cid)
+        assertThat(nextCid).isNotEqualTo(initialCid)
+        assertThat(uploadEntry.payload.nextCid).isEqualTo(nextCid)
+        assertThat(cidProvider.cid).isEqualTo(nextCid)
         coVerify { kernelOopsDetector.process(any(), any()) }
         coVerify(exactly = 1) { kernelOopsDetector.finish(any()) }
         assertThat(result.timeStart).isEqualTo(Instant.ofEpochSecond(1610973242))
@@ -192,14 +192,13 @@ class LogcatProcessorTest {
             .map {
                 Pair(it.cliValue, """"${it.cliValue}"""")
             }.forEach { (literal, json) ->
-                assertEquals(
-                    LogcatPriority.getByCliValue(literal),
+                assertThat(
                     BortJson.decodeFromString(
                         LogcatPrioritySerializer,
                         json,
                     ),
-                )
-                assertEquals(
+                ).isEqualTo(LogcatPriority.getByCliValue(literal))
+                assertThat(
                     BortJson.encodeToString(LogcatPrioritySerializer, LogcatPriority.getByCliValue(literal)!!),
                     json,
                 )
@@ -219,9 +218,6 @@ class LogcatProcessorTest {
         )
 
         val allowList = PackageNameAllowList { it?.contains("smart") ?: false }
-        assertEquals(
-            setOf(1001, 1002, 1004),
-            report.toAllowedUids(allowList),
-        )
+        assertThat(report.toAllowedUids(allowList)).containsExactlyInAnyOrder(1001, 1002, 1004)
     }
 }

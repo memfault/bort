@@ -1,7 +1,9 @@
 package com.memfault.bort.parsers
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
+import assertk.assertThat
+import assertk.assertions.containsExactly
+import assertk.assertions.isEqualTo
+import org.junit.Test
 
 fun makeLinesRange(stop: Int) = Lines((0 until stop).map { it.toString() })
 
@@ -10,16 +12,16 @@ class LinesTest {
     fun until() {
         val lines = makeLinesRange(5)
         val some = lines.until { it == "3" }
-        assertEquals(listOf("0", "1", "2"), some.toList())
-        assertEquals(listOf("3", "4"), lines.toList())
+        assertThat(some.toList()).containsExactly("0", "1", "2")
+        assertThat(lines.toList()).containsExactly("3", "4")
     }
 
     @Test
     fun untilConsuming() {
         val lines = makeLinesRange(5)
         val some = lines.until(consumeMatch = true) { it == "3" }
-        assertEquals(listOf("0", "1", "2"), some.toList())
-        assertEquals(listOf("4"), lines.toList())
+        assertThat(some.toList()).containsExactly("0", "1", "2")
+        assertThat(lines.toList()).containsExactly("4")
     }
 
     @Test
@@ -31,18 +33,18 @@ class LinesTest {
         for (line in some) break
 
         // Since `use` was not used, the iterator didn't advance to "3".
-        assertEquals("1", lines.peek())
+        assertThat(lines.peek()).isEqualTo("1")
 
         some.use {}
 
-        assertEquals("3", lines.peek())
+        assertThat(lines.peek()).isEqualTo("3")
     }
 
     @Test
     fun use() {
         val lines = makeLinesRange(5)
         lines.use {
-            assertEquals(lines, it)
+            assertThat(it).isEqualTo(lines)
         }
     }
 }

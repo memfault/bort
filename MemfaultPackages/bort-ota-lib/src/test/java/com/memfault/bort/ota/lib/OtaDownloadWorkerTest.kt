@@ -2,6 +2,8 @@ package com.memfault.bort.ota.lib
 
 import android.content.Context
 import androidx.work.ListenableWorker.Result
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import io.mockk.coVerify
 import io.mockk.confirmVerified
 import io.mockk.every
@@ -10,7 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 
@@ -45,7 +46,7 @@ internal class OtaDownloadWorkerTest {
     fun failsWhenNotInExpectedState() = runTest {
         state = State.Idle
         val result = OtaDownloadWorker.downloadWorkerRun(updater, otaRulesProvider, { false }, context, {})
-        assertEquals(Result.failure(), result)
+        assertThat(result).isEqualTo(Result.failure())
         coVerify(exactly = 0) { updater.perform(any()) }
     }
 
@@ -53,7 +54,7 @@ internal class OtaDownloadWorkerTest {
     fun downloadsUpdate() = runTest {
         state = State.UpdateAvailable(ota)
         val result = OtaDownloadWorker.downloadWorkerRun(updater, otaRulesProvider, { false }, context, {})
-        assertEquals(Result.success(), result)
+        assertThat(result).isEqualTo(Result.success())
         coVerify(exactly = 1) { updater.badCurrentUpdateState() }
         coVerify(exactly = 1) { updater.perform(Action.DownloadUpdate) }
         confirmVerified(updater)
@@ -64,7 +65,7 @@ internal class OtaDownloadWorkerTest {
         state = State.UpdateAvailable(ota)
         rule = { _ -> false }
         val result = OtaDownloadWorker.downloadWorkerRun(updater, otaRulesProvider, { false }, context, {})
-        assertEquals(Result.retry(), result)
+        assertThat(result).isEqualTo(Result.retry())
         coVerify(exactly = 0) { updater.perform(any()) }
     }
 }

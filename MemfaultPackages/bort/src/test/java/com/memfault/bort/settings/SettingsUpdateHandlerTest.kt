@@ -1,5 +1,7 @@
 package com.memfault.bort.settings
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.makeFakeSharedPreferences
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.time.boxed
@@ -12,7 +14,6 @@ import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
-import org.junit.jupiter.api.Assertions.assertEquals
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -74,7 +75,7 @@ class SettingsUpdateHandlerTest {
             settingsProvider.structuredLogSettings
         }
         confirmVerified(settingsProvider)
-        assertEquals(fetchedSettingsUpdateSlot.captured.old, SETTINGS_FIXTURE.toSettings())
-        assertEquals(fetchedSettingsUpdateSlot.captured.new, response2)
+        assertThat(fetchedSettingsUpdateSlot.captured.old).isEqualTo(SETTINGS_FIXTURE.toSettings())
+        assertThat(fetchedSettingsUpdateSlot.captured.new).isEqualTo(response2)
     }
 }

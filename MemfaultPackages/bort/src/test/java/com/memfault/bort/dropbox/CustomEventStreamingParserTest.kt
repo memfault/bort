@@ -1,11 +1,13 @@
 package com.memfault.bort.dropbox
 
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
 import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.LogcatCollectionId
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.assertThrows
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -17,9 +19,6 @@ import java.util.UUID
  * process and enrich JSON output in a single pass and avoiding memory usage that grows with the number of events.
  * The implementation itself is available in real devices but is stubbed on the SDK and thus could not be used on
  * tests otherwise.
- *
- * Note: Robolectric does not support Junit5 yet, please port this to junit/jupiter when it does.
- * https://github.com/robolectric/robolectric/issues/3477
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
@@ -29,7 +28,7 @@ class StructuredLogStreamingParserTest {
         val input = VALID_STRUCTURED_LOG_FIXTURE
 
         val (output, metadata) = parse(input)
-        assertEquals(
+        assertThat(output).isEqualTo(
             """{
                 |"schema_version":1,
                 |"linux_boot_id":"00000000-0000-0000-0000-000000000001",
@@ -44,28 +43,26 @@ class StructuredLogStreamingParserTest {
                 |"hardware_version":"HW-FOO"
                 |}
             """.trimMargin().replace("\n", ""),
-            output,
         )
 
-        assertEquals(
+        assertThat(metadata).isEqualTo(
             StructuredLogMetadata(
                 schemaVersion = 1,
                 cid = LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000002")),
                 nextCid = LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000003")),
                 linuxBootId = UUID.fromString("00000000-0000-0000-0000-000000000001"),
             ),
-            metadata,
         )
     }
 
     @Test
     fun emptyThrows() = runTest {
-        assertThrows<StructuredLogParseException> { parse("{}") }
+        assertFailure { parse("{}") }.isInstanceOf<StructuredLogParseException>()
     }
 
     @Test
     fun invalidThrows() = runTest {
-        assertThrows<StructuredLogParseException> { parse("shall not pass") }
+        assertFailure { parse("shall not pass") }.isInstanceOf<StructuredLogParseException>()
     }
 
     private suspend fun parse(json: String): Pair<String, StructuredLogMetadata> {

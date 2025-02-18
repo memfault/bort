@@ -11,7 +11,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Test
+import org.junit.Test
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val TEST_BUCKET_CAPACITY = 5

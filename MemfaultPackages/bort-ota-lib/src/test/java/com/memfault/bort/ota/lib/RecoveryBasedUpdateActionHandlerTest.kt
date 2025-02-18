@@ -1,6 +1,10 @@
 package com.memfault.bort.ota.lib
 
 import android.app.Application
+import assertk.assertThat
+import assertk.assertions.containsExactly
+import assertk.assertions.isEmpty
+import assertk.assertions.isEqualTo
 import com.memfault.bort.shared.SoftwareUpdateSettings
 import io.mockk.coEvery
 import io.mockk.every
@@ -9,9 +13,8 @@ import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 import java.io.File
 import java.lang.IllegalStateException
 
@@ -41,7 +44,7 @@ class RecoveryBasedUpdateActionHandlerTest {
         isForced = null,
     )
 
-    @BeforeEach
+    @Before
     fun setup() {
         softwareUpdateCheckerMock = mockk {
             coEvery { getLatestRelease() } coAnswers { ota }
@@ -85,11 +88,10 @@ class RecoveryBasedUpdateActionHandlerTest {
     fun testCheckForUpdate_foreground() = runTest {
         ota = ota?.copy(isForced = null)
         handler.handle(State.Idle, Action.CheckForUpdate(background = false))
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = false)),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
         verify(exactly = 0) { scheduleDownload.scheduleDownload(any()) }
     }
 
@@ -97,11 +99,10 @@ class RecoveryBasedUpdateActionHandlerTest {
     fun testCheckForUpdate_forcedNotSet() = runTest {
         ota = ota?.copy(isForced = null)
         handler.handle(State.Idle, Action.CheckForUpdate(background = true))
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = true)),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
         verify(exactly = 0) { scheduleDownload.scheduleDownload(any()) }
     }
 
@@ -109,11 +110,10 @@ class RecoveryBasedUpdateActionHandlerTest {
     fun testCheckForUpdate_notForced() = runTest {
         ota = ota?.copy(isForced = false)
         handler.handle(State.Idle, Action.CheckForUpdate(background = true))
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = true)),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
         verify(exactly = 0) { scheduleDownload.scheduleDownload(any()) }
     }
 
@@ -121,11 +121,10 @@ class RecoveryBasedUpdateActionHandlerTest {
     fun testCheckForUpdate_forced_scheduleAutoDownload() = runTest {
         ota = ota?.copy(isForced = true)
         handler.handle(State.Idle, Action.CheckForUpdate(background = true))
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = false)),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
         verify(exactly = 1) { scheduleDownload.scheduleDownload(ota!!) }
     }
 
@@ -133,15 +132,15 @@ class RecoveryBasedUpdateActionHandlerTest {
     fun testCheckForUpdateAlreadyAtLatest() = runTest {
         ota = null
         handler.handle(State.Idle, Action.CheckForUpdate())
-        assertEquals(listOf(State.CheckingForUpdates, State.Idle), collectedStates)
-        assertEquals(listOf<Event>(Event.NoUpdatesAvailable), collectedEvents)
+        assertThat(collectedStates).containsExactly(State.CheckingForUpdates, State.Idle)
+        assertThat(collectedEvents).containsExactly(Event.NoUpdatesAvailable)
     }
 
     @Test
     fun testDownloadUpdate() = runTest {
         handler.handle(State.UpdateAvailable(ota!!), Action.DownloadUpdate)
-        assertEquals(listOf(State.UpdateDownloading(ota!!)), collectedStates)
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedStates).containsExactly(State.UpdateDownloading(ota!!))
+        assertThat(collectedEvents).isEmpty()
         verify(exactly = 1) { startUpdateDownload.invoke(ota!!.url) }
     }
 
@@ -149,21 +148,20 @@ class RecoveryBasedUpdateActionHandlerTest {
     fun testUpdateDownloadProgress() = runTest {
         handler.handle(State.UpdateDownloading(ota!!), Action.DownloadProgress(50))
         handler.handle(State.UpdateDownloading(ota!!), Action.DownloadProgress(100))
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(
                 State.UpdateDownloading(ota!!, progress = 50),
                 State.UpdateDownloading(ota!!, progress = 100),
             ),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
     }
 
     @Test
     fun testDownloadCompletedVerificationOk() = runBlocking {
         handler.handle(State.UpdateDownloading(ota!!), Action.DownloadCompleted("dummy"))
-        assertEquals(listOf(State.ReadyToInstall(ota!!, "dummy")), collectedStates)
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedStates).containsExactly(State.ReadyToInstall(ota!!, "dummy"))
+        assertThat(collectedEvents).isEmpty()
 
         verify(exactly = 1) { recoveryInterface.verifyOrThrow(File("dummy")) }
     }
@@ -172,8 +170,8 @@ class RecoveryBasedUpdateActionHandlerTest {
     fun testDownloadCompletedVerificationFailed() = runBlocking {
         every { recoveryInterface.verifyOrThrow(any()) } throws IllegalStateException("oops")
         handler.handle(State.UpdateDownloading(ota!!), Action.DownloadCompleted("dummy"))
-        assertEquals(listOf(State.Idle), collectedStates)
-        assertEquals(listOf(Event.VerificationFailed), collectedEvents)
+        assertThat(collectedStates).containsExactly(State.Idle)
+        assertThat(collectedEvents).containsExactly(Event.VerificationFailed)
 
         verify(exactly = 1) { recoveryInterface.verifyOrThrow(File("dummy")) }
     }
@@ -181,15 +179,15 @@ class RecoveryBasedUpdateActionHandlerTest {
     @Test
     fun testDownloadFailed() = runBlocking {
         handler.handle(State.UpdateDownloading(ota!!), Action.DownloadFailed)
-        assertEquals(listOf(State.UpdateAvailable(ota!!, showNotification = false)), collectedStates)
-        assertEquals(listOf(Event.DownloadFailed), collectedEvents)
+        assertThat(collectedStates).containsExactly(State.UpdateAvailable(ota!!, showNotification = false))
+        assertThat(collectedEvents).containsExactly(Event.DownloadFailed)
     }
 
     @Test
     fun testInstallUpdateSucceeds() = runBlocking {
         handler.handle(State.ReadyToInstall(ota!!, path = "dummy"), Action.InstallUpdate)
-        assertEquals(listOf<State>(State.RebootedForInstallation(ota!!, OLD_SOFTWARE_VERSION)), collectedStates)
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedStates).containsExactly(State.RebootedForInstallation(ota!!, OLD_SOFTWARE_VERSION))
+        assertThat(collectedEvents).isEmpty()
         verify(exactly = 1) { recoveryInterface.install(File("dummy")) }
     }
 
@@ -199,16 +197,15 @@ class RecoveryBasedUpdateActionHandlerTest {
         // and a verified update will always be able to call install(). Nevertheless, test that we go back to idle.
         every { recoveryInterface.install(any()) } throws IllegalStateException("oops")
         handler.handle(State.ReadyToInstall(ota!!, path = "dummy"), Action.InstallUpdate)
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(
                 // Shortly transitioned while attempted rebooting
                 State.RebootedForInstallation(ota!!, OLD_SOFTWARE_VERSION),
                 // Then back to idle because it failed
                 State.Idle,
             ),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
         verify(exactly = 1) { recoveryInterface.install(File("dummy")) }
     }
 }

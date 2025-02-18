@@ -109,6 +109,9 @@ data class FetchedSettings(
     @SerialName("drop_box.scrub_tombstones")
     val dropBoxScrubTombstones: Boolean = false,
 
+    @SerialName("drop_box.use_native_crash_tombstones")
+    val dropBoxUseNativeCrashTombstones: Boolean = false,
+
     @SerialName("drop_box.process_immediately")
     val dropBoxProcessImmediately: Boolean = true,
 
@@ -119,7 +122,6 @@ data class FetchedSettings(
     @SerialName("drop_box.other_tags")
     val dropBoxOtherTags: Set<String> = setOf(
         "SYSTEM_AUDIT",
-        "SYSTEM_BOOT",
         "SYSTEM_FSCK",
         "SYSTEM_RECOVERY_LOG",
         "SYSTEM_RESTART",
@@ -283,7 +285,7 @@ data class FetchedSettings(
     // This is deliberately not deserialized here - I don't want to break deserialization of the entire SDK settings if
     // it fails.
     @SerialName("logcat.logs2metrics_config")
-    val logcat2MetricsConfig: JsonObject = JsonObject(mapOf()),
+    val logcat2MetricsConfig: JsonObject = JsonObject(emptyMap()),
 
     @SerialName("metrics.cache_packages")
     val metricsCachePackages: Boolean = true,
@@ -294,6 +296,9 @@ data class FetchedSettings(
 
     @SerialName("metrics.operational_crashes_exclusions")
     val metricsOperationalCrashesExclusions: List<String> = listOf(),
+
+    @SerialName("metrics.operational_crashes_components")
+    val metricsoperationalCrashesComponentGroups: JsonObject = JsonObject(emptyMap()),
 
     @SerialName("metrics.collect_memory")
     val metricsCollectMemory: Boolean = true,

@@ -2,6 +2,7 @@ package com.memfault.bort
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Test
@@ -28,6 +29,6 @@ class BortOverrideSerialTest {
     fun doesNotOverrideSerialIfNotBortLite() {
         isBortLite = false
         bortOverrideSerial.overriddenSerial = "override"
-        assertThat(bortOverrideSerial.overriddenSerial).isEqualTo(null)
+        assertThat(bortOverrideSerial.overriddenSerial).isNull()
     }
 }

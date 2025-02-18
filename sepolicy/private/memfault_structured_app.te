@@ -19,3 +19,8 @@ allow memfault_structured_app activity_service:service_manager find;
 
 # Allow vendor_init to set memfault properties defined in {vendor,system}.prop
 set_prop(vendor_init, memfault_prop)
+
+# Read and write /data/data subdirectory.
+# https://cs.android.com/android/platform/superproject/main/+/main:system/sepolicy/prebuilts/api/34.0/private/system_app.te;l=16;bpv=1
+allow memfault_structured_app system_app_data_file:dir create_dir_perms;
+allow memfault_structured_app system_app_data_file:{ file lnk_file } create_file_perms;

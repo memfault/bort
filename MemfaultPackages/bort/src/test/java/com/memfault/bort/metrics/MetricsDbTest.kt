@@ -67,7 +67,7 @@ class MetricsDbTest {
         dailyHeartbeatReportType: String? = null,
         endTimestampMs: Long,
         hrtFileFactory: HrtFileFactory?,
-        calculateDerivedAggregations: CalculateDerivedAggregations = CalculateDerivedAggregations { _, _, _, _ ->
+        calculateDerivedAggregations: CalculateDerivedAggregations = CalculateDerivedAggregations { _, _, _, _, _ ->
             emptyList()
         },
         dailyHeartbeatReportMetricsForSessions: List<String>? = null,
@@ -199,6 +199,8 @@ class MetricsDbTest {
                         "key_disconnected.secs/hour" to JsonPrimitive((2.0 / 5.0 * 3600).toLong()),
                         "key_connected.total_secs" to JsonPrimitive(3),
                         "key_disconnected.total_secs" to JsonPrimitive(2),
+                        "key_connected.mean_time_in_state_ms" to JsonPrimitive(1000),
+                        "key_disconnected.mean_time_in_state_ms" to JsonPrimitive(2000),
                     ),
                     internalMetrics = mapOf(),
                     hrt = hrtFile,
@@ -304,6 +306,8 @@ class MetricsDbTest {
                         "key_disconnected.secs/hour" to JsonPrimitive((2.0 / 6.0).hours.inWholeSeconds),
                         "key_connected.total_secs" to JsonPrimitive(4),
                         "key_disconnected.total_secs" to JsonPrimitive(2),
+                        "key_connected.mean_time_in_state_ms" to JsonPrimitive(3000),
+                        "key_disconnected.mean_time_in_state_ms" to JsonPrimitive(2000),
                     ),
                     internalMetrics = mapOf(),
                     hrt = hrtFile,

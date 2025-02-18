@@ -2,9 +2,12 @@ package com.memfault.bort.boot
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.EnumSource
+import com.google.testing.junit.testparameterinjector.TestParameter
+import com.google.testing.junit.testparameterinjector.TestParameterInjector
+import org.junit.Test
+import org.junit.runner.RunWith
 
+@RunWith(TestParameterInjector::class)
 class AndroidBootReasonParsingTest {
 
     enum class TestCase(
@@ -33,9 +36,8 @@ class AndroidBootReasonParsingTest {
         ),
     }
 
-    @ParameterizedTest
-    @EnumSource
-    fun parsing(testCase: TestCase) {
+    @Test
+    fun parsing(@TestParameter testCase: TestCase) {
         assertThat(AndroidBootReason.parse(testCase.input)).isEqualTo(testCase.output)
     }
 }

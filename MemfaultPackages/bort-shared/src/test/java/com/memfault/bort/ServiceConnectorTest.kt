@@ -5,6 +5,13 @@ import android.content.Context
 import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.RemoteException
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotNull
+import assertk.assertions.isTrue
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -14,11 +21,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.yield
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import org.junit.Before
+import org.junit.Test
 
 class MockService(val binder: IBinder)
 
@@ -41,7 +45,7 @@ class ServiceConnectorTest {
             mockServiceFactory.createServiceWithBinder(binder)
     }
 
-    @BeforeEach
+    @Before
     fun setUp() {
         mockContext = mockk {
             val connectionSlot = slot<ServiceConnection>()
@@ -102,28 +106,28 @@ class ServiceConnectorTest {
         } throws RemoteException()
 
         var connectCalled = false
-        assertThrows<RemoteException> {
+        assertFailure {
             serviceConnector.connect {
                 connectCalled = true
             }
-        }
-        assertEquals(false, connectCalled)
-        assertEquals(false, serviceConnector.hasClients)
-        assertEquals(false, serviceConnector.bound)
+        }.isInstanceOf<RemoteException>()
+        assertThat(connectCalled).isFalse()
+        assertThat(serviceConnector.hasClients).isFalse()
+        assertThat(serviceConnector.bound).isFalse()
     }
 
     @Test
     fun handlesExceptionInConnectBlock() = runTest {
         var connectCalled = false
-        assertThrows<Exception> {
+        assertFailure {
             serviceConnector.connect<Unit> {
                 connectCalled = true
                 throw Exception("Boom!")
             }
-        }
-        assertEquals(true, connectCalled)
-        assertEquals(false, serviceConnector.hasClients)
-        assertEquals(false, serviceConnector.bound)
+        }.isInstanceOf<Exception>()
+        assertThat(connectCalled).isTrue()
+        assertThat(serviceConnector.hasClients).isFalse()
+        assertThat(serviceConnector.bound).isFalse()
         verify(exactly = 1) { mockContext.unbindService(any()) }
     }
 
@@ -145,7 +149,7 @@ class ServiceConnectorTest {
             }
         }
         yield()
-        assertNotNull(connection)
+        assertThat(connection).isNotNull()
 
         connection?.onServiceConnected(componentName, iBinder1)
         yield()
@@ -165,14 +169,14 @@ class ServiceConnectorTest {
         resultA.await()
         resultB.await()
 
-        assertNotNull(service1)
-        assertEquals(iBinder1, service1?.binder)
-        assertNotNull(service2A)
-        assertEquals(iBinder2, service2A?.binder)
-        assertNotNull(service2B)
-        assertEquals(iBinder2, service2B?.binder)
-        assertEquals(false, serviceConnector.hasClients)
-        assertEquals(false, serviceConnector.bound)
+        assertThat(service1).isNotNull()
+        assertThat(service1?.binder).isEqualTo(iBinder1)
+        assertThat(service2A).isNotNull()
+        assertThat(service2A?.binder).isEqualTo(iBinder2)
+        assertThat(service2B).isNotNull()
+        assertThat(service2B?.binder).isEqualTo(iBinder2)
+        assertThat(serviceConnector.hasClients).isFalse()
+        assertThat(serviceConnector.bound).isFalse()
         verify(exactly = 1) { mockContext.bindService(any(), any(), any<Int>()) }
         verify(exactly = 1) { mockContext.unbindService(any()) }
     }

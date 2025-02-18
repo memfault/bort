@@ -101,6 +101,7 @@ dependencies {
     // Required for unit tests to access JSONObject
     testImplementation deps.test.json
     testImplementation deps.test.mockWebServer
+    testImplementation deps.test.parameter.injector
     testImplementation deps.test.robolectric
 }
 

@@ -1,6 +1,7 @@
 package com.memfault.bort.connectivity
 
 import androidx.annotation.VisibleForTesting
+import com.memfault.bort.metrics.custom.ReportType
 import com.memfault.bort.metrics.database.CalculateDerivedAggregations
 import com.memfault.bort.metrics.database.DerivedAggregation
 import com.memfault.bort.reporting.DataType.DOUBLE
@@ -16,6 +17,7 @@ import kotlin.time.Duration.Companion.seconds
 class ConnectivityTimeCalculator @Inject constructor() : CalculateDerivedAggregations {
 
     override fun calculate(
+        reportType: ReportType,
         startTimestampMs: Long,
         endTimestampMs: Long,
         metrics: Map<String, JsonPrimitive>,

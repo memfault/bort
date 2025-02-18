@@ -3,6 +3,7 @@ package com.memfault.bort.diagnostics
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import assertk.assertThat
+import assertk.assertions.containsExactly
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import com.memfault.bort.diagnostics.BortJobReporter.BortJob
@@ -69,7 +70,7 @@ class BortJobReporterTest {
         bortJobReporter.onJobFinished(id, result)
 
         absoluteTimeMs = queryTimeMs
-        assertThat(bortJobReporter.getLatestForEachJob()).isEqualTo(listOf(job))
+        assertThat(bortJobReporter.getLatestForEachJob()).containsExactly(job)
         assertThat(bortJobReporter.getIncompleteJobs()).isEmpty()
         val jobStats = bortJobReporter.jobStats()
         assertThat(jobStats[jobName]).isEqualTo("ran 1 times")
@@ -94,8 +95,8 @@ class BortJobReporterTest {
         )
 
         absoluteTimeMs = queryTimeMs
-        assertThat(bortJobReporter.getLatestForEachJob()).isEqualTo(listOf(job))
-        assertThat(bortJobReporter.getIncompleteJobs()).isEqualTo(listOf(job))
+        assertThat(bortJobReporter.getLatestForEachJob()).containsExactly(job)
+        assertThat(bortJobReporter.getIncompleteJobs()).containsExactly(job)
         val jobStats = bortJobReporter.jobStats()
         assertThat(jobStats[jobName]).isEqualTo("ran 1 times")
     }
@@ -154,7 +155,7 @@ class BortJobReporterTest {
         bortJobReporter.onJobFinished(id3, result3)
 
         absoluteTimeMs = queryTimeMs
-        assertThat(bortJobReporter.getLatestForEachJob()).isEqualTo(listOf(job3, job2))
+        assertThat(bortJobReporter.getLatestForEachJob()).containsExactly(job3, job2)
         assertThat(bortJobReporter.getIncompleteJobs()).isEmpty()
         val jobStats = bortJobReporter.jobStats()
         assertThat(jobStats[jobName1]).isEqualTo("no record")

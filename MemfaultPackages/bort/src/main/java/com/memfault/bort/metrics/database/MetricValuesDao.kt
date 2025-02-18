@@ -50,6 +50,18 @@ interface MetricValuesDao {
         endTimestampMs: Long,
     ): List<DbMetricValue>
 
+    @Query(
+        "SELECT * FROM metric_values v WHERE metadataId IN (:metadataIds) " +
+            "AND v.timestampMs <= :endTimestampMs " +
+            "ORDER BY v.timestampMs DESC LIMIT :limit OFFSET :offset",
+    )
+    suspend fun getMetricValuesPageDesc(
+        metadataIds: List<Long>,
+        limit: Long,
+        offset: Long,
+        endTimestampMs: Long,
+    ): List<DbMetricValue>
+
     @Query("SELECT * FROM metric_values")
     suspend fun getMetricValues(): List<DbMetricValue>
 

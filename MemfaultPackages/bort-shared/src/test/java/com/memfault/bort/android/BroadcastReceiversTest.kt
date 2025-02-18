@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.IntentFilter
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import io.mockk.CapturingSlot
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -15,9 +17,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 
 class BroadcastReceiversTest {
 
@@ -25,7 +26,7 @@ class BroadcastReceiversTest {
     private lateinit var receiver: CapturingSlot<BroadcastReceiver>
     private lateinit var intentFilter: CapturingSlot<IntentFilter>
 
-    @BeforeEach
+    @Before
     fun setUp() {
         receiver = slot()
         intentFilter = slot()
@@ -46,7 +47,7 @@ class BroadcastReceiversTest {
         }
         receiver.captured.onReceive(mockk(), intent)
 
-        Assertions.assertEquals(first.await(), intent)
+        assertThat(first.await()).isEqualTo(intent)
     }
 
     @Test

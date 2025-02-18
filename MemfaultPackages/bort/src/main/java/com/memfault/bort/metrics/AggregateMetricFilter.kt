@@ -87,7 +87,8 @@ object AggregateMetricFilter {
                 "$OPERATIONAL_CRASHES_METRIC_KEY.sum",
                 "$OPERATIONAL_HOURS_METRIC_KEY.sum",
                 "$CRASH_FREE_HOURS_METRIC_KEY.sum",
-            ).contains(metric.key)
+            ).contains(metric.key) ||
+            metric.key.startsWith("${OPERATIONAL_CRASHES_METRIC_KEY}_")
         ) {
             return metric.key.removeSuffix(".sum") to metric.value
         }
@@ -106,6 +107,11 @@ object AggregateMetricFilter {
         if (internal) {
             if (metric.key.endsWith(".sum")) return metric.key.removeSuffix(".sum") to metric.value
             if (metric.key.endsWith(".latest")) return metric.key.removeSuffix(".latest") to metric.value
+        }
+
+        // Special case: drop_box_%s_count
+        if (metric.key.startsWith("drop_box_") && metric.key.endsWith("_count.sum")) {
+            return metric.key.removeSuffix(".sum") to metric.value
         }
 
         // Legacy Network metrics: converts .sum to .latest. We converted network stats to a single value on a

@@ -1,9 +1,11 @@
 package com.memfault.bort.settings
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isTrue
 import com.memfault.bort.BortJson
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class FetchedDeviceConfigContainerTest {
@@ -278,33 +280,33 @@ class FetchedDeviceConfigContainerTest {
     @Test
     fun deserializeResponse() {
         val result = BortJson.decodeFromString(DecodedDeviceConfig.serializer(), response)
-        assertEquals(3344, result.revision)
-        assertEquals(true, result.memfault!!.bort.sdkSettings.batteryStatsDataSourceEnabled)
-        assertEquals("normal", result.memfault!!.sampling.debuggingResolution)
-        assertEquals(0, result.others.size)
+        assertThat(result.revision).isEqualTo(3344)
+        assertThat(result.memfault!!.bort.sdkSettings.batteryStatsDataSourceEnabled).isTrue()
+        assertThat(result.memfault!!.sampling.debuggingResolution).isEqualTo("normal")
+        assertThat(result.others.size).isEqualTo(0)
 
         val reEncoded = BortJson.encodeToString(DecodedDeviceConfig.serializer(), result)
         val reDecoded = BortJson.decodeFromString(DecodedDeviceConfig.serializer(), reEncoded)
-        assertEquals(result, reDecoded)
+        assertThat(reDecoded).isEqualTo(result)
     }
 
     @Test
     fun deserializeResponseWithOtherData() {
         val result = BortJson.decodeFromString(DecodedDeviceConfig.serializer(), responseWithOther)
-        assertEquals(3344, result.revision)
-        assertEquals(true, result.memfault!!.bort.sdkSettings.batteryStatsDataSourceEnabled)
-        assertEquals("normal", result.memfault!!.sampling.debuggingResolution)
-        assertEquals(1, result.others.size)
+        assertThat(result.revision).isEqualTo(3344)
+        assertThat(result.memfault!!.bort.sdkSettings.batteryStatsDataSourceEnabled).isTrue()
+        assertThat(result.memfault!!.sampling.debuggingResolution).isEqualTo("normal")
+        assertThat(result.others.size).isEqualTo(1)
         val square = JsonObject(
             mapOf("prop1" to JsonPrimitive("val1")),
         )
         val others = JsonObject(
             mapOf("square" to square),
         )
-        assertEquals(others, result.others)
+        assertThat(result.others).isEqualTo(others)
 
         val reEncoded = BortJson.encodeToString(DecodedDeviceConfig.serializer(), result)
         val reDecoded = BortJson.decodeFromString(DecodedDeviceConfig.serializer(), reEncoded)
-        assertEquals(result, reDecoded)
+        assertThat(reDecoded).isEqualTo(result)
     }
 }

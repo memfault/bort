@@ -11,6 +11,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
 import org.junit.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -36,6 +37,7 @@ class SystemPropertiesCollectorTest {
             override val cachePackageManagerReport: Boolean = true
             override val recordImei: Boolean = true
             override val operationalCrashesExclusions: List<String> = emptyList()
+            override val operationalCrashesComponentGroups: JsonObject = JsonObject(emptyMap())
             override val pollingInterval: Duration = 15.minutes
             override val collectMemory: Boolean = true
             override val thermalMetricsEnabled: Boolean get() = TODO("not used")

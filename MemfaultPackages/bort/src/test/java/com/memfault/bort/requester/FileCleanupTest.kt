@@ -1,8 +1,9 @@
 package com.memfault.bort.requester
 
+import assertk.assertThat
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
 import com.memfault.bort.fileExt.deleteSilently
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -54,9 +55,9 @@ class FileCleanupTest {
             timeNowMs = NOW_MS,
         )
 
-        assertFalse(file1_7days_old.exists())
-        assertTrue(file2_1day_old.exists())
-        assertTrue(file3_1hour_old.exists())
+        assertThat(file1_7days_old.exists()).isFalse()
+        assertThat(file2_1day_old.exists()).isTrue()
+        assertThat(file3_1hour_old.exists()).isTrue()
     }
 
     @Test
@@ -68,9 +69,9 @@ class FileCleanupTest {
             timeNowMs = NOW_MS,
         )
 
-        assertTrue(file1_7days_old.exists())
-        assertTrue(file2_1day_old.exists())
-        assertTrue(file3_1hour_old.exists())
+        assertThat(file1_7days_old.exists()).isTrue()
+        assertThat(file2_1day_old.exists()).isTrue()
+        assertThat(file3_1hour_old.exists()).isTrue()
     }
 
     @Test
@@ -108,9 +109,9 @@ class FileCleanupTest {
             timeNowMs = NOW_MS,
         )
 
-        assertFalse(file1_7days_old.exists())
-        assertTrue(file2_1day_old.exists())
-        assertTrue(file3_1hour_old.exists())
+        assertThat(file1_7days_old.exists()).isFalse()
+        assertThat(file2_1day_old.exists()).isTrue()
+        assertThat(file3_1hour_old.exists()).isTrue()
     }
 
     @Test
@@ -122,8 +123,8 @@ class FileCleanupTest {
             timeNowMs = NOW_MS,
         )
 
-        assertFalse(file1_7days_old.exists())
-        assertFalse(file2_1day_old.exists())
-        assertFalse(file3_1hour_old.exists())
+        assertThat(file1_7days_old.exists()).isFalse()
+        assertThat(file2_1day_old.exists()).isFalse()
+        assertThat(file3_1hour_old.exists()).isFalse()
     }
 }

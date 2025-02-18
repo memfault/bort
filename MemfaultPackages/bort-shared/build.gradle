@@ -76,4 +76,6 @@ dependencies {
     implementation deps.android.viewmodel
 
     kapt deps.dagger.hilt.compiler
+
+    testImplementation deps.test.parameter.injector
 }
