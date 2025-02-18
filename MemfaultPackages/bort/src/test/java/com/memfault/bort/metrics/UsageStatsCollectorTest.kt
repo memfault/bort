@@ -5,7 +5,7 @@ import android.app.usage.UsageEvents.Event
 import android.app.usage.UsageStatsManager
 import assertk.all
 import assertk.assertThat
-import assertk.assertions.containsExactly
+import assertk.assertions.containsExactlyInAnyOrder
 import assertk.assertions.isEmpty
 import assertk.assertions.isNotNull
 import assertk.assertions.prop
@@ -84,7 +84,9 @@ class UsageStatsCollectorTest {
                 prop(MetricReport::hrt).isNotNull()
                     .transform { hrt -> HighResTelemetry.decodeFromStream(hrt) }
                     .prop(HighResTelemetry::rollups)
-                    .containsExactly(
+                    .containsExactlyInAnyOrder(
+                        *metricsDbTestEnvironment.dropBoxTagCountRollups(4).toTypedArray(),
+
                         Rollup(
                             metadata = RollupMetadata(
                                 stringKey = "device-powered",
@@ -116,7 +118,9 @@ class UsageStatsCollectorTest {
                 prop(MetricReport::hrt).isNotNull()
                     .transform { hrt -> HighResTelemetry.decodeFromStream(hrt) }
                     .prop(HighResTelemetry::rollups)
-                    .containsExactly(
+                    .containsExactlyInAnyOrder(
+                        *metricsDbTestEnvironment.dropBoxTagCountRollups(4).toTypedArray(),
+
                         Rollup(
                             metadata = RollupMetadata(
                                 stringKey = "device-powered",

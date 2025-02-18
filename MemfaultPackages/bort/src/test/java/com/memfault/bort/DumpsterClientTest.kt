@@ -1,6 +1,9 @@
 package com.memfault.bort
 
 import android.os.RemoteException
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
 import com.memfault.bort.process.ProcessExecutor
 import com.memfault.dumpster.IDumpster
 import com.memfault.dumpster.IDumpsterBasicCommandListener
@@ -10,9 +13,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Test
+import org.junit.Test
 
 class DumpsterClientTest {
     private val processExecutor: ProcessExecutor = mockk {
@@ -28,7 +29,7 @@ class DumpsterClientTest {
             basicCommandTimeout = 5000,
             processExecutor = processExecutor,
         )
-        assertNull(client.getprop())
+        assertThat(client.getprop()).isNull()
     }
 
     @Test
@@ -43,7 +44,7 @@ class DumpsterClientTest {
             basicCommandTimeout = 5000,
             processExecutor = processExecutor,
         )
-        assertNull(client.getprop())
+        assertThat(client.getprop()).isNull()
     }
 
     @Test
@@ -59,7 +60,7 @@ class DumpsterClientTest {
             basicCommandTimeout = 5000,
             processExecutor = processExecutor,
         )
-        assertNull(client.getprop())
+        assertThat(client.getprop()).isNull()
         verify {
             service.runBasicCommand(any(), any())
         }
@@ -78,7 +79,7 @@ class DumpsterClientTest {
             basicCommandTimeout = 1,
             processExecutor = processExecutor,
         )
-        assertNull(client.getprop())
+        assertThat(client.getprop()).isNull()
         verify {
             service.runBasicCommand(any(), any())
         }
@@ -103,7 +104,7 @@ class DumpsterClientTest {
             basicCommandTimeout = 5000,
             processExecutor = processExecutor,
         )
-        assertNull(client.getprop())
+        assertThat(client.getprop()).isNull()
         verify {
             service.runBasicCommand(any(), any())
         }
@@ -128,6 +129,6 @@ class DumpsterClientTest {
             basicCommandTimeout = 5000,
             processExecutor = processExecutor,
         )
-        assertEquals(client.getprop(), mapOf("Hello" to "World!"))
+        assertThat(mapOf("Hello" to "World!")).isEqualTo(client.getprop())
     }
 }

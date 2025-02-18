@@ -1,10 +1,12 @@
 package com.memfault.bort
 
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.isFalse
+import assertk.assertions.isInstanceOf
+import assertk.assertions.isTrue
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import org.junit.Test
 import java.io.File
 
 class TemporaryFileTest {
@@ -12,13 +14,13 @@ class TemporaryFileTest {
     fun cleanup() = runTest {
         lateinit var file: File
         val tempFile = TemporaryFile()
-        assertThrows<Exception> {
+        assertFailure {
             tempFile.useFile { f, _ ->
                 file = f
                 throw Exception()
             }
-        }
-        assertFalse(file.exists())
+        }.isInstanceOf<Exception>()
+        assertThat(file.exists()).isFalse()
     }
 
     @Test
@@ -30,6 +32,6 @@ class TemporaryFileTest {
             file = f
             preventDeletion()
         }
-        assertTrue(file.exists())
+        assertThat(file.exists()).isTrue()
     }
 }

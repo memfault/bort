@@ -46,6 +46,7 @@ interface DropBoxSettings {
     val excludedTags: Set<String>
     val forceEnableWtfTags: Boolean
     val scrubTombstones: Boolean
+    val useNativeCrashTombstones: Boolean
     val processImmediately: Boolean
     val pollingInterval: Duration
     val otherTags: Set<String>
@@ -71,6 +72,7 @@ interface MetricsSettings {
     val cachePackageManagerReport: Boolean
     val recordImei: Boolean
     val operationalCrashesExclusions: List<String>
+    val operationalCrashesComponentGroups: JsonObject
     val pollingInterval: Duration
     val collectMemory: Boolean
     val thermalMetricsEnabled: Boolean

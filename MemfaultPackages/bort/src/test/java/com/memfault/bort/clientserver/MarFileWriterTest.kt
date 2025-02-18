@@ -1,9 +1,14 @@
 package com.memfault.bort.clientserver
 
 import assertk.Assert
+import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.exists
+import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isInstanceOf
 import assertk.assertions.isNull
+import assertk.assertions.isTrue
 import assertk.assertions.support.expected
 import com.memfault.bort.BortJson
 import com.memfault.bort.LogcatCollectionId
@@ -21,11 +26,6 @@ import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.boxed
 import org.junit.Rule
 import org.junit.Test
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.assertThrows
 import org.junit.rules.TemporaryFolder
 import java.io.File
 import java.io.FileInputStream
@@ -46,7 +46,7 @@ internal class MarFileWriterTest {
 
         ZipInputStream(FileInputStream(marFile)).use { zip ->
             zip.assertNextEntry(marFile, manifest, FILE_CONTENT)
-            assertNull(zip.nextEntry)
+            assertThat(zip.nextEntry).isNull()
         }
     }
 
@@ -57,7 +57,7 @@ internal class MarFileWriterTest {
 
         ZipInputStream(FileInputStream(marFile)).use { zip ->
             zip.assertNextEntry(marFile, manifest, fileContent = null)
-            assertNull(zip.nextEntry)
+            assertThat(zip.nextEntry).isNull()
         }
     }
 
@@ -179,20 +179,20 @@ internal class MarFileWriterTest {
         // Batch with a 3000 byte limit (configured in settings above).
         val batched = writer.batchMarFiles(listOf(marFile1, marFile2, marFile3))
 
-        assertEquals(2, batched.size)
-        assertFalse(marFile1.exists())
-        assertFalse(marFile2.exists())
-        assertFalse(marFile3.exists())
+        assertThat(batched.size).isEqualTo(2)
+        assertThat(marFile1.exists()).isFalse()
+        assertThat(marFile2.exists()).isFalse()
+        assertThat(marFile3.exists()).isFalse()
         val firstBatch = batched[0]
         ZipInputStream(FileInputStream(firstBatch)).use { zip ->
             zip.assertNextEntry(firstBatch, manifest1, FILE_CONTENT)
             zip.assertNextEntry(firstBatch, manifest2, FILE_CONTENT_2)
-            assertNull(zip.nextEntry)
+            assertThat(zip.nextEntry).isNull()
         }
         val secondBatch = batched[1]
         ZipInputStream(FileInputStream(secondBatch)).use { zip ->
             zip.assertNextEntry(secondBatch, manifest3, FILE_CONTENT_3)
-            assertNull(zip.nextEntry)
+            assertThat(zip.nextEntry).isNull()
         }
     }
 
@@ -208,7 +208,7 @@ internal class MarFileWriterTest {
             listOf(1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
             listOf(1),
         )
-        assertEquals(expected, elements.chunkByElementSize(10) { it.toLong() })
+        assertThat(elements.chunkByElementSize(10) { it.toLong() }).isEqualTo(expected)
     }
 
     @Test
@@ -218,9 +218,9 @@ internal class MarFileWriterTest {
         val inputFile = File("/this/does/not/exist.bin")
         val manifest = heartbeat(timeMs = 123456789)
         val marFileWriter = MarFileWriter
-        assertThrows<FileMissingException> {
+        assertFailure {
             marFileWriter.writeMarFile(marFile, manifest, inputFile, 0)
-        }
+        }.isInstanceOf<FileMissingException>()
     }
 
     private fun ZipInputStream.assertNextEntry(
@@ -229,22 +229,22 @@ internal class MarFileWriterTest {
         fileContent: String?,
     ) {
         val dirEntry = nextEntry
-        assertTrue(dirEntry.isDirectory)
-        assertTrue(dirEntry.name.startsWith(marFile.name))
+        assertThat(dirEntry.isDirectory).isTrue()
+        assertThat(dirEntry.name.startsWith(marFile.name)).isTrue()
 
         val manifestEntry = nextEntry
-        assertTrue(manifestEntry.name.endsWith("manifest.json"))
+        assertThat(manifestEntry.name.endsWith("manifest.json")).isTrue()
         val manifestOutputString = readBytes().decodeToString()
         val manifestOutput = BortJson.decodeFromString(MarManifest.serializer(), manifestOutputString)
-        assertEquals(manifest, manifestOutput)
+        assertThat(manifestOutput).isEqualTo(manifest)
 
         val filename = manifest.filename()
-        assertEquals(fileContent == null, filename == null)
+        assertThat(filename == null).isEqualTo(fileContent == null)
         filename?.let {
             val fileEntry = nextEntry
-            assertTrue(fileEntry.name.endsWith(filename))
+            assertThat(fileEntry.name.endsWith(filename)).isTrue()
             val fileContentOutput = readBytes().decodeToString()
-            assertEquals(fileContent, fileContentOutput)
+            assertThat(fileContentOutput).isEqualTo(fileContent)
         }
     }
 

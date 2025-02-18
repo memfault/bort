@@ -1,5 +1,10 @@
 package com.memfault.bort.uploader
 
+import assertk.assertThat
+import assertk.assertions.containsExactly
+import assertk.assertions.isEmpty
+import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
 import com.memfault.bort.BortJson
 import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.FakeSharedPreferences
@@ -24,10 +29,9 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.After
+import org.junit.Before
+import org.junit.Test
 import java.io.File
 import java.time.Instant
 import java.util.UUID
@@ -51,7 +55,7 @@ class FileUploadHoldingAreaTest {
 
     private var storeUnsampledFiles = false
 
-    @BeforeEach
+    @Before
     fun setUp() {
         tempFiles = mutableListOf()
         mockSharedPreferences = makeFakeSharedPreferences()
@@ -85,7 +89,7 @@ class FileUploadHoldingAreaTest {
         )
     }
 
-    @AfterEach
+    @After
     fun tearDown() {
         tempFiles.forEach(File::deleteSilently)
     }
@@ -133,35 +137,35 @@ class FileUploadHoldingAreaTest {
         val entry = makeEntry(9.seconds, 10.seconds)
         fileUploadHoldingArea.add(entry)
         coVerify(exactly = 0) { mockEnqueueUpload.enqueue(any(), any(), any(), any()) }
-        assertEquals(listOf(entry), fileUploadHoldingArea.readEntries())
+        assertThat(fileUploadHoldingArea.readEntries()).containsExactly(entry)
     }
 
     @Test
     fun prunesOldEventTimesWhenHandingEvents() = runTest {
         fileUploadHoldingArea.handleEventOfInterest(1.seconds)
-        assertEquals(listOf(1.seconds), fileUploadHoldingArea.readEventTimes())
+        assertThat(fileUploadHoldingArea.readEventTimes()).containsExactly(1.seconds)
 
-        assertEquals(8.seconds, 1.seconds + eventOfInterestTTL)
+        assertThat(1.seconds + eventOfInterestTTL).isEqualTo(8.seconds)
         fileUploadHoldingArea.handleEventOfInterest(8.seconds)
-        assertEquals(listOf(8.seconds), fileUploadHoldingArea.readEventTimes())
+        assertThat(fileUploadHoldingArea.readEventTimes()).containsExactly(8.seconds)
         fileUploadHoldingArea.handleEventOfInterest(9.seconds)
-        assertEquals(listOf(8.seconds, 9.seconds), fileUploadHoldingArea.readEventTimes())
+        assertThat(fileUploadHoldingArea.readEventTimes()).containsExactly(8.seconds, 9.seconds)
     }
 
     @Test
     fun checksTriggersAndCleansPendingUploadsWhenHandingEvents() = runTest {
         val expectToDeleteEntry = makeEntry(1.seconds, 2.seconds)
 
-        assertEquals(7.seconds, 2.seconds + trailingMarginVal)
+        assertThat(2.seconds + trailingMarginVal).isEqualTo(7.seconds)
         val expectToUploadEntry = makeEntry(7.seconds, 8.seconds)
         val expectToHoldEntry = makeEntry(100.seconds, 200.seconds)
         listOf(expectToDeleteEntry, expectToUploadEntry, expectToHoldEntry).forEach {
             fileUploadHoldingArea.add(it)
         }
-        assertEquals(3, fileUploadHoldingArea.readEntries().size)
+        assertThat(fileUploadHoldingArea.readEntries().size).isEqualTo(3)
         fileUploadHoldingArea.handleEventOfInterest(7.seconds)
 
-        assertEquals(listOf(expectToHoldEntry), fileUploadHoldingArea.readEntries())
+        assertThat(fileUploadHoldingArea.readEntries()).containsExactly(expectToHoldEntry)
         coVerify {
             mockEnqueueUpload.enqueue(
                 expectToUploadEntry.file,
@@ -169,7 +173,7 @@ class FileUploadHoldingAreaTest {
                 expectToUploadEntry.payload.collectionTime,
             )
         }
-        assertEquals(false, expectToDeleteEntry.file.exists())
+        assertThat(expectToDeleteEntry.file.exists()).isFalse()
     }
 
     @Test
@@ -183,15 +187,15 @@ class FileUploadHoldingAreaTest {
         fileUploadHoldingArea.handleLinuxReboot()
 
         // State is wiped:
-        assertEquals(emptyList<PendingFileUploadEntry>(), fileUploadHoldingArea.readEntries())
-        assertEquals(emptyList<Duration>(), fileUploadHoldingArea.readEventTimes())
+        assertThat(fileUploadHoldingArea.readEntries()).isEmpty()
+        assertThat(fileUploadHoldingArea.readEventTimes()).isEmpty()
     }
 
     @Test
     fun handleTimeout() {
         val expectToDeleteEntry = makeEntry(1.seconds, 2.seconds)
 
-        assertEquals(7.seconds, 2.seconds + trailingMarginVal)
+        assertThat(2.seconds + trailingMarginVal).isEqualTo(7.seconds)
         val expectToHoldEntry = makeEntry(7.seconds, 8.seconds)
 
         listOf(expectToDeleteEntry, expectToHoldEntry).forEach {
@@ -199,7 +203,7 @@ class FileUploadHoldingAreaTest {
         }
 
         fileUploadHoldingArea.handleTimeout(7.seconds)
-        assertEquals(false, expectToDeleteEntry.file.exists())
+        assertThat(expectToDeleteEntry.file.exists()).isFalse()
         coVerify(exactly = 0) {
             mockEnqueueUpload.enqueue(
                 file = expectToDeleteEntry.file,
@@ -207,7 +211,7 @@ class FileUploadHoldingAreaTest {
                 collectionTime = collectionTime,
             )
         }
-        assertEquals(listOf(expectToHoldEntry), fileUploadHoldingArea.readEntries())
+        assertThat(fileUploadHoldingArea.readEntries()).containsExactly(expectToHoldEntry)
     }
 
     @Test
@@ -215,7 +219,7 @@ class FileUploadHoldingAreaTest {
         storeUnsampledFiles = true
         val expectToStoreEntry = makeEntry(1.seconds, 2.seconds)
 
-        assertEquals(7.seconds, 2.seconds + trailingMarginVal)
+        assertThat(2.seconds + trailingMarginVal).isEqualTo(7.seconds)
         val expectToHoldEntry = makeEntry(7.seconds, 8.seconds)
 
         listOf(expectToStoreEntry, expectToHoldEntry).forEach {
@@ -231,7 +235,7 @@ class FileUploadHoldingAreaTest {
                 overrideDebuggingResolution = NOT_APPLICABLE,
             )
         }
-        assertEquals(listOf(expectToHoldEntry), fileUploadHoldingArea.readEntries())
+        assertThat(fileUploadHoldingArea.readEntries()).containsExactly(expectToHoldEntry)
     }
 
     @Test
@@ -240,7 +244,7 @@ class FileUploadHoldingAreaTest {
         eventTimes.forEach { duration ->
             fileUploadHoldingArea.handleEventOfInterest(duration)
         }
-        assertEquals(eventTimes.takeLast(maxStoredEventsOfInterestVal), fileUploadHoldingArea.readEventTimes())
+        assertThat(fileUploadHoldingArea.readEventTimes()).isEqualTo(eventTimes.takeLast(maxStoredEventsOfInterestVal))
     }
 
     @Test
@@ -261,7 +265,7 @@ class FileUploadHoldingAreaTest {
                 |"debug_tag":"UPLOAD_LOGCAT"}]
             """.trimMargin()
         val decoded = BortJson.decodeFromString<List<PendingFileUploadEntry>>(json)
-        assertEquals(
+        assertThat(decoded).isEqualTo(
             listOf(
                 PendingFileUploadEntry(
                     timeSpan = TimeSpan(
@@ -306,7 +310,6 @@ class FileUploadHoldingAreaTest {
                     file = File("/data/user/0/com.memfault.smartfridge.bort/cache/logcat900531055540371522.txt"),
                 ),
             ),
-            decoded,
         )
     }
 }

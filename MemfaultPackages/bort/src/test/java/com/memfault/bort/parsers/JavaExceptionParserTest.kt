@@ -1,12 +1,15 @@
 package com.memfault.bort.parsers
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import org.junit.Test
 
 class JavaExceptionParserTest {
     @Test
     fun ok() {
-        assertEquals(
+        assertThat(
+            JavaExceptionParser(FIXTURE.byteInputStream()).parse(),
+        ).isEqualTo(
             JavaException(
                 packageName = "com.memfault.bort_e2e_helper",
                 unparsedStackFrames = listOf(
@@ -18,7 +21,6 @@ class JavaExceptionParserTest {
                     "android.app.ActivityThread.handleReceiver(ActivityThread.java:3187)",
                 ),
             ),
-            JavaExceptionParser(FIXTURE.byteInputStream()).parse(),
         )
     }
 }

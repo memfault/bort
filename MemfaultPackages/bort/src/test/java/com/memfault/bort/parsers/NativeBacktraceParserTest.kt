@@ -1,22 +1,22 @@
 package com.memfault.bort.parsers
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import org.junit.Test
 
 class NativeBacktraceParserParseProcessHeaderTest {
     @Test
     fun ok() {
         val (pid, time) = NativeBacktraceParser.parseProcessHeader("----- pid 9735 at 2019-08-21 12:17:22 -----")
-        assertEquals(9735, pid)
-        assertEquals("2019-08-21 12:17:22", time)
+        assertThat(pid).isEqualTo(9735)
+        assertThat(time).isEqualTo("2019-08-21 12:17:22")
     }
 
     @Test
     fun badInput() {
-        assertThrows<InvalidNativeBacktraceException> {
-            NativeBacktraceParser.parseProcessHeader("")
-        }
+        assertFailure { NativeBacktraceParser.parseProcessHeader("") }.isInstanceOf<InvalidNativeBacktraceException>()
     }
 }
 
@@ -31,18 +31,17 @@ class NativeBacktraceParserParseProcessMetadata {
                 "bort_e2e_helper" sysTid=2535
             """.trimIndent().asLines(),
         )
-        assertEquals(
+        assertThat(metadata).isEqualTo(
             mapOf(
                 "Cmd line" to "com.memfault.bort_e2e_helper",
                 "ABI" to "'x86'",
             ),
-            metadata,
         )
     }
 
     @Test
     fun badInput() {
-        assertThrows<InvalidNativeBacktraceException> {
+        assertFailure {
             NativeBacktraceParser.parseProcessMetadata(
                 """
                 Cmd line
@@ -50,7 +49,7 @@ class NativeBacktraceParserParseProcessMetadata {
                 "bort_e2e_helper" sysTid=2535
                 """.trimIndent().asLines(),
             )
-        }
+        }.isInstanceOf<InvalidNativeBacktraceException>()
     }
 }
 
@@ -58,8 +57,7 @@ class NativeBacktraceParserTest {
     @Test
     fun ok() {
         val backtrace = NativeBacktraceParser(EXAMPLE_NATIVE_BACKTRACE.byteInputStream()).parse()
-        assertEquals(
-            backtrace,
+        assertThat(backtrace).isEqualTo(
             NativeBacktrace(
                 processes = listOf(
                     NativeBacktrace.Process(1, "foo"),
@@ -72,9 +70,9 @@ class NativeBacktraceParserTest {
 
     @Test
     fun empty() {
-        assertThrows<InvalidNativeBacktraceException> {
+        assertFailure {
             NativeBacktraceParser("".byteInputStream()).parse()
-        }
+        }.isInstanceOf<InvalidNativeBacktraceException>()
     }
 }
 

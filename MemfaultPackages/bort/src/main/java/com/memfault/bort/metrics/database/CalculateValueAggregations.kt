@@ -37,7 +37,14 @@ class TimeInStateValueAggregations(
 ) : CalculateValueAggregations {
 
     private val timeInStateMs = mutableMapOf<String, Long>()
+    private var pendingShift: Shift? = null
+    private val shifts = mutableListOf<Shift>()
     private var last: DbMetricValue? = null
+
+    private data class Shift(
+        val state: String,
+        var duration: Long,
+    )
 
     override suspend fun onEach(
         reportStartMs: Long,
@@ -51,6 +58,25 @@ class TimeInStateValueAggregations(
             val timeOfCurrentRecord = metricValue.timestampMs.coerceAtLeast(reportStartMs)
             val durationSinceLastRecord = timeOfCurrentRecord - timeOfLastRecord
             timeInStateMs[state] = existingTimeInState + durationSinceLastRecord
+
+            val absoluteDuration = metricValue.timestampMs - l.timestampMs
+
+            val currentShift = pendingShift ?: Shift(state, 0)
+
+            val nextState = metricValue.jsonValue().contentOrNull ?: return@let
+            if (nextState != currentShift.state) {
+                // The previous state is different from the current state, then extend the time of the last shift
+                // and commit its finalized duration.
+                currentShift.duration += absoluteDuration
+                shifts.add(currentShift)
+
+                pendingShift = Shift(nextState, 0)
+            } else {
+                // Otherwise, only extend the time of the current shift.
+                currentShift.duration += absoluteDuration
+
+                pendingShift = currentShift
+            }
         }
         last = metricValue
     }
@@ -67,6 +93,8 @@ class TimeInStateValueAggregations(
             val durationSinceLastRecord = timeOfCurrentRecord - timeOfLastRecord
             timeInStateMs[state] = existingTimeInState + durationSinceLastRecord
         }
+
+        // Note that we don't finish shifts automatically as that would make the shift length inaccurate.
 
         val reportDurationMs = reportEndMs - reportStartMs
         val metrics = mutableMapOf<String, JsonPrimitive>()
@@ -87,6 +115,17 @@ class TimeInStateValueAggregations(
             }
             if (StateAgg.TIME_TOTALS in aggs) {
                 metrics["${key}_$state.total_secs"] = JsonPrimitive(timeMs.milliseconds.inWholeSeconds)
+            }
+        }
+
+        val shiftsInState = shifts.groupBy(keySelector = { it.state }, valueTransform = { it.duration })
+        shiftsInState.forEach { (state, shifts) ->
+            if (StateAgg.TIME_TOTALS in aggs) {
+                val filteredShifts = shifts.filterNot { it == 0L }
+                if (filteredShifts.isNotEmpty()) {
+                    val meanMs = filteredShifts.average()
+                    metrics["${key}_$state.mean_time_in_state_ms"] = JsonPrimitive(meanMs.roundToLong())
+                }
             }
         }
 

@@ -24,6 +24,7 @@ import io.mockk.verify
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
 import org.junit.Test
 import kotlin.time.Duration
 
@@ -44,6 +45,7 @@ class ThermalMetricsCollectorTest {
         override val cachePackageManagerReport: Boolean get() = TODO("not used")
         override val recordImei: Boolean get() = TODO("not used")
         override val operationalCrashesExclusions: List<String> get() = TODO("not used")
+        override val operationalCrashesComponentGroups: JsonObject get() = TODO("not used")
         override val pollingInterval: Duration get() = TODO("not used")
         override val collectMemory: Boolean get() = TODO("Not used")
         override val thermalMetricsEnabled: Boolean get() = collectionEnabled

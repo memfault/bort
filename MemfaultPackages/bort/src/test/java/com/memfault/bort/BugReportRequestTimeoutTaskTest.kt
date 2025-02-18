@@ -1,21 +1,22 @@
 package com.memfault.bort
 
 import android.app.Application
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
 import com.memfault.bort.shared.BugReportRequest
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 
 class BugReportRequestTimeoutTaskTest {
     lateinit var application: Application
     lateinit var mockStorage: PendingBugReportRequestStorage
     lateinit var pendingBugReportRequestAccessor: PendingBugReportRequestAccessor
 
-    @BeforeEach
+    @Before
     fun setUp() {
         application = mockk(relaxed = true)
         mockStorage = MockPendingBugReportRequestStorage(null)
@@ -40,7 +41,7 @@ class BugReportRequestTimeoutTaskTest {
         )
         BugReportRequestTimeoutTask(application, pendingBugReportRequestAccessor)
             .doWork(requestId)
-        assertNull(pendingBugReportRequestAccessor.get())
+        assertThat(pendingBugReportRequestAccessor.get()).isNull()
         verify(exactly = 1) {
             application.sendBroadcast(any())
         }
@@ -59,7 +60,7 @@ class BugReportRequestTimeoutTaskTest {
         )
         BugReportRequestTimeoutTask(application, pendingBugReportRequestAccessor)
             .doWork("bar")
-        assertEquals(requestId, pendingBugReportRequestAccessor.get()?.requestId)
+        assertThat(pendingBugReportRequestAccessor.get()?.requestId).isEqualTo(requestId)
         verify(exactly = 0) {
             application.sendBroadcast(any())
         }

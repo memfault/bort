@@ -1,13 +1,15 @@
 package com.memfault.bort.buildsrc
 
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
 import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import org.junit.Before
+import org.junit.Test
 import java.io.File
 import java.nio.file.Files
 
@@ -22,7 +24,7 @@ class BortSettingsDownloaderTest {
     lateinit var mockWarn: (String, Exception?) -> Unit
     lateinit var mockFetchConfig: () -> String
 
-    @BeforeEach
+    @Before
     fun setUp() {
         mockRootDir = Files.createTempDirectory("bortBuildSrcTest").toFile()
         mockWarn = mockk(relaxed = true)
@@ -37,7 +39,7 @@ class BortSettingsDownloaderTest {
         every {
             mockFetchConfig()
         } throws BortSettingsDownloaderException("")
-        assertThrows<BortSettingsDownloaderException> {
+        assertFailure {
             fetchBortSettingsInternal(
                 rootDir = mockRootDir,
                 useDevConfig = false,
@@ -46,7 +48,7 @@ class BortSettingsDownloaderTest {
                 warn = mockWarn,
                 fetchBortConfigFun = mockFetchConfig,
             )
-        }
+        }.isInstanceOf<BortSettingsDownloaderException>()
     }
 
     @Test
@@ -87,7 +89,7 @@ class BortSettingsDownloaderTest {
 
     @Test
     fun skipDownloadFailsIfNoLocalFile() {
-        assertThrows<BortSettingsInconsistencyException> {
+        assertFailure {
             fetchBortSettingsInternal(
                 rootDir = mockRootDir,
                 useDevConfig = false,
@@ -96,7 +98,7 @@ class BortSettingsDownloaderTest {
                 warn = mockWarn,
                 fetchBortConfigFun = mockFetchConfig,
             )
-        }
+        }.isInstanceOf<BortSettingsInconsistencyException>()
     }
 
     @Test
@@ -145,7 +147,7 @@ class BortSettingsDownloaderTest {
         }.writeText(SUCCESS_FIXTURE)
         every { mockFetchConfig() } returns OTHER_FIXTURE
 
-        assertThrows<BortSettingsInconsistencyException> {
+        assertFailure {
             fetchBortSettingsInternal(
                 rootDir = mockRootDir,
                 useDevConfig = false,
@@ -154,7 +156,7 @@ class BortSettingsDownloaderTest {
                 warn = mockWarn,
                 fetchBortConfigFun = mockFetchConfig,
             )
-        }
+        }.isInstanceOf<BortSettingsInconsistencyException>()
 
         verify {
             mockWarn(
@@ -186,17 +188,14 @@ class BortSettingsDownloaderTest {
             fetchBortConfigFun = mockFetchConfig,
         )
 
-        assertEquals(
-            getBortSettingsAssetsFile(mockRootDir).readText(),
-            OTHER_FIXTURE,
-        )
+        assertThat(getBortSettingsAssetsFile(mockRootDir).readText()).isEqualTo(OTHER_FIXTURE)
     }
 
     @Test
     fun fetchFailsWithInvalidJson() {
         every { mockFetchConfig() } returns "{["
 
-        assertThrows<BortSettingsInconsistencyException> {
+        assertFailure {
             fetchBortSettingsInternal(
                 rootDir = mockRootDir,
                 useDevConfig = false,
@@ -205,6 +204,6 @@ class BortSettingsDownloaderTest {
                 warn = mockWarn,
                 fetchBortConfigFun = mockFetchConfig,
             )
-        }
+        }.isInstanceOf<BortSettingsInconsistencyException>()
     }
 }

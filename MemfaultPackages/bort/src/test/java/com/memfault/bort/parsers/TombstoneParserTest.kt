@@ -1,53 +1,58 @@
 package com.memfault.bort.parsers
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.hasMessage
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import org.junit.Test
 
 class TombstoneParserTest {
     @Test
     fun basic() {
         val tombstone = TombstoneParser(EXAMPLE_TOMBSTONE.byteInputStream()).parse()
-        assertEquals(19474, tombstone.pid)
-        assertEquals(19566, tombstone.tid)
-        assertEquals("Chrome_IOThread", tombstone.threadName)
-        assertEquals("com.android.chrome", tombstone.processName)
+        assertThat(tombstone.pid).isEqualTo(19474)
+        assertThat(tombstone.tid).isEqualTo(19566)
+        assertThat(tombstone.threadName).isEqualTo("Chrome_IOThread")
+        assertThat(tombstone.processName).isEqualTo("com.android.chrome")
     }
 
     @Test
     fun failedToDump() {
-        assertThrows<InvalidTombstoneException> {
+        assertFailure {
             TombstoneParser("failed to dump process".byteInputStream()).parse()
-        }
+        }.isInstanceOf<InvalidTombstoneException>()
     }
 
     @Test
     fun missingThreadHeader() {
-        assertThrows<InvalidTombstoneException>("Failed to find thread header") {
+        assertFailure {
             TombstoneParser(
                 "*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\n".byteInputStream(),
             ).parse()
-        }
+        }.isInstanceOf<InvalidTombstoneException>()
+            .hasMessage("Failed to find thread header")
     }
 
     @Test
     fun invalidThreadHeader() {
-        assertThrows<InvalidTombstoneException>("Thread header failed to parse") {
+        assertFailure {
             TombstoneParser(
                 """*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
                   |pid: xxx, tid: 19566, name: Chrome_IOThread  >>> com.android.chrome <<<
                 """.trimMargin().byteInputStream(),
             ).parse()
-        }
+        }.isInstanceOf<InvalidTombstoneException>()
+            .hasMessage("Failed to find thread header")
     }
 
     @Test
     fun spaceInThreadName_processInProcessName() {
         val tombstone = TombstoneParser(EXAMPLE_TOMBSTONE_THREADNAME_PROCESSNAME.byteInputStream()).parse()
-        assertEquals(1700, tombstone.pid)
-        assertEquals(1923, tombstone.tid)
-        assertEquals("AsyncTask #1", tombstone.threadName)
-        assertEquals("com.android.nfc", tombstone.processName)
+        assertThat(tombstone.pid).isEqualTo(1700)
+        assertThat(tombstone.tid).isEqualTo(1923)
+        assertThat(tombstone.threadName).isEqualTo("AsyncTask #1")
+        assertThat(tombstone.processName).isEqualTo("com.android.nfc")
     }
 }
 

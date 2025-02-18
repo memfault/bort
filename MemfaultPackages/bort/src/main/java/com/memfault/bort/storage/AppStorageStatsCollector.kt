@@ -55,15 +55,25 @@ class RealAppStorageStatsCollector
                 internal = internal,
             )
 
+            val externalCacheBytes = if (Build.VERSION.SDK_INT >= 31) {
+                storageStats.externalCacheBytes
+            } else {
+                null
+            }
             return listOfNotNull(
                 metric("storage.app.app_$key", storageStats.appBytes),
                 metric("storage.app.cache_$key", storageStats.cacheBytes),
                 metric("storage.app.data_$key", storageStats.dataBytes),
-                if (Build.VERSION.SDK_INT >= 31) {
-                    metric("storage.app.extcache_$key", storageStats.externalCacheBytes)
+                if (externalCacheBytes != null) {
+                    metric("storage.app.extcache_$key", externalCacheBytes)
                 } else {
                     null
                 },
+                metric(
+                    "storage_${key}_bytes",
+                    storageStats.appBytes + storageStats.cacheBytes + storageStats.dataBytes +
+                        (externalCacheBytes ?: 0),
+                ),
             )
         }
 

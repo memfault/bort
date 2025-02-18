@@ -28,6 +28,8 @@ class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
     override val debugTag: String
         get() = "UPLOAD_JAVA_EXCEPTION"
 
+    override val crashTag: String? = null
+
     override fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean {
         return if (isWtf(tag)) {
             // We limit WTFs using both a bucketed (by stacktrace) and total.
@@ -45,8 +47,8 @@ class JavaExceptionUploadingEntryProcessorDelegate @Inject constructor(
             entryFile.inputStream().use {
                 JavaExceptionParser(it).parse().let { exception ->
                     EntryInfo(
-                        exception.tokenBucketKey(),
-                        exception.packageName,
+                        tokenBucketKey = exception.tokenBucketKey(),
+                        packageName = exception.packageName,
                     )
                 }
             }

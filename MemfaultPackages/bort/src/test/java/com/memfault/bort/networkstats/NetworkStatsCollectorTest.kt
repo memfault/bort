@@ -165,6 +165,8 @@ class NetworkStatsCollectorTest {
                     .transform { hrt -> HighResTelemetry.decodeFromStream(hrt) }
                     .prop(HighResTelemetry::rollups)
                     .containsExactlyInAnyOrder(
+                        *metricsDbTestEnvironment.dropBoxTagCountRollups(2.hours.inWholeMilliseconds).toTypedArray(),
+
                         rollup("connectivity_recv_bytes", 40_000_000.0),
                         rollup("connectivity_wifi_recv_bytes", 10_000_000.0),
                         rollup("connectivity_mobile_recv_bytes", 10_000_000.0),
@@ -238,6 +240,8 @@ class NetworkStatsCollectorTest {
                     .transform { hrt -> HighResTelemetry.decodeFromStream(hrt) }
                     .prop(HighResTelemetry::rollups)
                     .containsExactlyInAnyOrder(
+                        *metricsDbTestEnvironment.dropBoxTagCountRollups(2.hours.inWholeMilliseconds).toTypedArray(),
+
                         rollup("connectivity_recv_bytes", 0.0),
                         rollup("connectivity_sent_bytes", 0.0),
 
@@ -348,6 +352,8 @@ class NetworkStatsCollectorTest {
                     .transform { hrt -> HighResTelemetry.decodeFromStream(hrt) }
                     .prop(HighResTelemetry::rollups)
                     .containsExactlyInAnyOrder(
+                        *metricsDbTestEnvironment.dropBoxTagCountRollups(2.hours.inWholeMilliseconds).toTypedArray(),
+
                         rollup("connectivity_recv_bytes", 4.0),
                         rollup("connectivity_eth_recv_bytes", 1.0),
                         rollup("connectivity_wifi_recv_bytes", 1.0),
@@ -442,6 +448,8 @@ class NetworkStatsCollectorTest {
                     .transform { hrt -> HighResTelemetry.decodeFromStream(hrt) }
                     .prop(HighResTelemetry::rollups)
                     .containsExactlyInAnyOrder(
+                        *metricsDbTestEnvironment.dropBoxTagCountRollups(2.hours.inWholeMilliseconds).toTypedArray(),
+
                         rollup("connectivity_recv_bytes", 0.0),
                         rollup("connectivity_sent_bytes", 0.0),
 
@@ -553,6 +561,8 @@ class NetworkStatsCollectorTest {
                     .transform { hrt -> HighResTelemetry.decodeFromStream(hrt) }
                     .prop(HighResTelemetry::rollups)
                     .containsExactlyInAnyOrder(
+                        *metricsDbTestEnvironment.dropBoxTagCountRollups(2.hours.inWholeMilliseconds).toTypedArray(),
+
                         rollup("connectivity_recv_bytes", 0.0),
                         rollup("connectivity_sent_bytes", 0.0),
 

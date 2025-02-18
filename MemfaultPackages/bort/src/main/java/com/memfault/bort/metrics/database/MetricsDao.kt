@@ -8,6 +8,10 @@ import androidx.room.Transaction
 import com.memfault.bort.json.useJsonWriter
 import com.memfault.bort.metrics.custom.CustomReport
 import com.memfault.bort.metrics.custom.MetricReport
+import com.memfault.bort.metrics.custom.ReportType
+import com.memfault.bort.metrics.custom.ReportType.Daily
+import com.memfault.bort.metrics.custom.ReportType.Hourly
+import com.memfault.bort.metrics.custom.ReportType.Session
 import com.memfault.bort.metrics.database.DerivedAggregation.Companion.asMetrics
 import com.memfault.bort.reporting.AggregationType
 import com.memfault.bort.reporting.DataType
@@ -23,6 +27,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import java.time.Duration
@@ -556,6 +561,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
      * re-use the existing aggregation logic without re-structuring metric associations.
      */
     private suspend fun produceMetricReport(
+        reportType: ReportType,
         dbReports: List<DbReport>,
         endTimestampMs: Long,
         calculateDerivedAggregations: CalculateDerivedAggregations,
@@ -611,8 +617,13 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
             }
         }
 
-        val derivedAggregations =
-            calculateDerivedAggregations.calculate(startTimestampMs, endTimestampMs, metrics, internalMetrics)
+        val derivedAggregations = calculateDerivedAggregations.calculate(
+            reportType = reportType,
+            startTimestampMs = startTimestampMs,
+            endTimestampMs = endTimestampMs,
+            metrics = metrics,
+            internalMetrics = internalMetrics,
+        )
 
         hrt?.useJsonWriter { jsonWriter ->
             jsonWriter?.let {
@@ -737,7 +748,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
         dailyHeartbeatReportType: String? = null,
         endTimestampMs: Long,
         hrtFileFactory: HrtFileFactory?,
-        calculateDerivedAggregations: CalculateDerivedAggregations = CalculateDerivedAggregations { _, _, _, _ ->
+        calculateDerivedAggregations: CalculateDerivedAggregations = CalculateDerivedAggregations { _, _, _, _, _ ->
             emptyList()
         },
         dailyHeartbeatReportMetricsForSessions: List<String>? = null,
@@ -763,6 +774,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
             updateReportEndTimestamp(hourlyHeartbeatDbReport.id, endTimestampMs = endTimestampMs)
 
             val hourlyReport = produceMetricReport(
+                reportType = Hourly,
                 dbReports = listOf(hourlyHeartbeatDbReport),
                 endTimestampMs = endTimestampMs,
                 calculateDerivedAggregations = calculateDerivedAggregations,
@@ -780,9 +792,30 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
                         endTimestampMs = endTimestampMs,
                     )
 
-                    if (latestValue != null) {
-                        if ((endTimestampMs - latestValue.timestampMs).milliseconds <= 3.days) {
-                            metadata to latestValue
+                    // In a situation where there are repeated values (chains) to end the report, use the first element
+                    // of the chain rather than the last, as that gives us the actual timestamp when the
+                    var firstValueInLastChain: DbMetricValue? = latestValue
+                    val valuesDesc = getMetricValuesFlow(
+                        metadataIds = listOf(metadata.id),
+                        pageSize = 250,
+                        bufferSize = 500,
+                        endTimestampMs = endTimestampMs,
+                        pageFunc = this::getMetricValuesPageDesc,
+                    )
+                    valuesDesc
+                        .takeWhile { value ->
+                            value.boolVal == latestValue?.boolVal &&
+                                value.numberVal == latestValue?.numberVal &&
+                                value.stringVal == latestValue?.stringVal
+                        }
+                        .collect { value ->
+                            firstValueInLastChain = value
+                        }
+
+                    val carryOverValue = firstValueInLastChain
+                    if (carryOverValue != null) {
+                        if ((endTimestampMs - carryOverValue.timestampMs).milliseconds <= 3.days) {
+                            metadata to carryOverValue
                         } else {
                             Logger.v("Requested carryOver for ${metadata.eventName} but value expired")
                             null
@@ -829,6 +862,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
                 // 24 hourly heartbeat reports into the same function, we can reuse the [produceMetricReport]
                 // function without much modification.
                 val dailyReport = produceMetricReport(
+                    reportType = Daily,
                     dbReports = hourlyHeartbeats,
                     endTimestampMs = endTimestampMs,
                     calculateDerivedAggregations = calculateDerivedAggregations,
@@ -870,6 +904,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
                 }
 
                 val sessionReport = produceMetricReport(
+                    reportType = Session,
                     dbReports = listOf(dbSession),
                     endTimestampMs = sessionEndTimeMs,
                     calculateDerivedAggregations = calculateDerivedAggregations,
@@ -957,15 +992,16 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
         pageSize: Long,
         bufferSize: Int,
         endTimestampMs: Long,
+        pageFunc: suspend (
+            metadataIds: List<Long>,
+            limit: Long,
+            offset: Long,
+            endTimestampMs: Long,
+        ) -> List<DbMetricValue> = this::getMetricValuesPage,
     ): Flow<DbMetricValue> = flow {
         var offset = 0L
         while (true) {
-            val values = getMetricValuesPage(
-                metadataIds = metadataIds,
-                limit = pageSize,
-                offset = offset,
-                endTimestampMs = endTimestampMs,
-            )
+            val values = pageFunc(metadataIds, pageSize, offset, endTimestampMs)
             if (values.isEmpty()) break
             values.forEach {
                 emit(it)

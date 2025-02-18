@@ -16,8 +16,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 import java.time.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -34,7 +34,7 @@ class ContinuousLogcatEntryProcessorTest {
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
-    @BeforeEach
+    @Before
     fun setup() {
         logcatDataSourceEnabled = true
 

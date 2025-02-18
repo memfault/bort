@@ -1,7 +1,8 @@
 package com.memfault.bort
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
+import assertk.assertThat
+import assertk.assertions.containsOnly
+import org.junit.Test
 
 class GetpropParsingTest {
 
@@ -15,13 +16,10 @@ class GetpropParsingTest {
             """.trimMargin(),
         )
 
-        assertEquals(
-            result,
-            mapOf(
-                "persist.sys.timezone" to "Europe/Paris",
-                "foo" to "bar baz",
-                "empty" to "",
-            ),
+        assertThat(result).containsOnly(
+            "persist.sys.timezone" to "Europe/Paris",
+            "foo" to "bar baz",
+            "empty" to "",
         )
     }
 }

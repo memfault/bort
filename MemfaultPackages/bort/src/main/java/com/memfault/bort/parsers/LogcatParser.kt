@@ -109,7 +109,7 @@ fun Flow<String>.toLogcatLines(command: LogcatCommand): Flow<LogcatLine> =
 private val LINE_REGEX = Regex(
     """^(([0-9]+-[0-9]+-[0-9]+ [0-9]+:[0-9]+:[0-9]+\.[0-9]+ \+[0-9]+)""" +
         """\s+([a-zA-Z_\-0-9]+)""" +
-        """\s+[^:]+\s+([EWIDVFS])\s+([\w-]+)?\s*:""" + // everything up to tag:
+        """\s+[^:]+\s+([EWIDVFS])\s+(.+?)?\s*:""" + // everything up to tag:
         """\s+)(.*)$""",
 )
 

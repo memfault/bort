@@ -1,23 +1,27 @@
 package com.memfault.bort.parsers
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Test
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
+import org.hamcrest.MatcherAssert.assertThat
+import org.junit.Test
 
 class AnrParserTest {
     @Test
     fun packageNameOK() {
-        assertEquals(
-            "com.memfault.bort_e2e_helper",
+        assertThat(
             AnrParser(FIXTURE.byteInputStream()).parse().packageName,
+        ).isEqualTo(
+            "com.memfault.bort_e2e_helper",
+
         )
     }
 
     @Test
     fun noPackage() {
-        assertNull(
+        assertThat(
             AnrParser(INVALID_FIXTURE.byteInputStream()).parse().packageName,
-        )
+        ).isNull()
     }
 }
 

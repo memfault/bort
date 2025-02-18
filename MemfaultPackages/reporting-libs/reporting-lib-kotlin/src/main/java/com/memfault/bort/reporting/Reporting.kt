@@ -13,7 +13,9 @@ import com.memfault.bort.reporting.NumericAgg.COUNT
 import com.memfault.bort.reporting.NumericAgg.SUM
 import com.memfault.bort.reporting.RemoteMetricsService.HEARTBEAT_REPORT
 import com.memfault.bort.reporting.RemoteMetricsService.SESSION_REPORT
+import com.memfault.bort.reporting.ReportingClient.HeartbeatReport
 import com.memfault.bort.reporting.ReportingClient.Report
+import com.memfault.bort.reporting.ReportingClient.SessionReport
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutorService
 
@@ -35,7 +37,7 @@ public interface ReportingSdk {
      * Session [name]s must match [RemoteMetricsService.SESSION_NAME_REGEX] and not be a
      * [RemoteMetricsService.RESERVED_REPORT_NAMES].
      */
-    public fun session(name: String): Report
+    public fun session(name: String): SessionReport
 
     /**
      * Start a session.
@@ -43,6 +45,7 @@ public interface ReportingSdk {
      * Session [name]s must match [RemoteMetricsService.SESSION_NAME_REGEX] and not be a
      * [RemoteMetricsService.RESERVED_REPORT_NAMES].
      */
+    @Deprecated("Use [SessionReport.start()]")
     public fun startSession(
         name: String,
         timestampMs: Long = timestamp(),
@@ -51,6 +54,7 @@ public interface ReportingSdk {
     /**
      * Finish a session.
      */
+    @Deprecated("Use [SessionReport.finish()]")
     public fun finishSession(
         name: String,
         timestampMs: Long = timestamp(),
@@ -133,17 +137,16 @@ public class ReportingClient @JvmOverloads constructor(
             .build()
     }
 
-    public override fun report(): Report = Report(
+    public override fun report(): Report = HeartbeatReport(
         remoteMetricsService = remoteMetricsService,
-        reportType = HEARTBEAT_REPORT,
     )
 
-    public override fun session(name: String): Report = Report(
+    public override fun session(name: String): SessionReport = SessionReport(
         remoteMetricsService = remoteMetricsService,
-        reportType = SESSION_REPORT,
         reportName = name,
     )
 
+    @Deprecated("Use [SessionReport.start()]")
     public override fun startSession(
         name: String,
         timestampMs: Long,
@@ -159,6 +162,7 @@ public class ReportingClient @JvmOverloads constructor(
     /**
      * Finish a session.
      */
+    @Deprecated("Use [SessionReport.finish()]")
     public override fun finishSession(
         name: String,
         timestampMs: Long,
@@ -175,8 +179,43 @@ public class ReportingClient @JvmOverloads constructor(
 
     public override fun shutdown(): Unit = remoteMetricsService.shutdown()
 
-    public class Report internal constructor(
-        private val remoteMetricsService: RemoteMetricsService,
+    public class SessionReport internal constructor(
+        remoteMetricsService: RemoteMetricsService,
+        reportName: String,
+    ) : Report(remoteMetricsService = remoteMetricsService, reportType = SESSION_REPORT, reportName = reportName) {
+        @JvmOverloads
+        public fun start(
+            timestampMs: Long = timestamp(),
+        ): CompletableFuture<Boolean> = remoteMetricsService.startReport(
+            StartReport(
+                timestampMs,
+                REPORTING_CLIENT_VERSION,
+                SESSION_REPORT,
+                reportName,
+            ),
+        )
+
+        @JvmOverloads
+        public fun finish(
+            timestampMs: Long = timestamp(),
+        ): CompletableFuture<Boolean> = remoteMetricsService.finishReport(
+            FinishReport(
+                timestampMs,
+                REPORTING_CLIENT_VERSION,
+                SESSION_REPORT,
+                /** startNextReport */
+                false,
+                reportName,
+            ),
+        )
+    }
+
+    public class HeartbeatReport internal constructor(
+        remoteMetricsService: RemoteMetricsService,
+    ) : Report(remoteMetricsService = remoteMetricsService, reportType = HEARTBEAT_REPORT)
+
+    public sealed class Report protected constructor(
+        protected val remoteMetricsService: RemoteMetricsService,
         public val reportType: String,
         public val reportName: String? = null,
     ) {

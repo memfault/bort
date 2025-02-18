@@ -1,5 +1,8 @@
 package com.memfault.bort.dropbox
 
+import assertk.assertThat
+import assertk.assertions.isEmpty
+import assertk.assertions.isEqualTo
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.settings.RateLimitingSettings
@@ -10,9 +13,8 @@ import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
@@ -52,12 +54,13 @@ class DropBoxFilterSettingsTest {
         override val excludedTags get() = mockGetExcludedTags
         override val forceEnableWtfTags: Boolean = true
         override val scrubTombstones: Boolean = false
+        override val useNativeCrashTombstones: Boolean = false
         override val processImmediately: Boolean = true
         override val pollingInterval: Duration = 15.minutes
         override val otherTags: Set<String> = emptySet()
     }
 
-    @BeforeEach
+    @Before
     fun setUp() {
         MockKAnnotations.init(this)
         entryProcessors = mapOfProcessors(
@@ -75,8 +78,9 @@ class DropBoxFilterSettingsTest {
             bortEnabledProvider = bortEnabledProvider,
         )
 
-        assertEquals(
+        assertThat(
             configureFilterSettings.tagFilter(),
+        ).isEqualTo(
             listOf(TEST_TAG),
         )
     }
@@ -91,10 +95,9 @@ class DropBoxFilterSettingsTest {
             bortEnabledProvider = bortEnabledProvider,
         )
 
-        assertEquals(
+        assertThat(
             configureFilterSettings.tagFilter(),
-            emptyList<String>(),
-        )
+        ).isEmpty()
     }
 
     private fun mapOfProcessors(vararg processors: Pair<String, EntryProcessor>): DropBoxEntryProcessors =

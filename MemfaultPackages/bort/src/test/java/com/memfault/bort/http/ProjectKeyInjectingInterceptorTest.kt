@@ -1,15 +1,16 @@
 package com.memfault.bort.http
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
+import assertk.assertions.isNull
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import org.junit.Before
 import org.junit.Rule
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Test
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.http.POST
@@ -32,7 +33,7 @@ class ProjectKeyInjectingInterceptorTest {
 
     lateinit var service: AuthTestService
 
-    @BeforeEach
+    @Before
     fun before() {
         service = Retrofit.Builder()
             .client(
@@ -50,8 +51,8 @@ class ProjectKeyInjectingInterceptorTest {
         server.enqueue(MockResponse().setResponseCode(200))
         service.authenticatedApi()
         server.takeRequest(5, TimeUnit.MILLISECONDS).let {
-            assertNotNull(it)
-            assertEquals(SECRET, it?.getHeader(PROJECT_KEY_HEADER))
+            assertThat(it).isNotNull()
+            assertThat(it?.getHeader(PROJECT_KEY_HEADER)).isEqualTo(SECRET)
         }
     }
 
@@ -60,8 +61,8 @@ class ProjectKeyInjectingInterceptorTest {
         server.enqueue(MockResponse().setResponseCode(200))
         service.openApi()
         server.takeRequest(5, TimeUnit.MILLISECONDS).let {
-            assertNotNull(it)
-            assertNull(it?.getHeader(PROJECT_KEY_HEADER))
+            assertThat(it).isNotNull()
+            assertThat(it?.getHeader(PROJECT_KEY_HEADER)).isNull()
         }
     }
 }

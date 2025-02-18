@@ -1,4 +1,58 @@
-# Memfault Bort Changelog
+# Memfault Android SDK Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+This project currently does not attempt to adhere to Semantic Versioning, but
+breaking changes are avoided unless absolutely necessary.
+
+## v5.3.0 - February 14, 2025
+
+### :rocket: New Features
+
+- Added new per-component total storage metrics. The total storage used
+  (apps+cache+data+external) by an application can be recorded as a
+  `storage_<package>_bytes` metric. Please feel free to contact us if you would
+  like this enabled for applications in your project.
+- Added new mechanism to group operational crashes by package. The existing
+  `operational_crashes` core metric can be divided into
+  `operational_crashes_<group>` metrics, based off of the package names of the
+  crashes. Please feel free to contact us if you would like this enabled for
+  your project.
+- Added new DropBox count core metrics. The number of DropBox entries processed
+  each heartbeat, grouped by Issue type, is now recorded as a
+  `drop_box_<type>_count` metric. This makes identifying crashy devices even
+  easier.
+- Added new `.mean_time_in_state` metric alongside `.total_secs` when the
+  `TIME_TOTALS` aggregation is used with `StateTracker`s. The existing
+  `.total_secs` metric is truncated between heartbeats, so it is only useful as
+  a rough percentage comparison versus other states. The new
+  `.mean_time_in_state` metric can be used to track the absolute time spent in a
+  state, even across heartbeats, so its value can be used as an absolute number.
+
+### :chart_with_upwards_trend: Improvements
+
+- Returned a `Session` object when `startSession` is called to improve the API
+  usability.
+- Removed `SYSTEM_BOOT` from the default list of 'other' collected DropBox
+  Entries. After some field testing, this DropBox Entry was not consistently
+  collected and did not contain useful information.
+- Silenced tags in continuous logs that did not match the filter spec.
+
+### :construction: Fixes
+
+- Fixed a logs-to-metrics bug where it could not parse logcat tags with spaces.
+- Fixed a harmless SELinux violation where memfault_structured_app could not
+  access its own data directory.
+- Fixed a bug in bort_cli.py's validation-sdk-integration command where it
+  wouldn't check the right location for system_ext sepolicy.
+- Fixed a continuous log bug where spaces in the tag would break parsing.
+
+### :house: Internal
+
+- Migrated off junit5/jupiter back to junit4, at least until it has first party
+  support from the Android team/
+- Added minio to the debug network security config for local development.
 
 ## v5.2.0 - November 15, 2024
 

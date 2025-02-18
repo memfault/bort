@@ -7,9 +7,9 @@ import com.memfault.bort.TaskResult
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import org.junit.Before
 import org.junit.Rule
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Test
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -21,7 +21,7 @@ class MemfaultFileUploaderTest {
 
     lateinit var file: File
 
-    @BeforeEach
+    @Before
     fun loadFile() {
         file = File.createTempFile(UUID.randomUUID().toString(), "").apply {
             deleteOnExit()

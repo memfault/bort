@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import assertk.all
 import assertk.assertThat
+import assertk.assertions.containsOnly
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
@@ -64,7 +65,7 @@ class MetricsDbRegressionTest {
         dailyHeartbeatReportType: String? = null,
         endTimestampMs: Long,
         hrtFileFactory: HrtFileFactory?,
-        calculateDerivedAggregations: CalculateDerivedAggregations = CalculateDerivedAggregations { _, _, _, _ ->
+        calculateDerivedAggregations: CalculateDerivedAggregations = CalculateDerivedAggregations { _, _, _, _, _ ->
             emptyList()
         },
         dailyHeartbeatReportMetricsForSessions: List<String>? = null,
@@ -200,7 +201,7 @@ class MetricsDbRegressionTest {
             prop(MetricReport::startTimestampMs).isEqualTo(123456789)
             prop(MetricReport::endTimestampMs).isEqualTo(123456789)
             prop(MetricReport::reportType).isEqualTo("heartbeat")
-            prop(MetricReport::metrics).isEqualTo(mapOf("public_metric.min" to JsonPrimitive(3.0)))
+            prop(MetricReport::metrics).containsOnly("public_metric.min" to JsonPrimitive(3.0))
             prop(MetricReport::internalMetrics)
                 .isEqualTo(
                     mapOf(
@@ -868,7 +869,9 @@ class MetricsDbRegressionTest {
             prop(MetricReport::metrics).isEqualTo(
                 mapOf(
                     "screen_on.total_secs" to JsonPrimitive(3),
+                    "screen_on.mean_time_in_state_ms" to JsonPrimitive(1500),
                     "screen_off.total_secs" to JsonPrimitive(2),
+                    "screen_off.mean_time_in_state_ms" to JsonPrimitive(1000),
                 ),
             )
         }

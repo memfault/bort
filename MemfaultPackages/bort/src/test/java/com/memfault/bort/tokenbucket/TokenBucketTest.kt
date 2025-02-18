@@ -1,9 +1,12 @@
 package com.memfault.bort.tokenbucket
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
 import io.mockk.mockk
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -11,7 +14,7 @@ class TokenBucketTest {
     var now: Duration = 0.milliseconds
     val mockElapsedRealtime = { now }
 
-    @BeforeEach
+    @Before
     fun setUp() {
         now = 0.milliseconds
     }
@@ -28,13 +31,13 @@ class TokenBucketTest {
         )
         now = 1.milliseconds
         bucket.feed()
-        assertEquals(0, bucket.count)
+        assertThat(bucket.count).isEqualTo(0)
         now = 2.milliseconds
         bucket.feed()
-        assertEquals(1, bucket.count)
+        assertThat(bucket.count).isEqualTo(1)
         now = 10.milliseconds
         bucket.feed()
-        assertEquals(3, bucket.count)
+        assertThat(bucket.count).isEqualTo(3)
     }
 
     @Test
@@ -47,19 +50,19 @@ class TokenBucketTest {
             elapsedRealtime = mockElapsedRealtime,
             metrics = mockk(relaxed = true),
         )
-        assertEquals(false, bucket.take(n = 4, tag = "test"))
-        assertEquals(3, bucket.count)
-        assertEquals(true, bucket.take(n = 2, tag = "test"))
-        assertEquals(1, bucket.count)
-        assertEquals(true, bucket.take(tag = "test"))
-        assertEquals(0, bucket.count)
-        assertEquals(false, bucket.take(tag = "test"))
-        assertEquals(0, bucket.count)
+        assertThat(bucket.take(n = 4, tag = "test")).isFalse()
+        assertThat(bucket.count).isEqualTo(3)
+        assertThat(bucket.take(n = 2, tag = "test")).isTrue()
+        assertThat(bucket.count).isEqualTo(1)
+        assertThat(bucket.take(tag = "test")).isTrue()
+        assertThat(bucket.count).isEqualTo(0)
+        assertThat(bucket.take(tag = "test")).isFalse()
+        assertThat(bucket.count).isEqualTo(0)
 
         // For convenience, take() also feeds():
         now = 10.milliseconds
-        assertEquals(true, bucket.take(tag = "test"))
-        assertEquals(2, bucket.count)
+        assertThat(bucket.take(tag = "test")).isTrue()
+        assertThat(bucket.count).isEqualTo(2)
     }
 
     @Test
@@ -74,11 +77,11 @@ class TokenBucketTest {
         )
 
         now = 5.milliseconds
-        assertEquals(true, bucket.take(1, tag = "test"))
-        assertEquals(false, bucket.take(1, tag = "test"))
+        assertThat(bucket.take(1, tag = "test")).isTrue()
+        assertThat(bucket.take(1, tag = "test")).isFalse()
 
         // Check that the externally observable value did change
-        assertEquals(5.milliseconds, bucket.periodStartElapsedRealtime)
+        assertThat(bucket.periodStartElapsedRealtime).isEqualTo(5.milliseconds)
     }
 
     @Test
@@ -94,15 +97,15 @@ class TokenBucketTest {
 
         now = 10.milliseconds
         bucket.feed()
-        assertEquals(10, bucket.count)
+        assertThat(bucket.count).isEqualTo(10)
 
         bucket.take(10, tag = "test")
-        assertEquals(0, bucket.count)
+        assertThat(bucket.count).isEqualTo(0)
 
         repeat(10) {
             now += 1.milliseconds
             bucket.feed()
-            assertEquals(it + 1, bucket.count)
+            assertThat(bucket.count).isEqualTo(it + 1)
         }
     }
 }

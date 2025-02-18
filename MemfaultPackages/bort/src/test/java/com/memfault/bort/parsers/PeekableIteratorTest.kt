@@ -1,44 +1,46 @@
 package com.memfault.bort.parsers
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.containsExactly
+import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isInstanceOf
+import assertk.assertions.isNull
+import assertk.assertions.isTrue
+import org.junit.Test
 
 class PeekableIteratorTest {
     @Test
     fun hasNext() {
         val iterator = listOf(1).peekableIterator()
-        assertTrue(iterator.hasNext())
+        assertThat(iterator.hasNext()).isTrue()
         iterator.peek()
-        assertTrue(iterator.hasNext())
+        assertThat(iterator.hasNext()).isTrue()
         iterator.next()
-        assertFalse(iterator.hasNext())
+        assertThat(iterator.hasNext()).isFalse()
     }
 
     @Test
     fun next() {
         val iterator = listOf(1, 2).peekableIterator()
         // next() without having peeked first:
-        assertEquals(1, iterator.next())
+        assertThat(iterator.next()).isEqualTo(1)
         iterator.peek()
-        assertEquals(2, iterator.next())
-        assertThrows<java.util.NoSuchElementException> {
-            iterator.next()
-        }
+        assertThat(iterator.next()).isEqualTo(2)
+        assertFailure { iterator.next() }.isInstanceOf<NoSuchElementException>()
     }
 
     @Test
     fun peek() {
         val iterator = listOf(1, 2).peekableIterator()
-        assertEquals(1, iterator.peek())
+        assertThat(iterator.peek()).isEqualTo(1)
         // peek() again should give the same value
-        assertEquals(1, iterator.peek())
-        assertEquals(1, iterator.next())
-        assertEquals(2, iterator.peek())
-        assertEquals(2, iterator.next())
-        assertEquals(null, iterator.peek())
+        assertThat(iterator.peek()).isEqualTo(1)
+        assertThat(iterator.next()).isEqualTo(1)
+        assertThat(iterator.peek()).isEqualTo(2)
+        assertThat(iterator.next()).isEqualTo(2)
+        assertThat(iterator.peek()).isNull()
     }
 
     @Test
@@ -46,6 +48,6 @@ class PeekableIteratorTest {
         val iterator = listOf(1, 2).peekableIterator()
         iterator.prepend(-1, 0)
         iterator.prepend(-2)
-        assertEquals(listOf(-2, -1, 0, 1, 2), iterator.toList())
+        assertThat(iterator.toList()).containsExactly(-2, -1, 0, 1, 2)
     }
 }

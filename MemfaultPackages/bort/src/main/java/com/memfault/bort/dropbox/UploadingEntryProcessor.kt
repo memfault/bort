@@ -8,6 +8,7 @@ import com.memfault.bort.TimezoneWithId
 import com.memfault.bort.clientserver.MarMetadata.DropBoxMarMetadata
 import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.dropBoxTagCounter
 import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.metrics.metricForTraceTag
 import com.memfault.bort.time.BootRelativeTimeProvider
@@ -26,13 +27,19 @@ interface UploadingEntryProcessorDelegate {
 
     fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean
 
-    suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo = EntryInfo(entry.tag)
+    suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo =
+        EntryInfo(tokenBucketKey = entry.tag)
 
     fun isTraceEntry(entry: DropBoxManager.Entry): Boolean = true
 
     fun scrub(inputFile: File, tag: String): File = inputFile
 
     fun isCrash(entry: DropBoxManager.Entry, entryFile: File): Boolean
+
+    /**
+     * Set to non-null to record another metric if [isCrash] returned true.
+     */
+    val crashTag: String?
 }
 
 data class EntryInfo(
@@ -77,7 +84,11 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
 
             // The crash rate should be incremented even if this dropbox trace would be rate limited.
             if (delegate.isCrash(entry, tempFile)) {
-                crashHandler.onCrash(crashTimestamp = fileTime.timestamp)
+                crashHandler.onCrash(componentName = info.packageName, crashTimestamp = fileTime.timestamp)
+
+                delegate.crashTag?.let { crashTag ->
+                    dropBoxTagCounter(crashTag).increment()
+                }
             }
 
             if (!delegate.allowedByRateLimit(info.tokenBucketKey, entry.tag)) {

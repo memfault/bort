@@ -13,6 +13,7 @@ import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.prop
 import assertk.assertions.single
+import com.google.testing.junit.testparameterinjector.TestParameter
 import com.memfault.bort.battery.BATTERY_DISCHARGE_DURATION_METRIC
 import com.memfault.bort.battery.BATTERY_SOC_DROP_METRIC
 import com.memfault.bort.battery.RealBatterySessionVitals
@@ -24,6 +25,7 @@ import com.memfault.bort.connectivity.ConnectivityState.WIFI
 import com.memfault.bort.connectivity.ConnectivityTimeCalculator.Companion.CONNECTED_TIME_METRIC
 import com.memfault.bort.connectivity.ConnectivityTimeCalculator.Companion.EXPECTED_TIME_METRIC
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_CRASHES_METRIC_KEY
+import com.memfault.bort.metrics.DropBoxTraceCountDerivedAggregations.Companion.DROP_BOX_TAGS
 import com.memfault.bort.metrics.custom.CustomMetrics
 import com.memfault.bort.metrics.custom.CustomReport
 import com.memfault.bort.metrics.custom.MetricReport
@@ -46,10 +48,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Rule
 import org.junit.Test
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
 import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
+import org.robolectric.RobolectricTestParameterInjector
 import org.robolectric.annotation.Config
 import java.time.Instant
 import kotlin.time.Duration.Companion.days
@@ -63,7 +63,7 @@ private val ALL_NUMERIC_AGGREGATIONS = listOf(NumericAgg.LATEST_VALUE, SUM, COUN
 private val Int.hoursMs: Long
     get() = hours.inWholeMilliseconds
 
-@RunWith(RobolectricTestRunner::class)
+@RunWith(RobolectricTestParameterInjector::class)
 @Config(sdk = [26])
 class MetricsIntegrationTest {
 
@@ -173,6 +173,7 @@ class MetricsIntegrationTest {
                 "state_OFF.secs/hour" to JsonPrimitive(1200L),
                 "state_ON.total_secs" to JsonPrimitive(7200L),
                 "state_OFF.total_secs" to JsonPrimitive(7200L),
+                "state_ON.mean_time_in_state_ms" to JsonPrimitive(2.hoursMs),
                 "state.latest" to JsonPrimitive("OFF"),
                 "prop.latest" to JsonPrimitive("carry"),
             )
@@ -195,6 +196,7 @@ class MetricsIntegrationTest {
                 "state_NONE.secs/hour" to JsonPrimitive(1800L),
                 "state_OFF.total_secs" to JsonPrimitive(10800L),
                 "state_NONE.total_secs" to JsonPrimitive(10800L),
+                "state_OFF.mean_time_in_state_ms" to JsonPrimitive(5.hoursMs),
                 "state.latest" to JsonPrimitive("NONE"),
                 "prop.latest" to JsonPrimitive("carried"),
             )
@@ -216,6 +218,7 @@ class MetricsIntegrationTest {
                 "state_OFF.secs/hour" to JsonPrimitive(900L),
                 "state_NONE.total_secs" to JsonPrimitive(32400L),
                 "state_OFF.total_secs" to JsonPrimitive(10800L),
+                "state_NONE.mean_time_in_state_ms" to JsonPrimitive(12.hoursMs),
                 "state.latest" to JsonPrimitive("OFF"),
                 "prop.latest" to JsonPrimitive("carried"),
             )
@@ -238,6 +241,9 @@ class MetricsIntegrationTest {
                     "state_NONE.total_secs" to JsonPrimitive(43200L),
                     "state_OFF.total_secs" to JsonPrimitive(28800L),
                     "state_ON.total_secs" to JsonPrimitive(7200L),
+                    "state_ON.mean_time_in_state_ms" to JsonPrimitive(2.hoursMs),
+                    "state_NONE.mean_time_in_state_ms" to JsonPrimitive(12.hoursMs),
+                    "state_OFF.mean_time_in_state_ms" to JsonPrimitive(5.hoursMs),
                     "state.latest" to JsonPrimitive("OFF"),
                     "prop.latest" to JsonPrimitive("carried"),
                 )
@@ -283,6 +289,7 @@ class MetricsIntegrationTest {
                     "dist.latest" to JsonPrimitive("2"),
                     "dist_1.secs/hour" to JsonPrimitive(30.minutes.inWholeSeconds),
                     "dist_1.total_secs" to JsonPrimitive(1.hours.inWholeSeconds),
+                    "dist_1.mean_time_in_state_ms" to JsonPrimitive(1.hours.inWholeMilliseconds),
                     "dist_2.secs/hour" to JsonPrimitive(30.minutes.inWholeSeconds),
                     "dist_2.total_secs" to JsonPrimitive(1.hours.inWholeSeconds),
                 )
@@ -292,15 +299,16 @@ class MetricsIntegrationTest {
 
     @Test
     fun `happy path session`() = runTest {
-        Reporting.startSession("session-1", timestampMs = 0)
-
-        Reporting.session("session-1").counter("test", sumInReport = true).increment(timestamp = 0)
+        Reporting.session("session-1").apply {
+            start(timestampMs = 0)
+            counter("test", sumInReport = true).increment(timestamp = 0)
+        }
 
         val report1 = dao.collectHeartbeat(endTimestampMs = 1)
 
         assertThat(report1.sessions).isEmpty()
 
-        Reporting.finishSession("session-1", timestampMs = 2)
+        Reporting.session("session-1").finish(timestampMs = 2)
 
         val report2 = dao.collectHeartbeat(endTimestampMs = 3)
 
@@ -318,8 +326,10 @@ class MetricsIntegrationTest {
 
     @Test
     fun `happy path start session`() = runTest {
-        Reporting.startSession("session-1", timestampMs = 0)
-        Reporting.finishSession("session-1", timestampMs = 1)
+        Reporting.session("session-1").apply {
+            start(timestampMs = 0)
+            finish(timestampMs = 1)
+        }
 
         val report1 = dao.collectHeartbeat(endTimestampMs = 1)
 
@@ -338,9 +348,11 @@ class MetricsIntegrationTest {
     fun `happy path with session`() = runTest {
         val now = System.currentTimeMillis()
 
-        Reporting.startSession("session-1")
-        Reporting.session("session-1").counter("test", sumInReport = true).increment()
-        Reporting.finishSession("session-1")
+        Reporting.session("session-1").apply {
+            start()
+            counter("test", sumInReport = true).increment()
+            finish()
+        }
 
         val report1 = dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis())
 
@@ -354,25 +366,28 @@ class MetricsIntegrationTest {
         )
     }
 
-    @ParameterizedTest
-    @ValueSource(
-        strings = [
-            "heartbeat",
-            "daily-heartbeat",
-            "HEARTBEAT",
-            "hello@memfault.com",
-            "",
-        ],
-    )
-    fun `start session reserved names`(sessionName: String) = runTest {
+    @Test
+    fun `start session reserved names`(
+        @TestParameter(
+            value = [
+                "heartbeat",
+                "daily-heartbeat",
+                "HEARTBEAT",
+                "hello@memfault.com",
+                "",
+            ],
+        ) sessionName: String,
+    ) = runTest {
         assertThat(RemoteMetricsService.isSessionNameValid(sessionName)).isNotNull()
     }
 
     @Test
     fun `start session noop`() = runTest {
-        Reporting.startSession("session-1", timestampMs = 0)
-        Reporting.startSession("session-1", timestampMs = 1)
-        Reporting.finishSession("session-1", timestampMs = 2)
+        Reporting.session("session-1").apply {
+            start(timestampMs = 0)
+            start(timestampMs = 1)
+            finish(timestampMs = 2)
+        }
 
         val report1 = dao.collectHeartbeat(endTimestampMs = 2)
 
@@ -389,10 +404,12 @@ class MetricsIntegrationTest {
 
     @Test
     fun `session no carryover`() = runTest {
-        Reporting.startSession("session-1", timestampMs = 0)
-        Reporting.session("session-1").stringProperty("carryover", addLatestToReport = true)
-            .update("test", timestamp = 0)
-        Reporting.finishSession("session-1", timestampMs = 2)
+        Reporting.session("session-1").apply {
+            start(timestampMs = 0)
+            stringProperty("carryover", addLatestToReport = true)
+                .update("test", timestamp = 0)
+            finish(timestampMs = 2)
+        }
 
         dao.collectHeartbeat(endTimestampMs = 3).apply {
             assertThat(sessions).single().prop(MetricReport::startTimestampMs).isEqualTo(0)
@@ -409,10 +426,12 @@ class MetricsIntegrationTest {
 
     @Test
     fun `session noop finish`() = runTest {
-        Reporting.startSession("session-1", timestampMs = 0)
-        Reporting.session("session-1").stringProperty("carryover", addLatestToReport = true)
-            .update("test", timestamp = 0)
-        Reporting.finishSession("session-1", timestampMs = 1)
+        Reporting.session("session-1").apply {
+            start(timestampMs = 0)
+            stringProperty("carryover", addLatestToReport = true)
+                .update("test", timestamp = 0)
+            finish(timestampMs = 1)
+        }
 
         dao.collectHeartbeat(endTimestampMs = 2).apply {
             assertThat(sessions).single().prop(MetricReport::startTimestampMs).isEqualTo(0)
@@ -422,7 +441,7 @@ class MetricsIntegrationTest {
             )
         }
 
-        Reporting.finishSession("session-1", timestampMs = 3)
+        Reporting.session("session-1").finish(timestampMs = 3)
 
         dao.collectHeartbeat(endTimestampMs = 4).apply {
             assertThat(sessions).isEmpty()
@@ -431,10 +450,12 @@ class MetricsIntegrationTest {
 
     @Test
     fun `session 0 duration`() = runTest {
-        Reporting.startSession("session-1", timestampMs = 0)
-        Reporting.session("session-1").stringStateTracker("state", aggregations = ALL_STATE_AGGREGATIONS)
-            .state("1", timestamp = 0)
-        Reporting.finishSession("session-1", timestampMs = 0)
+        Reporting.session("session-1").apply {
+            start(timestampMs = 0)
+            stringStateTracker("state", aggregations = ALL_STATE_AGGREGATIONS)
+                .state("1", timestamp = 0)
+            finish(timestampMs = 0)
+        }
 
         dao.collectHeartbeat(endTimestampMs = 1).apply {
             assertThat(sessions).single().prop(MetricReport::startTimestampMs).isEqualTo(0)
@@ -446,7 +467,7 @@ class MetricsIntegrationTest {
             )
         }
 
-        Reporting.finishSession("session-1", timestampMs = 3)
+        Reporting.session("session-1").finish(timestampMs = 3)
 
         dao.collectHeartbeat(endTimestampMs = 4).apply {
             assertThat(sessions).isEmpty()
@@ -455,15 +476,19 @@ class MetricsIntegrationTest {
 
     @Test
     fun `session multiple`() = runTest {
-        Reporting.startSession("session-a", timestampMs = 0)
-        Reporting.session("session-a").stringProperty("carryover", addLatestToReport = true)
-            .update("a", timestamp = 0)
-        Reporting.finishSession("session-a", timestampMs = 1)
+        Reporting.session("session-a").apply {
+            start(timestampMs = 0)
+            stringProperty("carryover", addLatestToReport = true)
+                .update("a", timestamp = 0)
+            finish(timestampMs = 1)
+        }
 
-        Reporting.startSession("session-b", timestampMs = 1)
-        Reporting.session("session-b").stringProperty("carryover", addLatestToReport = true)
-            .update("b", timestamp = 1)
-        Reporting.finishSession("session-b", timestampMs = 2)
+        Reporting.session("session-b").apply {
+            start(timestampMs = 1)
+            stringProperty("carryover", addLatestToReport = true)
+                .update("b", timestamp = 1)
+            finish(timestampMs = 2)
+        }
 
         dao.collectHeartbeat(endTimestampMs = 2).apply {
             assertThat(sessions).hasSize(2)
@@ -490,17 +515,19 @@ class MetricsIntegrationTest {
 
     @Test
     fun `session repeated session all numeric aggregations`() = runTest {
-        Reporting.startSession("session", timestampMs = 0)
-        Reporting.session("session").distribution("dist", ALL_NUMERIC_AGGREGATIONS)
-            .record(5, timestamp = 0)
-        Reporting.finishSession("session", timestampMs = 1)
+        Reporting.session("session").apply {
+            start(timestampMs = 0)
+            distribution("dist", ALL_NUMERIC_AGGREGATIONS)
+                .record(5, timestamp = 0)
+            finish(timestampMs = 1)
 
-        Reporting.startSession("session", timestampMs = 2)
-        Reporting.session("session").distribution("dist", ALL_NUMERIC_AGGREGATIONS)
-            .record(10, timestamp = 2)
-        Reporting.session("session").distribution("dist", ALL_NUMERIC_AGGREGATIONS)
-            .record(20, timestamp = 3)
-        Reporting.finishSession("session", timestampMs = 4)
+            start(timestampMs = 2)
+            distribution("dist", ALL_NUMERIC_AGGREGATIONS)
+                .record(10, timestamp = 2)
+            distribution("dist", ALL_NUMERIC_AGGREGATIONS)
+                .record(20, timestamp = 3)
+            finish(timestampMs = 4)
+        }
 
         dao.collectHeartbeat(endTimestampMs = 4).apply {
             assertThat(sessions).hasSize(2)
@@ -601,6 +628,10 @@ class MetricsIntegrationTest {
                 prop(MetricReport::startTimestampMs).isEqualTo(report1End)
                 prop(MetricReport::endTimestampMs).isEqualTo(report2End)
                 prop(MetricReport::metrics).containsOnly(
+                    "bool_1.mean_time_in_state_ms" to JsonPrimitive(
+                        1.hours.inWholeMilliseconds + 5.seconds.inWholeMilliseconds,
+                    ),
+
                     "bool_1.total_secs" to JsonPrimitive(5),
                     "bool_0.total_secs" to JsonPrimitive(895),
                     "bool_1.secs/hour" to JsonPrimitive(20),
@@ -612,7 +643,7 @@ class MetricsIntegrationTest {
 
     @Test
     fun `expire sessions older than 1 day`() = runTest {
-        Reporting.startSession("session", timestampMs = 15.minutes.inWholeMilliseconds)
+        Reporting.session("session").start(timestampMs = 15.minutes.inWholeMilliseconds)
 
         val sync = Reporting.session("session").sync()
 
@@ -639,19 +670,22 @@ class MetricsIntegrationTest {
         metricsDbTestEnvironment.excludeEverPresentMetrics = false
 
         Reporting.report().event("event", latestInReport = true).add("test", timestamp = 1)
-        Reporting.startSession("session-1", timestampMs = 2)
-        Reporting.startSession("session-2", timestampMs = 3)
+        val session1 = Reporting.session("session-1")
+        session1.start(timestampMs = 2)
+        val session2 = Reporting.session("session-2")
+        session2.start(timestampMs = 3)
 
-        val stringProperty = Reporting.session("session-2").stringProperty("string")
+        val stringProperty = session2.stringProperty("string")
         stringProperty.update("test-string", timestamp = 4)
-        val numberProperty = Reporting.session("session-2").numberProperty("number")
+        val numberProperty = session2.numberProperty("number")
         numberProperty.update(2L, timestamp = 5)
 
-        Reporting.startSession("session-3", timestampMs = 6)
-        Reporting.session("session-3")
-            .boolStateTracker("bool", aggregations = listOf(StateAgg.LATEST_VALUE))
-            .state(true, timestamp = 7)
-        Reporting.finishSession("session-3", timestampMs = 8)
+        Reporting.session("session-3").apply {
+            start(timestampMs = 6)
+            boolStateTracker("bool", aggregations = listOf(StateAgg.LATEST_VALUE))
+                .state(true, timestamp = 7)
+            finish(timestampMs = 8)
+        }
 
         Reporting.report()
             .counter(name = OPERATIONAL_CRASHES_METRIC_KEY)
@@ -662,6 +696,8 @@ class MetricsIntegrationTest {
                 "event.latest" to JsonPrimitive("test"),
 
                 OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(1.0),
+
+                *DROP_BOX_TAGS.map { tag -> tag to JsonPrimitive(0.0) }.toTypedArray(),
             )
 
             assertThat(sessions).hasSize(1)
@@ -679,12 +715,14 @@ class MetricsIntegrationTest {
             .counter(name = OPERATIONAL_CRASHES_METRIC_KEY)
             .incrementBy(3, timestamp = 11)
 
-        Reporting.finishSession("session-1", timestampMs = 12)
-        Reporting.finishSession("session-2", timestampMs = 13)
+        session1.finish(timestampMs = 12)
+        session2.finish(timestampMs = 13)
 
         dao.collectHeartbeat(endTimestampMs = 14).apply {
             assertThat(hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 OPERATIONAL_CRASHES_METRIC_KEY to JsonPrimitive(3.0),
+
+                *DROP_BOX_TAGS.map { tag -> tag to JsonPrimitive(0.0) }.toTypedArray(),
             )
 
             assertThat(sessions).hasSize(2)
@@ -708,8 +746,10 @@ class MetricsIntegrationTest {
     @Test
     fun `add sync and sync_memfault to all sessions`() = runTest {
         Reporting.report().stringStateTracker("stringState").state("that", timestamp = 1)
-        Reporting.startSession("session-1", timestampMs = 2)
-        Reporting.startSession("session-2", timestampMs = 3)
+        val session1 = Reporting.session("session-1")
+        session1.start(timestampMs = 2)
+        val session2 = Reporting.session("session-2")
+        session2.start(timestampMs = 3)
 
         val memfaultSof = Reporting.report().successOrFailure("sync_memfault")
         memfaultSof.success(timestamp = 4)
@@ -719,11 +759,11 @@ class MetricsIntegrationTest {
         sof.failure(timestamp = 7)
         sof.failure(timestamp = 8)
 
-        Reporting.session("session-2").sync().success(timestamp = 9)
-        Reporting.session("session-2").sync().failure(timestamp = 10)
+        session2.sync().success(timestamp = 9)
+        session2.sync().failure(timestamp = 10)
 
-        Reporting.finishSession("session-1", timestampMs = 11)
-        Reporting.finishSession("session-2", timestampMs = 12)
+        session1.finish(timestampMs = 11)
+        session2.finish(timestampMs = 12)
 
         memfaultSof.failure(timestamp = 13)
         sof.success(timestamp = 14)
@@ -782,7 +822,7 @@ class MetricsIntegrationTest {
             prop(CustomReport::sessions).isEmpty()
         }
 
-        Reporting.startSession("session-1", now + 4.seconds.inWholeMilliseconds)
+        Reporting.session("session-1").start(now + 4.seconds.inWholeMilliseconds)
 
         connectivityMetric.state(BLUETOOTH, now + 10.seconds.inWholeMilliseconds)
 
@@ -792,6 +832,7 @@ class MetricsIntegrationTest {
                 EXPECTED_TIME_METRIC to JsonPrimitive(10_000.0),
                 "connectivity.type_NONE.secs/hour" to JsonPrimitive(2880),
                 "connectivity.type_NONE.total_secs" to JsonPrimitive(8),
+                "connectivity.type_NONE.mean_time_in_state_ms" to JsonPrimitive(10000),
                 "connectivity.type_BLUETOOTH.secs/hour" to JsonPrimitive(720),
                 "connectivity.type_BLUETOOTH.total_secs" to JsonPrimitive(2),
             )
@@ -801,7 +842,7 @@ class MetricsIntegrationTest {
 
         connectivityMetric.state(WIFI, now + 14.seconds.inWholeMilliseconds)
 
-        Reporting.finishSession("session-1", now + 16.seconds.inWholeMilliseconds)
+        Reporting.session("session-1").finish(now + 16.seconds.inWholeMilliseconds)
 
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 28.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
@@ -809,6 +850,7 @@ class MetricsIntegrationTest {
                 EXPECTED_TIME_METRIC to JsonPrimitive(16_000.0),
                 "connectivity.type_BLUETOOTH.secs/hour" to JsonPrimitive(450),
                 "connectivity.type_BLUETOOTH.total_secs" to JsonPrimitive(2),
+                "connectivity.type_BLUETOOTH.mean_time_in_state_ms" to JsonPrimitive(4000),
                 "connectivity.type_WIFI.secs/hour" to JsonPrimitive(3150),
                 "connectivity.type_WIFI.total_secs" to JsonPrimitive(14),
             )
@@ -848,17 +890,20 @@ class MetricsIntegrationTest {
         // Record a Hourly Heartbeat metric so reports are actually generated.
         Reporting.report().sync().success(timestamp = now)
 
-        Reporting.startSession("session-1", now)
+        val session1 = Reporting.session("session-1")
+        session1.start(now)
 
-        Reporting.startSession("session-2", now + 2.seconds.inWholeMilliseconds)
-        Reporting.finishSession("session-2", now + 12.seconds.inWholeMilliseconds)
+        Reporting.session("session-2").apply {
+            start(now + 2.seconds.inWholeMilliseconds)
+            finish(now + 12.seconds.inWholeMilliseconds)
 
-        Reporting.startSession("session-2", now + 20.seconds.inWholeMilliseconds)
-        batterySessionVitals.record(isCharging = false, level = 50.0, now + 22.seconds.inWholeMilliseconds)
-        Reporting.finishSession("session-2", now + 24.seconds.inWholeMilliseconds)
+            start(now + 20.seconds.inWholeMilliseconds)
+            batterySessionVitals.record(isCharging = false, level = 50.0, now + 22.seconds.inWholeMilliseconds)
+            finish(now + 24.seconds.inWholeMilliseconds)
 
-        batterySessionVitals.record(isCharging = false, level = 40.0, now + 30.seconds.inWholeMilliseconds)
-        Reporting.startSession("session-2", now + 30.seconds.inWholeMilliseconds)
+            batterySessionVitals.record(isCharging = false, level = 40.0, now + 30.seconds.inWholeMilliseconds)
+            start(now + 30.seconds.inWholeMilliseconds)
+        }
 
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 30.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
@@ -889,8 +934,8 @@ class MetricsIntegrationTest {
 
         batterySessionVitals.record(isCharging = true, level = 40.0, now + 40.seconds.inWholeMilliseconds)
         batterySessionVitals.record(isCharging = true, level = 60.0, now + 50.seconds.inWholeMilliseconds)
-        Reporting.finishSession("session-2", now + 60.seconds.inWholeMilliseconds)
-        Reporting.finishSession("session-1", now + 60.seconds.inWholeMilliseconds)
+        Reporting.session("session-2").finish(now + 60.seconds.inWholeMilliseconds)
+        session1.finish(now + 60.seconds.inWholeMilliseconds)
 
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 60.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
@@ -939,7 +984,7 @@ class MetricsIntegrationTest {
         // Record a Hourly Heartbeat metric so reports are actually generated.
         Reporting.report().sync().success(timestamp = now)
 
-        Reporting.startSession("session", now)
+        Reporting.session("session").start(now)
 
         batterySessionVitals.record(isCharging = false, level = 45.0, now + 1.seconds.inWholeMilliseconds)
         batterySessionVitals.record(isCharging = false, level = 40.0, now + 2.seconds.inWholeMilliseconds)
@@ -956,7 +1001,7 @@ class MetricsIntegrationTest {
         batterySessionVitals.record(isCharging = false, level = 45.0, now + 25.seconds.inWholeMilliseconds)
         batterySessionVitals.record(isCharging = false, level = 40.0, now + 30.seconds.inWholeMilliseconds)
 
-        Reporting.finishSession("session", now + 60.seconds.inWholeMilliseconds)
+        Reporting.session("session").finish(now + 60.seconds.inWholeMilliseconds)
 
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 60.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
@@ -991,9 +1036,10 @@ class MetricsIntegrationTest {
         // Record a Hourly Heartbeat metric so reports are actually generated.
         Reporting.report().sync().success(timestamp = now)
 
-        Reporting.startSession("session", now)
-
-        Reporting.finishSession("session", now + 60.seconds.inWholeMilliseconds)
+        Reporting.session("session").apply {
+            start(now)
+            finish(now + 60.seconds.inWholeMilliseconds)
+        }
 
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 60.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
@@ -1026,9 +1072,10 @@ class MetricsIntegrationTest {
         // Record a Hourly Heartbeat metric so reports are actually generated.
         Reporting.report().sync().success(timestamp = now)
 
-        Reporting.startSession("session", now)
-
-        Reporting.finishSession("session", now + 60.seconds.inWholeMilliseconds)
+        Reporting.session("session").apply {
+            start(now)
+            finish(now + 60.seconds.inWholeMilliseconds)
+        }
 
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 60.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
@@ -1066,9 +1113,10 @@ class MetricsIntegrationTest {
         // Record a Hourly Heartbeat metric so reports are actually generated.
         Reporting.report().sync().success(timestamp = now)
 
-        Reporting.startSession("session", now)
-
-        Reporting.finishSession("session", now + 60.seconds.inWholeMilliseconds)
+        Reporting.session("session").apply {
+            start(now)
+            finish(now + 60.seconds.inWholeMilliseconds)
+        }
 
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 60.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
@@ -1107,6 +1155,7 @@ class MetricsIntegrationTest {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_off.total_secs" to JsonPrimitive(25),
                 "state_on.total_secs" to JsonPrimitive(5),
+                "state_on.mean_time_in_state_ms" to JsonPrimitive(65000),
             )
         }
     }
@@ -1135,7 +1184,7 @@ class MetricsIntegrationTest {
             prop(CustomReport::sessions).isEmpty()
         }
 
-        Reporting.startSession("session", now)
+        Reporting.session("session").start(now)
 
         // Set the battery to 30, but right at the moment when the next heartbeat starts, ignoring the original
         // level of 50.
@@ -1144,7 +1193,7 @@ class MetricsIntegrationTest {
         // Record a Hourly Heartbeat metric so reports are actually generated.
         Reporting.report().sync().success(timestamp = now)
 
-        Reporting.finishSession("session", now + 30.seconds.inWholeMilliseconds)
+        Reporting.session("session").finish(now + 30.seconds.inWholeMilliseconds)
 
         assertThat(dao.collectHeartbeat(endTimestampMs = now + 60.seconds.inWholeMilliseconds)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(

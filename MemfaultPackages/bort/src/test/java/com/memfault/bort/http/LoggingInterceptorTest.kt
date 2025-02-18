@@ -1,8 +1,9 @@
 package com.memfault.bort.http
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import okhttp3.HttpUrl
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
+import org.junit.Test
 
 class LoggingInterceptorTest {
     @Test
@@ -12,6 +13,6 @@ class LoggingInterceptorTest {
             host("memfault.com")
             addQueryParameter(QUERY_PARAM_DEVICE_SERIAL, "pii-sn")
         }.build()
-        assertEquals("https://memfault.com/?deviceSerial=***SCRUBBED***", scrubUrl(originalUrl).toString())
+        assertThat(scrubUrl(originalUrl).toString()).isEqualTo("https://memfault.com/?deviceSerial=***SCRUBBED***")
     }
 }

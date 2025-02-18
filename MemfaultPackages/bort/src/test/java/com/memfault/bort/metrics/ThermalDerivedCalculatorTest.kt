@@ -4,11 +4,13 @@ import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.containsExactlyInAnyOrder
 import assertk.assertions.isEmpty
+import com.memfault.bort.metrics.custom.ReportType.Hourly
 import com.memfault.bort.metrics.database.DerivedAggregation
 import com.memfault.bort.reporting.DataType
 import com.memfault.bort.reporting.MetricType
 import com.memfault.bort.settings.MetricsSettings
 import com.memfault.bort.settings.RateLimitingSettings
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Test
 import kotlin.time.Duration
@@ -27,6 +29,7 @@ class ThermalDerivedCalculatorTest {
             override val cachePackageManagerReport: Boolean get() = TODO("Not used")
             override val recordImei: Boolean get() = TODO("Not used")
             override val operationalCrashesExclusions: List<String> get() = TODO("Not used")
+            override val operationalCrashesComponentGroups: JsonObject get() = TODO("not used")
             override val pollingInterval: Duration get() = TODO("Not used")
             override val collectMemory: Boolean get() = TODO("Not used")
             override val thermalMetricsEnabled: Boolean get() = TODO("Not used")
@@ -54,7 +57,7 @@ class ThermalDerivedCalculatorTest {
             "thermal_battery_bat-1_c.mean" to JsonPrimitive(4.0),
             "thermal_battery_bat-1_c.max" to JsonPrimitive(7.5),
         )
-        assertThat(calculator(legacyMetrics = false).calculate(0, 0, metrics, emptyMap()))
+        assertThat(calculator(legacyMetrics = false).calculate(Hourly, 0, 0, metrics, emptyMap()))
             .containsExactly(
                 derivedMetric("thermal_cpu_c", 2.25),
                 derivedMetric("thermal_cpu_c_max", 6.0),
@@ -82,7 +85,7 @@ class ThermalDerivedCalculatorTest {
             "thermal_battery_bat-1_c.mean" to JsonPrimitive(4.0),
             "thermal_battery_bat-1_c.max" to JsonPrimitive(7.5),
         )
-        assertThat(calculator(legacyMetrics = true).calculate(0, 0, metrics, emptyMap()))
+        assertThat(calculator(legacyMetrics = true).calculate(Hourly, 0, 0, metrics, emptyMap()))
             .containsExactlyInAnyOrder(
                 derivedMetric("thermal_cpu_c", 2.25),
                 derivedMetric("thermal_cpu_c_max", 6.0),
@@ -108,7 +111,7 @@ class ThermalDerivedCalculatorTest {
             "thermal_gpu_GPU0_c.mean" to JsonPrimitive(3.0),
             "thermal_gpu_GPU0_c.max" to JsonPrimitive(10.5),
         )
-        assertThat(calculator(legacyMetrics = false).calculate(0, 0, metrics, emptyMap()))
+        assertThat(calculator(legacyMetrics = false).calculate(Hourly, 0, 0, metrics, emptyMap()))
             .isEmpty()
     }
 

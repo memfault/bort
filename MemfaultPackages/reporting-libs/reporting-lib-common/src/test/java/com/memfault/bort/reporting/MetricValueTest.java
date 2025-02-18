@@ -1,12 +1,12 @@
 package com.memfault.bort.reporting;
 
 import org.json.JSONException;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import static com.memfault.bort.reporting.NumericAgg.SUM;
 import static com.memfault.bort.reporting.StateAgg.LATEST_VALUE;
 import static java.util.Collections.singletonList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 public class MetricValueTest {
   private static final long timeMs = 123456;

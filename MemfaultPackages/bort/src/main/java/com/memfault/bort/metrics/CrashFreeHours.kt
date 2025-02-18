@@ -1,8 +1,9 @@
 package com.memfault.bort.metrics
 
 import android.content.SharedPreferences
-import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_CRASHES_METRIC_KEY
 import com.memfault.bort.reporting.Reporting
+import com.memfault.bort.reporting.ReportingClient.Counter
+import com.memfault.bort.settings.OperationalCrashesComponentGroupsProvider
 import com.memfault.bort.shared.SerializedCachedPreferenceKeyProvider
 import com.memfault.bort.time.BootRelativeTimeProvider
 import com.squareup.anvil.annotations.ContributesBinding
@@ -16,7 +17,7 @@ import kotlin.time.DurationUnit.MILLISECONDS
 import kotlin.time.toDuration
 
 interface CrashHandler {
-    suspend fun onCrash(crashTimestamp: Instant)
+    suspend fun onCrash(componentName: String?, crashTimestamp: Instant)
     fun onBoot()
     fun process()
 }
@@ -54,10 +55,24 @@ class CrashFreeHoursMetricLogger @Inject constructor() {
         CRASH_FREE_HOURS_METRIC.incrementBy(by = hours)
     }
 
+    fun incrementCrashes(componentName: String?, timestamp: Long) {
+        if (componentName?.isNotBlank() == true) {
+            Reporting.report()
+                .counter(name = "${OPERATIONAL_CRASHES_METRIC_KEY}_$componentName")
+                .increment(timestamp = timestamp)
+        } else {
+            OPERATIONAL_CRASHES_METRIC
+                .increment(timestamp = timestamp)
+        }
+    }
+
     companion object {
+        fun dropBoxTagCountMetric(tag: String): String = "drop_box_${tag}_count"
+        fun dropBoxTagCounter(tag: String): Counter = Reporting.report().counter(dropBoxTagCountMetric(tag))
         const val OPERATIONAL_CRASHES_METRIC_KEY = "operational_crashes"
         const val OPERATIONAL_HOURS_METRIC_KEY = "operational_hours"
         const val CRASH_FREE_HOURS_METRIC_KEY = "operational_crashfree_hours"
+        private val OPERATIONAL_CRASHES_METRIC = Reporting.report().counter(OPERATIONAL_CRASHES_METRIC_KEY)
         private val OPERATIONAL_HOURS_METRIC = Reporting.report().counter(OPERATIONAL_HOURS_METRIC_KEY)
         private val CRASH_FREE_HOURS_METRIC = Reporting.report().counter(CRASH_FREE_HOURS_METRIC_KEY)
     }
@@ -78,9 +93,26 @@ class CrashFreeHours @Inject constructor(
     private val timeProvider: BootRelativeTimeProvider,
     private val storage: CrashFreeHoursStorage,
     private val metricLogger: CrashFreeHoursMetricLogger,
+    private val operationalCrashesComponentGroupsProvider: OperationalCrashesComponentGroupsProvider,
 ) : CrashHandler {
-    override suspend fun onCrash(crashTimestamp: Instant) {
-        OPERATIONAL_CRASHES_METRIC.increment(timestamp = crashTimestamp.toEpochMilli())
+    override suspend fun onCrash(componentName: String?, crashTimestamp: Instant) {
+        val crashTimestampMs = crashTimestamp.toEpochMilli()
+
+        // Always record an operational crash
+        metricLogger.incrementCrashes(componentName = null, timestamp = crashTimestampMs)
+
+        // If there are operational crash component groups, record a crash if the crash component matches the pattern.
+        val component = componentName.orEmpty()
+        val componentGroups = operationalCrashesComponentGroupsProvider()
+        componentGroups.groups
+            .forEach { group ->
+                if (group.patterns.isEmpty() ||
+                    group.patterns.any { pattern -> pattern.toRegex().matches(component) }
+                ) {
+                    metricLogger.incrementCrashes(componentName = group.name, timestamp = crashTimestampMs)
+                    return@forEach
+                }
+            }
 
         // Call process before setting the crash flag - this ensures that any previous crash-free hours are processed,
         // before marking the current hour as lastHourHadCrash.
@@ -114,10 +146,5 @@ class CrashFreeHours @Inject constructor(
                 lastHourHadCrash = false,
             )
         }
-    }
-
-    companion object {
-        private val OPERATIONAL_CRASHES_METRIC = Reporting.report()
-            .counter(name = OPERATIONAL_CRASHES_METRIC_KEY)
     }
 }

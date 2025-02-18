@@ -20,9 +20,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.fail
+import org.junit.Before
+import org.junit.Test
 import java.io.File
 import java.io.IOException
 import java.nio.channels.AsynchronousSocketChannel
@@ -38,7 +37,7 @@ class B2BClientServerTest {
     lateinit var b2BClientServer: RealB2BClientServer
     lateinit var reporterSettings: ReporterSettings
 
-    @BeforeEach
+    @Before
     fun setup() {
         cacheDir = Files.createTempDirectory("cache").toFile()
         cacheDir.deleteOnExit()
@@ -117,12 +116,7 @@ class B2BClientServerTest {
         launch {
             incomingMessages.close()
         }
-        try {
-            connectionHandler.runChannels(channel, incomingMessages, filesChannel)
-        } catch (e: Exception) {
-            // Check that it didn't throw when the channel was closed.
-            fail("Caught Exception: $e")
-        }
+        connectionHandler.runChannels(channel, incomingMessages, filesChannel)
     }
 
     @Test

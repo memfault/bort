@@ -1,5 +1,8 @@
 package com.memfault.bort.logcat
 
+import assertk.assertThat
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
 import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.parsers.LogcatLine
 import com.memfault.bort.parsers.PackageManagerReport
@@ -17,10 +20,8 @@ import io.mockk.mockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 import kotlin.time.Duration
 
 class KernelOopsDetectorTest {
@@ -55,7 +56,7 @@ class KernelOopsDetectorTest {
             get() = TODO("Not yet implemented")
     }
 
-    @BeforeEach
+    @Before
     fun setUp() {
         mockHandleEventOfInterest = mockk(relaxed = true)
         mockTokenBucketStore = mockk()
@@ -72,7 +73,7 @@ class KernelOopsDetectorTest {
             line = LogcatLine(message = "------------[ cut here ]------------", buffer = "kernel"),
             packageManagerReport = packageManagerReport,
         )
-        assertTrue(detector.foundOops)
+        assertThat(detector.foundOops).isTrue()
     }
 
     @Test
@@ -81,13 +82,13 @@ class KernelOopsDetectorTest {
             line = LogcatLine(message = "------------[ cut here ]------------", buffer = "main"),
             packageManagerReport = packageManagerReport,
         )
-        assertFalse(detector.foundOops)
+        assertThat(detector.foundOops).isFalse()
     }
 
     @Test
     fun notDetectedNonOopsKernelMessage() = runTest {
         detector.process(LogcatLine(message = "foo", buffer = "kernel"), packageManagerReport)
-        assertFalse(detector.foundOops)
+        assertThat(detector.foundOops).isFalse()
     }
 
     @Test

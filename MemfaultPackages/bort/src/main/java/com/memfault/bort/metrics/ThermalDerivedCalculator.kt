@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.metrics.custom.ReportType
 import com.memfault.bort.metrics.database.CalculateDerivedAggregations
 import com.memfault.bort.metrics.database.DerivedAggregation
 import com.memfault.bort.reporting.DataType
@@ -19,6 +20,7 @@ class ThermalDerivedCalculator @Inject constructor(
     private val metricsSettings: MetricsSettings,
 ) : CalculateDerivedAggregations {
     override fun calculate(
+        reportType: ReportType,
         startTimestampMs: Long,
         endTimestampMs: Long,
         metrics: Map<String, JsonPrimitive>,

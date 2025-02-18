@@ -1,5 +1,7 @@
 package com.memfault.bort.uploader
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.ProcessingOptions
@@ -17,7 +19,6 @@ import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.io.File
 
@@ -73,7 +74,7 @@ internal class EnqueueUploadTest {
             marFileWriter.createMarFile(testFile, capture(slot))
             marHoldingArea.addMarFile(marAndManifest)
         }
-        assertEquals(NORMAL, slot.captured.debuggingResolution)
+        assertThat(slot.captured.debuggingResolution).isEqualTo(NORMAL)
     }
 
     @Test
@@ -90,7 +91,7 @@ internal class EnqueueUploadTest {
             marFileWriter.createMarFile(testFile, capture(slot))
             marHoldingArea.addMarFile(marAndManifest)
         }
-        assertEquals(NOT_APPLICABLE, slot.captured.debuggingResolution)
+        assertThat(slot.captured.debuggingResolution).isEqualTo(NOT_APPLICABLE)
     }
 
     companion object {

@@ -1,13 +1,14 @@
 package com.memfault.bort.dropbox
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import io.mockk.mockk
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
@@ -23,12 +24,13 @@ internal class TombstoneUploadingEntryProcessorDelegateTest {
                 tokenBucketStore = tokenBucketStore,
                 tempFileFactory = TestTemporaryFileFactory,
                 scrubTombstones = { false },
+                useNativeCrashTombstones = { false },
                 operationalCrashesExclusions = { emptyList() },
             )
         val inputFile = loadFile("test_tombstone_1.txt")
         val outputFile = processor.scrub(inputFile, "UPLOAD_TOMBSTONE")
-        assertEquals(inputFile, outputFile)
-        assertTrue(inputFile.exists())
+        assertThat(outputFile).isEqualTo(inputFile)
+        assertThat(inputFile.exists()).isTrue()
     }
 
     @Test
@@ -39,13 +41,14 @@ internal class TombstoneUploadingEntryProcessorDelegateTest {
                 tokenBucketStore = tokenBucketStore,
                 tempFileFactory = TestTemporaryFileFactory,
                 scrubTombstones = { true },
+                useNativeCrashTombstones = { false },
                 operationalCrashesExclusions = { emptyList() },
             )
         val inputFile = loadFile("test_tombstone_1.txt")
         val outputFile = processor.scrub(inputFile, "UPLOAD_TOMBSTONE")
         val expectedOutput = loadFile("test_tombstone_1_scrubbed.txt")
-        assertEquals(expectedOutput.readText(), outputFile.readText())
-        assertFalse(inputFile.exists())
+        assertThat(outputFile.readText()).isEqualTo(expectedOutput.readText())
+        assertThat(inputFile.exists()).isFalse()
     }
 
     @Test
@@ -56,13 +59,14 @@ internal class TombstoneUploadingEntryProcessorDelegateTest {
                 tokenBucketStore = tokenBucketStore,
                 tempFileFactory = TestTemporaryFileFactory,
                 scrubTombstones = { true },
+                useNativeCrashTombstones = { false },
                 operationalCrashesExclusions = { emptyList() },
             )
         val inputFile = loadFile("test_tombstone_2.txt")
         val outputFile = processor.scrub(inputFile, "UPLOAD_TOMBSTONE")
         val expectedOutput = loadFile("test_tombstone_2_scrubbed.txt")
-        assertEquals(expectedOutput.readText(), outputFile.readText())
-        assertFalse(inputFile.exists())
+        assertThat(outputFile.readText()).isEqualTo(expectedOutput.readText())
+        assertThat(inputFile.exists()).isFalse()
     }
 
     private fun loadFile(name: String): File {
