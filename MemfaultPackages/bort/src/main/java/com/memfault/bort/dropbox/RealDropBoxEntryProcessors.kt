@@ -49,13 +49,14 @@ class RealDropBoxEntryProcessors @Inject constructor(
             .launch {
                 settingsFlow.settings
                     .map { settings ->
-                        settings.dropBoxSettings.otherTags
+                        settings.dropBoxSettings.useNativeCrashTombstones to
+                            settings.dropBoxSettings.otherTags
                     }
                     .distinctUntilChanged()
                     .collectLatest {
-                        // Recalculate the processors map whenever the "other" tags change. The map doesn't need to be
-                        // immediately up-to-date, but this allows us to avoid an app restart to re-generate the cached
-                        // processors map.
+                        // Recalculate the processors map whenever the "other" tags or "useNativeCrashTombstones" changes.
+                        // The map doesn't need to be immediately up-to-date, but this allows us to avoid an app restart
+                        // to re-generate the cached processors map.
                         mapCache.update { processorsMap() }
                     }
             }

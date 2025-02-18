@@ -170,8 +170,16 @@ class RealCustomMetrics @Inject constructor(
             } else {
                 null
             },
-            calculateDerivedAggregations = { dbReport, endTimestamp, metrics, internalMetrics ->
-                derivedAggregations.flatMap { it.calculate(dbReport, endTimestamp, metrics, internalMetrics) }
+            calculateDerivedAggregations = { reportType, dbReport, endTimestamp, metrics, internalMetrics ->
+                derivedAggregations.flatMap { aggregation ->
+                    aggregation.calculate(
+                        reportType = reportType,
+                        startTimestampMs = dbReport,
+                        endTimestampMs = endTimestamp,
+                        metrics = metrics,
+                        internalMetrics = internalMetrics,
+                    )
+                }
             },
             dailyHeartbeatReportMetricsForSessions = BATTERY_METRICS.toList(),
             dbReportBuilder = dbReportBuilder,

@@ -11,6 +11,11 @@ import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.battery.BatterySessionVitalsCalculator
 import com.memfault.bort.connectivity.ConnectivityTimeCalculator
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_CRASHES_METRIC_KEY
+import com.memfault.bort.metrics.DropBoxTraceCountDerivedAggregations.Companion.DROP_BOX_TAGS
+import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
+import com.memfault.bort.metrics.HighResTelemetry.Datum
+import com.memfault.bort.metrics.HighResTelemetry.MetricType.Counter
+import com.memfault.bort.metrics.HighResTelemetry.RollupMetadata
 import com.memfault.bort.metrics.custom.CustomMetrics
 import com.memfault.bort.metrics.custom.CustomReport
 import com.memfault.bort.metrics.custom.RealCustomMetrics
@@ -28,6 +33,8 @@ import com.memfault.bort.tokenbucket.TokenBucketStore
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.rules.ExternalResource
 import org.junit.rules.TemporaryFolder
 import kotlin.time.Duration
@@ -71,6 +78,7 @@ class MetricsDbTestEnvironment : ExternalResource() {
         override val cachePackageManagerReport: Boolean get() = TODO("Not used")
         override val recordImei: Boolean get() = TODO("Not used")
         override val operationalCrashesExclusions: List<String> get() = TODO("Not used")
+        override val operationalCrashesComponentGroups: JsonObject get() = TODO("Not used")
         override val pollingInterval: Duration get() = TODO("Not used")
         override val collectMemory: Boolean get() = TODO("Not used")
         override val thermalMetricsEnabled: Boolean get() = TODO("Not used")
@@ -100,10 +108,12 @@ class MetricsDbTestEnvironment : ExternalResource() {
             } else {
                 return report.copy(
                     hourlyHeartbeatReport = report.hourlyHeartbeatReport.copy(
-                        metrics = report.hourlyHeartbeatReport.metrics.minus(OPERATIONAL_CRASHES_METRIC_KEY),
+                        metrics = report.hourlyHeartbeatReport.metrics
+                            .minus(setOf(OPERATIONAL_CRASHES_METRIC_KEY) + DROP_BOX_TAGS),
                     ),
                     dailyHeartbeatReport = report.dailyHeartbeatReport?.copy(
-                        metrics = report.dailyHeartbeatReport?.metrics?.minus(OPERATIONAL_CRASHES_METRIC_KEY)
+                        metrics = report.dailyHeartbeatReport?.metrics
+                            ?.minus(setOf(OPERATIONAL_CRASHES_METRIC_KEY) + DROP_BOX_TAGS)
                             ?: emptyMap(),
                     ),
                     sessions = report.sessions.map {
@@ -135,6 +145,7 @@ class MetricsDbTestEnvironment : ExternalResource() {
                 BatterySessionVitalsCalculator(),
                 ConnectivityTimeCalculator(),
                 ThermalDerivedCalculator(metricsSettings),
+                DropBoxTraceCountDerivedAggregations(),
             ),
         )
         dao = TestCustomMetrics(customMetrics)
@@ -180,4 +191,49 @@ class MetricsDbTestEnvironment : ExternalResource() {
         db.close()
         temporaryFolder.delete()
     }
+
+    fun dropBoxTagCountRollups(timestamp: Long) = listOf(
+        rollup(
+            stringKey = "drop_box_anr_count",
+            t = timestamp,
+        ),
+        rollup(
+            stringKey = "drop_box_exception_count",
+            t = timestamp,
+        ),
+        rollup(
+            stringKey = "drop_box_wtf_count",
+            t = timestamp,
+        ),
+        rollup(
+            stringKey = "drop_box_native_count",
+            t = timestamp,
+        ),
+        rollup(
+            stringKey = "drop_box_kmsg_count",
+            t = timestamp,
+        ),
+        rollup(
+            stringKey = "drop_box_panic_count",
+            t = timestamp,
+        ),
+    )
+
+    private fun rollup(
+        stringKey: String,
+        t: Long,
+    ) = HighResTelemetry.Rollup(
+        metadata = RollupMetadata(
+            stringKey = stringKey,
+            metricType = Counter,
+            dataType = DoubleType,
+            internal = false,
+        ),
+        data = listOf(
+            Datum(
+                t = t,
+                value = JsonPrimitive(0.0),
+            ),
+        ),
+    )
 }

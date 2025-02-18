@@ -1,5 +1,8 @@
 package com.memfault.bort.settings
 
+import assertk.assertThat
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
 import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.ProcessingOptions
 import com.memfault.bort.TimezoneWithId
@@ -8,26 +11,24 @@ import com.memfault.bort.clientserver.MarManifest
 import com.memfault.bort.clientserver.MarMetadata
 import com.memfault.bort.logcat.FakeNextLogcatCidProvider
 import com.memfault.bort.time.AbsoluteTime
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Test
+import org.junit.Test
 
 class ResolutionTest {
     @Test
     fun ordering() {
-        assertTrue(Resolution.LOW > Resolution.OFF)
-        assertTrue(Resolution.LOW >= Resolution.LOW)
-        assertTrue(Resolution.NORMAL > Resolution.LOW)
-        assertTrue(Resolution.NORMAL >= Resolution.NORMAL)
-        assertTrue(Resolution.HIGH > Resolution.NORMAL)
-        assertTrue(Resolution.HIGH > Resolution.LOW)
-        assertTrue(Resolution.HIGH > Resolution.OFF)
-        assertTrue(Resolution.HIGH >= Resolution.HIGH)
-        assertTrue(Resolution.NOT_APPLICABLE > Resolution.HIGH)
-        assertTrue(Resolution.NOT_APPLICABLE > Resolution.NORMAL)
-        assertTrue(Resolution.NOT_APPLICABLE > Resolution.LOW)
-        assertTrue(Resolution.NOT_APPLICABLE > Resolution.OFF)
-        assertTrue(Resolution.NOT_APPLICABLE >= Resolution.NOT_APPLICABLE)
+        assertThat(Resolution.LOW > Resolution.OFF).isTrue()
+        assertThat(Resolution.LOW >= Resolution.LOW).isTrue()
+        assertThat(Resolution.NORMAL > Resolution.LOW).isTrue()
+        assertThat(Resolution.NORMAL >= Resolution.NORMAL).isTrue()
+        assertThat(Resolution.HIGH > Resolution.NORMAL).isTrue()
+        assertThat(Resolution.HIGH > Resolution.LOW).isTrue()
+        assertThat(Resolution.HIGH > Resolution.OFF).isTrue()
+        assertThat(Resolution.HIGH >= Resolution.HIGH).isTrue()
+        assertThat(Resolution.NOT_APPLICABLE > Resolution.HIGH).isTrue()
+        assertThat(Resolution.NOT_APPLICABLE > Resolution.NORMAL).isTrue()
+        assertThat(Resolution.NOT_APPLICABLE > Resolution.LOW).isTrue()
+        assertThat(Resolution.NOT_APPLICABLE > Resolution.OFF).isTrue()
+        assertThat(Resolution.NOT_APPLICABLE >= Resolution.NOT_APPLICABLE).isTrue()
     }
 
     private val marDevice = MarDevice(
@@ -52,24 +53,24 @@ class ResolutionTest {
 
     @Test
     fun bugReportSampled() {
-        assertTrue(
+        assertThat(
             SamplingConfig(
                 monitoringResolution = Resolution.OFF,
                 debuggingResolution = Resolution.NORMAL,
                 loggingResolution = Resolution.OFF,
             ).shouldUpload(bugReportManifest),
-        )
+        ).isTrue()
     }
 
     @Test
     fun bugReportUnsampled() {
-        assertFalse(
+        assertThat(
             SamplingConfig(
                 monitoringResolution = Resolution.OFF,
                 debuggingResolution = Resolution.OFF,
                 loggingResolution = Resolution.OFF,
             ).shouldUpload(bugReportManifest),
-        )
+        ).isFalse()
     }
 
     private val dropboxManifest = MarManifest(
@@ -92,24 +93,24 @@ class ResolutionTest {
 
     @Test
     fun dropboxSampled() {
-        assertTrue(
+        assertThat(
             SamplingConfig(
                 monitoringResolution = Resolution.OFF,
                 debuggingResolution = Resolution.NORMAL,
                 loggingResolution = Resolution.OFF,
             ).shouldUpload(dropboxManifest),
-        )
+        ).isTrue()
     }
 
     @Test
     fun dropboxUnsampled() {
-        assertFalse(
+        assertThat(
             SamplingConfig(
                 monitoringResolution = Resolution.OFF,
                 debuggingResolution = Resolution.OFF,
                 loggingResolution = Resolution.OFF,
             ).shouldUpload(dropboxManifest),
-        )
+        ).isFalse()
     }
 
     private val heartbeatManifest = MarManifest(
@@ -131,24 +132,24 @@ class ResolutionTest {
 
     @Test
     fun heartbeatSampled() {
-        assertTrue(
+        assertThat(
             SamplingConfig(
                 debuggingResolution = Resolution.OFF,
                 loggingResolution = Resolution.OFF,
                 monitoringResolution = Resolution.NORMAL,
             ).shouldUpload(heartbeatManifest),
-        )
+        ).isTrue()
     }
 
     @Test
     fun heartbeatUnsampled() {
-        assertFalse(
+        assertThat(
             SamplingConfig(
                 monitoringResolution = Resolution.OFF,
                 debuggingResolution = Resolution.OFF,
                 loggingResolution = Resolution.OFF,
             ).shouldUpload(heartbeatManifest),
-        )
+        ).isFalse()
     }
 
     private val logcatManifestNormal = MarManifest(
@@ -170,45 +171,45 @@ class ResolutionTest {
 
     @Test
     fun logcatNormalSampled() {
-        assertTrue(
+        assertThat(
             SamplingConfig(
                 monitoringResolution = Resolution.OFF,
                 debuggingResolution = Resolution.NORMAL,
                 loggingResolution = Resolution.OFF,
             ).shouldUpload(logcatManifestNormal),
-        )
+        ).isTrue()
     }
 
     @Test
     fun logcatNormalUnsampled() {
-        assertFalse(
+        assertThat(
             SamplingConfig(
                 debuggingResolution = Resolution.OFF,
                 loggingResolution = Resolution.OFF,
                 monitoringResolution = Resolution.OFF,
             ).shouldUpload(logcatManifestNormal),
-        )
+        ).isFalse()
     }
 
     @Test
     fun logcatHighSampled() {
-        assertTrue(
+        assertThat(
             SamplingConfig(
                 monitoringResolution = Resolution.OFF,
                 debuggingResolution = Resolution.OFF,
                 loggingResolution = Resolution.NORMAL,
             ).shouldUpload(logcatManifestNoDebugging),
-        )
+        ).isTrue()
     }
 
     @Test
     fun logcatHighUnsampled() {
-        assertFalse(
+        assertThat(
             SamplingConfig(
                 monitoringResolution = Resolution.OFF,
                 debuggingResolution = Resolution.NORMAL,
                 loggingResolution = Resolution.OFF,
             ).shouldUpload(logcatManifestNoDebugging),
-        )
+        ).isFalse()
     }
 }

@@ -1,5 +1,7 @@
 package com.memfault.bort.dropbox
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.clientserver.MarFileHoldingArea
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.tokenbucket.TokenBucketStore
@@ -8,8 +10,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertArrayEquals
-import org.junit.jupiter.api.Test
+import org.junit.Test
 import java.io.File
 
 class ClientServerFileUploadProcessorTest {
@@ -38,7 +39,7 @@ class ClientServerFileUploadProcessorTest {
         rateLimit = false
         processor.process(mockEntry(text = FILE_CONTENT.decodeToString()))
         coVerify(exactly = 1) { marHoldingArea.addSampledMarFileDirectlyFromOtherDevice(capture(file)) }
-        assertArrayEquals(FILE_CONTENT, file.captured.readBytes())
+        assertThat(file.captured.readBytes()).isEqualTo(FILE_CONTENT)
     }
 
     companion object {

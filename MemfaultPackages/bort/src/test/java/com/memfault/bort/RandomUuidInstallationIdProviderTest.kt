@@ -1,27 +1,28 @@
 package com.memfault.bort
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
+import assertk.assertions.isNull
+import org.junit.Before
+import org.junit.Test
 
 class RandomUuidInstallationIdProviderTest {
     lateinit var mockSharedPreferences: FakeSharedPreferences
 
-    @BeforeEach
+    @Before
     fun setUp() {
         mockSharedPreferences = makeFakeSharedPreferences()
     }
 
     @Test
     fun setsRandomUUIDWhenUninitialized() {
-        assertNull(mockSharedPreferences.backingStorage[PREFERENCE_DEVICE_ID])
+        assertThat(mockSharedPreferences.backingStorage[PREFERENCE_DEVICE_ID]).isNull()
         val deviceIdProvider = RandomUuidInstallationIdProvider(mockSharedPreferences)
 
         val id = mockSharedPreferences.backingStorage[PREFERENCE_DEVICE_ID]
-        assertNotNull(id)
-        assertEquals(id, deviceIdProvider.id())
+        assertThat(id).isNotNull()
+        assertThat(deviceIdProvider.id()).isEqualTo(id)
     }
 
     @Test
@@ -30,6 +31,6 @@ class RandomUuidInstallationIdProviderTest {
         mockSharedPreferences.backingStorage[PREFERENCE_DEVICE_ID] = id
 
         val deviceIdProvider = RandomUuidInstallationIdProvider(mockSharedPreferences)
-        assertEquals(id, deviceIdProvider.id())
+        assertThat(deviceIdProvider.id()).isEqualTo(id)
     }
 }

@@ -1,5 +1,7 @@
 package com.memfault.usagereporter.clientserver
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.usagereporter.clientserver.BortMessage.Companion.readMessage
 import com.memfault.usagereporter.clientserver.BortMessage.SendFileMessage
 import kotlinx.coroutines.CoroutineScope
@@ -8,9 +10,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 import java.io.Closeable
 import java.io.File
 import java.net.InetSocketAddress
@@ -28,7 +29,7 @@ import kotlin.time.Duration.Companion.milliseconds
 internal class ProtocolTest {
     private lateinit var outputFolder: File
 
-    @BeforeEach
+    @Before
     fun setup() {
         outputFolder = createOutputFolder()
     }
@@ -74,10 +75,10 @@ internal class ProtocolTest {
         val outputMessage = to.readMessage(outputFolder)
         check(outputMessage is SendFileMessage)
         outputMessage.file.deleteOnExit()
-        assertEquals(inputFile.name, outputMessage.file.name)
-        assertEquals(inputFile.length(), outputMessage.file.length())
-        assertEquals(inputFile.readText(), outputMessage.file.readText())
-        assertEquals(tag, outputMessage.dropboxTag)
+        assertThat(outputMessage.file.name).isEqualTo(inputFile.name)
+        assertThat(outputMessage.file.length()).isEqualTo(inputFile.length())
+        assertThat(outputMessage.file.readText()).isEqualTo(inputFile.readText())
+        assertThat(outputMessage.dropboxTag).isEqualTo(tag)
     }
 
     private fun createInputFile(): File {

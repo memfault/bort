@@ -1,7 +1,7 @@
 package com.memfault.bort.chronicler
 
 import assertk.assertThat
-import assertk.assertions.isEqualTo
+import assertk.assertions.containsOnly
 import assertk.assertions.isTrue
 import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.diagnostics.BortErrorType.BortRateLimit
@@ -13,7 +13,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
-import org.junit.jupiter.api.Test
+import org.junit.Test
 
 class ClientRateLimitCollectorTest {
 
@@ -69,6 +69,6 @@ class ClientRateLimitCollectorTest {
         }
 
         assertThat(eventData.isCaptured).isTrue()
-        assertThat(eventData.captured).isEqualTo(mapOf("system_server_anr" to "1"))
+        assertThat(eventData.captured).containsOnly("system_server_anr" to "1")
     }
 }

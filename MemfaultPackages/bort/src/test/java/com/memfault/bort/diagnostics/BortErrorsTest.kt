@@ -3,6 +3,7 @@ package com.memfault.bort.diagnostics
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import assertk.assertThat
+import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
 import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.TimezoneWithId
@@ -139,6 +140,6 @@ class BortErrorsTest {
         verifyUploaded(listOf(oldRateLimitClientChroniclerEntry, historyParserClientChroniclerEntry))
 
         // Old error was cleaned up
-        assertThat(bortErrors.getAllErrors()).isEqualTo(listOf(historyParseBortError))
+        assertThat(bortErrors.getAllErrors()).containsExactly(historyParseBortError)
     }
 }

@@ -14,9 +14,9 @@ import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.After
+import org.junit.Before
+import org.junit.Test
 import java.io.File
 import java.io.OutputStream
 import java.lang.Exception
@@ -38,7 +38,7 @@ class BatteryStatsHistoryCollectorTest {
     var tempFile: File? = null
     private val bortErrors: BortErrors = mockk(relaxed = true)
 
-    @BeforeEach
+    @Before
     fun setUp() {
         nextBatteryStatsHistoryStartProvider = FakeNextBatteryStatsHistoryStartProvider(0)
         val outputStreamSlot = slot<OutputStream>()
@@ -72,7 +72,7 @@ class BatteryStatsHistoryCollectorTest {
         )
     }
 
-    @AfterEach
+    @After
     fun tearDown() {
         tempFile?.delete()
     }

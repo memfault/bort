@@ -112,6 +112,8 @@ class DevicePropertiesStoreTest {
                     .transform { BortSharedJson.decodeFromString(HighResTelemetry.serializer(), it) }
                     .all {
                         prop(HighResTelemetry::rollups).containsExactlyInAnyOrder(
+                            *metricsDbTestEnvironment.dropBoxTagCountRollups(heartbeatTimestamp + 1).toTypedArray(),
+
                             rollup(
                                 name = METRIC_NAME_STRING,
                                 value = METRIC_JSON_STRING,
@@ -150,6 +152,8 @@ class DevicePropertiesStoreTest {
                     .transform { BortSharedJson.decodeFromString(HighResTelemetry.serializer(), it) }
                     .all {
                         prop(HighResTelemetry::rollups).containsExactlyInAnyOrder(
+                            *metricsDbTestEnvironment.dropBoxTagCountRollups(heartbeatTimestamp + 1).toTypedArray(),
+
                             rollup(
                                 name = METRIC_NAME_BOOL,
                                 value = METRIC_JSON_BOOL_HRT,
@@ -188,6 +192,8 @@ class DevicePropertiesStoreTest {
                     .transform { BortSharedJson.decodeFromString(HighResTelemetry.serializer(), it) }
                     .all {
                         prop(HighResTelemetry::rollups).containsExactlyInAnyOrder(
+                            *metricsDbTestEnvironment.dropBoxTagCountRollups(heartbeatTimestamp).toTypedArray(),
+
                             rollup(
                                 name = METRIC_NAME_STRING,
                                 value = JsonPrimitive(METRIC_VALUE_STRING),
@@ -226,6 +232,8 @@ class DevicePropertiesStoreTest {
                     .transform { BortSharedJson.decodeFromString(HighResTelemetry.serializer(), it) }
                     .all {
                         prop(HighResTelemetry::rollups).containsExactlyInAnyOrder(
+                            *metricsDbTestEnvironment.dropBoxTagCountRollups(heartbeatTimestamp + 1).toTypedArray(),
+
                             rollup(
                                 name = METRIC_NAME_LONG,
                                 value = METRIC_JSON_LONG,
@@ -284,6 +292,8 @@ class DevicePropertiesStoreTest {
                     .transform { BortSharedJson.decodeFromString(HighResTelemetry.serializer(), it) }
                     .all {
                         prop(HighResTelemetry::rollups).containsExactlyInAnyOrder(
+                            *metricsDbTestEnvironment.dropBoxTagCountRollups(heartbeatTimestamp + 1).toTypedArray(),
+
                             rollup(
                                 name = METRIC_NAME_DOUBLE,
                                 value = METRIC_JSON_DOUBLE,

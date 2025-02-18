@@ -1,5 +1,7 @@
 package com.memfault.bort.dropbox
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.LogcatCollectionId
@@ -17,7 +19,6 @@ import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -66,9 +67,11 @@ class CustomEventEntryProcessorTest {
     fun enqueues() = runTest {
         processor.process(mockEntry(text = VALID_STRUCTURED_LOG_FIXTURE))
         val metadata = marMetadataSlot.captured as MarMetadata.StructuredLogMarMetadata
-        assertEquals(LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000002")), metadata.cid)
-        assertEquals(LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000003")), metadata.nextCid)
-        assertEquals(FakeCombinedTimeProvider.now(), collectionTimeSlot.captured)
+        assertThat(metadata.cid).isEqualTo(LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000002")))
+        assertThat(
+            metadata.nextCid,
+        ).isEqualTo(LogcatCollectionId(UUID.fromString("00000000-0000-0000-0000-000000000003")))
+        assertThat(collectionTimeSlot.captured).isEqualTo(FakeCombinedTimeProvider.now())
     }
 
     @Test

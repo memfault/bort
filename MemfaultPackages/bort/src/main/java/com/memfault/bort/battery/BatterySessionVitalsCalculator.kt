@@ -1,5 +1,6 @@
 package com.memfault.bort.battery
 
+import com.memfault.bort.metrics.custom.ReportType
 import com.memfault.bort.metrics.database.CalculateDerivedAggregations
 import com.memfault.bort.metrics.database.DerivedAggregation
 import com.memfault.bort.reporting.DataType
@@ -22,6 +23,7 @@ const val BATTERY_SOC_DROP_METRIC = "battery_soc_pct_drop"
 @ContributesMultibinding(SingletonComponent::class)
 class BatterySessionVitalsCalculator @Inject constructor() : CalculateDerivedAggregations {
     override fun calculate(
+        reportType: ReportType,
         startTimestampMs: Long,
         endTimestampMs: Long,
         metrics: Map<String, JsonPrimitive>,

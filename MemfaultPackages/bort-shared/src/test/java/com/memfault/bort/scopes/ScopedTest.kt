@@ -4,7 +4,7 @@ import com.memfault.bort.scopes.Scoped.Companion.registerAllSorted
 import com.memfault.bort.scopes.Scoped.ScopedPriority
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Test
+import org.junit.Test
 import kotlin.reflect.KClass
 
 class ScopedTest {

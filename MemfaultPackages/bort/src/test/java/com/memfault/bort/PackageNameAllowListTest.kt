@@ -1,10 +1,11 @@
 package com.memfault.bort
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.settings.ConfigValue
 import io.mockk.every
 import io.mockk.mockk
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
+import org.junit.Test
 
 class PackageNameAllowListTest {
     private val FIXTURE = listOf(
@@ -17,12 +18,7 @@ class PackageNameAllowListTest {
     fun filtersGlobs() {
         val allowList = RuleBasedPackageNameAllowList { FIXTURE }
 
-        assertEquals(
-            listOf(
-                "com.memfault.smartchair.bort",
-                "net.something.test",
-                "org.anything.goes.midmatcher",
-            ),
+        assertThat(
             listOf(
                 "com.memfault.smartchair.bort",
                 "net.something.test",
@@ -31,6 +27,12 @@ class PackageNameAllowListTest {
                 "comd.should.not.match",
                 "org.anything.goes.midmatcher",
             ).filter { it in allowList },
+        ).isEqualTo(
+            listOf(
+                "com.memfault.smartchair.bort",
+                "net.something.test",
+                "org.anything.goes.midmatcher",
+            ),
         )
     }
 
@@ -38,17 +40,18 @@ class PackageNameAllowListTest {
     fun doesNotFilterSystemProcesses() {
         val allowList = RuleBasedPackageNameAllowList { FIXTURE }
 
-        assertEquals(
-            listOf(
-                "/one",
-                "SystemServer",
-                "netd",
-            ),
+        assertThat(
             listOf(
                 "/one",
                 "SystemServer",
                 "netd",
             ).filter { it in allowList },
+        ).isEqualTo(
+            listOf(
+                "/one",
+                "SystemServer",
+                "netd",
+            ),
         )
     }
 
@@ -56,38 +59,40 @@ class PackageNameAllowListTest {
     fun doesNotFilterMemfaultPackages() {
         val allowList = RuleBasedPackageNameAllowList { FIXTURE }
 
-        assertEquals(
-            listOf(
-                "/one",
-                "SystemServer",
-                "netd",
-                "com.memfault.usagereporter",
-            ),
+        assertThat(
             listOf(
                 "/one",
                 "SystemServer",
                 "netd",
                 "com.memfault.usagereporter",
             ).filter { it in allowList },
+        ).isEqualTo(
+            listOf(
+                "/one",
+                "SystemServer",
+                "netd",
+                "com.memfault.usagereporter",
+            ),
         )
     }
 
     @Test
     fun noFiltersMatchEverything() {
         val allowList = RuleBasedPackageNameAllowList { listOf() }
-        assertEquals(
-            listOf(
-                "com.memfault.smartchair.bort",
-                "net.something.test",
-                "net.anotherthing.test",
-                "org.willnotmatch",
-            ),
+        assertThat(
             listOf(
                 "com.memfault.smartchair.bort",
                 "net.something.test",
                 "net.anotherthing.test",
                 "org.willnotmatch",
             ).filter { it in allowList },
+        ).isEqualTo(
+            listOf(
+                "com.memfault.smartchair.bort",
+                "net.something.test",
+                "net.anotherthing.test",
+                "org.willnotmatch",
+            ),
         )
     }
 
@@ -97,33 +102,35 @@ class PackageNameAllowListTest {
         val allowList = RuleBasedPackageNameAllowList(rules)
 
         every { rules() } returns FIXTURE
-        assertEquals(
-            listOf(
-                "com.memfault.smartchair.bort",
-                "net.something.test",
-            ),
+        assertThat(
             listOf(
                 "com.memfault.smartchair.bort",
                 "net.something.test",
                 "net.anotherthing.test",
                 "org.willnotmatch",
             ).filter { it in allowList },
+        ).isEqualTo(
+            listOf(
+                "com.memfault.smartchair.bort",
+                "net.something.test",
+            ),
         )
 
         every { rules() } returns listOf()
-        assertEquals(
-            listOf(
-                "com.memfault.smartchair.bort",
-                "net.something.test",
-                "net.anotherthing.test",
-                "org.willnotmatch",
-            ),
+        assertThat(
             listOf(
                 "com.memfault.smartchair.bort",
                 "net.something.test",
                 "net.anotherthing.test",
                 "org.willnotmatch",
             ).filter { it in allowList },
+        ).isEqualTo(
+            listOf(
+                "com.memfault.smartchair.bort",
+                "net.something.test",
+                "net.anotherthing.test",
+                "org.willnotmatch",
+            ),
         )
     }
 }

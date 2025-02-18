@@ -1,5 +1,10 @@
 package com.memfault.bort.http
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNotEqualTo
+import assertk.assertions.isNotNull
+import assertk.assertions.isNull
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody
@@ -10,12 +15,9 @@ import okhttp3.mockwebserver.RecordedRequest
 import okio.Buffer
 import okio.GzipSource
 import okio.buffer
+import org.junit.Before
 import org.junit.Rule
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Test
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.http.Body
@@ -27,9 +29,9 @@ class GzipRequestBodyTest {
     fun gzipRequestBody() {
         val body = "hello".toRequestBody().gzip()
         val buffer = Buffer()
-        assertNotEquals(-1, body.contentLength())
+        assertThat(body.contentLength()).isNotEqualTo(-1)
         body.writeTo(buffer)
-        assertEquals("hello", GzipSource(buffer).buffer().readUtf8())
+        assertThat(GzipSource(buffer).buffer().readUtf8()).isEqualTo("hello")
     }
 }
 
@@ -51,7 +53,7 @@ class GzipInterceptorTest {
     val server = MockWebServer()
     private lateinit var service: TestService
 
-    @BeforeEach
+    @Before
     fun before() {
         service = Retrofit.Builder()
             .client(
@@ -69,11 +71,11 @@ class GzipInterceptorTest {
         server.enqueue(MockResponse().setResponseCode(200))
         service.gzipSupportedApi("hello".toRequestBody())
         server.takeRequest(5, TimeUnit.MILLISECONDS).let {
-            assertNotNull(it)
+            assertThat(it).isNotNull()
             it as RecordedRequest
 
-            assertEquals("gzip", it.getHeader("Content-Encoding"))
-            assertEquals("hello", GzipSource(it.body).buffer().readUtf8())
+            assertThat(it.getHeader("Content-Encoding")).isEqualTo("gzip")
+            assertThat(GzipSource(it.body).buffer().readUtf8()).isEqualTo("hello")
         }
     }
 
@@ -82,11 +84,11 @@ class GzipInterceptorTest {
         server.enqueue(MockResponse().setResponseCode(200))
         service.plainApi("hello".toRequestBody())
         server.takeRequest(5, TimeUnit.MILLISECONDS).let {
-            assertNotNull(it)
+            assertThat(it).isNotNull()
             it as RecordedRequest
 
-            assertEquals(null, it.getHeader("Content-Encoding"))
-            assertEquals("hello", it.body.readUtf8())
+            assertThat(it.getHeader("Content-Encoding")).isNull()
+            assertThat(it.body.readUtf8()).isEqualTo("hello")
         }
     }
 }

@@ -70,13 +70,13 @@ afterEvaluate {
             release(MavenPublication) {
                 groupId = 'com.memfault.bort'
                 artifactId = 'reporting-lib'
-                version = '1.5'
+                version = '1.6.0'
 
                 from components.release
 
                 pom {
                     name = 'Bort Reporting'
-                    description = 'Metric and event reporting for Memfault Bort SDK'
+                    description = 'Metric and event reporting for Memfault Bort SDK. Changelog: https://github.com/memfault/bort/tree/master/MemfaultPackages/reporting-libs/reporting-lib-kotlin/CHANGELOG.md'
                     url = 'https://github.com/memfault/bort'
                     licenses {
                         license {

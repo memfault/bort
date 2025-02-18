@@ -2,6 +2,8 @@ package com.memfault.bort.ota.lib
 
 import android.content.Context
 import androidx.work.ListenableWorker.Result
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import io.mockk.coVerify
 import io.mockk.confirmVerified
 import io.mockk.every
@@ -10,7 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 
@@ -43,7 +44,7 @@ internal class OtaInstallWorkerTest {
     fun failsWhenNotInExpectedState() = runTest {
         state = State.Idle
         val result = OtaInstallWorker.installWorkerRun(updater, otaRulesProvider)
-        assertEquals(Result.failure(), result)
+        assertThat(result).isEqualTo(Result.failure())
         coVerify(exactly = 0) { updater.perform(any()) }
     }
 
@@ -51,7 +52,7 @@ internal class OtaInstallWorkerTest {
     fun recoveryUpdateApplied() = runTest {
         state = State.ReadyToInstall(ota)
         val result = OtaInstallWorker.installWorkerRun(updater, otaRulesProvider)
-        assertEquals(Result.success(), result)
+        assertThat(result).isEqualTo(Result.success())
         coVerify(exactly = 1) { updater.badCurrentUpdateState() }
         coVerify(exactly = 1) { updater.perform(Action.InstallUpdate) }
         confirmVerified(updater)
@@ -62,7 +63,7 @@ internal class OtaInstallWorkerTest {
         state = State.ReadyToInstall(ota)
         rule = { _ -> false }
         val result = OtaInstallWorker.installWorkerRun(updater, otaRulesProvider)
-        assertEquals(Result.retry(), result)
+        assertThat(result).isEqualTo(Result.retry())
         coVerify(exactly = 0) { updater.perform(any()) }
     }
 
@@ -70,7 +71,7 @@ internal class OtaInstallWorkerTest {
     fun abUpdateApplied() = runTest {
         state = State.RebootNeeded(ota)
         val result = OtaInstallWorker.installWorkerRun(updater, otaRulesProvider)
-        assertEquals(Result.success(), result)
+        assertThat(result).isEqualTo(Result.success())
         coVerify(exactly = 1) { updater.badCurrentUpdateState() }
         coVerify(exactly = 1) { updater.perform(Action.Reboot) }
         confirmVerified(updater)
@@ -81,7 +82,7 @@ internal class OtaInstallWorkerTest {
         state = State.RebootNeeded(ota)
         rule = { _ -> false }
         val result = OtaInstallWorker.installWorkerRun(updater, otaRulesProvider)
-        assertEquals(Result.retry(), result)
+        assertThat(result).isEqualTo(Result.retry())
         coVerify(exactly = 0) { updater.perform(any()) }
     }
 }

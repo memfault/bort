@@ -2,6 +2,10 @@ package com.memfault.bort.ota.lib
 
 import android.app.Application
 import android.content.SharedPreferences
+import assertk.assertThat
+import assertk.assertions.containsExactly
+import assertk.assertions.isEmpty
+import assertk.assertions.isEqualTo
 import com.memfault.bort.shared.SoftwareUpdateSettings
 import io.mockk.coEvery
 import io.mockk.every
@@ -11,9 +15,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 
 private const val OLD_SOFTWARE_VERSION = "old"
 
@@ -51,7 +54,7 @@ class ABUpdateActionHandlerTest {
         isForced = null,
     )
 
-    @BeforeEach
+    @Before
     fun setup() {
         softwareUpdateCheckerMock = mockk {
             coEvery { getLatestRelease() } coAnswers { ota }
@@ -108,28 +111,27 @@ class ABUpdateActionHandlerTest {
 
     @Test
     fun testCallbacks() = runBlocking {
-        assertEquals(1, updateEngineCallbacks.size)
+        assertThat(updateEngineCallbacks.size).isEqualTo(1)
     }
 
     @Test
     fun testCheckForUpdate_foreground() = runBlocking {
         handler.handle(State.Idle, Action.CheckForUpdate(background = false))
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = false)),
-            collectedStates,
+
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
     }
 
     @Test
     fun testCheckForUpdate_forcedNotSet() = runTest {
         ota = ota?.copy(isForced = null)
         handler.handle(State.Idle, Action.CheckForUpdate(background = true))
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = true)),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
         verify(exactly = 0) { scheduleDownload.scheduleDownload(any()) }
     }
 
@@ -137,11 +139,10 @@ class ABUpdateActionHandlerTest {
     fun testCheckForUpdate_notForced() = runTest {
         ota = ota?.copy(isForced = false)
         handler.handle(State.Idle, Action.CheckForUpdate(background = true))
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = true)),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
         verify(exactly = 0) { scheduleDownload.scheduleDownload(any()) }
     }
 
@@ -149,11 +150,10 @@ class ABUpdateActionHandlerTest {
     fun testCheckForUpdate_forced_scheduleAutoDownload() = runTest {
         ota = ota?.copy(isForced = true)
         handler.handle(State.Idle, Action.CheckForUpdate(background = true))
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(State.CheckingForUpdates, State.UpdateAvailable(ota!!, showNotification = false)),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
         verify(exactly = 1) { scheduleDownload.scheduleDownload(ota!!) }
     }
 
@@ -161,8 +161,8 @@ class ABUpdateActionHandlerTest {
     fun testCheckForUpdateAlreadyAtLatest() = runBlocking {
         ota = null
         handler.handle(State.Idle, Action.CheckForUpdate())
-        assertEquals(listOf(State.CheckingForUpdates, State.Idle), collectedStates)
-        assertEquals(listOf<Event>(Event.NoUpdatesAvailable), collectedEvents)
+        assertThat(collectedStates).containsExactly(State.CheckingForUpdates, State.Idle)
+        assertThat(collectedEvents).containsExactly(Event.NoUpdatesAvailable)
     }
 
     @Test
@@ -173,8 +173,8 @@ class ABUpdateActionHandlerTest {
             onStatusUpdate(UPDATE_ENGINE_STATUS_DOWNLOADING, 0f)
         }
 
-        assertEquals(listOf(State.UpdateDownloading(ota!!)), collectedStates)
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedStates).containsExactly(State.UpdateDownloading(ota!!))
+        assertThat(collectedEvents).isEmpty()
         verify(exactly = 1) {
             testingUpdateEngine.applyPayload(
                 ota!!.url,
@@ -195,14 +195,13 @@ class ABUpdateActionHandlerTest {
             onStatusUpdate(UPDATE_ENGINE_STATUS_DOWNLOADING, 1f)
         }
 
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(
                 State.UpdateDownloading(ota!!, progress = 50),
                 State.UpdateDownloading(ota!!, progress = 100),
             ),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
         verify(exactly = 1) {
             testingUpdateEngine.applyPayload(
                 ota!!.url,
@@ -216,13 +215,12 @@ class ABUpdateActionHandlerTest {
     @Test
     fun testRebootAfterCompletion() = runBlocking {
         handler.handle(State.RebootNeeded(ota!!), Action.Reboot)
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf<State>(
                 State.RebootedForInstallation(ota!!, OLD_SOFTWARE_VERSION),
             ),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
 
         verify(exactly = 1) { rebootDevice() }
     }
@@ -236,14 +234,13 @@ class ABUpdateActionHandlerTest {
             onStatusUpdate(UPDATE_ENGINE_FINALIZING, 1f)
         }
 
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(
                 State.Finalizing(ota!!, progress = 50),
                 State.Finalizing(ota!!, progress = 100),
             ),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
     }
 
     @Test
@@ -251,13 +248,12 @@ class ABUpdateActionHandlerTest {
         forEachCallback {
             onStatusUpdate(UPDATE_ENGINE_STATUS_IDLE, 0f)
         }
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(
                 State.Idle,
             ),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
     }
 
     @Test
@@ -265,13 +261,12 @@ class ABUpdateActionHandlerTest {
         forEachCallback {
             onStatusUpdate(UPDATE_ENGINE_UPDATED_NEED_REBOOT, 0f)
         }
-        assertEquals(
+        assertThat(collectedStates).isEqualTo(
             listOf(
                 State.RebootNeeded(ota!!),
             ),
-            collectedStates,
         )
-        assertEquals(listOf<Event>(), collectedEvents)
+        assertThat(collectedEvents).isEmpty()
     }
 
     @Test
@@ -279,12 +274,11 @@ class ABUpdateActionHandlerTest {
         forEachCallback {
             onPayloadApplicationComplete(UPDATE_ENGINE_ERROR_DOWNLOAD_TRANSFER_ERROR)
         }
-        assertEquals(listOf<State>(), collectedStates)
-        assertEquals(
+        assertThat(collectedStates).isEmpty()
+        assertThat(collectedEvents).isEqualTo(
             listOf<Event>(
                 Event.DownloadFailed,
             ),
-            collectedEvents,
         )
     }
 
@@ -293,12 +287,11 @@ class ABUpdateActionHandlerTest {
         forEachCallback {
             onPayloadApplicationComplete(-1)
         }
-        assertEquals(listOf<State>(), collectedStates)
-        assertEquals(
+        assertThat(collectedStates).isEmpty()
+        assertThat(collectedEvents).isEqualTo(
             listOf<Event>(
                 Event.VerificationFailed,
             ),
-            collectedEvents,
         )
     }
 

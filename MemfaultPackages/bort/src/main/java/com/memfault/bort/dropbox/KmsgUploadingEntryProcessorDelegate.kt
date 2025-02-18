@@ -19,6 +19,8 @@ class KmsgUploadingEntryProcessorDelegate @Inject constructor(
     override val debugTag: String
         get() = "UPLOAD_KMSG"
 
+    override val crashTag: String = "panic"
+
     override fun allowedByRateLimit(
         tokenBucketKey: String,
         tag: String,

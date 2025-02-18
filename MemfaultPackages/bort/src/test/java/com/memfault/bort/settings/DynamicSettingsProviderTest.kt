@@ -3,8 +3,12 @@ package com.memfault.bort.settings
 import androidx.work.NetworkType
 import androidx.work.NetworkType.CONNECTED
 import androidx.work.NetworkType.UNMETERED
+import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import com.google.testing.junit.testparameterinjector.TestParameter
+import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import com.memfault.bort.AndroidAppIdScrubbingRule
 import com.memfault.bort.BortJson
 import com.memfault.bort.CredentialScrubbingRule
@@ -22,16 +26,15 @@ import io.mockk.mockk
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
-import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.params.ParameterizedTest
-import org.junit.jupiter.params.provider.ValueSource
+import org.junit.Test
+import org.junit.runner.RunWith
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
+@RunWith(TestParameterInjector::class)
 class DynamicSettingsProviderTest {
     private val projectKeyProvider = mockk<ProjectKeyProvider>(relaxed = true)
 
@@ -55,7 +58,8 @@ class DynamicSettingsProviderTest {
 
     @Test
     fun testParseInvalidSettingsReturnsSerializationException() {
-        assertThrows(SerializationException::class.java) { FetchedSettings.from("trash") { BortJson } }
+        assertFailure { FetchedSettings.from("trash") { BortJson } }
+            .isInstanceOf<SerializationException>()
     }
 
     companion object {
@@ -134,9 +138,8 @@ class DynamicSettingsProviderTest {
         assertThat(provider.logcatSettings.collectionMode).isEqualTo(PERIODIC)
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = [true, false])
-    fun `otaDownloadNetworkConstraint default UNSET`(allowMeteredConnection: Boolean) {
+    @Test
+    fun `otaDownloadNetworkConstraint default UNSET`(@TestParameter allowMeteredConnection: Boolean) {
         val defaultSettings = SETTINGS_FIXTURE.toSettings()
             .copy(otaDownloadNetworkConstraintAllowMeteredConnection = allowMeteredConnection)
 
@@ -150,9 +153,28 @@ class DynamicSettingsProviderTest {
             .isEqualTo(if (allowMeteredConnection) CONNECTED else UNMETERED)
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = ["NOT_ROAMING", "CONNECTED", "UNMETERED"])
-    fun `otaDownloadNetworkConstraint override NetworkType`(networkType: String) {
+    @Test
+    fun `otaDownloadNetworkConstraint fallback UNSET`(@TestParameter allowMeteredConnection: Boolean) {
+        val defaultSettings = SETTINGS_FIXTURE.toSettings()
+            .copy(
+                otaDownloadNetworkConstraintAllowMeteredConnection = allowMeteredConnection,
+                otaDownloadNetworkConstraint = "not-parsable",
+            )
+
+        val prefProvider = object : ReadonlyFetchedSettingsProvider {
+            override fun get(): FetchedSettings = defaultSettings
+        }
+
+        val provider = DynamicSettingsProvider(prefProvider, mockk(), mockk(), projectKeyProvider)
+
+        assertThat(provider.otaSettings.downloadNetworkConstraint)
+            .isEqualTo(if (allowMeteredConnection) CONNECTED else UNMETERED)
+    }
+
+    @Test
+    fun `otaDownloadNetworkConstraint override NetworkType`(
+        @TestParameter(value = ["NOT_ROAMING", "CONNECTED", "UNMETERED"]) networkType: String,
+    ) {
         val defaultSettings = SETTINGS_FIXTURE.toSettings()
             .copy(otaDownloadNetworkConstraint = networkType)
 

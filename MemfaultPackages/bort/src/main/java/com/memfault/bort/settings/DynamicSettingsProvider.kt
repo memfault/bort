@@ -165,6 +165,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.dropBoxForceEnableWtfTags
         override val scrubTombstones: Boolean
             get() = settings.dropBoxScrubTombstones
+        override val useNativeCrashTombstones: Boolean
+            get() = settings.dropBoxUseNativeCrashTombstones
         override val processImmediately: Boolean
             get() = settings.dropBoxProcessImmediately || devMode.isEnabled()
         override val pollingInterval: Duration
@@ -196,6 +198,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.metricsRecordImei
         override val operationalCrashesExclusions: List<String>
             get() = settings.metricsOperationalCrashesExclusions
+        override val operationalCrashesComponentGroups: JsonObject
+            get() = settings.metricsoperationalCrashesComponentGroups
         override val pollingInterval: Duration
             get() = settings.metricsPollingInterval.duration
         override val collectMemory: Boolean

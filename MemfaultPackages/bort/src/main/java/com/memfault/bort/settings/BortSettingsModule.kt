@@ -29,6 +29,7 @@ fun interface ZipCompressionLevel : () -> Int
 fun interface MarUnsampledMaxStorageAge : () -> Duration
 fun interface MarUnsampledMaxStorageBytes : () -> Long
 fun interface DropboxScrubTombstones : () -> Boolean
+fun interface DropboxUseNativeCrashTombstones : () -> Boolean
 fun interface CachePackageManagerReport : () -> Boolean
 fun interface DropBoxForceEnableWtfTags : () -> Boolean
 fun interface OperationalCrashesExclusions : () -> List<String>
@@ -149,6 +150,10 @@ abstract class BortSettingsModule {
         @Provides
         fun scrubTombstones(settings: SettingsProvider) =
             DropboxScrubTombstones { settings.dropBoxSettings.scrubTombstones }
+
+        @Provides
+        fun useNativeCrashesSource(settings: SettingsProvider) =
+            DropboxUseNativeCrashTombstones { settings.dropBoxSettings.useNativeCrashTombstones }
 
         @Provides
         fun cachePackageManagerReport(settings: SettingsProvider) =

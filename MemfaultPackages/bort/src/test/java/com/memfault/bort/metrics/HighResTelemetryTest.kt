@@ -1,8 +1,10 @@
 package com.memfault.bort.metrics
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.BortJson
 import com.memfault.bort.TemporaryFile
-import org.junit.Assert.assertEquals
+import org.hamcrest.MatcherAssert.assertThat
 import org.junit.Test
 
 internal class HighResTelemetryTest {
@@ -18,7 +20,7 @@ internal class HighResTelemetryTest {
             f.writeText(HRT_FILE)
             val hrt = HighResTelemetry.decodeFromStream(f)
             val recoded = BortJson.encodeToString(HighResTelemetry.serializer(), hrt)
-            assertEquals(HRT_FILE, recoded)
+            assertThat(recoded).isEqualTo(HRT_FILE)
         }
     }
 }

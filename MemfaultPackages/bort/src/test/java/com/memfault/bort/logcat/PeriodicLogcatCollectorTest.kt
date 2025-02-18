@@ -1,5 +1,7 @@
 package com.memfault.bort.logcat
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.settings.LogcatCollectionMode.PERIODIC
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.settings.RateLimitingSettings
@@ -13,9 +15,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 import java.io.InputStream
 import java.time.Instant
 import kotlin.time.Duration
@@ -38,7 +39,7 @@ class PeriodicLogcatCollectorTest {
     }
     private val inputStream: InputStream = mockk()
 
-    @BeforeEach
+    @Before
     fun setUp() {
         periodicLogcatRunner = mockk(relaxed = true) {
             coEvery {
@@ -79,9 +80,10 @@ class PeriodicLogcatCollectorTest {
         val nextStartInstant = Instant.ofEpochSecond(1234, 56789)
         startTimeProvider.nextStart = AbsoluteTime(nextStartInstant)
         collector.collect()
-        assertEquals(
-            AbsoluteTime(Instant.ofEpochSecond(1610973242)),
+        assertThat(
             startTimeProvider.nextStart,
+        ).isEqualTo(
+            AbsoluteTime(Instant.ofEpochSecond(1610973242)),
         )
         coVerify(exactly = 1) { logcatProcessor.process(inputStream, any(), PERIODIC) }
     }

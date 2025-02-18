@@ -23,6 +23,8 @@ class OtherDropBoxEntryUploadingEntryProcessorDelegate @Inject constructor(
     override val debugTag: String
         get() = "OTHER_TAGS"
 
+    override val crashTag: String? = null
+
     override fun allowedByRateLimit(
         tokenBucketKey: String,
         tag: String,

@@ -1,9 +1,10 @@
 package com.memfault.bort
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.shared.BugReportRequest
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 
 data class MockPendingBugReportRequestStorage(var request: BugReportRequest? = null) : PendingBugReportRequestStorage {
     override fun write(request: BugReportRequest?) {
@@ -19,7 +20,7 @@ class PendingBugReportRequestAccessorTest {
     lateinit var storage: MockPendingBugReportRequestStorage
     lateinit var accessor: PendingBugReportRequestAccessor
 
-    @BeforeEach
+    @Before
     fun setUp() {
         storage = MockPendingBugReportRequestStorage(currentValue)
         accessor = PendingBugReportRequestAccessor(storage)
@@ -27,23 +28,22 @@ class PendingBugReportRequestAccessorTest {
 
     @Test
     fun compareAndSwapOk() {
-        assertEquals(
-            Pair(true, currentValue),
+        assertThat(
             accessor.compareAndSwap(newValue) {
                 it == currentValue
             },
-        )
-        assertEquals(newValue, accessor.get())
+        ).isEqualTo(Pair(true, currentValue))
+        assertThat(accessor.get()).isEqualTo(newValue)
     }
 
     @Test
     fun compareAndSwapFail() {
-        assertEquals(
-            Pair(false, null),
+        assertThat(
+
             accessor.compareAndSwap(newValue) {
                 it == null
             },
-        )
-        assertEquals(currentValue, accessor.get())
+        ).isEqualTo(Pair(false, null))
+        assertThat(accessor.get()).isEqualTo(currentValue)
     }
 }

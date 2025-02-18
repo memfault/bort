@@ -2,7 +2,7 @@ package com.memfault.bort.logcat
 
 import assertk.all
 import assertk.assertThat
-import assertk.assertions.containsExactly
+import assertk.assertions.containsExactlyInAnyOrder
 import assertk.assertions.containsOnly
 import assertk.assertions.doesNotContainKey
 import assertk.assertions.isEmpty
@@ -124,7 +124,10 @@ class Logs2MetricsProcessorTest {
                 prop(MetricReport::hrt).isNotNull()
                     .transform { hrt -> HighResTelemetry.decodeFromStream(hrt) }
                     .prop(HighResTelemetry::rollups)
-                    .containsExactly(
+                    .containsExactlyInAnyOrder(
+                        *metricsDbTestEnvironment.dropBoxTagCountRollups(heartbeatEndTimestamp.toEpochMilli())
+                            .toTypedArray(),
+
                         rollup(
                             stringKey = "counter_metric",
                             value = "tag: Scheduled restart job, restart counter is at somethingsomething",
@@ -155,7 +158,10 @@ class Logs2MetricsProcessorTest {
                 prop(MetricReport::hrt).isNotNull()
                     .transform { hrt -> HighResTelemetry.decodeFromStream(hrt) }
                     .prop(HighResTelemetry::rollups)
-                    .containsExactly(
+                    .containsExactlyInAnyOrder(
+                        *metricsDbTestEnvironment.dropBoxTagCountRollups(heartbeatEndTimestamp.toEpochMilli())
+                            .toTypedArray(),
+
                         rollup(
                             stringKey = "logcat_hello1",
                             value = "hello1: Running logcat...",
@@ -188,7 +194,10 @@ class Logs2MetricsProcessorTest {
                 prop(MetricReport::hrt).isNotNull()
                     .transform { hrt -> HighResTelemetry.decodeFromStream(hrt) }
                     .prop(HighResTelemetry::rollups)
-                    .containsExactly(
+                    .containsExactlyInAnyOrder(
+                        *metricsDbTestEnvironment.dropBoxTagCountRollups(heartbeatEndTimestamp.toEpochMilli())
+                            .toTypedArray(),
+
                         rollup(
                             stringKey = "batterystats_467",
                             value = "batterystats error: 467",

@@ -1,5 +1,8 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.settings.OperationalCrashesComponentGroup
+import com.memfault.bort.settings.OperationalCrashesComponentGroups
+import com.memfault.bort.settings.OperationalCrashesComponentGroupsProvider
 import com.memfault.bort.time.BootRelativeTime
 import com.memfault.bort.time.BootRelativeTimeProvider
 import com.memfault.bort.time.boxed
@@ -33,11 +36,17 @@ class CrashFreeHoursTest {
             }
     }
 
+    private var componentGroups = OperationalCrashesComponentGroups()
+    private val operationalCrashesComponentGroupsProvider = OperationalCrashesComponentGroupsProvider {
+        componentGroups
+    }
+
     private val metricLogger: CrashFreeHoursMetricLogger = mockk(relaxed = true)
     private val crashFreeHours = CrashFreeHours(
         timeProvider = timeProvider,
         storage = storage,
         metricLogger = metricLogger,
+        operationalCrashesComponentGroupsProvider = operationalCrashesComponentGroupsProvider,
     )
 
     private val crashTimestamp = Instant.now()
@@ -56,9 +65,10 @@ class CrashFreeHoursTest {
     fun crashyHour() = runTest {
         crashFreeHours.onBoot()
         uptimeMs += 30.minutes
-        crashFreeHours.onCrash(crashTimestamp)
+        crashFreeHours.onCrash(componentName = null, crashTimestamp = crashTimestamp)
         uptimeMs += 30.minutes
         crashFreeHours.process()
+        verify(exactly = 1) { metricLogger.incrementCrashes(null, timestamp = crashTimestamp.toEpochMilli()) }
         verify(exactly = 1) { metricLogger.incrementOperationalHours(1) }
         verify(exactly = 0) { metricLogger.incrementCrashFreeHours(any()) }
         confirmVerified(metricLogger)
@@ -78,7 +88,8 @@ class CrashFreeHoursTest {
     fun crashTriggersMetrics() = runTest {
         crashFreeHours.onBoot()
         uptimeMs += 60.minutes
-        crashFreeHours.onCrash(crashTimestamp)
+        crashFreeHours.onCrash(componentName = null, crashTimestamp = crashTimestamp)
+        verify(exactly = 1) { metricLogger.incrementCrashes(null, timestamp = crashTimestamp.toEpochMilli()) }
         verify(exactly = 1) { metricLogger.incrementOperationalHours(1) }
         verify(exactly = 1) { metricLogger.incrementCrashFreeHours(1) }
         confirmVerified(metricLogger)
@@ -87,9 +98,9 @@ class CrashFreeHoursTest {
     @Test
     fun crashyTriggersMetrics() = runTest {
         crashFreeHours.onBoot()
-        crashFreeHours.onCrash(crashTimestamp)
+        crashFreeHours.onCrash(componentName = null, crashTimestamp = crashTimestamp)
         uptimeMs += 60.minutes
-        crashFreeHours.onCrash(crashTimestamp)
+        crashFreeHours.onCrash(componentName = null, crashTimestamp = crashTimestamp)
         verify(exactly = 1) { metricLogger.incrementOperationalHours(1) }
         verify(exactly = 0) { metricLogger.incrementCrashFreeHours(any()) }
     }
@@ -101,9 +112,10 @@ class CrashFreeHoursTest {
         crashFreeHours.process()
         verify { metricLogger.incrementOperationalHours(3) }
         uptimeMs += 30.minutes
-        crashFreeHours.onCrash(crashTimestamp)
+        crashFreeHours.onCrash(componentName = null, crashTimestamp = crashTimestamp)
         uptimeMs += 30.minutes
         crashFreeHours.process()
+        verify(exactly = 1) { metricLogger.incrementCrashes(null, timestamp = crashTimestamp.toEpochMilli()) }
         verify { metricLogger.incrementOperationalHours(1) }
         verify { metricLogger.incrementCrashFreeHours(3) }
         confirmVerified(metricLogger)
@@ -113,15 +125,98 @@ class CrashFreeHoursTest {
     fun multipleHoursMoreCrashes() = runTest {
         crashFreeHours.onBoot()
         uptimeMs += 2.hours + 50.minutes
-        crashFreeHours.onCrash(crashTimestamp)
+        crashFreeHours.onCrash(componentName = null, crashTimestamp = crashTimestamp)
         verify { metricLogger.incrementOperationalHours(2) }
         verify { metricLogger.incrementCrashFreeHours(2) }
         uptimeMs += 10.minutes
         uptimeMs += 30.minutes
-        crashFreeHours.onCrash(crashTimestamp)
+        crashFreeHours.onCrash(componentName = null, crashTimestamp = crashTimestamp)
         uptimeMs += 30.minutes
         crashFreeHours.process()
+        verify(exactly = 2) { metricLogger.incrementCrashes(null, timestamp = crashTimestamp.toEpochMilli()) }
         verify { metricLogger.incrementOperationalHours(1) }
         confirmVerified(metricLogger)
+    }
+
+    @Test
+    fun crashComponentGroups_empty() = runTest {
+        componentGroups = OperationalCrashesComponentGroups(groups = emptyList())
+
+        crashFreeHours.onCrash(componentName = null, crashTimestamp = crashTimestamp)
+
+        verify(exactly = 1) { metricLogger.incrementCrashes(componentName = null, crashTimestamp.toEpochMilli()) }
+        confirmVerified(metricLogger)
+    }
+
+    @Test
+    fun crashComponentGroups_nullMatchesFallback() = runTest {
+        componentGroups = OperationalCrashesComponentGroups(
+            groups = listOf(
+                OperationalCrashesComponentGroup(name = "fallback", patterns = emptyList()),
+            ),
+        )
+
+        crashFreeHours.onCrash(componentName = null, crashTimestamp = crashTimestamp)
+
+        verify(exactly = 1) { metricLogger.incrementCrashes(componentName = null, crashTimestamp.toEpochMilli()) }
+        verify(exactly = 1) { metricLogger.incrementCrashes(componentName = "fallback", crashTimestamp.toEpochMilli()) }
+    }
+
+    @Test
+    fun crashComponentGroups_emptyStringMatchesFallback() = runTest {
+        componentGroups = OperationalCrashesComponentGroups(
+            groups = listOf(
+                OperationalCrashesComponentGroup(name = "fallback", patterns = emptyList()),
+            ),
+        )
+
+        crashFreeHours.onCrash(componentName = "", crashTimestamp = crashTimestamp)
+
+        verify(exactly = 1) { metricLogger.incrementCrashes(componentName = null, crashTimestamp.toEpochMilli()) }
+        verify(exactly = 1) { metricLogger.incrementCrashes(componentName = "fallback", crashTimestamp.toEpochMilli()) }
+    }
+
+    @Test
+    fun crashComponentGroups_regexFullMatches() = runTest {
+        componentGroups = OperationalCrashesComponentGroups(
+            groups = listOf(
+                OperationalCrashesComponentGroup(name = "apps", patterns = listOf("com.memfault")),
+                OperationalCrashesComponentGroup(name = "fallback", patterns = emptyList()),
+            ),
+        )
+
+        crashFreeHours.onCrash(componentName = "com.memfault.daemon", crashTimestamp = crashTimestamp)
+
+        verify(exactly = 1) { metricLogger.incrementCrashes(componentName = null, crashTimestamp.toEpochMilli()) }
+        verify(exactly = 1) { metricLogger.incrementCrashes(componentName = "fallback", crashTimestamp.toEpochMilli()) }
+    }
+
+    @Test
+    fun crashComponentGroups_regexMatches() = runTest {
+        componentGroups = OperationalCrashesComponentGroups(
+            groups = listOf(
+                OperationalCrashesComponentGroup(name = "apps", patterns = listOf("com.memfault")),
+                OperationalCrashesComponentGroup(name = "fallback", patterns = emptyList()),
+            ),
+        )
+
+        crashFreeHours.onCrash(componentName = "com.memfault", crashTimestamp = crashTimestamp)
+
+        verify(exactly = 1) { metricLogger.incrementCrashes(componentName = null, crashTimestamp.toEpochMilli()) }
+        verify(exactly = 1) { metricLogger.incrementCrashes(componentName = "apps", crashTimestamp.toEpochMilli()) }
+    }
+
+    @Test
+    fun crashComponentGroups_regexes() = runTest {
+        componentGroups = OperationalCrashesComponentGroups(
+            groups = listOf(
+                OperationalCrashesComponentGroup(name = "apps", patterns = listOf("com.memfault", "com.segfault")),
+            ),
+        )
+
+        crashFreeHours.onCrash(componentName = "com.segfault", crashTimestamp = crashTimestamp)
+
+        verify(exactly = 1) { metricLogger.incrementCrashes(componentName = null, crashTimestamp.toEpochMilli()) }
+        verify(exactly = 1) { metricLogger.incrementCrashes(componentName = "apps", crashTimestamp.toEpochMilli()) }
     }
 }

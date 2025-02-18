@@ -1,9 +1,10 @@
 package com.memfault.bort.metrics
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.metrics.AggregateMetricFilter.filterAndRenameMetrics
 import com.memfault.bort.metrics.custom.ReportType.Hourly
 import kotlinx.serialization.json.JsonPrimitive
-import org.junit.Assert.assertEquals
 import org.junit.Test
 
 internal class AggregateMetricFilterTest {
@@ -20,7 +21,7 @@ internal class AggregateMetricFilterTest {
             "version.com.x.y.z" to JsonPrimitive("v1"),
             "operational_crashes" to JsonPrimitive(0.0),
         )
-        assertEquals(output, filterAndRenameMetrics(input, internal = false, reportType = Hourly))
+        assertThat(filterAndRenameMetrics(input, internal = false, reportType = Hourly)).isEqualTo(output)
     }
 
     @Test
@@ -39,6 +40,6 @@ internal class AggregateMetricFilterTest {
             "request_attempt" to JsonPrimitive(10),
             "usagereporter_version_code" to JsonPrimitive(10),
         )
-        assertEquals(output, filterAndRenameMetrics(input, internal = true, reportType = Hourly))
+        assertThat(filterAndRenameMetrics(input, internal = true, reportType = Hourly)).isEqualTo(output)
     }
 }

@@ -1,16 +1,20 @@
 package com.memfault.usagereporter
 
 import android.os.ParcelFileDescriptor
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotNull
+import assertk.assertions.isNull
+import assertk.assertions.isTrue
 import com.memfault.bort.shared.CommandRunnerOptions
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
+import org.junit.Before
+import org.junit.Test
 import java.io.IOException
 import java.io.OutputStream
 import java.util.concurrent.CancellationException
@@ -38,7 +42,7 @@ class CommandRunnerTest {
         }
     }
 
-    @BeforeEach
+    @Before
     fun setUp() {
         outputStreamMock = spyk(MockOutputStream())
         outputStreamFactoryMock = mockk()
@@ -54,7 +58,7 @@ class CommandRunnerTest {
             reportResultMock,
             outputStreamFactoryMock,
         ).apply { run() }
-        assertEquals(cmd.process, null)
+        assertThat(cmd.process).isNull()
         verify(exactly = 1) { reportResultMock(null, false) }
         verify(exactly = 0) { outputStreamFactoryMock.invoke(any()) }
     }
@@ -68,11 +72,11 @@ class CommandRunnerTest {
             reportResultMock,
             outputStreamFactoryMock,
         ).apply { run() }
-        assertNotNull(cmd.process)
+        assertThat(cmd.process).isNotNull()
         verify(exactly = 1) { outputStreamFactoryMock.invoke(outFd) }
         verify(exactly = 1) { outputStreamMock.close() }
         verify(exactly = 1) { reportResultMock(0, false) }
-        assertEquals("hello\n", outputStreamMock.toUtf8String())
+        assertThat(outputStreamMock.toUtf8String()).isEqualTo("hello\n")
     }
 
     @Test
@@ -86,8 +90,8 @@ class CommandRunnerTest {
         ).apply { run() }
         verify(exactly = 1) { outputStreamMock.close() }
         verify(exactly = 1) { reportResultMock(null, false) }
-        assertEquals(cmd.process, null)
-        assertEquals("", outputStreamMock.toUtf8String())
+        assertThat(cmd.process).isNull()
+        assertThat(outputStreamMock.toUtf8String()).isEqualTo("")
     }
 
     @Test
@@ -102,7 +106,7 @@ class CommandRunnerTest {
             reportResultMock,
             outputStreamFactoryMock,
         ).apply { run() }
-        assertNotNull(cmd.process)
+        assertThat(cmd.process).isNotNull()
         cmd.process?.let {
             assert(!it.isAlive)
         }
@@ -121,10 +125,10 @@ class CommandRunnerTest {
             outputStreamFactoryMock,
         )
         val future = executor.submitWithTimeout(cmd, 10.milliseconds)
-        assertThrows<CancellationException> {
+        assertFailure {
             future.get()
-        }
+        }.isInstanceOf<CancellationException>()
         verify(exactly = 1, timeout = 5000) { reportResultMock(143, true) }
-        assertEquals(true, cmd.didTimeout)
+        assertThat(cmd.didTimeout).isTrue()
     }
 }

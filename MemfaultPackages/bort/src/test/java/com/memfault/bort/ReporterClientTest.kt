@@ -1,5 +1,8 @@
 package com.memfault.bort
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getError
 import com.memfault.bort.shared.LogLevel
@@ -10,15 +13,14 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.Before
+import org.junit.Test
 
 class ReporterClientTest {
     lateinit var mockConnection: ReporterServiceConnection
     lateinit var client: ReporterClient
 
-    @BeforeEach
+    @Before
     fun setUp() {
         mockConnection = mockk()
         client = ReporterClient(mockConnection, mockk())
@@ -32,7 +34,7 @@ class ReporterClientTest {
             Result.success(VersionResponse(123))
         }
         for (x in 1..3) {
-            assertEquals(123, client.getVersion())
+            assertThat(client.getVersion()).isEqualTo(123)
         }
         // Version is cached for subsequent getVersion() calls:
         coVerify(exactly = 1) { mockConnection.sendAndReceive(VersionRequest()) }
@@ -46,9 +48,8 @@ class ReporterClientTest {
             Result.success(VersionResponse(0))
         }
         val result = client.setLogLevel(LogLevel.TEST)
-        assertEquals(
+        assertThat(result.getError()?.message).isNotNull().isEqualTo(
             "Unsupported request for loglevel (0 < 4)",
-            result.getError()?.message,
         )
     }
 }

@@ -2,6 +2,8 @@ package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
 import android.os.RemoteException
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import com.memfault.bort.TaskResult
 import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.settings.DropBoxSettings
@@ -16,10 +18,9 @@ import io.mockk.mockk
 import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
+import org.junit.After
+import org.junit.Before
+import org.junit.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
@@ -60,12 +61,13 @@ class DropBoxGetEntriesTaskTest {
         override val excludedTags get() = emptySet<String>()
         override val forceEnableWtfTags: Boolean = true
         override val scrubTombstones: Boolean = false
+        override val useNativeCrashTombstones: Boolean = false
         override val processImmediately: Boolean = true
         override val pollingInterval: Duration = 15.minutes
         override val otherTags: Set<String> = emptySet()
     }
 
-    @BeforeEach
+    @Before
     fun setUp() {
         MockKAnnotations.init(this)
         lastProcessedEntryProvider = FakeLastProcessedEntryProvider(0)
@@ -93,7 +95,7 @@ class DropBoxGetEntriesTaskTest {
         retryDelay = suspend { }
     }
 
-    @AfterEach
+    @After
     fun tearDown() {
         unmockkAll()
     }
@@ -116,7 +118,7 @@ class DropBoxGetEntriesTaskTest {
 
         val result = task.doWork()
         coVerify(exactly = 1) { dropBoxManager.getNextEntry(any(), any()) }
-        assertEquals(TaskResult.FAILURE, result)
+        assertThat(result).isEqualTo(TaskResult.FAILURE)
     }
 
     @Test
@@ -128,7 +130,7 @@ class DropBoxGetEntriesTaskTest {
         coVerify(exactly = 2) {
             dropBoxManager.getNextEntry(any(), any())
         }
-        assertEquals(TaskResult.SUCCESS, result)
+        assertThat(result).isEqualTo(TaskResult.SUCCESS)
     }
 
     @Test
@@ -147,7 +149,7 @@ class DropBoxGetEntriesTaskTest {
             dropBoxManager.getNextEntry(null, 0)
             dropBoxManager.getNextEntry(null, changedTimeMillis)
         }
-        assertEquals(TaskResult.SUCCESS, result)
+        assertThat(result).isEqualTo(TaskResult.SUCCESS)
     }
 
     @Test
@@ -167,8 +169,8 @@ class DropBoxGetEntriesTaskTest {
         coVerify(exactly = 2) {
             mockEntryProcessor.process(any())
         }
-        assertEquals(TaskResult.SUCCESS, result)
-        assertEquals(20, lastProcessedEntryProvider.timeMillis)
+        assertThat(result).isEqualTo(TaskResult.SUCCESS)
+        assertThat(lastProcessedEntryProvider.timeMillis).isEqualTo(20)
         verifyCloseCalled()
     }
 
@@ -186,8 +188,8 @@ class DropBoxGetEntriesTaskTest {
         coVerify(exactly = 0) {
             mockEntryProcessor.process(any())
         }
-        assertEquals(TaskResult.SUCCESS, result)
-        assertEquals(10, lastProcessedEntryProvider.timeMillis)
+        assertThat(result).isEqualTo(TaskResult.SUCCESS)
+        assertThat(lastProcessedEntryProvider.timeMillis).isEqualTo(10)
         verifyCloseCalled()
     }
 
@@ -200,14 +202,14 @@ class DropBoxGetEntriesTaskTest {
         coVerify(exactly = 1) {
             mockEntryProcessor.process(any())
         }
-        assertEquals(TaskResult.SUCCESS, result)
-        assertEquals(10, lastProcessedEntryProvider.timeMillis)
+        assertThat(result).isEqualTo(TaskResult.SUCCESS)
+        assertThat(lastProcessedEntryProvider.timeMillis).isEqualTo(10)
         verifyCloseCalled()
     }
 
     private fun runAndAssertNoop() = runTest {
         val result = task.doWork()
-        assertEquals(TaskResult.SUCCESS, result)
+        assertThat(result).isEqualTo(TaskResult.SUCCESS)
 
         // There was nothing to do, so it must not connect to the reporter service at all:
         coVerify(exactly = 0) {
