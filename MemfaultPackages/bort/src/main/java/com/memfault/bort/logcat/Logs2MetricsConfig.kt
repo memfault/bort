@@ -20,26 +20,52 @@ import kotlinx.serialization.json.JsonObject
  * Example serialized configuration:
 
 "rules": [
-{
-"type": "count_matching",
-"filter": {
-"tag": "bort"
-"priority": "W"
-},
-"pattern": "(.*): Scheduled restart job, restart counter is at",
-"metric_name": "systemd_restarts_$1"
-},
-{
-"type": "count_matching",
-"filter": {
-"tag": "bort-ota"
-"priority": "D"
-},
-"pattern": "Out of memory: Killed process \\d+ \\((.*)\\)",
-"metric_name": "oomkill_$1"
-}
+ {
+ "type": "count_matching",
+ "filter": {
+ "tag": "bort"
+ "priority": "W"
+ },
+ "pattern": "(.*): Scheduled restart job, restart counter is at",
+ "metric_name": "systemd_restarts_$1"
+ },
+ {
+ "type": "count_matching",
+ "filter": {
+ "tag": "bort-ota"
+ "priority": "D"
+ },
+ "pattern": "Out of memory: Killed process \\d+ \\((.*)\\)",
+ "metric_name": "oomkill_$1"
+ },
+ {
+ "type": "sum_matching",
+ "filter": {
+ "tag": "Choreographer",
+ "priority": "I"
+ },
+ "pattern": "^Skipped (\\d+) frames!  The application may be doing too much work on its main thread.$",
+ "metric_name": "frames_dropped"
+ },
+ {
+ "type": "distribution",
+ "filter": {
+ "tag": "Metrics",
+ "priority": "I"
+ },
+ "pattern": "^Batch [A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{8} [(\\d+) bytes] (Request) sent successfully.",
+ "metric_name": "request_size"
+ },
+ {
+ "type": "string_property",
+ "filter": {
+ "tag": "ConnectivityService",
+ "priority": "E"
+ },
+ "pattern": "BSSID=",
+ "metric_name": "wifi_bssid"
+ }
 ]
-
  */
 @Serializable
 data class Logs2MetricsConfig(
@@ -74,6 +100,9 @@ object RuleSerializer : KSerializer<Logs2MetricsRuleType> {
 @Serializable(with = RuleSerializer::class)
 enum class Logs2MetricsRuleType(val key: String) {
     CountMatching("count_matching"),
+    SumMatching("sum_matching"),
+    Distribution("distribution_minmeanmax"),
+    StringProperty("string_property"),
     Unknown("unknown"),
     ;
 

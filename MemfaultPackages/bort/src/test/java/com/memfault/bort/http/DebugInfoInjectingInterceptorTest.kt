@@ -29,7 +29,7 @@ class DebugInfoInjectingInterceptorTest {
             "https://foo.com/",
             "http://foo.com/",
             "http://127.0.0.1:8000/",
-            "http://localhost:8000/",
+            "http://app.memfault.test:8000/",
         ).forEach { url ->
             Request.Builder()
                 .url(url)

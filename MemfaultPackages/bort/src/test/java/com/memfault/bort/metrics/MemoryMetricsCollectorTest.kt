@@ -53,6 +53,10 @@ class MemoryMetricsCollectorTest {
         override val thermalMetricsEnabled: Boolean get() = TODO("Not used")
         override val thermalCollectLegacyMetrics: Boolean get() = TODO("Not used")
         override val thermalCollectStatus: Boolean get() = TODO("not used")
+        override val cpuInterestingProcesses: Set<String> get() = TODO("not used")
+        override val cpuProcessReportingThreshold: Int get() = TODO("not used")
+        override val cpuProcessLimitTopN: Int get() = TODO("not used")
+        override val alwaysCreateCpuProcessMetrics: Boolean get() = TODO("not used")
     }
     private val collector = MemoryMetricsCollector(activityManager, metricsSettings)
 
