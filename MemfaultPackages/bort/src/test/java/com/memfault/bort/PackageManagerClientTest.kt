@@ -72,6 +72,16 @@ class PackageManagerClientTest {
         verify(exactly = 2) { packageManager.getInstalledApplications(0) }
     }
 
+    @Test
+    fun mapsUids() = runTest {
+        val packageManagerClient =
+            PackageManagerClient(packageManager, { cachePackages }, StandardTestDispatcher(testScheduler))
+        val report = packageManagerClient.getPackageManagerReport()
+        assertThat(report.findByUid(11000)).isEqualTo(listOf(APP_BORT))
+        assertThat(report.findByUid(12000)).isEqualTo(listOf(APP_YOUTUBE, APP_YOUTUBE_2))
+        assertThat(report.findByUid(13000)).isEqualTo(emptyList())
+    }
+
     companion object {
         private val APP_BORT =
             Package(id = "com.memfault.bort", userId = 11000, versionName = "4.12.0", versionCode = 401200)

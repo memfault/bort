@@ -6,6 +6,98 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project currently does not attempt to adhere to Semantic Versioning, but
 breaking changes are avoided unless absolutely necessary.
 
+## [Unreleased]
+
+### :rocket: New Features
+
+- Added 3 more logs-to-metrics parser types.
+  - `sum_matching` captures 1 integer, and sums all captured values in the
+    heartbeat.
+  - `distribution_minmeanmax` captures 1 double, and generates a min/mean/max
+    distribution for all captured values in the heartbeat.
+  - `string_property` captures 1 string, and reports the latest value for that
+    string.
+- Added tracking of the metered, temporarily unmetered, and roaming network
+  capabilities in HRT.
+  - Added a `connectivity.metered.latest` heartbeat metric for tracking metered
+    network usage.
+- Added new disk wear and disk write Device Vital heartbeat metrics. eMMC/UFS
+  lifetime estimation and version stats are collected from the Health HAL
+  implementation, falling back to a hardcoded UFS or eMMC filepath if not
+  implemented. Bytes written each heartbeat is collected by reading the sectors
+  written value from `/proc/diskstats` for matching physical devices in
+  `/sys/block` multiplied by the sector size to get a value in bytes.
+  - `disk_wear.<source>.lifetime_remaining_pct.latest` captures the lifetime
+    remaining estimation for type A flash in increments of 10%. The source can
+    be one of: "mmc0", "624000.ufshc", or "HealthHAL".
+  - `disk_wear.<source>.lifetime_b_remaining_pct.latest` captures the lifetime
+    remaining estimation for type B flash in increments of 10%. The source can
+    be one of: "mmc0", "624000.ufshc", or "HealthHAL".
+  - `disk_wear.pre_eol.latest` captures the pre-EOL status of consumed reserved
+    blocks, as "Normal", "Warning", or "Urgent".
+  - `disk_wear.version.latest` captures the version as described from the vendor
+    implementation of the Health HAL.
+  - `disk_wear.vdc.bytes_written` captures the bytes written for that heartbeat.
+- Added per-app CPU usage metrics. The CPU usage percentage for each heartbeat
+  is collected by parsing `/proc/<pid>/stat/` for system and user time
+  (`stime` + `utime`) divided by the total usage (sum of all fields from
+  `/proc/stat`).
+  - By default, the SDK will only create heartbeat metrics for a defined set of
+    "interesting" processes. Please reach out to customer support to configure
+    this set.
+  - Otherwise, the top 10 processes exceeding the 50% CPU usage threshold will
+    also be recorded. Please reach out to customer support to configure these
+    thresholds.
+- Added support for Android 15.
+
+### :chart_with_upwards_trend: Improvements
+
+- Added parsers for more HRT batterystats data.
+  - `screen_doze` captures whether the display is dozing in a low power state
+    ([link](https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/view/Display.java;l=491;drc=61197364367c9e404c7da6900658f1b16c42d0da;bpv=1;bpt=1?q=isDozeState)).
+  - `flashlight` captures whether the flashlight was turned on.
+  - `bluetooth` captures whether Bluetooth was enabled.
+  - `usb_data` captures whether a USB connection was established (as reported by
+    `android.hardware.usb.action.USB_STATE`).
+  - `cellular_high_tx_power` captures whether the modem spent more of its time
+    at the highest power level versus any other level.
+  - `nr_state` captures the service level of the 5G network that's connected
+    ([link](https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/telephony/java/android/telephony/NetworkRegistrationInfo.java;l=147)).
+- Updated comments on various batterystats fields. More improvements to come in
+  clarifying the name and use of batterystats metrics!
+- Dumped any existing logs when continuous logging starts, to retain logs
+  captured from before a reboot.
+- Added control over the maximum age of sampled data, to match the controls over
+  unsampled data.
+- Added support for parsing the binary log buffers (events, security, stats)
+  with continuous logs.
+- Modified dumpstate to write bugreports to /data/misc/MemfaultBugReports
+  instead of to Bort's app dir. This is necessary for Android 15 support and CTS
+  compliance to work around neverallow sepolicy rules. This also allowed
+  deleting the custom `bort_app_data_file` app label for the Bort app.
+
+### :construction: Fixes
+
+- Added explicit Android System AID mappings for more consistent system UID
+  attribution in tombstone and network stats parsing.
+- Added VPN and USB as explicitly defined network types using
+  `connectivity.network`.
+- Fixed a bug in PhoneState where the unknown `???` state was reported as
+  `null`.
+- Added exponential backoff for EAGAIN errors in continuous logs. Each write is
+  fsync'd immediately after write to reduce the likelihood of data loss.
+- Added missing ignore.cil files for SDKs 32, 33, and 34.
+
+### :house: Internal
+
+- Stopped running unit tests on release sources.
+- Migrated the SDK to communicate over a named domain (\*.memfault.test) rather
+  than localhost for local development.
+- Removed unneeded mockk init calls.
+- Added some tests for unknown fields in device config.
+- Refactored the unsampled holding area logic into a single class.
+- Differentiated some continuous logging logs for easier debugging.
+
 ## v5.3.0 - February 14, 2025
 
 ### :rocket: New Features

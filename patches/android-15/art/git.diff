@@ -1,0 +1,179 @@
+diff --git a/runtime/native_stack_dump.cc b/runtime/native_stack_dump.cc
+index 5a6cee0630..4cb53f7df3 100644
+--- a/runtime/native_stack_dump.cc
++++ b/runtime/native_stack_dump.cc
+@@ -27,6 +27,14 @@
+ // For DumpNativeStack.
+ #include <unwindstack/AndroidUnwinder.h>
+ 
++// See comment around line ~80 for more information.
++#define MEMFAULT_DUMP_NATIVE_STACK (1)
++
++#if MEMFAULT_DUMP_NATIVE_STACK
++#include <unwindstack/Regs.h>
++#include <unwindstack/Unwinder.h>
++#endif
++
+ #if defined(__linux__)
+ 
+ #include <vector>
+@@ -38,6 +46,11 @@
+ #include <sys/time.h>
+ #include <sys/types.h>
+ 
++#if MEMFAULT_DUMP_NATIVE_STACK
++#include <semaphore.h>
++#include "android-base/threads.h"
++#endif
++
+ #include "android-base/file.h"
+ #include "android-base/stringprintf.h"
+ #include "android-base/strings.h"
+@@ -65,6 +78,138 @@ namespace art HIDDEN {
+ 
+ using android::base::StringPrintf;
+ 
++#if MEMFAULT_DUMP_NATIVE_STACK
++
++// This patch implements an alternative DumpNativeStack() implementation.
++// In contrast to the libart's original code, this will also dump the GNU Build IDs for each frame,
++// which is necessary to be able to desymbolicate the frames accurately.
++// The implementation is based on code from tombstone.cpp and BacktraceCurrent.cpp
++// from the platform/system/core repo.
++
++// The signal used to cause a thread to dump the stack.
++#if defined(__GLIBC__)
++// In order to run the backtrace_tests on the host, we can't use
++// the internal real time signals used by GLIBC. To avoid this,
++// use SIGRTMIN for the signal to dump the stack.
++#define THREAD_SIGNAL SIGRTMIN
++#else
++#define THREAD_SIGNAL (__SIGRTMIN+1)
++#endif
++
++using unwindstack::Regs;
++using unwindstack::UnwinderFromPid;
++
++static pthread_mutex_t g_with_registers_from_thread_mutex = PTHREAD_MUTEX_INITIALIZER;
++static std::unique_ptr<Regs> g_registers_from_thread;
++static sem_t g_registers_obtained_semph;
++
++// Signal handler which only job is to grab the registers of the top of this thread:
++static void SignalHandler(int, siginfo_t*, void* sigcontext) {
++  ucontext_t* ucontext_ptr = reinterpret_cast<ucontext_t*>(sigcontext);
++  g_registers_from_thread.reset(Regs::CreateFromUcontext(Regs::CurrentArch(), ucontext_ptr));
++
++  // Unblock WithRegistersFromThread:
++  sem_post(&g_registers_obtained_semph);
++}
++
++static void WithRegistersFromThread(std::ostream& os, pid_t tid, const char* prefix,
++    const std::function<void (std::ostream& os, pid_t tid, const char* prefix, Regs *regs)>& func) {
++
++  pthread_mutex_lock(&g_with_registers_from_thread_mutex);
++
++  if (sem_init(&g_registers_obtained_semph, 0, 0) != 0) {
++    os << "sem_init failed" << std::endl;
++    func(os, tid, prefix, nullptr);
++    goto unlock;
++  }
++
++  // Install SignalHandler:
++  struct sigaction act, oldact;
++  memset(&act, 0, sizeof(act));
++  act.sa_sigaction = SignalHandler;
++  act.sa_flags = SA_RESTART | SA_SIGINFO | SA_ONSTACK;
++  sigemptyset(&act.sa_mask);
++  if (sigaction(THREAD_SIGNAL, &act, &oldact) != 0) {
++    os << "sigaction failed" << std::endl;
++    func(os, tid, prefix, nullptr);
++    goto unlock;
++  }
++
++  // Send the signal:
++  if (tgkill(getpid(), tid, THREAD_SIGNAL) != 0) {
++    os << "tgkill failed" << std::endl;
++    func(os, tid, prefix, nullptr);
++    goto restore_old_handler;
++  }
++
++  // Wait for the semaphore in SignalHandler to be given:
++  if (sem_wait(&g_registers_obtained_semph) != 0) {
++    os << "sem_wait failed" << std::endl;
++    func(os, tid, prefix, nullptr);
++    goto restore_old_handler;
++  }
++
++  func(os, tid, prefix, g_registers_from_thread.get());
++  g_registers_from_thread.reset();
++
++restore_old_handler:
++  sigaction(THREAD_SIGNAL, &oldact, nullptr);
++unlock:
++  pthread_mutex_unlock(&g_with_registers_from_thread_mutex);
++}
++
++static void DumpNativeStackWithRegs(std::ostream& os, pid_t tid, const char* prefix, Regs *regs) {
++    if (regs == nullptr) {
++      os << "Failed to get registers for thread " << tid << std::endl;
++      return;
++    }
++
++    constexpr size_t kMaxFrames = 256;
++    UnwinderFromPid unwinder(kMaxFrames, getpid(), Regs::CurrentArch());
++    if (!unwinder.Init()) {
++      os << "Failed to init unwinder object." << std::endl;
++      return;
++    }
++    unwinder.SetRegs(regs);
++    unwinder.Unwind();
++    if (unwinder.NumFrames() == 0) {
++      os << prefix << "(Unwind failed for thread " << tid << ")" << std::endl;
++      return;
++    }
++
++    unwinder.SetDisplayBuildID(true);
++    for (size_t i = 0; i < unwinder.NumFrames(); i++) {
++      os << prefix << unwinder.FormatFrame(i) << std::endl;
++    }
++}
++
++void DumpNativeStack(std::ostream& os,
++                     pid_t tid,
++                     const char* prefix,
++                     ArtMethod* current_method ATTRIBUTE_UNUSED,
++                     void* ucontext_ptr,
++                     bool skip_frames ATTRIBUTE_UNUSED) {
++  if (ucontext_ptr) {
++    std::unique_ptr<Regs> regs(Regs::CreateFromUcontext(Regs::CurrentArch(), ucontext_ptr));
++    DumpNativeStackWithRegs(os, tid, prefix, regs.get());
++    return;
++  }
++
++  WithRegistersFromThread(os, tid, prefix, &DumpNativeStackWithRegs);
++}
++
++void DumpNativeStack(std::ostream& os,
++                     unwindstack::AndroidLocalUnwinder& existing_map ATTRIBUTE_UNUSED,
++                     pid_t tid,
++                     const char* prefix,
++                     ArtMethod* current_method,
++                     void* ucontext_ptr,
++                     bool skip_frames) {
++  DumpNativeStack(os, tid, prefix, current_method, ucontext_ptr, skip_frames);
++}
++
++#else // MEMFAULT_DUMP_NATIVE_STACK
++
+ static constexpr bool kUseAddr2line = !kIsTargetBuild;
+ 
+ std::string FindAddr2line() {
+@@ -429,6 +574,8 @@ void DumpNativeStack(std::ostream& os,
+   }
+ }
+ 
++#endif // MEMFAULT_DUMP_NATIVE_STACK
++
+ #elif defined(__APPLE__)
+ 
+ void DumpNativeStack([[maybe_unused]] std::ostream& os,

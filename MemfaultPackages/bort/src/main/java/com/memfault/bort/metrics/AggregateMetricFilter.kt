@@ -138,6 +138,10 @@ object AggregateMetricFilter {
             return METRIC_KEY_CPU_USAGE to metric.value
         }
 
+        if (metric.key.startsWith("cpu_usage_") && metric.key.endsWith("_pct.mean")) {
+            return metric.key.removeSuffix(".mean") to metric.value
+        }
+
         // Memory vitals
         if (metric.key == "memory_pct.mean") {
             return "memory_pct" to metric.value
@@ -150,6 +154,13 @@ object AggregateMetricFilter {
         if (metric.key == "storage_used_pct.latest") {
             return "storage_used_pct" to metric.value
         }
+        // Device vitals: storage wear
+        if (metric.key.startsWith("disk_wear.")) {
+            if (metric.key.endsWith("bytes_written.mean")) {
+                return metric.key.removeSuffix(".mean") to metric.value
+            }
+        }
+
         // Device Vitals: thermal
         if (metric.key.startsWith("thermal_") && metric.key.endsWith(".mean")) {
             return metric.key.removeSuffix(".mean") to metric.value
@@ -167,7 +178,9 @@ object AggregateMetricFilter {
         return metric.toPair()
     }
 
-    private fun String.isNetworkMetric(): Boolean = CONNECTIVITY_REGEX.matches(this)
+    private fun String.isNetworkMetric(): Boolean =
+        CONNECTIVITY_REGEX.matches(this) || startsWith(CONNECTIVITY_WIFI_PREFIX)
 
     private val CONNECTIVITY_REGEX = Regex("connectivity_.*(sent|recv)_bytes\\.(latest|sum)")
+    private const val CONNECTIVITY_WIFI_PREFIX = "connectivity.wifi"
 }

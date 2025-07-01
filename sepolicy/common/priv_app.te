@@ -1,0 +1,12 @@
+
+allow priv_app memfault_dumpster_service:service_manager find;
+
+allow priv_app memfault_bugreport_data_file:dir create_dir_perms;
+allow priv_app memfault_bugreport_data_file:file create_file_perms;
+
+if_sdk_version_gteq(28, `
+	# Allow reading /proc/diskstats
+	allow priv_app proc_diskstats:file r_file_perms;
+', `')
+
+binder_call(priv_app, dumpstate)

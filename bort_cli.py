@@ -26,12 +26,13 @@ PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_BORT_OTA_APP_ID = "vnd.myandroid.bort.otaappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
 PLACEHOLDER_SYSTEM = "__SYSTEM_PATH__"
-RELEASES = range(8, 14 + 1)
+RELEASES = range(8, 15 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 GRADLE_PROPERTIES = os.path.join(SCRIPT_DIR, "MemfaultPackages", "gradle.properties")
 PYTHON_MIN_VERSION = (3, 6, 0)
 USAGE_REPORTER_APPLICATION_ID = "com.memfault.usagereporter"
 USAGE_REPORTER_APK_PATH = r"package:/(system|system_ext|system/system_ext)/priv-app/MemfaultUsageReporter/MemfaultUsageReporter.apk"
+MEMFAULT_DUMPSTATE_RUNNER_DATA_PATH = "/data/misc/MemfaultBugReports/"
 MEMFAULT_DUMPSTATE_RUNNER_PATH = f"/{PLACEHOLDER_SYSTEM}/bin/MemfaultDumpstateRunner"
 MEMFAULT_INIT_RC_PATH = f"/{PLACEHOLDER_SYSTEM}/etc/init/memfault_init.rc"
 MEMFAULT_DUMPSTER_PATH = f"/{PLACEHOLDER_SYSTEM}/bin/MemfaultDumpster"
@@ -45,9 +46,9 @@ BORT_APK_PATH = (
 BORT_OTA_APK_PATH = (
     r"package:/(system|system_ext|system/system_ext)/priv-app/MemfaultBortOta/MemfaultBortOta.apk"
 )
-VENDOR_CIL_PATH = "/vendor/etc/selinux/vendor_sepolicy.cil"
+SYSTEM_PLAT_CIL_PATH = "/system/etc/selinux/plat_sepolicy.cil"
 SYSTEM_EXT_CIL_PATH = "/system_ext/etc/selinux/system_ext_sepolicy.cil"
-CIL_PATHS = [VENDOR_CIL_PATH, SYSTEM_EXT_CIL_PATH]
+CIL_PATHS = [SYSTEM_PLAT_CIL_PATH, SYSTEM_EXT_CIL_PATH]
 LOG_ENTRY_SEPARATOR = "============================================================"
 
 
@@ -843,7 +844,7 @@ class ValidateConnectedDevice(Command):
             output
             and not errors
             and re.search(
-                r"allow .*_app_.* memfault_dumpster_service \(service_manager \(find\)\)", output
+                r"allow .*_app.* memfault_dumpster_service \(service_manager \(find\)\)", output
             )
             for (output, errors) in cmd_results
         )
@@ -889,6 +890,18 @@ class ValidateConnectedDevice(Command):
 
         self._errors.extend(
             _check_file_ownership_and_secontext(
+                path=MEMFAULT_DUMPSTATE_RUNNER_DATA_PATH,
+                mode="drwxrwx--x",
+                owner="system",
+                group="system",
+                secontext="u:object_r:memfault_bugreport_data_file:s0",
+                directory=True,
+                device=self._device,
+            )
+        )
+
+        self._errors.extend(
+            _check_file_ownership_and_secontext(
                 path=_replace_placeholders(MEMFAULT_DUMPSTER_PATH, self.path_placeholders),
                 mode="-rwxr-xr-x",
                 owner="root",
@@ -921,13 +934,14 @@ class ValidateConnectedDevice(Command):
             )
         )
 
+        context = "privapp_data_file" if sdk_version >= 29 else "app_data_file"
         self._errors.extend(
             _check_file_ownership_and_secontext(
                 path=f"/data/data/{self._bort_app_id}/",
                 mode="drwx------",
                 owner="u[0-9]+_a[0-9]+",
                 group="u[0-9]+_a[0-9]+",
-                secontext="u:object_r:bort_app_data_file:s0",
+                secontext=f"u:object_r:{context}:s0",
                 directory=True,
                 device=self._device,
             )

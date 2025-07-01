@@ -17,9 +17,8 @@ import com.memfault.bort.clientserver.MarFileWriter.Companion.MAR_SIZE_TOLERANCE
 import com.memfault.bort.clientserver.MarFileWriter.Companion.chunkByElementSize
 import com.memfault.bort.clientserver.MarFileWriter.Companion.writeBatchedMarFile
 import com.memfault.bort.clientserver.MarFileWriter.Companion.writeMarFile
-import com.memfault.bort.clientserver.MarFileWriterTest.Companion.filename
+import com.memfault.bort.settings.FakeHttpApiSettings
 import com.memfault.bort.settings.HttpApiSettings
-import com.memfault.bort.settings.NetworkConstraint
 import com.memfault.bort.settings.Resolution
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.time.CombinedTime
@@ -138,28 +137,10 @@ internal class MarFileWriterTest {
 
     @Test
     fun mergeToMultipleFiles() {
-        val settings = object : HttpApiSettings {
+        val settings: HttpApiSettings = object : FakeHttpApiSettings() {
             override val projectKey: String get() = "key"
-            override val filesBaseUrl: String get() = TODO("Not used")
-            override val deviceBaseUrl: String get() = TODO("Not used")
-            override val uploadNetworkConstraint: NetworkConstraint get() = TODO("Not used")
-            override val uploadRequiresBatteryNotLow: Boolean
-                get() = TODO("Not used")
-            override val uploadRequiresCharging: Boolean
-                get() = TODO("Not used")
-            override val uploadCompressionEnabled: Boolean get() = TODO("Not used")
-            override val connectTimeout: Duration get() = TODO("Not used")
-            override val writeTimeout: Duration get() = TODO("Not used")
-            override val readTimeout: Duration get() = TODO("Not used")
-            override val callTimeout: Duration get() = TODO("Not used")
             override val zipCompressionLevel: Int = 4
-            override val batchMarUploads: Boolean get() = TODO("Not used")
-            override val batchedMarUploadPeriod: Duration get() = TODO("Not used")
-            override val deviceConfigInterval: Duration get() = TODO("Not used")
             override val maxMarFileSizeBytes: Int get() = 3000 + MAR_SIZE_TOLERANCE_BYTES
-            override val maxMarStorageBytes: Long get() = TODO("Not used")
-            override val maxMarUnsampledStoredAge: Duration get() = TODO("Not used")
-            override val maxMarUnsampledStoredBytes: Long get() = TODO("Not used")
         }
         val temp: TemporaryFileFactory = TestTemporaryFileFactory
         val writer = MarFileWriter(settings, temp, { 4 })

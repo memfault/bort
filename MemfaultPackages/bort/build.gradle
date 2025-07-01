@@ -56,6 +56,12 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    androidComponents {
+        beforeVariants(selector().withBuildType("release")) { variantBuilder ->
+            variantBuilder.enableUnitTest = false
+        }
+    }
 }
 
 room {

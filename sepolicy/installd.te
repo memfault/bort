@@ -1,4 +1,0 @@
-
-# installd needs access because it needs to be able to set up the file system sandbox:
-allow installd bort_app_data_file:dir { create_dir_perms relabelfrom relabelto };
-allow installd bort_app_data_file:notdevfile_class_set { create_file_perms relabelfrom relabelto };

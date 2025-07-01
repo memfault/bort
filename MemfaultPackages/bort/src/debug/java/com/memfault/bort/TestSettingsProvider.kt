@@ -6,6 +6,7 @@ import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.settings.DynamicSettingsProvider
 import com.memfault.bort.settings.HttpApiSettings
 import com.memfault.bort.settings.LogcatSettings
+import com.memfault.bort.settings.MetricsSettings
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.shared.LogcatFilterSpec
@@ -42,9 +43,9 @@ class TestSettingsProvider @Inject constructor(
     override val httpApiSettings = object : HttpApiSettings by settings.httpApiSettings {
         // Specifically for Bort Lite tests, where the apk is targeting prod:
         override val deviceBaseUrl: String
-            get() = "http://localhost:8000"
+            get() = "http://app.memfault.test:8000"
         override val filesBaseUrl: String
-            get() = "http://localhost:8000"
+            get() = "http://app.memfault.test:8000"
     }
 
     // TODO: review this, the backend will override settings through dynamic settings update
@@ -68,6 +69,8 @@ class TestSettingsProvider @Inject constructor(
                     // e2e-helper-test is the tag used to generate random bytes
                     // for the continuous logcat bytes-threshold test
                     LogcatFilterSpec("e2e-helper-test", LogcatPriority.VERBOSE),
+                    // answer(42) tag for the events binary buffer
+                    LogcatFilterSpec("answer", LogcatPriority.INFO),
                 )
             } else {
                 settings.logcatSettings.filterSpecs
@@ -85,5 +88,17 @@ class TestSettingsProvider @Inject constructor(
             } else {
                 settings.dataScrubbingSettings.rules
             }
+    }
+
+    override val metricsSettings = object : MetricsSettings by settings.metricsSettings {
+        // Low threshold for cpu reporting because tests are generally idle
+        // We could set this via sdk setting but the settings are not in the backend yet
+        override val cpuProcessReportingThreshold: Int
+            get() = 0
+
+        // During tests create metrics for all processes so that we can assert whether
+        // they reach the backend
+        override val alwaysCreateCpuProcessMetrics: Boolean
+            get() = true
     }
 }

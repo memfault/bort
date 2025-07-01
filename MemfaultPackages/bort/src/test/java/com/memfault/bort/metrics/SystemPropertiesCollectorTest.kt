@@ -43,6 +43,10 @@ class SystemPropertiesCollectorTest {
             override val thermalMetricsEnabled: Boolean get() = TODO("not used")
             override val thermalCollectLegacyMetrics: Boolean get() = TODO("not used")
             override val thermalCollectStatus: Boolean get() = TODO("not used")
+            override val cpuInterestingProcesses: Set<String> get() = TODO("not used")
+            override val cpuProcessReportingThreshold: Int get() = TODO("not used")
+            override val cpuProcessLimitTopN: Int get() = TODO("not used")
+            override val alwaysCreateCpuProcessMetrics: Boolean get() = TODO("not used")
         }
         val deviceImei = "12345678987654321"
         val telephony: TelephonyManager = mockk {

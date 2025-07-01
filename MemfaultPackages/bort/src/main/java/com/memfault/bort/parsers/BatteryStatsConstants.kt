@@ -58,6 +58,12 @@ object BatteryStatsConstants {
     const val LONGWAKE = "longwake"
     const val ALARM = "alarm"
     const val START = "start"
+    const val SCREEN_DOZE = "screen_doze"
+    const val FLASHLIGHT = "flashlight"
+    const val BLUETOOTH = "bluetooth"
+    const val USB_DATA = "usb_data"
+    const val CELLULAR_HIGH_TX_POWER = "cellular_high_tx_power"
+    const val NR_STATE = "nr_state"
 
     fun <T : Enum<T>> enumNames(values: List<Enum<T>>): List<JsonPrimitive> = values.map { JsonPrimitive(it.name) }
 
@@ -170,6 +176,7 @@ object BatteryStatsConstants {
         Off("off"),
         Light("light"),
         Full("full"),
+        Unknown("???"),
         ;
 
         companion object {
@@ -240,14 +247,60 @@ object BatteryStatsConstants {
     enum class PhoneState(
         private val value: String,
     ) {
+        // Normal operation condition, the phone is registered with an operator either in home network or in roaming.
         In("in"),
+
+        // Phone is not registered with any operator, the phone can be currently searching a new operator to register
+        // to, or not searching to registration at all, or registration is denied, or radio signal is not available.
         Out("out"),
+
+        // The phone is registered and locked. Only emergency numbers are allowed.
         Emergency("em"),
+
+        // Radio of telephony is explicitly powered off.
         Off("off"),
         ;
 
         companion object {
             private val map = values().associateBy(PhoneState::value)
+            fun fromString(type: String) = map[type]
+        }
+    }
+
+    // https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/telephony/java/android/telephony/NetworkRegistrationInfo.java;l=147
+    // NR (5G) state
+    enum class NrState(
+        private val value: String,
+    ) {
+        /**
+         * The device isn't camped on an LTE cell or the LTE cell doesn't support E-UTRA-NR
+         * Dual Connectivity(EN-DC).
+         */
+        None("0"),
+
+        /**
+         * The device is camped on an LTE cell that supports E-UTRA-NR Dual Connectivity(EN-DC) but
+         * either the use of dual connectivity with NR(DCNR) is restricted or NR is not supported by
+         * the selected PLMN.
+         */
+        Restricted("1"),
+
+        /**
+         * The device is camped on an LTE cell that supports E-UTRA-NR Dual Connectivity(EN-DC) and both
+         * the use of dual connectivity with NR(DCNR) is not restricted and NR is supported by the
+         * selected PLMN.
+         */
+        NotRestricted("2"),
+
+        /**
+         * The device is camped on an LTE cell that supports E-UTRA-NR Dual Connectivity(EN-DC) and
+         * also connected to at least one 5G cell as a secondary serving cell.
+         */
+        Connected("3"),
+        ;
+
+        companion object {
+            private val map = entries.associateBy(NrState::value)
             fun fromString(type: String) = map[type]
         }
     }

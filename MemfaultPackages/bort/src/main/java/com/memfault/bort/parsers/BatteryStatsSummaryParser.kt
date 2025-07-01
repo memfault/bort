@@ -1,6 +1,5 @@
 package com.memfault.bort.parsers
 
-import android.os.Process
 import com.memfault.bort.BortJson
 import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsSummaryParseError
 import com.memfault.bort.diagnostics.BortErrors
@@ -106,17 +105,50 @@ class BatteryStatsSummaryParser @Inject constructor(
 
     @Serializable
     data class BatteryState(
+        /**
+         * Returns the total battery realtime in milliseconds.
+         */
         val batteryRealtimeMs: Long,
+
+        /**
+         * Return the wall clock time when battery stats data collection started.
+         */
         val startClockTimeMs: Long,
+
+        /**
+         * Returns the total battery screen off/doze realtime in milliseconds.
+         */
         val screenOffRealtimeMs: Long,
+
+        /**
+         * Returns the estimated real battery capacity, which may be less than the capacity
+         * declared by the PowerProfile, in mAh.
+         */
         val estimatedBatteryCapacity: Double,
     )
 
     @Serializable
     data class PowerUseSummary(
+
+        /**
+         * Returns battery capacity in milli-amp-hours.
+         */
         val originalBatteryCapacity: Double = 0.0,
+
+        /**
+         * Total amount of battery charge drained since BatteryStats reset (e.g. due to being fully
+         * charged), in mAh.
+         */
         val computedCapacityMah: Double = 0.0,
+
+        /**
+         * Min discharged power since BatteryStats were last reset, in mAh as an estimate.
+         */
         val minCapacityMah: Double = 0.0,
+
+        /**
+         * Max discharged power since BatteryStats were last reset, in mAh as an estimate.
+         */
         val maxCapacityMah: Double = 0.0,
     )
 
@@ -135,18 +167,10 @@ class BatteryStatsSummaryParser @Inject constructor(
 
     private fun ParserContext.uidToName(uid: Int): String {
         // Use known fixed UIDs if we know the value
-        if (uid == Process.SYSTEM_UID) {
-            return COMPONENT_SYSTEM
-        }
-
         // Otherwise use the package name from the top of the checkin
-        val uidName = uids[uid]
-        if (uidName != null) {
-            return uidName
-        }
-
-        // Else report as unknown
-        return COMPONENT_UNKNOWN
+        return PackageManagerReport.PROCESS_UID_COMPONENT_MAP[uid]
+            ?: uids[uid]
+            ?: PROCESS_UNKNOWN
     }
 
     private fun ParserContext.componentName(drainType: String, uid: Int): String = when (drainType) {
@@ -180,6 +204,10 @@ class BatteryStatsSummaryParser @Inject constructor(
     @Serializable
     data class PowerUseItemData(
         val name: String,
+
+        /**
+         * Total power consumed by this consumer, in mAh.
+         */
         val totalPowerMaH: Double,
     )
 
@@ -209,8 +237,7 @@ class BatteryStatsSummaryParser @Inject constructor(
         private const val I_UID = 1
         private const val I_TYPE = 2
         private const val I_CONTENT_START = 3
-        private const val COMPONENT_SYSTEM = "system"
-        private const val COMPONENT_UNKNOWN = "unknown"
+        private const val PROCESS_UNKNOWN = "unknown"
         private const val UID = "uid"
 
         // https://cs.android.com/android/platform/superproject/+/android14-qpr3-release:frameworks/base/core/java/android/os/BatteryStats.java;l=4402

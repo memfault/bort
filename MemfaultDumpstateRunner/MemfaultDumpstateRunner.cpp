@@ -56,7 +56,7 @@
 #define TARGET_APP_ID STRINGIFY(BORT_APPLICATION_ID)
 #define TARGET_COMPONENT_CLASS "com.memfault.bort.receivers.BugReportReceiver"
 #define TARGET_COMPONENT TARGET_APP_ID "/" TARGET_COMPONENT_CLASS
-#define TARGET_DIR "/data/data/" TARGET_APP_ID "/files/bugreports/"
+#define TARGET_DIR "/data/misc/MemfaultBugReports/"
 
 using android::os::dumpstate::CommandOptions;
 using android::os::dumpstate::RunCommandToFd;
@@ -283,53 +283,11 @@ void CleanupDumpstateLogs(void) {
     free(log_files);
 }
 
-// Based on https://cs.android.com/android/_/android/platform/frameworks/native/+/0f58ab624b96f7f2e49a606ee8ce0cedeb10004d:cmds/dumpstate/dumpstate.cpp;l=3650;drc=f2a15e8742cf33e37e6c96f4731c298c6749bb68
-bool createParentDirs(uint32_t targetUid) {
-    char path[sizeof(TARGET_DIR)];
-    memcpy(path, TARGET_DIR, sizeof(TARGET_DIR));
-
-    char *chp = const_cast<char *> (path);
-    bool success = true;
-
-    /* skip initial slash */
-    if (chp[0] == '/') {
-        chp++;
-    }
-
-    /* create leading directories, if necessary */
-    struct stat dir_stat;
-    while (chp && chp[0]) {
-        chp = strchr(chp, '/');
-        if (chp) {
-            *chp = 0;
-            if (stat(path, &dir_stat) == -1 || !S_ISDIR(dir_stat.st_mode)) {
-                ALOGD("Creating directory %s\n", path);
-                if (mkdir(path, 0770)) { /* drwxrwx--- */
-                    ALOGE("Unable to create directory %s: %s\n", path, strerror(errno));
-                    success = false;
-                } else if (chown(path, targetUid, targetUid)) {
-                    ALOGE("Unable to change ownership of dir %s: %s\n", path, strerror(errno));
-                    success = false;
-                }
-            }
-            *chp++ = '/';
-        }
-    }
-
-    return success;
-}
-
-
 }  // namespace
 
 int main(void) {
     const uint32_t targetUid = GetTargetUid();
     ALOGI("Target UID: %d", targetUid);
-
-    if (!createParentDirs(targetUid)) {
-        ALOGE("Failed to create output directories. ");
-        return EXIT_FAILURE;
-    }
 
     ALOGI("Starting bugreport collecting service");
 
@@ -366,7 +324,7 @@ int main(void) {
         goto cleanup;
     }
 
-    if (chown(targetPath.c_str(), targetUid, targetUid)) {
+    if (chown(targetPath.c_str(), targetUid, -1)) {
         ALOGE("Unable to change ownership to system of %s: %s\n",
               targetPath.c_str(), strerror(errno));
         goto cleanup;

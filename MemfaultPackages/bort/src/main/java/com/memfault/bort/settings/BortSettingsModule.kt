@@ -26,6 +26,7 @@ fun interface MetricsCollectionInterval : () -> Duration
 fun interface MaxUploadAttempts : () -> Int
 fun interface MaxMarStorageBytes : () -> Long
 fun interface ZipCompressionLevel : () -> Int
+fun interface MarSampledMaxStorageAge : () -> Duration
 fun interface MarUnsampledMaxStorageAge : () -> Duration
 fun interface MarUnsampledMaxStorageBytes : () -> Long
 fun interface DropboxScrubTombstones : () -> Boolean
@@ -138,6 +139,10 @@ abstract class BortSettingsModule {
         @Provides
         fun zipCompressionLevel(settings: SettingsProvider) =
             ZipCompressionLevel { settings.httpApiSettings.zipCompressionLevel }
+
+        @Provides
+        fun maxMarSampledAge(settings: SettingsProvider) =
+            MarSampledMaxStorageAge { settings.httpApiSettings.maxMarSampledStoredAge }
 
         @Provides
         fun maxMarUnsampledAge(settings: SettingsProvider) =

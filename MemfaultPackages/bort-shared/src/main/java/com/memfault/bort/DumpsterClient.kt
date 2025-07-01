@@ -227,6 +227,16 @@ class DumpsterClient @Inject constructor(
             return runBasicCommand(IDumpster.CMD_ID_PROC_STAT)
         }
 
+    suspend fun getProcPidStat(): String? =
+        withService<String?>(minimumVersion = IDumpster.VERSION_PROC_PID_STAT) {
+            return runBasicCommand(IDumpster.CMD_ID_PROC_PID_STAT)
+        }
+
+    suspend fun getStorageWear(): String? =
+        withService<String?>(minimumVersion = IDumpster.VERSION_STORAGE_WEAR) {
+            return runBasicCommand(IDumpster.CMD_ID_STORAGE_WEAR)
+        }
+
     /**
      * Gets the available version of the MemfaultDumpster service, or null if the service is not available.
      */

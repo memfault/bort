@@ -1,17 +1,21 @@
 package com.memfault.bort.clientserver
 
 import android.app.Application
+import com.memfault.bort.BortJson
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.MarFileSampledHoldingDir
+import com.memfault.bort.MarFileUnsampledHoldingDir
 import com.memfault.bort.Payload
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
 import com.memfault.bort.clientserver.MarMetadata.Companion.createManifest
 import com.memfault.bort.clientserver.MarMetadata.DeviceConfigMarMetadata
+import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.cleanupFiles
 import com.memfault.bort.requester.directorySize
 import com.memfault.bort.settings.BatchMarUploads
 import com.memfault.bort.settings.CurrentSamplingConfig
+import com.memfault.bort.settings.MarSampledMaxStorageAge
 import com.memfault.bort.settings.MarUnsampledMaxStorageAge
 import com.memfault.bort.settings.MarUnsampledMaxStorageBytes
 import com.memfault.bort.settings.MaxMarStorageBytes
@@ -25,18 +29,22 @@ import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.uploader.EnqueuePreparedUploadTask
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.SerializationException
+import org.jetbrains.annotations.VisibleForTesting
 import java.io.File
+import java.time.Duration
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.toJavaDuration
 
 /**
  * We keep all mar files waiting for upload in [sampledHoldingDirectory], then whenever [MarBatchingTask] runs (either
  * periodic, or one-time if invoke [oneTimeMarUpload] below), it will request a batched mar from this class.
  *
  * Files which are not eligible for upload under the current [SamplingConfig] are stored in the
- * [MarUnsampledHoldingArea], in case the sampling config changes later.
+ * [unsampledHoldingDirectory], in case the sampling config changes later.
  *
  * If this is a [ClientServerMode] client, then only sampled files are sent to the server. Unsampled files are kept
  * locally, then sent to the server if the sampling config allows at a later time.
@@ -47,15 +55,16 @@ import kotlin.time.Duration.Companion.ZERO
 @Singleton
 class MarFileHoldingArea @Inject constructor(
     @MarFileSampledHoldingDir private val sampledHoldingDirectory: File,
+    @MarFileUnsampledHoldingDir private val unsampledHoldingDirectory: File,
     private val batchMarUploads: BatchMarUploads,
     private val marFileWriter: MarFileWriter,
     private val oneTimeMarUpload: OneTimeMarUpload,
     private val cachedClientServerMode: CachedClientServerMode,
     private val currentSamplingConfig: CurrentSamplingConfig,
     private val linkedDeviceFileSender: LinkedDeviceFileSender,
-    private val unsampledHoldingArea: MarUnsampledHoldingArea,
     private val combinedTimeProvider: CombinedTimeProvider,
     private val maxMarStorageBytes: MaxMarStorageBytes,
+    private val marMaxSampledAge: MarSampledMaxStorageAge,
     private val marMaxUnsampledAge: MarUnsampledMaxStorageAge,
     private val marMaxUnsampledBytes: MarUnsampledMaxStorageBytes,
     private val deviceInfoProvider: DeviceInfoProvider,
@@ -79,9 +88,14 @@ class MarFileHoldingArea @Inject constructor(
         name = "mar_unsampled_max_age_ms",
         internal = true,
     )
+    private val unsampledDeletedMetric = Reporting.report().counter(
+        name = "mar_unsampled_deleted",
+        internal = true,
+    )
 
     init {
         sampledHoldingDirectory.mkdirs()
+        unsampledHoldingDirectory.mkdirs()
     }
 
     /**
@@ -125,7 +139,7 @@ class MarFileHoldingArea @Inject constructor(
             addSampledMarFile(mar)
         } else {
             Logger.d("addMarFile: unsampled $mar")
-            unsampledHoldingArea.add(mar)
+            addUnsampledMarFile(mar)
             // Whenever a mar file is added (to either sampled or sampled) we check whether we are over the storage
             // limit.
             cleanupIfRequired()
@@ -139,8 +153,8 @@ class MarFileHoldingArea @Inject constructor(
      */
     suspend fun bundleMarFilesForUpload(): List<File> = mutex.withLock {
         sampledStorageMetric.record(sampledHoldingDirectory.directorySize())
-        unsampledStorageMetric.record(unsampledHoldingArea.storageUsedBytes())
-        val maxUnsampledAgeMs = unsampledHoldingArea.oldestFileUpdatedTimestampMs()?.let {
+        unsampledStorageMetric.record(unsampledHoldingDirectory.directorySize())
+        val maxUnsampledAgeMs = unsampledHoldingDirectory.oldestFileUpdatedTimestamp()?.let {
             combinedTimeProvider.now().timestamp.toEpochMilli() - it
         } ?: 0
         unsampledAgeMetric.record(maxUnsampledAgeMs)
@@ -154,10 +168,10 @@ class MarFileHoldingArea @Inject constructor(
     suspend fun handleSamplingConfigChange(newConfig: SamplingConfig) = mutex.withLock {
         // Move files from unsampled -> sampled, if new sampling configuration allows.
         var addedFilesFromUnsampled = false
-        unsampledHoldingArea.eligibleForUpload(newConfig).forEach { mar ->
+        unsampledEligibleForUpload(newConfig).forEach { mar ->
             Logger.d("moving to sampled: $mar")
             addSampledMarFile(mar)
-            unsampledHoldingArea.removeManifest(mar)
+            manifestFileForMar(unsampledHoldingDirectory, mar.marFile).deleteSilently()
             addedFilesFromUnsampled = true
         }
         // Add a new mar entry, confirming that we processed this config revision.
@@ -185,59 +199,149 @@ class MarFileHoldingArea @Inject constructor(
 
     fun deleteAllFiles() {
         cleanupFiles(dir = sampledHoldingDirectory, maxDirStorageBytes = 0)
-        unsampledHoldingArea.deleteAllFiles()
+        cleanupFiles(dir = unsampledHoldingDirectory, maxDirStorageBytes = 0)
     }
 
     /**
      * Run cleanup for the holding areas - but only if we are over the storage limit.
      */
-    private fun cleanupIfRequired() {
+    @VisibleForTesting
+    internal fun cleanupIfRequired() {
         // Limit for the unsampled area is whatever is not used by the sampled area.
         val sampledStorageUsedBytes = sampledHoldingDirectory.directorySize()
-        val unsampledUsedBytes = unsampledHoldingArea.storageUsedBytes()
+        val unsampledUsedBytes = unsampledHoldingDirectory.directorySize()
         val usedBytes = sampledStorageUsedBytes + unsampledUsedBytes
         val limitBytes = maxMarStorageBytes()
+        val maxSampledAge = marMaxSampledAge()
         val maxUnsampledAge = marMaxUnsampledAge()
+
+        val now = combinedTimeProvider.now().timestamp
         val cleanupForMaxUnsampledAge = when (maxUnsampledAge) {
             ZERO -> false
             else -> {
-                val oldestUnsampledFileAgeMs = unsampledHoldingArea.oldestFileUpdatedTimestampMs()?.let {
-                    combinedTimeProvider.now().timestamp.toEpochMilli() - it
-                } ?: 0
-                oldestUnsampledFileAgeMs > maxUnsampledAge.inWholeMilliseconds
+                val oldestUnsampledFileAge = unsampledHoldingDirectory.oldestFileUpdatedTimestamp()
+                    ?.let { Instant.ofEpochMilli(it) }
+                if (oldestUnsampledFileAge != null) {
+                    Duration.between(oldestUnsampledFileAge, now) > maxUnsampledAge.toJavaDuration()
+                } else {
+                    false
+                }
+            }
+        }
+        val cleanupForMaxSampledAge = when (maxSampledAge) {
+            ZERO -> false
+            else -> {
+                val oldestSampledFileAge = sampledHoldingDirectory.oldestFileUpdatedTimestamp()
+                    ?.let { Instant.ofEpochMilli(it) }
+                if (oldestSampledFileAge != null) {
+                    Duration.between(oldestSampledFileAge, now) > maxSampledAge.toJavaDuration()
+                } else {
+                    false
+                }
             }
         }
         val unsampledOverLimit = unsampledUsedBytes > marMaxUnsampledBytes()
-        if (usedBytes > limitBytes || cleanupForMaxUnsampledAge || unsampledOverLimit) {
-            cleanup(
-                sampledStorageUsedBytes = sampledStorageUsedBytes,
-                limitBytes = limitBytes,
-                maxUnsampledAge = maxUnsampledAge,
-                maxUnsampledBytes = marMaxUnsampledBytes(),
-            )
-        }
-    }
+        if (usedBytes > limitBytes || cleanupForMaxUnsampledAge || cleanupForMaxSampledAge || unsampledOverLimit) {
+            // Only cleanup the sampled area if it is over limit.
+            if (sampledStorageUsedBytes > limitBytes || cleanupForMaxSampledAge) {
+                val result = cleanupFiles(
+                    dir = sampledHoldingDirectory,
+                    maxDirStorageBytes = limitBytes,
+                    maxFileAge = maxSampledAge,
+                    timeNowMs = now.toEpochMilli(),
+                )
+                if (result.deletedForAgeCount > 0) {
+                    Logger.d("Deleted ${result.deletedForAgeCount} sampled mar files to stay under age limit")
+                    sampledDeletedMetric.incrementBy(result.deletedForAgeCount)
+                }
+                if (result.deletedForStorageCount > 0) {
+                    Logger.d("Deleted ${result.deletedForStorageCount} sampled mar files to stay under storage limit")
+                    sampledDeletedMetric.incrementBy(result.deletedForStorageCount)
+                }
+            }
 
-    /**
-     * Cleanup the holding areas: unsampled first, then also sampled if we are still over the limit.
-     */
-    private fun cleanup(
-        sampledStorageUsedBytes: Long,
-        limitBytes: Long,
-        maxUnsampledAge: Duration,
-        maxUnsampledBytes: Long,
-    ) {
-        // Only cleanup the sampled area if it is over limit.
-        if (sampledStorageUsedBytes > limitBytes) {
-            val result = cleanupFiles(dir = sampledHoldingDirectory, maxDirStorageBytes = limitBytes)
+            val unsampledLimit = limitBytes - sampledHoldingDirectory.directorySize()
+            val unsampledLimitBytes = minOf(unsampledLimit, marMaxUnsampledBytes())
+
+            val result = cleanupFiles(
+                dir = unsampledHoldingDirectory,
+                maxDirStorageBytes = unsampledLimitBytes,
+                maxFileAge = maxUnsampledAge,
+                timeNowMs = now.toEpochMilli(),
+            )
             if (result.deletedForStorageCount > 0) {
-                Logger.d("Deleted ${result.deletedForStorageCount} sampled mar files to stay under storage limit")
-                sampledDeletedMetric.incrementBy(result.deletedForStorageCount)
+                Logger.d("Deleted ${result.deletedForStorageCount} unsampled mar files to stay under storage limit")
+                unsampledDeletedMetric.incrementBy(result.deletedForStorageCount)
+            }
+            if (result.deletedForAgeCount > 0) {
+                Logger.d("Deleted ${result.deletedForAgeCount} unsampled mar files for max age")
+                unsampledDeletedMetric.incrementBy(result.deletedForAgeCount)
             }
         }
 
-        val unsampledLimit = limitBytes - sampledHoldingDirectory.directorySize()
-        unsampledHoldingArea.cleanup(minOf(unsampledLimit, maxUnsampledBytes), maxUnsampledAge)
+        // Now go through and delete any orphan files (i.e. manifest without mar, or vice versa).
+        val files = unsampledHoldingDirectory.listFiles()?.asList() ?: emptyList()
+        files.forEach { file ->
+            val matchingFile = when (file.extension) {
+                MANIFEST_EXTENSION -> marFileForManifest(unsampledHoldingDirectory, file)
+                MarFileWriter.MAR_EXTENSION -> manifestFileForMar(unsampledHoldingDirectory, file)
+                else -> null
+            }
+            val matchingFileExists = matchingFile?.exists() ?: false
+            if (!matchingFileExists) {
+                file.delete()
+                unsampledDeletedMetric.increment()
+            }
+        }
+    }
+
+    private fun addUnsampledMarFile(mar: MarFileWithManifest) {
+        mar.marFile.renameTo(File(unsampledHoldingDirectory, mar.marFile.name))
+        // Persist manifest separately, for easy retrieval.
+        val manifestFile = manifestFileForMar(unsampledHoldingDirectory, mar.marFile)
+        val manifestSerialized = BortJson.encodeToString(MarManifest.serializer(), mar.manifest)
+        manifestFile.writeText(manifestSerialized, charset = Charsets.UTF_8)
+    }
+
+    @VisibleForTesting
+    internal fun unsampledEligibleForUpload(samplingConfig: SamplingConfig): List<MarFileWithManifest> {
+        val manifestFiles =
+            unsampledHoldingDirectory.listFiles()?.asList()?.filter { it.extension == MANIFEST_EXTENSION }
+                ?: emptyList()
+        return manifestFiles.mapNotNull { manifestFile ->
+            val manifestJson = manifestFile.readText(charset = Charsets.UTF_8)
+            val manifest = try {
+                BortJson.decodeFromString(MarManifest.serializer(), manifestJson)
+            } catch (e: SerializationException) {
+                null
+            }
+            manifest?.let { _ ->
+                if (samplingConfig.shouldUpload(manifest)) {
+                    val marFile = marFileForManifest(unsampledHoldingDirectory, manifestFile)
+                    if (marFile.exists()) {
+                        MarFileWithManifest(marFile, manifest)
+                    } else {
+                        null
+                    }
+                } else {
+                    null
+                }
+            }
+        }
+    }
+
+    companion object {
+        @VisibleForTesting
+        internal fun marFileForManifest(holdingDirectory: File, manifestFile: File): File {
+            val marFileName = manifestFile.name.removeSuffix(".$MANIFEST_EXTENSION")
+            return File(holdingDirectory, marFileName)
+        }
+
+        @VisibleForTesting
+        internal fun manifestFileForMar(holdingDirectory: File, marFile: File): File =
+            File(holdingDirectory, "${marFile.name}.$MANIFEST_EXTENSION")
+
+        private const val MANIFEST_EXTENSION = "manifest"
     }
 }
 
@@ -262,4 +366,4 @@ class OneTimeMarUpload @Inject constructor(
     }
 }
 
-fun File.oldestFileUpdatedTimestamp(): Long? = listFiles()?.map { it.lastModified() }?.minOrNull()
+fun File.oldestFileUpdatedTimestamp(): Long? = listFiles()?.minOfOrNull { it.lastModified() }

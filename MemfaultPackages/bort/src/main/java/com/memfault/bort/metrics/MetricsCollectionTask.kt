@@ -5,7 +5,6 @@ import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.InstallationIdProvider
-import com.memfault.bort.IntegrationChecker
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
@@ -138,7 +137,6 @@ class MetricsCollectionTask @Inject constructor(
     private val appVersionsCollector: AppVersionsCollector,
     private val dumpsterClient: DumpsterClient,
     private val bortSystemCapabilities: BortSystemCapabilities,
-    private val integrationChecker: IntegrationChecker,
     private val installationIdProvider: InstallationIdProvider,
     private val batteryStatsCollector: BatteryStatsCollector,
     private val crashHandler: CrashHandler,
@@ -218,7 +216,6 @@ class MetricsCollectionTask @Inject constructor(
             packageManagerClient,
             propertiesStore,
             dumpsterClient,
-            integrationChecker,
             installationIdProvider,
         )
 

@@ -234,6 +234,10 @@ data class FetchedSettings(
     @SerialName("http_api.max_mar_file_storage_bytes")
     val httpApiMaxMarStorageBytes: Long = 250_000_000,
 
+    @SerialName("http_api.mar_sampled_max_stored_age_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val httpApiMarSampledMaxStoredAge: BoxedDuration = 0.days.boxed(),
+
     @SerialName("http_api.mar_unsampled_max_stored_bytes")
     val httpApiMaxMarUnsampledStorageBytes: Long = 250_000_000,
 
@@ -346,6 +350,18 @@ data class FetchedSettings(
     @SerialName("metrics.reporter_collection_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val metricsReporterCollectionInterval: BoxedDuration = 10.minutes.boxed(),
+
+    @SerialName("metrics.cpu_interesting_processes")
+    val metricsCpuInterestingProcesses: Set<String> = emptySet(),
+
+    @SerialName("metrics.cpu_process_reporting_threshold")
+    val metricsCpuProcessReportingThreshold: Int = 50,
+
+    @SerialName("metrics.cpu_process_limit_top_n")
+    val metricsCpuProcessLimitTopN: Int = 10,
+
+    @SerialName("metrics.always_create_cpu_process_metrics")
+    val alwaysCreateCpuProcessMetrics: Boolean = false,
 
     @SerialName("ota.update_check_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)

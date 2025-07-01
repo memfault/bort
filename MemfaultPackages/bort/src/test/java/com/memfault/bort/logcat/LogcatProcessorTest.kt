@@ -51,7 +51,6 @@ class LogcatProcessorTest {
     private lateinit var kernelOopsDetector: LogcatLineProcessor
     private lateinit var selinuxViolationLogcatDetector: SelinuxViolationLogcatDetector
     private lateinit var logcatSettings: LogcatSettings
-    private lateinit var storagedDiskWearLogcatDetector: StoragedDiskWearLogcatDetector
     private val fileUploadHoldingArea: FileUploadHoldingArea = mockk {
         every { add(any()) } answers { fileUploadEntry = arg(0) }
     }
@@ -104,16 +103,12 @@ class LogcatProcessorTest {
             override val logs2metricsConfig: JsonObject get() = TODO("not used")
         }
 
-        storagedDiskWearLogcatDetector = StoragedDiskWearLogcatDetector()
         val factories = setOf(
             object : LogcatLineProcessor.Factory {
                 override fun create(): LogcatLineProcessor = kernelOopsDetector
             },
             object : LogcatLineProcessor.Factory {
                 override fun create(): LogcatLineProcessor = selinuxViolationLogcatDetector
-            },
-            object : LogcatLineProcessor.Factory {
-                override fun create(): LogcatLineProcessor = storagedDiskWearLogcatDetector
             },
         )
 

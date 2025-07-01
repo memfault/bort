@@ -17,8 +17,10 @@ import com.memfault.bort.clientserver.MarMetadata
 import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsHistoryParseError
 import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.dropbox.DropBoxLastProcessedEntryProvider
+import com.memfault.bort.dropbox.enqueueOneTimeDropBoxQueryTask
 import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.logcat.NextLogcatStartTimeProvider
+import com.memfault.bort.metrics.CpuMetricsCollector
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.MetricsCollectionRequester
@@ -77,6 +79,7 @@ class BortTestReceiver : FilteringReceiver(
         "com.memfault.intent.action.TEST_CRASH_FREE_HOURS_METRICS",
         "com.memfault.intent.action.TEST_BORT_ERROR",
         "com.memfault.intent.action.TEST_BORT_CHANGE_SOFTWARE_VERSION",
+        "com.memfault.intent.action.TEST_DROPBOX_GET_ENTRIES",
     ),
 ) {
     @Inject lateinit var settingsProvider: SettingsProvider
@@ -114,6 +117,8 @@ class BortTestReceiver : FilteringReceiver(
     @Inject lateinit var metricsCollectionRequester: MetricsCollectionRequester
 
     @Inject lateinit var testDeviceInfoProvider: TestDeviceInfoProvider
+
+    @Inject lateinit var cpuMetricsCollector: CpuMetricsCollector
 
     override fun onIntentReceived(
         context: Context,
@@ -164,7 +169,13 @@ class BortTestReceiver : FilteringReceiver(
                 Logger.test("cid=${nextLogcatCidProvider.cid.uuid}")
             }
 
+            "com.memfault.intent.action.TEST_REQUEST_CPU_METRICS_COLLECTION" -> goAsync {
+                cpuMetricsCollector.collect()
+            }
+
             "com.memfault.intent.action.TEST_REQUEST_METRICS_COLLECTION" -> goAsync {
+                cpuMetricsCollector.collect()
+
                 // Kotlin based reporting library
                 Kotlin_Reporting.report()
                     .counter("reporting_kotlin_test_metric")
@@ -248,6 +259,10 @@ class BortTestReceiver : FilteringReceiver(
                 testDeviceInfoProvider.overrideDeviceInfo = OverrideDeviceInfo { deviceInfo ->
                     deviceInfo.copy(softwareVersion = swv)
                 }
+            }
+
+            "com.memfault.intent.action.TEST_DROPBOX_GET_ENTRIES" -> {
+                enqueueOneTimeDropBoxQueryTask(context)
             }
         }
     }

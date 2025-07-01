@@ -94,6 +94,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.httpApiMaxMarFileSizeBytes
         override val maxMarStorageBytes: Long
             get() = settings.httpApiMaxMarStorageBytes
+        override val maxMarSampledStoredAge: Duration
+            get() = settings.httpApiMarSampledMaxStoredAge.duration
         override val maxMarUnsampledStoredAge: Duration
             get() = settings.httpApiMarUnsampledMaxStoredAge.duration
         override val maxMarUnsampledStoredBytes: Long
@@ -210,6 +212,14 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.metricsThermalCollectLegacyMetrics
         override val thermalCollectStatus: Boolean
             get() = settings.metricsThermalCollectStatus
+        override val cpuInterestingProcesses: Set<String>
+            get() = settings.metricsCpuInterestingProcesses
+        override val cpuProcessReportingThreshold: Int
+            get() = settings.metricsCpuProcessReportingThreshold
+        override val alwaysCreateCpuProcessMetrics: Boolean
+            get() = settings.alwaysCreateCpuProcessMetrics
+        override val cpuProcessLimitTopN: Int
+            get() = settings.metricsCpuProcessLimitTopN
     }
 
     override val batteryStatsSettings = object : BatteryStatsSettings {

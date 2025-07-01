@@ -1,18 +1,12 @@
 BORT_PATH := vendor/memfault/bort
 
-BORT_BOARD_SEPOLICY_DIR := $(BORT_PATH)/sepolicy
+
+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -eq 27 && echo true),true)
+BORT_BOARD_SEPOLICY_DIR := $(BORT_PATH)/sepolicy/common
 ifeq (,$(findstring $(BORT_BOARD_SEPOLICY_DIR),$(BOARD_SEPOLICY_DIRS)))
   BOARD_SEPOLICY_DIRS += $(BORT_BOARD_SEPOLICY_DIR)
 endif
-
-BORT_SEPOLICY_VENDOR_DIR := $(BORT_PATH)/sepolicy/vendor-$(PLATFORM_SDK_VERSION)
-ifneq (,$(wildcard $(BORT_SEPOLICY_VENDOR_DIR)))
-  ifeq (,$(findstring $(BORT_SEPOLICY_VENDOR_DIR),$(BOARD_SEPOLICY_DIRS)))
-    BOARD_SEPOLICY_DIRS += $(BORT_SEPOLICY_VENDOR_DIR)
-  endif
 endif
-
-
 
 BORT_BOARD_SEPOLICY_M4DEF := memfault_platform_sdk_version=${PLATFORM_SDK_VERSION}
 ifeq (,$(findstring $(BORT_BOARD_SEPOLICY_M4DEF),$(BOARD_SEPOLICY_M4DEFS)))

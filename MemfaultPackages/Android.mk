@@ -36,12 +36,13 @@ include $(BUILD_PHONY_PACKAGE)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := com.memfault.bort.xml
+LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE_CLASS := ETC
 LOCAL_MODULE_PATH := $(_BORT_ETC_PATH)/permissions
-BORT_XML_TARGET := $(LOCAL_MODULE_PATH)/$(LOCAL_MODULE)
+BORT_XML_TARGET := $(call local-generated-sources-dir)/$(LOCAL_MODULE)
 $(call bort_src_gen,$(LOCAL_PATH)/com.memfault.bort.xml.in,$(BORT_XML_TARGET))
-LOCAL_ADDITIONAL_DEPENDENCIES := $(BORT_XML_TARGET)
-include $(BUILD_PHONY_PACKAGE)
+LOCAL_SRC_FILES := ../../../../$(BORT_XML_TARGET)
+include $(BUILD_PREBUILT)
 
 
 include $(CLEAR_VARS)
@@ -72,12 +73,13 @@ include $(BUILD_PREBUILT)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := com.memfault.bort.ota.xml
+LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE_CLASS := ETC
 LOCAL_MODULE_PATH := $(_BORT_ETC_PATH)/permissions
-BORT_XML_TARGET := $(LOCAL_MODULE_PATH)/$(LOCAL_MODULE)
+BORT_XML_TARGET := $(call local-generated-sources-dir)/$(LOCAL_MODULE)
 $(call bort_src_gen,$(LOCAL_PATH)/com.memfault.bort.ota.xml.in,$(BORT_XML_TARGET))
-LOCAL_ADDITIONAL_DEPENDENCIES := $(BORT_XML_TARGET)
-include $(BUILD_PHONY_PACKAGE)
+LOCAL_SRC_FILES := ../../../../$(BORT_XML_TARGET)
+include $(BUILD_PREBUILT)
 
 
 include $(CLEAR_VARS)
@@ -108,12 +110,13 @@ include $(BUILD_PREBUILT)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE := com.memfault.usagereporter.xml
+LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE_CLASS := ETC
 LOCAL_MODULE_PATH := $(_BORT_ETC_PATH)/permissions
-USAGE_REPORTER_XML_TARGET := $(LOCAL_MODULE_PATH)/$(LOCAL_MODULE)
+USAGE_REPORTER_XML_TARGET := $(call local-generated-sources-dir)/$(LOCAL_MODULE)
 $(call bort_src_gen,$(LOCAL_PATH)/com.memfault.usagereporter.xml.in,$(USAGE_REPORTER_XML_TARGET))
-LOCAL_ADDITIONAL_DEPENDENCIES := $(USAGE_REPORTER_XML_TARGET)
-include $(BUILD_PHONY_PACKAGE)
+LOCAL_SRC_FILES := ../../../../$(USAGE_REPORTER_XML_TARGET)
+include $(BUILD_PREBUILT)
 
 
 include $(CLEAR_VARS)

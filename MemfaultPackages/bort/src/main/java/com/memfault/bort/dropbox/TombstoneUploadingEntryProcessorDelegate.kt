@@ -94,16 +94,20 @@ class TombstoneUploadingEntryProcessorDelegate @Inject constructor(
         }.filterNotNull().firstOrNull()
 
     private suspend fun getPackages(processName: String?): List<AndroidPackage> {
-        processName ?: return emptyList<AndroidPackage>().also {
+        if (processName == null) {
             Logger.e("Tombstone failed to parse")
+            return emptyList()
         }
 
         val packages = packageManagerClient.getPackageManagerReport()
         val packageInfo = packages.findPackagesByProcessName(processName)
-        val uploaderPackage =
-            packageInfo?.toUploaderPackage() ?: return emptyList<AndroidPackage>().also {
-                Logger.e("Failed to resolve package: processName=$processName packageInfo=$packageInfo")
-            }
-        return listOf(uploaderPackage)
+        val uploaderPackage = packageInfo?.toUploaderPackage()
+
+        return if (uploaderPackage != null) {
+            listOf(uploaderPackage)
+        } else {
+            Logger.e("Failed to resolve package: processName=$processName packageInfo=$packageInfo")
+            emptyList()
+        }
     }
 }

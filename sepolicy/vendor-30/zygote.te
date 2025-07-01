@@ -1,2 +1,0 @@
-
-allow zygote bort_app_data_file:dir getattr;

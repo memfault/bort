@@ -7,23 +7,22 @@ import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.settings.RateLimitingSettings
 import com.memfault.bort.time.boxed
-import io.mockk.MockKAnnotations
 import io.mockk.every
-import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import org.junit.Before
 import org.junit.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 class DropBoxFilterSettingsTest {
 
-    @RelaxedMockK
-    lateinit var mockEntryProcessor: EntryProcessor
+    private var mockEntryProcessor: EntryProcessor = mockk()
     private var mockGetExcludedTags: Set<String> = setOf()
-    lateinit var entryProcessors: DropBoxEntryProcessors
+    private var entryProcessors: DropBoxEntryProcessors = mapOfProcessors(
+        TEST_TAG to mockEntryProcessor,
+        TEST_TAG_TO_IGNORE to mockEntryProcessor,
+    )
     private var bortEnabled = MutableStateFlow(true)
 
     private val mockRateLimitingSettings = RateLimitingSettings(
@@ -58,15 +57,6 @@ class DropBoxFilterSettingsTest {
         override val processImmediately: Boolean = true
         override val pollingInterval: Duration = 15.minutes
         override val otherTags: Set<String> = emptySet()
-    }
-
-    @Before
-    fun setUp() {
-        MockKAnnotations.init(this)
-        entryProcessors = mapOfProcessors(
-            TEST_TAG to mockEntryProcessor,
-            TEST_TAG_TO_IGNORE to mockEntryProcessor,
-        )
     }
 
     @Test

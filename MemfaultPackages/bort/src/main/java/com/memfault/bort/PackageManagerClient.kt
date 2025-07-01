@@ -13,9 +13,11 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration.Companion.seconds
 
+@Singleton
 class PackageManagerClient @Inject constructor(
     private val packageManager: PackageManager,
     private val cachePackageManagerReport: CachePackageManagerReport,

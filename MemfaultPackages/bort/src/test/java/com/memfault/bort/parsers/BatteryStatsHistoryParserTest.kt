@@ -10,6 +10,7 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isTrue
 import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsHistoryParseError
 import com.memfault.bort.diagnostics.BortErrors
+import com.memfault.bort.metrics.HighResTelemetry.DataType.BooleanType
 import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
 import com.memfault.bort.metrics.HighResTelemetry.DataType.StringType
 import com.memfault.bort.metrics.HighResTelemetry.Datum
@@ -27,17 +28,23 @@ import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_TEMP
 import com.memfault.bort.parsers.BatteryStatsConstants.BLUETOOTH_LE_SCANNING
 import com.memfault.bort.parsers.BatteryStatsConstants.BOOL_VALUE_FALSE
 import com.memfault.bort.parsers.BatteryStatsConstants.BOOL_VALUE_TRUE
+import com.memfault.bort.parsers.BatteryStatsConstants.CELLULAR_HIGH_TX_POWER
 import com.memfault.bort.parsers.BatteryStatsConstants.CPU_RUNNING
 import com.memfault.bort.parsers.BatteryStatsConstants.DOZE
+import com.memfault.bort.parsers.BatteryStatsConstants.FLASHLIGHT
 import com.memfault.bort.parsers.BatteryStatsConstants.FOREGROUND
 import com.memfault.bort.parsers.BatteryStatsConstants.GPS_ON
 import com.memfault.bort.parsers.BatteryStatsConstants.LONGWAKE
+import com.memfault.bort.parsers.BatteryStatsConstants.NR_STATE
 import com.memfault.bort.parsers.BatteryStatsConstants.PHONE_RADIO
 import com.memfault.bort.parsers.BatteryStatsConstants.PHONE_SCANNING
+import com.memfault.bort.parsers.BatteryStatsConstants.PHONE_STATE
 import com.memfault.bort.parsers.BatteryStatsConstants.SCREEN_BRIGHTNESS
+import com.memfault.bort.parsers.BatteryStatsConstants.SCREEN_DOZE
 import com.memfault.bort.parsers.BatteryStatsConstants.SCREEN_ON
 import com.memfault.bort.parsers.BatteryStatsConstants.START
 import com.memfault.bort.parsers.BatteryStatsConstants.TOP_APP
+import com.memfault.bort.parsers.BatteryStatsConstants.USB_DATA
 import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_ON
 import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_RADIO
 import com.memfault.bort.parsers.BatteryStatsConstants.WIFI_RUNNING
@@ -589,5 +596,181 @@ class BatteryStatsHistoryParserTest {
             )
         }
         coVerify { bortErrors wasNot Called }
+    }
+
+    @Test
+    fun `phone state`() = runTest {
+        val result1 = BatteryStatsHistoryParser(
+            createFile(
+                filename = "batterystats1.txt",
+                content = """
+                9,h,123:TIME:1000000
+                9,h,581,-Psc,Pst=in,Pss=5,+Etp=159
+                """.trimIndent(),
+            ),
+            bortErrors,
+        ).parseToCustomMetrics()
+
+        assertThat(result1.batteryStatsHrt).all {
+            contains(
+                Rollup(
+                    RollupMetadata(
+                        stringKey = PHONE_STATE,
+                        metricType = Property,
+                        dataType = StringType,
+                        internal = false,
+                    ),
+                    listOf(Datum(t = 1000581, JsonPrimitive("In"))),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `usb data`() = runTest {
+        val result1 = BatteryStatsHistoryParser(
+            createFile(
+                filename = "batterystats1.txt",
+                content = """
+                9,h,123:TIME:1000000
+                9,h,1000,Bl=89,Bs=d,Bh=g,Bp=n,Bt=284,Bv=4239,Bcc=4085,Mrc=0,Wrc=0,+r,+w,+S,Pss=4,Sb=4,+Ud,+bles
+                9,h,1000,-Ud
+                """.trimIndent(),
+            ),
+            bortErrors,
+        ).parseToCustomMetrics()
+
+        assertThat(result1.batteryStatsHrt).all {
+            contains(
+                Rollup(
+                    RollupMetadata(
+                        stringKey = USB_DATA,
+                        metricType = Property,
+                        dataType = BooleanType,
+                        internal = false,
+                    ),
+                    listOf(Datum(t = 1001000, BOOL_VALUE_TRUE), Datum(t = 1002000, BOOL_VALUE_FALSE)),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `screen doze`() = runTest {
+        val result1 = BatteryStatsHistoryParser(
+            createFile(
+                filename = "batterystats1.txt",
+                content = """
+                9,h,123:TIME:1000000
+                9,h,999,+r,+w,+S,Pss=4,Sb=4,+Sd
+                9,h,1001,-Sd
+                """.trimIndent(),
+            ),
+            bortErrors,
+        ).parseToCustomMetrics()
+
+        assertThat(result1.batteryStatsHrt).all {
+            contains(
+                Rollup(
+                    RollupMetadata(
+                        stringKey = SCREEN_DOZE,
+                        metricType = Property,
+                        dataType = BooleanType,
+                        internal = false,
+                    ),
+                    listOf(Datum(t = 1000999, BOOL_VALUE_TRUE), Datum(t = 1002000, BOOL_VALUE_FALSE)),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `flashlight`() = runTest {
+        val result1 = BatteryStatsHistoryParser(
+            createFile(
+                filename = "batterystats1.txt",
+                content = """
+                9,h,123:TIME:1000000
+                9,h,1000,+r,+w,+S,Pss=4,Sb=4,+fl
+                9,h,1000,-fl
+                """.trimIndent(),
+            ),
+            bortErrors,
+        ).parseToCustomMetrics()
+
+        assertThat(result1.batteryStatsHrt).all {
+            contains(
+                Rollup(
+                    RollupMetadata(
+                        stringKey = FLASHLIGHT,
+                        metricType = Property,
+                        dataType = BooleanType,
+                        internal = false,
+                    ),
+                    listOf(Datum(t = 1001000, BOOL_VALUE_TRUE), Datum(t = 1002000, BOOL_VALUE_FALSE)),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `cellular high transmission power`() = runTest {
+        val result1 = BatteryStatsHistoryParser(
+            createFile(
+                filename = "batterystats1.txt",
+                content = """
+                9,h,123:TIME:1000000
+                9,h,1000,+r,+w,+S,Pss=4,Sb=4,+Chtp
+                9,h,1000,-Chtp
+                """.trimIndent(),
+            ),
+            bortErrors,
+        ).parseToCustomMetrics()
+
+        assertThat(result1.batteryStatsHrt).all {
+            contains(
+                Rollup(
+                    RollupMetadata(
+                        stringKey = CELLULAR_HIGH_TX_POWER,
+                        metricType = Property,
+                        dataType = BooleanType,
+                        internal = false,
+                    ),
+                    listOf(Datum(t = 1001000, BOOL_VALUE_TRUE), Datum(t = 1002000, BOOL_VALUE_FALSE)),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `nr 5g state`() = runTest {
+        val result1 = BatteryStatsHistoryParser(
+            createFile(
+                filename = "batterystats1.txt",
+                content = """
+                9,h,123:TIME:1000000
+                9,h,1000,+r,+w,+S,Pss=4,Sb=4,nrs=2
+                9,h,1000,nrs=0
+                """.trimIndent(),
+            ),
+            bortErrors,
+        ).parseToCustomMetrics()
+
+        assertThat(result1.batteryStatsHrt).all {
+            contains(
+                Rollup(
+                    RollupMetadata(
+                        stringKey = NR_STATE,
+                        metricType = Property,
+                        dataType = StringType,
+                        internal = false,
+                    ),
+                    listOf(
+                        Datum(t = 1001000, JsonPrimitive("NotRestricted")),
+                        Datum(t = 1002000, JsonPrimitive("None")),
+                    ),
+                ),
+            )
+        }
     }
 }

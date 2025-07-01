@@ -1,10 +1,18 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.boot.LinuxBootId
+import com.memfault.bort.metrics.CpuUsage.Companion.totalTicks
+import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.shared.Logger
 import kotlinx.serialization.Serializable
 import javax.inject.Inject
 
-class CpuMetricsParser @Inject constructor() {
+class CpuMetricsParser @Inject constructor(
+    readLinuxBootId: LinuxBootId,
+) {
+    private val bootId: String by lazy { readLinuxBootId() }
+    private val disallowedMetricCharactersMatcher: Regex by lazy { "\\\\".toRegex() }
+
     /**
      * Example output:
      cpu  8830083 2521748 9745235 125386365 353146 2190102 484077 4443 0 0
@@ -24,8 +32,46 @@ class CpuMetricsParser @Inject constructor() {
      procs_blocked 0
      softirq 156980225 2317304 35376543 36190 18741811 1093954 0 12933582 24229258 30301 62221282
      */
-    internal fun parseProcStat(dumpsysOutput: String): CpuUsage? {
-        dumpsysOutput.lines().forEach { line ->
+    internal fun parseCpuUsage(
+        procStatOutput: String,
+        procPidStatOutput: String?,
+        packageManagerReport: PackageManagerReport,
+    ): CpuUsage? {
+        val usage = parseProcStatOutput(procStatOutput) ?: return null
+        return usage.copy(
+            perProcessUsage =
+            procPidStatOutput?.let { parseProcPidStatOutput(it, packageManagerReport) } ?: emptyMap(),
+        )
+    }
+
+    /**
+     * Parses the contents of procPidStatOutput into a map of process names to ProcessUsage objects.
+     *
+     * Each line has the process uid followed by the contents of /proc/<pid>/stat, separated by a space.
+     */
+    private fun parseProcPidStatOutput(
+        procPidStatOutput: String,
+        packageManagerReport: PackageManagerReport,
+    ): Map<String, ProcessUsage> =
+        PROC_PID_STAT_REGEX.findAll(procPidStatOutput).mapNotNull { matchResult ->
+            val (uidStr, pid, comm, _, utimeStr, stimeStr) = matchResult.destructured
+            val uid = uidStr.toInt()
+            // prefer the package name from the package manager report, but fall back to the comm name
+            val processName = packageManagerReport.findByUid(uid).firstOrNull()?.id ?: comm
+            ProcessUsage(
+                processName = sanitizeProcessName(processName),
+                uid = uid,
+                pid = pid.toIntOrNull() ?: return@mapNotNull null,
+                utime = utimeStr.toLongOrNull() ?: return@mapNotNull null,
+                stime = stimeStr.toLongOrNull() ?: return@mapNotNull null,
+            )
+        }.associateBy { it.processName }
+
+    private fun sanitizeProcessName(process: String, replacement: String = "_"): String =
+        process.replace(disallowedMetricCharactersMatcher, replacement)
+
+    private fun parseProcStatOutput(procStatOutput: String): CpuUsage? {
+        procStatOutput.lines().forEach { line ->
             if (line.startsWith(PREFIX_CPU)) {
                 try {
                     val stats = line.removePrefix(PREFIX_CPU).trim().split(" ").map { it.toLong() }
@@ -37,6 +83,7 @@ class CpuMetricsParser @Inject constructor() {
                         ticksIoWait = stats[POS_IOWAIT],
                         ticksIrq = stats[POS_IRQ],
                         ticksSoftIrq = stats[POS_SOFTIRQ],
+                        bootId = bootId,
                     )
                 } catch (e: NumberFormatException) {
                     Logger.i("Error parsing '$line'")
@@ -57,12 +104,49 @@ class CpuMetricsParser @Inject constructor() {
         private val POS_IOWAIT = 4
         private val POS_IRQ = 5
         private val POS_SOFTIRQ = 6
+
+        private val PROC_PID_STAT_REGEX =
+            """(\d+)\s+(\d+)\s+\((.*?)\)\s+(\S+)(?:\s+\S+){10}\s+(\d+)\s+(\d+)""".toRegex()
+    }
+}
+
+@Serializable
+data class ProcessUsage(
+    // Either a package name inferred by uid or the comm name from /proc/<pid>/stat
+    val processName: String,
+
+    // Parsed via /proc/<pid>/status in MemfaultDumpster
+    val uid: Int,
+
+    // Content of /proc/<pid>/stat
+    // see https://man7.org/linux/man-pages/man5/proc_pid_stat.5.html
+    val pid: Int,
+    val utime: Long,
+    val stime: Long,
+) {
+    companion object {
+        private fun ProcessUsage.totalTicks() = utime + stime
+
+        fun ProcessUsage.percentUsage(totalCpuUsage: CpuUsage): Double {
+            val processCpuTime = totalTicks()
+            return if (processCpuTime == 0L) {
+                0.0
+            } else {
+                processCpuTime.toDouble() * 100 / totalCpuUsage.totalTicks()
+            }
+        }
     }
 }
 
 /**
  * Bear in mind when changing this that values will be persisted: default values will be required for any new
  * fields.
+ *
+ *  A CPU tick represents one cycle of CPU time, incrementing monotonically.
+ *
+ *  Ticks can be classified as active (user, system) or idle (idle, iowait, irq, etc.).
+ *  CPU utilization at any moment can be computed as the ratio of active ticks
+ *  to total ticks over a time interval.
  */
 @Serializable
 data class CpuUsage(
@@ -73,6 +157,8 @@ data class CpuUsage(
     val ticksIoWait: Long,
     val ticksIrq: Long,
     val ticksSoftIrq: Long,
+    val perProcessUsage: Map<String, ProcessUsage> = emptyMap(),
+    val bootId: String,
 ) {
     companion object {
         fun CpuUsage.totalTicks() = ticksUser + ticksNice + ticksSystem + ticksIdle + ticksIoWait + ticksIrq +
@@ -85,6 +171,6 @@ data class CpuUsage(
             }
             return (totalTicks - ticksIdle) * 100 / totalTicks
         }
-        val EMPTY = CpuUsage(0, 0, 0, 0, 0, 0, 0)
+        val EMPTY = CpuUsage(0, 0, 0, 0, 0, 0, 0, emptyMap(), "")
     }
 }
