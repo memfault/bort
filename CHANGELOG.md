@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project currently does not attempt to adhere to Semantic Versioning, but
 breaking changes are avoided unless absolutely necessary.
 
-## [Unreleased]
+## v5.4.0 - July 1, 2025
 
 ### :rocket: New Features
 
