@@ -10,6 +10,7 @@ import com.memfault.bort.metrics.BatteryStatsAgg.MinimumValueAggregator
 import com.memfault.bort.metrics.BatteryStatsAgg.TimeByNominalAggregator
 import com.memfault.bort.metrics.BatteryStatsResult
 import com.memfault.bort.metrics.HighResTelemetry.DataType
+import com.memfault.bort.metrics.HighResTelemetry.DataType.BooleanType
 import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
 import com.memfault.bort.metrics.HighResTelemetry.DataType.StringType
 import com.memfault.bort.metrics.HighResTelemetry.Datum
@@ -29,6 +30,7 @@ import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_PLUGGED
 import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_STATUS
 import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_TEMP
 import com.memfault.bort.parsers.BatteryStatsConstants.BATTERY_VOLTAGE
+import com.memfault.bort.parsers.BatteryStatsConstants.BLUETOOTH
 import com.memfault.bort.parsers.BatteryStatsConstants.BLUETOOTH_LE_SCANNING
 import com.memfault.bort.parsers.BatteryStatsConstants.BOOL_VALUE_FALSE
 import com.memfault.bort.parsers.BatteryStatsConstants.BOOL_VALUE_TRUE
@@ -36,11 +38,13 @@ import com.memfault.bort.parsers.BatteryStatsConstants.BatteryHealth
 import com.memfault.bort.parsers.BatteryStatsConstants.BatteryPlug
 import com.memfault.bort.parsers.BatteryStatsConstants.BatteryStatus
 import com.memfault.bort.parsers.BatteryStatsConstants.CAMERA
+import com.memfault.bort.parsers.BatteryStatsConstants.CELLULAR_HIGH_TX_POWER
 import com.memfault.bort.parsers.BatteryStatsConstants.CHARGING
 import com.memfault.bort.parsers.BatteryStatsConstants.CPU_RUNNING
 import com.memfault.bort.parsers.BatteryStatsConstants.DEVICE_ACTIVE
 import com.memfault.bort.parsers.BatteryStatsConstants.DOZE
 import com.memfault.bort.parsers.BatteryStatsConstants.DozeState
+import com.memfault.bort.parsers.BatteryStatsConstants.FLASHLIGHT
 import com.memfault.bort.parsers.BatteryStatsConstants.FOREGROUND
 import com.memfault.bort.parsers.BatteryStatsConstants.GPS_ON
 import com.memfault.bort.parsers.BatteryStatsConstants.GPS_SIGNAL_STRENGTH
@@ -50,6 +54,8 @@ import com.memfault.bort.parsers.BatteryStatsConstants.I_TYPE
 import com.memfault.bort.parsers.BatteryStatsConstants.I_VERSION
 import com.memfault.bort.parsers.BatteryStatsConstants.JOB
 import com.memfault.bort.parsers.BatteryStatsConstants.LONGWAKE
+import com.memfault.bort.parsers.BatteryStatsConstants.NR_STATE
+import com.memfault.bort.parsers.BatteryStatsConstants.NrState
 import com.memfault.bort.parsers.BatteryStatsConstants.PACKAGE_INSTALL
 import com.memfault.bort.parsers.BatteryStatsConstants.PACKAGE_UNINSTALL
 import com.memfault.bort.parsers.BatteryStatsConstants.PHONE_CONNECTION
@@ -61,13 +67,16 @@ import com.memfault.bort.parsers.BatteryStatsConstants.PHONE_STATE
 import com.memfault.bort.parsers.BatteryStatsConstants.POWER_SAVE
 import com.memfault.bort.parsers.BatteryStatsConstants.PhoneConnection
 import com.memfault.bort.parsers.BatteryStatsConstants.PhoneSignalStrength
+import com.memfault.bort.parsers.BatteryStatsConstants.PhoneState
 import com.memfault.bort.parsers.BatteryStatsConstants.SCREEN_BRIGHTNESS
+import com.memfault.bort.parsers.BatteryStatsConstants.SCREEN_DOZE
 import com.memfault.bort.parsers.BatteryStatsConstants.SCREEN_ON
 import com.memfault.bort.parsers.BatteryStatsConstants.SENSOR
 import com.memfault.bort.parsers.BatteryStatsConstants.START
 import com.memfault.bort.parsers.BatteryStatsConstants.ScreenBrightness
 import com.memfault.bort.parsers.BatteryStatsConstants.TOP_APP
 import com.memfault.bort.parsers.BatteryStatsConstants.Transition
+import com.memfault.bort.parsers.BatteryStatsConstants.USB_DATA
 import com.memfault.bort.parsers.BatteryStatsConstants.USER
 import com.memfault.bort.parsers.BatteryStatsConstants.USER_FOREGROUND
 import com.memfault.bort.parsers.BatteryStatsConstants.VALID_VERSION
@@ -338,6 +347,12 @@ class BatteryStatsHistoryParser(
         BatteryMetric(key = LONGWAKE, type = Property, dataType = StringType),
         BatteryMetric(key = ALARM, type = Property, dataType = StringType),
         BatteryMetric(key = START, type = Event, dataType = StringType),
+        BatteryMetric(key = SCREEN_DOZE, type = Property, dataType = BooleanType),
+        BatteryMetric(key = FLASHLIGHT, type = Property, dataType = BooleanType),
+        BatteryMetric(key = BLUETOOTH, type = Property, dataType = BooleanType),
+        BatteryMetric(key = USB_DATA, type = Property, dataType = BooleanType),
+        BatteryMetric(key = CELLULAR_HIGH_TX_POWER, type = Property, dataType = BooleanType),
+        BatteryMetric(key = NR_STATE, type = Property, dataType = StringType),
     )
     private val metricsMap = metrics.associateBy { it.key }
 
@@ -677,13 +692,20 @@ class BatteryStatsHistoryParser(
                     "Psc" -> addValue(PHONE_SCANNING, transition.bool)
                     "Pss" -> addValue(PHONE_SIGNAL_STRENGTH, PhoneSignalStrength.fromString(value!!))
                     "Pst" -> {
-                        addValue(PHONE_STATE, transition.bool)
+                        addValue(PHONE_STATE, PhoneState.fromString(value!!))
                         if (!transition.bool) {
                             addValue(PHONE_SIGNAL_STRENGTH, null as String?)
                         }
                     }
 
                     "Eal" -> addValue(ALARM, hspLookup(value)?.value)
+
+                    "Sd" -> addValue(SCREEN_DOZE, transition.bool)
+                    "fl" -> addValue(FLASHLIGHT, transition.bool)
+                    "b" -> addValue(BLUETOOTH, transition.bool)
+                    "Ud" -> addValue(USB_DATA, transition.bool)
+                    "Chtp" -> addValue(CELLULAR_HIGH_TX_POWER, transition.bool)
+                    "nrs" -> addValue(NR_STATE, NrState.fromString(value!!))
                 }
             } catch (e: ArrayIndexOutOfBoundsException) {
                 Logger.i("parseEvent $event", e)

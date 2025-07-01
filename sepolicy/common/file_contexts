@@ -1,0 +1,10 @@
+
+# For use with memfault_dumpstate_runner.te -- hack inspired by:
+# https://cs.android.com/android/_/android/platform/packages/services/Car/+/2a84c7a9fe001e111778ccda84af1580a082b3e0:car_product/sepolicy/private/file_contexts;l=6;drc=a85b7e7058b8cb7f94ecf8f4728a76a821de4c3b
+/(system|system_ext|system/system_ext)/bin/MemfaultDumpstateRunner   u:object_r:dumpstate_exec:s0
+
+/(system|system_ext|system/system_ext)/bin/MemfaultDumpster          u:object_r:dumpstate_exec:s0
+
+/data/system/MemfaultDumpster(/.*)?   u:object_r:memfault_dumpster_data_file:s0
+
+/data/misc/MemfaultBugReports(/.*)?   u:object_r:memfault_bugreport_data_file:s0

@@ -1,9 +1,15 @@
 package com.memfault.bort.logcat
 
 import com.memfault.bort.logcat.Logs2MetricsRuleType.CountMatching
+import com.memfault.bort.logcat.Logs2MetricsRuleType.Distribution
+import com.memfault.bort.logcat.Logs2MetricsRuleType.StringProperty
+import com.memfault.bort.logcat.Logs2MetricsRuleType.SumMatching
 import com.memfault.bort.logcat.Logs2MetricsRuleType.Unknown
 import com.memfault.bort.parsers.LogcatLine
 import com.memfault.bort.parsers.PackageManagerReport
+import com.memfault.bort.reporting.NumericAgg.MAX
+import com.memfault.bort.reporting.NumericAgg.MEAN
+import com.memfault.bort.reporting.NumericAgg.MIN
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.settings.Logs2MetricsRules
 import com.memfault.bort.shared.Logger
@@ -58,6 +64,37 @@ class Logs2MetricsProcessor @AssistedInject constructor(
                 CountMatching ->
                     Reporting.report().event(name = key, countInReport = true)
                         .add(timestamp = line.logTime.toEpochMilli(), value = line.message)
+
+                SumMatching -> {
+                    if (match.groupValues.size == 2) {
+                        val count = match.groupValues.getOrNull(1)?.toInt()
+                        if (count != null) {
+                            Reporting.report().counter(name = key, sumInReport = true)
+                                .incrementBy(by = count, timestamp = line.logTime.toEpochMilli())
+                        }
+                    }
+                }
+
+                Distribution -> {
+                    if (match.groupValues.size == 2) {
+                        val value = match.groupValues.getOrNull(1)?.toDoubleOrNull()
+                        if (value != null) {
+                            Reporting.report().distribution(name = key, aggregations = listOf(MIN, MEAN, MAX))
+                                .record(value = value, timestamp = line.logTime.toEpochMilli())
+                        }
+                    }
+                }
+
+                StringProperty -> {
+                    if (match.groupValues.size == 2) {
+                        val value = match.groupValues.getOrNull(1)
+                        if (value != null) {
+                            Reporting.report().stringProperty(name = key)
+                                .update(value = value, timestamp = line.logTime.toEpochMilli())
+                        }
+                    }
+                }
+
                 Unknown -> Unit
             }
         }

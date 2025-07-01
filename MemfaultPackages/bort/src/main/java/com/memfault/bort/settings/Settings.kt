@@ -78,6 +78,10 @@ interface MetricsSettings {
     val thermalMetricsEnabled: Boolean
     val thermalCollectLegacyMetrics: Boolean
     val thermalCollectStatus: Boolean
+    val cpuInterestingProcesses: Set<String>
+    val cpuProcessReportingThreshold: Int
+    val cpuProcessLimitTopN: Int
+    val alwaysCreateCpuProcessMetrics: Boolean
 }
 
 interface LogcatSettings {
@@ -126,6 +130,7 @@ interface HttpApiSettings {
     val deviceConfigInterval: Duration
     val maxMarFileSizeBytes: Int
     val maxMarStorageBytes: Long
+    val maxMarSampledStoredAge: Duration
     val maxMarUnsampledStoredAge: Duration
     val maxMarUnsampledStoredBytes: Long
 }

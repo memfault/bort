@@ -3,10 +3,10 @@ BORT_PROPERTIES := $(MEMFAULT_PACKAGES_DIR)/bort.properties
 BORT_SRC_GEN_TOOL := $(MEMFAULT_PACKAGES_DIR)/bort_src_gen.py
 
 define bort_src_gen_template
-$(2): PRIVATE_PATH := $(MEMFAULT_PACKAGES_DIR)
 $(2): PRIVATE_CUSTOM_TOOL := $(BORT_SRC_GEN_TOOL) template $(1) $(2) $(BORT_PROPERTIES)
-$(2): $(1) $(BORT_SRC_GEN_TOOL) $(BORT_PROPERTIES)
+$(2): $(BORT_SRC_GEN_TOOL) $(BORT_PROPERTIES)
 	$$(transform-generated-source)
+LOCAL_GENERATED_SOURCES += $(2)
 endef
 
 define bort_src_gen

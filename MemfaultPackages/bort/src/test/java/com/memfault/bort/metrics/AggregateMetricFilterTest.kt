@@ -14,12 +14,14 @@ internal class AggregateMetricFilterTest {
             "random_metric" to JsonPrimitive(4.32),
             "sysprop.ro.build.type.latest" to JsonPrimitive("user"),
             "version.com.x.y.z.latest" to JsonPrimitive("v1"),
+            "disk_wear.vda.bytes_written.mean" to JsonPrimitive(12345L),
         )
         val output = mapOf(
             "random_metric" to JsonPrimitive(4.32),
             "sysprop.ro.build.type" to JsonPrimitive("user"),
             "version.com.x.y.z" to JsonPrimitive("v1"),
             "operational_crashes" to JsonPrimitive(0.0),
+            "disk_wear.vda.bytes_written" to JsonPrimitive(12345L),
         )
         assertThat(filterAndRenameMetrics(input, internal = false, reportType = Hourly)).isEqualTo(output)
     }
