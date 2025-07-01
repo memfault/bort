@@ -4,7 +4,7 @@
 # We work around this by patching system/sepolicy directly.
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -ge 28 && echo true),true)
   # BOARD_PLAT_PRIVATE_SEPOLICY_DIR  
-  BORT_BOARD_PLAT_PRIVATE_SEPOLICY_DIR := $(BORT_PATH)/sepolicy/private
+  BORT_BOARD_PLAT_PRIVATE_SEPOLICY_DIR := $(BORT_PATH)/sepolicy/common $(BORT_PATH)/sepolicy/private
   ifeq (,$(findstring $(BORT_BOARD_PLAT_PRIVATE_SEPOLICY_DIR),$(BOARD_PLAT_PRIVATE_SEPOLICY_DIR)))
     BOARD_PLAT_PRIVATE_SEPOLICY_DIR += $(BORT_BOARD_PLAT_PRIVATE_SEPOLICY_DIR)
   endif

@@ -4,5 +4,8 @@
         <domain includeSubdomains="true">127.0.0.1</domain>
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">minio</domain>
+        <domain includeSubdomains="true">app.memfault.test</domain>
+        <domain includeSubdomains="true">api.memfault.test</domain>
+        <domain includeSubdomains="true">device.memfault.test</domain>
     </domain-config>
 </network-security-config>

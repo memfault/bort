@@ -1,0 +1,10 @@
+
+# Allow Bort OTA to write to /data/ota_package
+allow priv_app ota_package_file:dir rw_dir_perms;
+allow priv_app ota_package_file:file create_file_perms;
+
+# Allow Bort OTA to access update engine
+# Note: This was previously part of system/sepolicy but was removed in a point
+#       release of 11.0 in favor of the gmscore sandbox
+binder_call(priv_app, update_engine)
+allow priv_app update_engine_service:service_manager find;

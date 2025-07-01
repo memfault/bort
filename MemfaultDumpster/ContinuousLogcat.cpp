@@ -14,6 +14,7 @@
 #include <inttypes.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <utils/String8.h>
 #include <utils/String16.h>
@@ -37,18 +38,8 @@ ContinuousLogcat::ContinuousLogcat() :
   for (int i = LOG_ID_MIN; i < LOG_ID_MAX; i++) {
     const char* name = android_log_id_to_name((log_id_t)i);
     log_id_t log_id = android_name_to_log_id(name);
-
     log_names[log_id] = name;
-
-    // ignore binary logs
-    bool binary = log_id == LOG_ID_EVENTS || log_id == LOG_ID_SECURITY;
-#if PLATFORM_SDK_VERSION > 27
-    binary |= log_id == LOG_ID_STATS;
-#endif
-
-    if (!binary) {
-      buffers.push_back(log_id);
-    }
+    buffers.push_back(log_id);
   }
 
   config.restore_config();
@@ -61,6 +52,13 @@ ContinuousLogcat::ContinuousLogcat() :
 void ContinuousLogcat::start(bool start_from_previous_config) {
   std::lock_guard<std::mutex> lock(log_lock);
   ALOGT("clog: start (running=%d)", config.started());
+
+  int clog_not_empty = is_file_not_empty(CONTINUOUS_LOGCAT_FILE) > 0;
+  if (clog_not_empty) {
+    ALOGT("clog: dump to dropbox on start");
+    dump_output_to_dropbox();
+  }
+
   if (!config.started() || start_from_previous_config) {
     output_fd = creat(CONTINUOUS_LOGCAT_FILE, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
     output_fp = fdopen(output_fd, "w");
@@ -177,6 +175,9 @@ void ContinuousLogcat::run() {
   bool alarm_fired = false;
   bool dump_after_intr = false;
 
+  auto max_retry_backoff = std::chrono::milliseconds(30000);
+  auto current_retry_backoff = std::chrono::milliseconds(1);
+
   ScopedRepeatingAlarm alarm(
       [&]() {
         return std::chrono::milliseconds(config.dump_wrapping_timeout_ms());
@@ -246,8 +247,18 @@ void ContinuousLogcat::run() {
       // Read a log entry, this will run once per log line.
       int ret = android_logger_list_read(logger_list.get(), &log_msg);
 
-      if (ret == -EBADF || ret == -EAGAIN) {
-        ALOGT("clog: interrupted via stop signal, will dump");
+      if (ret == -EAGAIN) {
+        ALOGT("clog: logger_list_read returned EAGAIN, backing off for %" PRIu64 " ms",
+            static_cast<uint64_t>(current_retry_backoff.count()));
+        std::this_thread::sleep_for(current_retry_backoff);
+        current_retry_backoff = std::min(current_retry_backoff * 2, max_retry_backoff);
+        dump_after_intr = true;
+        break;
+      }
+      current_retry_backoff = std::chrono::milliseconds(1);
+
+      if (ret == -EBADF) {
+        ALOGT("clog: interrupted via stop signal, will dump (ret: %d)", ret);
         dump_after_intr = true;
 
         // logd socket likely closed, if that was us 'running' will be false
@@ -257,7 +268,7 @@ void ContinuousLogcat::run() {
       if (ret < 0) {
         ALOGT("clog: error while reading: %d\n", ret);
         if (!config.started() || alarm_fired) {
-          ALOGT("clog: interrupted via stop signal, will dump");
+          ALOGT("clog: interrupted via stop signal, will dump (started: %d)", config.started());
           alarm_fired = false;
           dump_after_intr = true;
         }
@@ -269,16 +280,44 @@ void ContinuousLogcat::run() {
         log_buffer_expired_counter_->increment();
       }
 
-      // Convert the logd buffer to the more human-friendly AndroidLogEntry
       AndroidLogEntry entry;
-#if PLATFORM_SDK_VERSION <= 29
-      int err = android_log_processLogBuffer(&log_msg.entry_v1, &entry);
-#else
-      int err = android_log_processLogBuffer(&log_msg.entry, &entry);
+      char binaryMsgBuf[1024];
+
+      bool is_binary = log_msg.id() == LOG_ID_EVENTS || log_msg.id() == LOG_ID_SECURITY;
+
+#if PLATFORM_SDK_VERSION > 27
+      is_binary |= log_msg.id() == LOG_ID_STATS;
 #endif
-      if (err < 0) {
-        ALOGE("error processing line: %d\n", err);
-        continue;
+
+      if (is_binary) {
+        if (!event_tag_map_ && !has_opened_event_tag_map_) {
+          event_tag_map_.reset(android_openEventTagMap(nullptr));
+          has_opened_event_tag_map_ = true;
+        }
+
+#if PLATFORM_SDK_VERSION <= 29
+        int err = android_log_processBinaryLogBuffer(&log_msg.entry_v1, &entry, event_tag_map_.get(),
+                                                     binaryMsgBuf, sizeof(binaryMsgBuf));
+#else
+        int err = android_log_processBinaryLogBuffer(&log_msg.entry, &entry, event_tag_map_.get(),
+                                                     binaryMsgBuf, sizeof(binaryMsgBuf));
+#endif
+        if (err < 0) {
+          ALOGE("error processing binary line: %d\n", err);
+          continue;
+        }
+      } else {
+        // Convert the logd buffer to the more human-friendly AndroidLogEntry
+#if PLATFORM_SDK_VERSION <= 29
+        int err = android_log_processLogBuffer(&log_msg.entry_v1, &entry);
+#else
+        int err = android_log_processLogBuffer(&log_msg.entry, &entry);
+#endif
+        if (err < 0) {
+          ALOGE("error processing line: %d\n", err);
+          continue;
+        }
+
       }
 
       // Force-checked if line should be printed, in some android
@@ -309,6 +348,7 @@ void ContinuousLogcat::run() {
           if (write(output_fd, buf, len) >= 0) {
             total_bytes_written += len;
             last_printed_log_id = log_id;
+            fsync(output_fd);
           } else {
             ALOGW("Failed to write separator to continuous log output");
           }
@@ -421,6 +461,18 @@ void ContinuousLogcatConfig::persist_config(const std::string &path) {
   } else {
     ALOGT("Could not open %s for writing", path.c_str());
   }
+}
+
+int ContinuousLogcat::is_file_not_empty(const std::string &path) {
+    struct stat file_stats;
+    int status = stat(path.c_str(), &file_stats);
+    if (status < 0) {
+        ALOGE("Failed to execute stat");
+        return status;
+    }
+
+    // Return 1 if file size is greater than 0, 0 otherwise.
+    return file_stats.st_size > 0;
 }
 
 }

@@ -52,6 +52,10 @@ class ThermalMetricsCollectorTest {
         override val thermalCollectLegacyMetrics: Boolean get() = TODO("not used")
         override val thermalCollectStatus: Boolean
             get() = TODO("Not yet implemented")
+        override val cpuInterestingProcesses: Set<String> get() = TODO("not used")
+        override val cpuProcessReportingThreshold: Int get() = TODO("not used")
+        override val cpuProcessLimitTopN: Int get() = TODO("not used")
+        override val alwaysCreateCpuProcessMetrics: Boolean get() = TODO("not used")
     }
 
     private val settingsFlow = object : SettingsFlow {

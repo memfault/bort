@@ -20,8 +20,12 @@ service memfault_dumpstatez /system/bin/dumpstate -S -d -z -q \
 # it to complete and copy the bugreport.zip into a location that can be accessed by Bort.
 # It runs as root and in the "dumpstate" sepolicy domain, because it needs
 # to access both the shell-owned bugreport output of dumpstate and it needs to be able to copy it
-# into Bort's filesystem sandboxed location. See MemfaultDumpstateRunner.cpp for
+# into the bugreport folder in /data/misc/MemfaultBugReports. See MemfaultDumpstateRunner.cpp for
 # the source code of the program itself.
+
+on post-fs-data
+    mkdir /data/misc/MemfaultBugReports/ 0771 system system
+    wait /data/misc/MemfaultBugReports/
 
 service memfault_dumpstate_runner /system/bin/MemfaultDumpstateRunner
     class core

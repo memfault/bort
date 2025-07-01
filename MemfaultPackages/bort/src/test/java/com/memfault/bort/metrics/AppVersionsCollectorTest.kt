@@ -57,6 +57,10 @@ class AppVersionsCollectorTest {
             override val thermalMetricsEnabled: Boolean get() = TODO("not used")
             override val thermalCollectLegacyMetrics: Boolean get() = TODO("not used")
             override val thermalCollectStatus: Boolean get() = TODO("not used")
+            override val cpuInterestingProcesses: Set<String> get() = TODO("Not used")
+            override val cpuProcessReportingThreshold: Int get() = TODO("not used")
+            override val cpuProcessLimitTopN: Int get() = TODO("not used")
+            override val alwaysCreateCpuProcessMetrics: Boolean get() = TODO("not used")
         },
         packageManagerClient = pmClient,
     )

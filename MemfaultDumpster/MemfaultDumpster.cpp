@@ -11,14 +11,17 @@
 #include <com/memfault/dumpster/IDumpsterBasicCommandListener.h>
 
 #include <stdlib.h>
-#include <stdlib.h>
 
 #include <memory>
 #include <string>
 #include <vector>
 
+#include <dirent.h>
+#include <unistd.h>
+
 #include "android-9/file.h"
 #include "ContinuousLogcat.h"
+#include "storage.h"
 
 #define DUMPSTER_SERVICE_NAME "memfault_dumpster"
 #define BORT_ENABLED_PROPERTY "persist.system.memfault.bort.enabled"
@@ -43,6 +46,109 @@ namespace {
       return rv;
   }
 
+  std::set<pid_t> allPids() {
+    std::set<pid_t> pids;
+    DIR *dir = opendir("/proc");
+    if (!dir) {
+      return pids;
+    }
+    dirent *entry;
+    while ((entry = readdir(dir)) != nullptr) {
+      if (entry->d_type == DT_DIR) {
+        // we're not interested in non-numeric entries such as /proc/stat and /proc/self
+        std::string name = entry->d_name;
+        if (name.find_first_not_of("0123456789") == std::string::npos) {
+          pids.insert(std::stoi(name));
+        }
+      }
+    }
+    closedir(dir);
+    return pids;
+  }
+
+  std::string readProcPid(int pid) {
+    std::string procPid;
+    if (!android::base::ReadFileToString("/proc/" + std::to_string(pid) + "/stat", &procPid)) {
+      // Some of these are bound to fail due to process termination between listing pids
+      // and reading their stat entry
+      return "";
+    }
+    return procPid;
+  }
+
+  int readUid(int pid) {
+    std::string status;
+    if (!android::base::ReadFileToString("/proc/" + std::to_string(pid) + "/status", &status)) {
+        return -1;
+    }
+    /**
+     * Output format is:
+     * Name:   colord
+     * Umask:  0022
+     * State:  S (sleeping)
+     * Tgid:   6007
+     * Ngid:   0
+     * Pid:    6007
+     * PPid:   1
+     * TracerPid:      0
+     * Uid:    961     961     961     961
+     * Gid:    961     961     961     961
+     * FDSize: 256
+     * Groups: 961
+     * (...)
+     *
+     * We only care about Uid
+     */
+
+    int uid;
+    std::istringstream statusStream(status);
+    std::string line;
+    while (std::getline(statusStream, line)) {
+        if (line.find("Uid:") == 0) {
+            std::istringstream uidStream(line);
+
+            // consume the label
+            std::string uidLabel;
+            uidStream >> uidLabel;
+
+            // consume the first value (ruid)
+            uidStream >> uid;
+            return uid;
+        }
+    }
+
+    return -1;
+  }
+
+  int readProcPidStats(std::string& output) {
+    std::stringstream buffer;
+    for (int pid : allPids()) {
+      int uid = readUid(pid);
+      if (uid == -1) {
+        continue;
+      }
+      std::string procPid = readProcPid(pid);
+      if (!procPid.empty()) {
+        buffer << uid << " " << procPid << std::endl;
+      }
+    }
+    output = buffer.str();
+    return 0;
+  }
+
+  int readStorageWear(std::string& output) {
+    memfault::jedec_storage_info info;
+
+    if (!get_storage_info(info)) {
+      return -1;
+    }
+
+    std::stringstream buffer;
+    buffer << info.eol << " " << info.lifetimeA << " " << info.lifetimeB << " " << info.source << " " << info.version;
+    output = buffer.str();
+    return 0;
+  }
+
   class DumpsterService : public BnDumpster {
         public:
         DumpsterService() : clog(new memfault::ContinuousLogcat()) {
@@ -53,14 +159,16 @@ namespace {
           return android::binder::Status::ok();
         }
 
+        using CommandFunc = std::function<int(std::string&)>;
+
         android::binder::Status runBasicCommand(
             int cmdId, const android::sp<IDumpsterBasicCommandListener> &listener) override {
-            std::vector<std::string> command = commandForId(cmdId);
-            if (command.empty()) {
+            auto commandFunc = commandFuncForId(cmdId);
+            if (!commandFunc) {
               listener->onUnsupported();
             } else {
               std::string output;
-              const int rv = RunCommandToString(command, output);
+              const int rv = commandFunc(output);
 #if PLATFORM_SDK_VERSION <= 30
               listener->onFinished(rv, std::make_unique<android::String16>(output.c_str()));
 #else
@@ -70,30 +178,41 @@ namespace {
             return android::binder::Status::ok();
         }
 
-        std::vector<std::string> commandForId(int cmdId) {
+        CommandFunc commandFuncForId(int cmdId) {
             switch (cmdId) {
-                case IDumpster::CMD_ID_GETPROP: return { "/system/bin/getprop" };
-                case IDumpster::CMD_ID_GETPROP_TYPES: return { "/system/bin/getprop", "-T" };
-                case IDumpster::CMD_ID_SET_BORT_ENABLED_PROPERTY_ENABLED: return {
-                        "/system/bin/setprop", BORT_ENABLED_PROPERTY, "1"
-                };
-                case IDumpster::CMD_ID_SET_BORT_ENABLED_PROPERTY_DISABLED: return {
-                        "/system/bin/setprop", BORT_ENABLED_PROPERTY, "0"
-                };
-                case IDumpster::CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_ENABLED: return {
-                        "/system/bin/setprop", STRUCTURED_ENABLED_PROPERTY, "1"
-                };
-                case IDumpster::CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_DISABLED: return {
-                        "/system/bin/setprop", STRUCTURED_ENABLED_PROPERTY, "0"
-                };
-                case IDumpster::CMD_ID_CYCLE_COUNT_NEVER_USE: return {
-                        "echo", ""
-                };
-                case IDumpster::CMD_ID_PROC_STAT: return {
-                        "cat", "/proc/stat"
-                };
+                case IDumpster::CMD_ID_GETPROP: return cmdToStringFunc({ "/system/bin/getprop" });
+                case IDumpster::CMD_ID_GETPROP_TYPES: return cmdToStringFunc({ "/system/bin/getprop", "-T" });
+                case IDumpster::CMD_ID_SET_BORT_ENABLED_PROPERTY_ENABLED: return cmdToStringFunc({
+                  "/system/bin/setprop", BORT_ENABLED_PROPERTY, "1"
+                });
+                case IDumpster::CMD_ID_SET_BORT_ENABLED_PROPERTY_DISABLED: return cmdToStringFunc({
+                  "/system/bin/setprop", BORT_ENABLED_PROPERTY, "0"
+                });
+                case IDumpster::CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_ENABLED: return cmdToStringFunc({
+                  "/system/bin/setprop", STRUCTURED_ENABLED_PROPERTY, "1"
+                });
+                case IDumpster::CMD_ID_SET_STRUCTURED_ENABLED_PROPERTY_DISABLED: return cmdToStringFunc({
+                  "/system/bin/setprop", STRUCTURED_ENABLED_PROPERTY, "0"
+                });
+                case IDumpster::CMD_ID_CYCLE_COUNT_NEVER_USE: return cmdToStringFunc({
+                  "echo", ""
+                });
+                case IDumpster::CMD_ID_PROC_STAT: return cmdToStringFunc({
+                  "cat", "/proc/stat"
+                });
+                case IDumpster::CMD_ID_PROC_PID_STAT: {
+                  return [](std::string& output) { 
+                    return readProcPidStats(output);
+                  };
+                }
+                case IDumpster::CMD_ID_STORAGE_WEAR: {
+                  return [](std::string& output) {
+                    return readStorageWear(output);
+                  };
+                }
 
-                default: return {};
+
+                default: return nullptr; 
             }
         }
 
@@ -107,7 +226,12 @@ namespace {
             // unpack String16-format strings
             std::vector<std::string> filter_specs;
             for (auto &it : filter_specs_s16) {
-              filter_specs.emplace_back(android::String8(it).string());
+#if PLATFORM_SDK_VERSION <= 34
+              const char* spec = android::String8(it).string();
+#else
+              const char* spec = android::String8(it);
+#endif
+              filter_specs.emplace_back(spec);
             }
 
             int32_t dump_threshold_bytes;
@@ -155,6 +279,10 @@ namespace {
 
     private:
         std::unique_ptr<memfault::ContinuousLogcat> clog;
+
+        CommandFunc cmdToStringFunc(const std::vector<std::string>& command) {
+          return [command](std::string& output) { return RunCommandToString(command, output); };
+        }
     };
 } // namespace
 

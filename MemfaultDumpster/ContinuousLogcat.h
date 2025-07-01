@@ -7,6 +7,7 @@
 #include <thread>
 #include <vector>
 
+#include <log/event_tag_map.h>
 #include <log/log_read.h>
 #include <log/logprint.h>
 #include <log/log_time.h>
@@ -94,6 +95,7 @@ class ContinuousLogcat {
     void dump_output(bool ignore_thresholds = false);
     void dump_output_to_dropbox();
     void rebuild_log_format(const std::vector<std::string>& filter_specs);
+    int is_file_not_empty(const std::string &path);
 
     std::mutex log_lock;
 
@@ -111,6 +113,10 @@ class ContinuousLogcat {
 
     std::unique_ptr<Report> report_;
     std::unique_ptr<Counter> log_buffer_expired_counter_;
+
+    std::unique_ptr<EventTagMap, decltype(&android_closeEventTagMap)> event_tag_map_{
+            nullptr, &android_closeEventTagMap};
+    bool has_opened_event_tag_map_ = false;
 };
 
 };

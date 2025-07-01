@@ -9,11 +9,9 @@ import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.settings.RateLimitingSettings
 import com.memfault.bort.time.boxed
-import io.mockk.MockKAnnotations
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
-import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import io.mockk.verify
@@ -25,8 +23,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 class DropBoxGetEntriesTaskTest {
-    @RelaxedMockK
-    private lateinit var mockEntryProcessor: EntryProcessor
+    private var mockEntryProcessor: EntryProcessor = mockk()
     private lateinit var task: DropBoxGetEntriesTask
     private lateinit var lastProcessedEntryProvider: FakeLastProcessedEntryProvider
     private lateinit var pendingTimeChangeProvider: DropBoxPendingTimeChangeProvider
@@ -69,7 +66,6 @@ class DropBoxGetEntriesTaskTest {
 
     @Before
     fun setUp() {
-        MockKAnnotations.init(this)
         lastProcessedEntryProvider = FakeLastProcessedEntryProvider(0)
         pendingTimeChangeProvider = FakeDropBoxPendingTimeChangeProvider(false)
         processedEntryCursorProvider = ProcessedEntryCursorProvider(

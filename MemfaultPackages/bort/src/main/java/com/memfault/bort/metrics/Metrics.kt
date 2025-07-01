@@ -4,7 +4,6 @@ import android.os.Build
 import com.memfault.bort.BuildConfig
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.InstallationIdProvider
-import com.memfault.bort.IntegrationChecker
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.reporting.NumericAgg
@@ -93,7 +92,6 @@ suspend fun updateBuiltinProperties(
     packageManagerClient: PackageManagerClient,
     devicePropertiesStore: DevicePropertiesStore,
     dumpsterClient: DumpsterClient,
-    integrationChecker: IntegrationChecker,
     installationIdProvider: InstallationIdProvider,
 ) {
     devicePropertiesStore.upsert(name = BORT_VERSION_CODE, value = BuildConfig.VERSION_CODE, internal = true)
@@ -140,6 +138,4 @@ suspend fun updateBuiltinProperties(
     devicePropertiesStore.upsert(name = BORT_INSTALLATION_ID, value = installationIdProvider.id(), internal = true)
 
     devicePropertiesStore.upsert(name = BORT_PACKAGE_NAME, value = BuildConfig.APPLICATION_ID, internal = true)
-
-    integrationChecker.checkIntegrationAndReport(devicePropertiesStore)
 }
