@@ -14,15 +14,9 @@ private const val DUMPSTATE_MEMFAULT_REQUEST_ID = "dumpstate.memfault.requestid"
 
 class BugReportStartReceiver : BroadcastReceiver() {
 
-    override fun onReceive(
-        context: Context?,
-        intent: Intent?,
-    ) {
-        context ?: return
-        intent ?: return
-        when {
-            intent.action != INTENT_ACTION_BUG_REPORT_START -> return
-        }
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action != INTENT_ACTION_BUG_REPORT_START) return
+
         val request = try {
             BugReportRequest.fromIntent(intent)
         } catch (e: Exception) {

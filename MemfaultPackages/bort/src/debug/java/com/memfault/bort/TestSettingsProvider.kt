@@ -1,6 +1,7 @@
 package com.memfault.bort
 
 import android.content.SharedPreferences
+import com.memfault.bort.settings.BugReportSettings
 import com.memfault.bort.settings.DataScrubbingSettings
 import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.settings.DynamicSettingsProvider
@@ -100,5 +101,9 @@ class TestSettingsProvider @Inject constructor(
         // they reach the backend
         override val alwaysCreateCpuProcessMetrics: Boolean
             get() = true
+    }
+
+    override val bugReportSettings = object : BugReportSettings by settings.bugReportSettings {
+        override val dataSourceEnabled: Boolean = false
     }
 }

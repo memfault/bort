@@ -41,7 +41,6 @@ class UsageReporter : Application(), Configuration.Provider {
             LoggerSettings(
                 minLogcatLevel = minLogcatLevel,
                 minStructuredLevel = LogLevel.INFO,
-                hrtEnabled = false,
             ),
         )
 

@@ -6,6 +6,9 @@ import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.memfault.bort.bugreport.BugReportRequestStatus
+import com.memfault.bort.bugreport.PendingBugReportRequestAccessor
+import com.memfault.bort.bugreport.broadcastReply
 import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -13,7 +16,7 @@ import kotlin.time.toJavaDuration
 
 private const val REQUEST_ID_INPUT_DATA_KEY = "request-id"
 private const val TIMEOUT_WORK_TAG = "BUG_REPORT_TIMEOUT"
-private const val TIMEOUT_WORK_UNIQUE_NAME_PERIODIC = "com.memfault.bort.work.BUG_REPORT_TIMEOUT"
+private const val TIMEOUT_WORK_UNIQUE_NAME = "com.memfault.bort.work.BUG_REPORT_TIMEOUT"
 
 class BugReportRequestTimeoutTask @Inject constructor(
     private val application: Application,
@@ -24,18 +27,18 @@ class BugReportRequestTimeoutTask @Inject constructor(
         inputData.getString(REQUEST_ID_INPUT_DATA_KEY)
 
     override suspend fun doWork(input: String?): TaskResult = TaskResult.SUCCESS.also {
-        pendingBugReportRequestAccessor.compareAndSwap(null) {
-            if (it == null) {
+        val (_, request) = pendingBugReportRequestAccessor.compareAndSwap(null) { request ->
+            if (request == null) {
                 false
             } else {
-                it.requestId == input
+                request.requestId == input
             }
-        }.also { (_, request) ->
-            request?.broadcastReply(
-                application,
-                BugReportRequestStatus.ERROR_TIMEOUT,
-            )
         }
+
+        request?.broadcastReply(
+            application,
+            BugReportRequestStatus.ERROR_TIMEOUT,
+        )
     }
 
     companion object {
@@ -57,13 +60,13 @@ class BugReportRequestTimeoutTask @Inject constructor(
             }.also { workRequest ->
                 WorkManager.getInstance(context)
                     .enqueueUniqueWork(
-                        TIMEOUT_WORK_UNIQUE_NAME_PERIODIC,
+                        TIMEOUT_WORK_UNIQUE_NAME,
                         existingWorkPolicy,
                         workRequest,
                     )
             }
 
         fun cancel(context: Context) =
-            WorkManager.getInstance(context).cancelUniqueWork(TIMEOUT_WORK_UNIQUE_NAME_PERIODIC)
+            WorkManager.getInstance(context).cancelUniqueWork(TIMEOUT_WORK_UNIQUE_NAME)
     }
 }

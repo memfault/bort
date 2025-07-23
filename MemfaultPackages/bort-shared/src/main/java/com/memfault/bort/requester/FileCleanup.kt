@@ -52,7 +52,7 @@ fun cleanupFiles(
             bytesUsed += fileSize
         }
     }
-    if (!deleted.isEmpty()) {
+    if (deleted.isNotEmpty()) {
         Logger.i("file_cleanup_deleted", mapOf("deleted" to deleted))
     }
     return FileCleanupResult(

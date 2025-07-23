@@ -2,11 +2,13 @@ package com.memfault.bort.clientserver
 
 import android.app.Application
 import com.memfault.bort.BortJson
+import com.memfault.bort.DevMode
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.MarFileSampledHoldingDir
 import com.memfault.bort.MarFileUnsampledHoldingDir
 import com.memfault.bort.Payload
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
+import com.memfault.bort.clientserver.MarMetadata.BugReportMarMetadata
 import com.memfault.bort.clientserver.MarMetadata.Companion.createManifest
 import com.memfault.bort.clientserver.MarMetadata.DeviceConfigMarMetadata
 import com.memfault.bort.fileExt.deleteSilently
@@ -21,6 +23,7 @@ import com.memfault.bort.settings.MarUnsampledMaxStorageBytes
 import com.memfault.bort.settings.MaxMarStorageBytes
 import com.memfault.bort.settings.ProjectKey
 import com.memfault.bort.settings.SamplingConfig
+import com.memfault.bort.settings.UnbatchBugReportUploads
 import com.memfault.bort.settings.shouldUpload
 import com.memfault.bort.shared.CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG
 import com.memfault.bort.shared.ClientServerMode
@@ -69,6 +72,8 @@ class MarFileHoldingArea @Inject constructor(
     private val marMaxUnsampledBytes: MarUnsampledMaxStorageBytes,
     private val deviceInfoProvider: DeviceInfoProvider,
     private val projectKey: ProjectKey,
+    private val devMode: DevMode,
+    private val unbatchBugReportUploads: UnbatchBugReportUploads,
 ) {
     // Note: coroutine mutex is not re-entrant!
     private val mutex = Mutex()
@@ -106,21 +111,33 @@ class MarFileHoldingArea @Inject constructor(
      * files).
      */
     suspend fun addSampledMarFileDirectlyFromOtherDevice(file: File) = mutex.withLock {
-        addSampledMarFileDirectlyInternal(file)
+        addSampledMarFileDirectlyInternal(file = file, marManifest = null)
     }
 
-    private suspend fun addSampledMarFileDirectlyInternal(file: File) {
-        // If dev mode is enabled, don't batch mar files (let them upload individually, immediately).
-        if (batchMarUploads()) {
-            // Periodic task will batch+upload mar files, if we are batching.
-            file.renameTo(File(sampledHoldingDirectory, file.name))
-            // Whenever a mar file is added (to either sampled or sampled) we check whether we are over the storage
-            // limit.
-            cleanupIfRequired()
-        } else {
-            // Upload immediately, if not batching.
-            // Note: we don't upload a specific file - we create a new task to upload all available files.
-            oneTimeMarUpload.uploadMarFile(file)
+    private suspend fun addSampledMarFileDirectlyInternal(file: File, marManifest: MarManifest?) {
+        val isBugReport = marManifest?.metadata is BugReportMarMetadata
+        val isDevModeEnabled = devMode.isEnabled()
+
+        val uploadImmediately = isDevModeEnabled || (isBugReport && unbatchBugReportUploads())
+
+        when {
+            uploadImmediately -> {
+                oneTimeMarUpload.uploadMarFile(file)
+            }
+
+            batchMarUploads() -> {
+                // Periodic task will batch+upload mar files, if we are batching.
+                file.renameTo(File(sampledHoldingDirectory, file.name))
+                // Whenever a mar file is added (to either sampled or sampled) we check whether we are over the storage
+                // limit.
+                cleanupIfRequired()
+            }
+
+            else -> {
+                // Upload immediately, if not batching.
+                // Note: we don't upload a specific file - we create a new task to upload all available files.
+                oneTimeMarUpload.uploadMarFile(file)
+            }
         }
     }
 
@@ -129,7 +146,7 @@ class MarFileHoldingArea @Inject constructor(
         if (cachedClientServerMode.isClient()) {
             linkedDeviceFileSender.sendFileToLinkedDevice(mar.marFile, CLIENT_SERVER_FILE_UPLOAD_DROPBOX_TAG)
         } else {
-            addSampledMarFileDirectlyInternal(mar.marFile)
+            addSampledMarFileDirectlyInternal(file = mar.marFile, marManifest = mar.manifest)
         }
     }
 

@@ -1,6 +1,8 @@
-package com.memfault.bort
+package com.memfault.bort.bugreport
 
 import android.content.SharedPreferences
+import com.memfault.bort.BortJson
+import com.memfault.bort.PREFERENCE_PENDING_BUG_REPORT_REQUEST_OPTIONS
 import com.memfault.bort.shared.BugReportRequest
 import com.memfault.bort.shared.PreferenceKeyProvider
 import com.squareup.anvil.annotations.ContributesBinding
@@ -34,12 +36,12 @@ class PendingBugReportRequestAccessor @Inject constructor(
         predicate: (readRequest: BugReportRequest?) -> Boolean,
     ): Pair<Boolean, BugReportRequest?> =
         lock.withLock {
-            get().let { currentValue ->
-                if (predicate(currentValue)) {
-                    Pair(true, currentValue).also { set(newValue) }
-                } else {
-                    Pair(false, null)
-                }
+            val currentValue = get()
+            if (predicate(currentValue)) {
+                set(newValue)
+                Pair(true, currentValue)
+            } else {
+                Pair(false, null)
             }
         }
 }
@@ -57,16 +59,16 @@ class RealPendingBugReportRequestStorage @Inject constructor(
             request?.let { BortJson.encodeToString(BugReportRequest.serializer(), it) } ?: "",
         )
 
-    override fun read(): BugReportRequest? =
-        super.getValue().let {
-            if (it.isBlank()) {
-                return null
-            } else {
-                try {
-                    BortJson.decodeFromString(BugReportRequest.serializer(), it)
-                } catch (e: Exception) {
-                    null
-                }
+    override fun read(): BugReportRequest? {
+        val currentValue = super.getValue()
+        return if (currentValue.isBlank()) {
+            null
+        } else {
+            try {
+                BortJson.decodeFromString(BugReportRequest.serializer(), currentValue)
+            } catch (e: Exception) {
+                null
             }
         }
+    }
 }

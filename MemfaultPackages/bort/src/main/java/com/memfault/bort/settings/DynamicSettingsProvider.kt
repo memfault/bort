@@ -134,6 +134,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.bugReportRequestRateLimitingSettings
         override val periodicRateLimitingPercentOfPeriod: Int
             get() = settings.bugReportPeriodicRateLimitingPercentOfPeriod
+        override val unbatchUploads: Boolean
+            get() = settings.bugReportUnbatchUploads
     }
 
     override val dropBoxSettings = object : DropBoxSettings {

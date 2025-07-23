@@ -39,7 +39,6 @@ class OtaApp : Application(), Configuration.Provider {
             LoggerSettings(
                 minLogcatLevel = otaLoggerSettings.minLogcatLevel,
                 minStructuredLevel = LogLevel.INFO,
-                hrtEnabled = false,
             ),
         )
 

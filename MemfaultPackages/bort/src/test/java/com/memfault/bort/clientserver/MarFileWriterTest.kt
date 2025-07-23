@@ -12,6 +12,7 @@ import assertk.assertions.isTrue
 import assertk.assertions.support.expected
 import com.memfault.bort.BortJson
 import com.memfault.bort.LogcatCollectionId
+import com.memfault.bort.ProcessingOptions
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.clientserver.MarFileWriter.Companion.MAR_SIZE_TOLERANCE_BYTES
 import com.memfault.bort.clientserver.MarFileWriter.Companion.chunkByElementSize
@@ -287,9 +288,24 @@ internal class MarFileWriterTest {
             monitoringResolution = Resolution.NOT_APPLICABLE,
         )
 
+        fun bugreport(timeMs: Long, requestId: String?) = MarManifest(
+            collectionTime = time(timeMs),
+            type = "android-bugreport",
+            device = device,
+            metadata = MarMetadata.BugReportMarMetadata(
+                bugReportFileName = "filename",
+                processingOptions = ProcessingOptions(),
+                requestId = requestId,
+            ),
+            debuggingResolution = Resolution.NORMAL,
+            loggingResolution = Resolution.NOT_APPLICABLE,
+            monitoringResolution = Resolution.NOT_APPLICABLE,
+        )
+
         private fun MarManifest.filename() = when (val meta = metadata) {
             is MarMetadata.HeartbeatMarMetadata -> meta.batteryStatsFileName
             is MarMetadata.LogcatMarMetadata -> meta.logFileName
+            is MarMetadata.BugReportMarMetadata -> meta.bugReportFileName
             else -> throw IllegalArgumentException("Unsupported in test: $this")
         }
 

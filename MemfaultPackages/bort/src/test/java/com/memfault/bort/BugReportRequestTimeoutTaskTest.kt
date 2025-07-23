@@ -4,6 +4,8 @@ import android.app.Application
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
+import com.memfault.bort.bugreport.PendingBugReportRequestAccessor
+import com.memfault.bort.bugreport.PendingBugReportRequestStorage
 import com.memfault.bort.shared.BugReportRequest
 import io.mockk.mockk
 import io.mockk.verify

@@ -89,6 +89,9 @@ class EnqueuePreparedUploadTask @Inject constructor(
     private val jitterDelayProvider: JitterDelayProvider,
     private val constraints: UploadConstraints,
 ) {
+    /**
+     * @param marManifest, non-null if uploading a single file.
+     */
     fun upload(
         file: File,
         metadata: Payload,

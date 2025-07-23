@@ -36,6 +36,7 @@ fun interface DropBoxForceEnableWtfTags : () -> Boolean
 fun interface OperationalCrashesExclusions : () -> List<String>
 fun interface MetricsPollingIntervalFlow : () -> Flow<Duration>
 fun interface Logs2MetricsRules : () -> List<Logs2MetricsRule>
+fun interface UnbatchBugReportUploads : () -> Boolean
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -181,5 +182,9 @@ abstract class BortSettingsModule {
             Logs2MetricsRules {
                 Logs2MetricsRule.fromJson(settings.logcatSettings.logs2metricsConfig)
             }
+
+        @Provides
+        fun unbatchBugReportUploads(settings: SettingsProvider) =
+            UnbatchBugReportUploads { settings.bugReportSettings.unbatchUploads }
     }
 }

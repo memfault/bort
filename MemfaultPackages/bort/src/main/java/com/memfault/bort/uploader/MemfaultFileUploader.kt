@@ -15,7 +15,12 @@ import javax.inject.Inject
 class MemfaultFileUploader @Inject constructor(
     private val preparedUploader: PreparedUploader,
 ) : FileUploader {
-    override suspend fun upload(file: File, payload: Payload, shouldCompress: Boolean): TaskResult {
+
+    override suspend fun upload(
+        file: File,
+        payload: Payload,
+        shouldCompress: Boolean,
+    ): TaskResult {
         val prepareResponse = try {
             preparedUploader.prepare(file, payload.kind())
         } catch (e: HttpException) {
