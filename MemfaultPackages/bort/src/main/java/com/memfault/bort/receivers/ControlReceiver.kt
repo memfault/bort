@@ -3,8 +3,6 @@ package com.memfault.bort.receivers
 import android.content.Context
 import android.content.Intent
 import com.memfault.bort.AppUpgrade
-import com.memfault.bort.BugReportRequestStatus
-import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.INTENT_ACTION_BORT_ENABLE
 import com.memfault.bort.INTENT_ACTION_BUG_REPORT_REQUESTED
@@ -18,17 +16,14 @@ import com.memfault.bort.INTENT_EXTRA_DEV_MODE_ENABLED
 import com.memfault.bort.INTENT_EXTRA_PROJECT_KEY
 import com.memfault.bort.INTENT_EXTRA_SERIAL
 import com.memfault.bort.OverrideSerial
-import com.memfault.bort.PendingBugReportRequestAccessor
 import com.memfault.bort.RealDevMode
 import com.memfault.bort.ReporterServiceConnector
 import com.memfault.bort.boot.BootCountTracker
-import com.memfault.bort.broadcastReply
+import com.memfault.bort.bugreport.RequestBugReportIntentUseCase
 import com.memfault.bort.clientserver.ClientDeviceInfoSender
 import com.memfault.bort.dropbox.DropBoxTagEnabler
-import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.requester.MetricsCollectionRequester
 import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
-import com.memfault.bort.requester.StartRealBugReport
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.ContinuousLoggingController
 import com.memfault.bort.settings.ProjectKeyChangeSource.BROADCAST
@@ -37,17 +32,11 @@ import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.SettingsUpdateRequester
 import com.memfault.bort.settings.applyReporterServiceSettings
 import com.memfault.bort.settings.reloadCustomEventConfigFrom
-import com.memfault.bort.shared.BugReportRequest
-import com.memfault.bort.shared.INTENT_EXTRA_BUG_REPORT_REQUEST_TIMEOUT_MS
 import com.memfault.bort.shared.Logger
-import com.memfault.bort.shared.getLongOrNull
 import com.memfault.bort.shared.goAsync
-import com.memfault.bort.tokenbucket.BugReportRequestStore
-import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.FileUploadHoldingArea
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
-import kotlin.time.Duration.Companion.milliseconds
 
 /** Base receiver to handle events that control the SDK. */
 abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceiver(
@@ -64,16 +53,7 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
 
     @Inject lateinit var settingsProvider: SettingsProvider
 
-    @Inject lateinit var pendingBugReportRequestAccessor: PendingBugReportRequestAccessor
-
     @Inject lateinit var fileUploadHoldingArea: FileUploadHoldingArea
-
-    @BugReportRequestStore @Inject
-    lateinit var tokenBucketStore: TokenBucketStore
-
-    @Inject lateinit var builtInMetricsStore: BuiltinMetricsStore
-
-    @Inject lateinit var startBugReport: StartRealBugReport
 
     @Inject lateinit var reporterServiceConnector: ReporterServiceConnector
 
@@ -99,44 +79,7 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
 
     @Inject lateinit var bootCountTracker: BootCountTracker
 
-    private fun allowedByRateLimit(): Boolean =
-        tokenBucketStore.takeSimple(key = "control-requested", tag = "bugreport_request")
-
-    private suspend fun onBugReportRequested(context: Context, intent: Intent) {
-        val request = try {
-            BugReportRequest.fromIntent(intent)
-        } catch (e: Exception) {
-            Logger.e("Invalid bug report request", e)
-            return
-        }
-
-        if (!bortEnabledProvider.isEnabled()) {
-            Logger.w("Bort not enabled; not sending request")
-            request.broadcastReply(context, BugReportRequestStatus.ERROR_SDK_NOT_ENABLED)
-            return
-        }
-
-        val allowedByRateLimit = allowedByRateLimit()
-        Logger.v("Received request for bug report, allowedByRateLimit=$allowedByRateLimit")
-
-        if (!allowedByRateLimit) {
-            request.broadcastReply(context, BugReportRequestStatus.ERROR_RATE_LIMITED)
-            return
-        }
-
-        val timeout = intent.extras?.getLongOrNull(
-            INTENT_EXTRA_BUG_REPORT_REQUEST_TIMEOUT_MS,
-        )?.milliseconds ?: BugReportRequestTimeoutTask.DEFAULT_TIMEOUT
-
-        startBugReport.requestBugReport(
-            context,
-            pendingBugReportRequestAccessor,
-            request,
-            timeout,
-            settingsProvider.bugReportSettings,
-            builtInMetricsStore,
-        )
-    }
+    @Inject lateinit var requestBugReportIntentUseCase: RequestBugReportIntentUseCase
 
     private suspend fun onBortEnabled(intent: Intent, context: Context) {
         // It doesn't make sense to take any action here if bort isn't configured to require runtime enabling
@@ -236,7 +179,7 @@ abstract class BaseControlReceiver(extraActions: Set<String>) : FilteringReceive
 
     override fun onIntentReceived(context: Context, intent: Intent, action: String) = goAsync {
         when (action) {
-            INTENT_ACTION_BUG_REPORT_REQUESTED -> onBugReportRequested(context, intent)
+            INTENT_ACTION_BUG_REPORT_REQUESTED -> requestBugReportIntentUseCase.onRequestedBugReport(intent)
             INTENT_ACTION_BORT_ENABLE -> onBortEnabled(intent, context)
             INTENT_ACTION_COLLECT_METRICS -> onCollectMetrics()
             INTENT_ACTION_UPDATE_CONFIGURATION -> onUpdateConfig()

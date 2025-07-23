@@ -137,6 +137,8 @@ class Command(abc.ABC):
 
 
 class PatchAOSPCommand(Command):
+    """Apply Memfault's optional patches to the AOSP repository"""
+
     def __init__(
         self,
         aosp_root,
@@ -295,6 +297,8 @@ def _replace_placeholders_in_file(file_abspath, mapping):
 
 
 class PatchBortCommand(Command):
+    """Configure Bort application IDs and feature names in the AOSP repository"""
+
     def __init__(self, path, bort_app_id, bort_ota_app_id=None, vendor_feature_name=None):
         self._path = path
         self._bort_app_id = bort_app_id
@@ -572,6 +576,8 @@ def _send_broadcast(
 
 
 class RequestBugReport(Command):
+    """Request an immediate bug report from a connected device"""
+
     def __init__(self, bort_app_id: str, device: Optional[str] = None):
         self._bort_app_id = bort_app_id
         self._device = device
@@ -603,6 +609,8 @@ class RequestBugReport(Command):
 
 
 class RequestMetricCollection(Command):
+    """Request a metric collection from a connected device"""
+
     def __init__(self, bort_app_id: str, device: Optional[str] = None):
         self._bort_app_id = bort_app_id
         self._device = device
@@ -634,6 +642,8 @@ class RequestMetricCollection(Command):
 
 
 class RequestUpdateConfig(Command):
+    """Request the latest device configuration from a connected device"""
+
     def __init__(self, bort_app_id: str, device: Optional[str] = None):
         self._bort_app_id = bort_app_id
         self._device = device
@@ -668,6 +678,8 @@ class RequestUpdateConfig(Command):
 
 
 class EnableBort(Command):
+    """Enable Bort SDK operation from a connected device"""
+
     def __init__(self, bort_app_id, device=None):
         self._bort_app_id = bort_app_id
         self._device = device
@@ -700,6 +712,8 @@ class EnableBort(Command):
 
 
 class OtaCheckForUpdates(Command):
+    """Request an OTA update check from a connected device"""
+
     def __init__(self, bort_ota_app_id, device=None):
         self._bort_ota_app_id = bort_ota_app_id
         self._device = device
@@ -731,6 +745,8 @@ class OtaCheckForUpdates(Command):
 
 
 class DevMode(Command):
+    """Enable or disable developer mode from a connected device"""
+
     def __init__(self, bort_app_id, enabled, device=None):
         self._bort_app_id = bort_app_id
         self._device = device
@@ -773,6 +789,8 @@ class DevMode(Command):
 
 
 class ValidateConnectedDevice(Command):
+    """Validate the SDK integration on a connected device"""
+
     def __init__(
         self,
         bort_app_id,
@@ -1190,7 +1208,7 @@ Row: 1 key=requires_runtime_enable, value=true
 
 
 class GenerateKeystore(Command):
-    """Generate a keystore for bort applications"""
+    """Generate a keystore for signing the Bort APKs in the AOSP repository"""
 
     KEYSTORE_PROPERTIES_TEMPLATE = Template(
         """keyAlias=release_key

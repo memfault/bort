@@ -91,7 +91,11 @@ class FileUploadTaskTest {
         val worker = mockTaskRunnerWorker<FileUploadTask>(
             context,
             mockWorkerFactory(fileUpload = task),
-            FileUploadTaskInput(file, fileUploadPayload(), shouldCompress = true).toWorkerInputData(),
+            FileUploadTaskInput(
+                file,
+                fileUploadPayload(),
+                shouldCompress = true,
+            ).toWorkerInputData(),
             runAttemptCount = 4,
         )
 
@@ -162,14 +166,24 @@ class FileUploadTaskTest {
         val worker = mockTaskRunnerWorker<FileUploadTask>(
             context,
             mockWorkerFactory(fileUpload = task),
-            FileUploadTaskInput(file, fileUploadPayload(), shouldCompress = true).toWorkerInputData(),
+            FileUploadTaskInput(
+                file,
+                fileUploadPayload(),
+                shouldCompress = true,
+            ).toWorkerInputData(),
         )
 
         val result = worker.doWork()
 
         assertThat(result).isEqualTo(Result.success())
         assertThat(file.exists()).isFalse()
-        coVerify { mockUploader.upload(file, ofType(Payload.MarPayload::class), shouldCompress = true) }
+        coVerify {
+            mockUploader.upload(
+                file,
+                ofType(Payload.MarPayload::class),
+                shouldCompress = true,
+            )
+        }
     }
 
     @Test
@@ -185,7 +199,11 @@ class FileUploadTaskTest {
         val worker = mockTaskRunnerWorker<FileUploadTask>(
             context,
             mockWorkerFactory(fileUpload = task),
-            FileUploadTaskInput(file, fileUploadPayload(), shouldCompress = true).toWorkerInputData(),
+            FileUploadTaskInput(
+                file,
+                fileUploadPayload(),
+                shouldCompress = true,
+            ).toWorkerInputData(),
         )
         val result = worker.doWork()
 

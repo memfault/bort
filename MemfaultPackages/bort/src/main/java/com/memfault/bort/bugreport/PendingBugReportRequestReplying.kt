@@ -1,11 +1,12 @@
-package com.memfault.bort
+package com.memfault.bort.bugreport
 
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import com.memfault.bort.shared.BugReportRequest
-import com.memfault.bort.shared.INTENT_ACTION_BUG_REPORT_REQUEST_REPLY
-import com.memfault.bort.shared.INTENT_EXTRA_BUG_REPORT_REQUEST_STATUS
+
+private const val INTENT_ACTION_BUG_REPORT_REQUEST_REPLY = "com.memfault.intent.action.BUG_REPORT_REQUEST_REPLY"
+private const val INTENT_EXTRA_BUG_REPORT_REQUEST_STATUS = "com.memfault.intent.extra.BUG_REPORT_REQUEST_STATUS"
 
 enum class BugReportRequestStatus(val value: String) {
     OK_UPLOAD_QUEUED("OK_UPLOAD_QUEUED"),

@@ -2,6 +2,8 @@ package com.memfault.bort
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import com.memfault.bort.bugreport.PendingBugReportRequestAccessor
+import com.memfault.bort.bugreport.PendingBugReportRequestStorage
 import com.memfault.bort.shared.BugReportRequest
 import org.junit.Before
 import org.junit.Test

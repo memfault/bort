@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project currently does not attempt to adhere to Semantic Versioning, but
 breaking changes are avoided unless absolutely necessary.
 
+## v5.4.1 - July 22, 2025
+
+### :rocket: New Features
+
+- Added new SDK Setting to upload collected Android Bugreports immediately
+  outside of the periodic MAR batch task. Added new `trace_id` and `extra_info`
+  fields to `BugReportRequest`s.
+
+### :construction: Fixes
+
+- Fixed reporting of the new Wi-Fi metrics to visualize on the device timeline
+  more appropriately. Fixed an error when recording null per second metrics.
+
+### :chart_with_upwards_trend: Improvements
+
+- Added some bort_cli.py comments.
+- Deleted unused code in Logger.kt.
+- Refactored Bugreport Intent logic.
+
 ## v5.4.0 - July 1, 2025
 
 ### :rocket: New Features
@@ -48,6 +67,31 @@ breaking changes are avoided unless absolutely necessary.
   - Otherwise, the top 10 processes exceeding the 50% CPU usage threshold will
     also be recorded. Please reach out to customer support to configure these
     thresholds.
+- Added new general connectivity metrics reported by NetworkCapabilities.
+  - `connectivity.roaming` captures whether the connected network is roaming.
+    This metric is only available in HRT, on API 28+.
+  - `connectivity.unmetered_temporarily` captures whether the connected network
+    was temporarily unmetered. This metric is only available in HRT, on API 30+.
+  - `connectivity.metered.latest` captures whether the connected network is
+    metered.
+- Added new basic Wi-Fi from the WifiInfo reported by NetworkCapabilities.
+  - `connectivity.wifi.frequency` captures the Wi-Fi frequency of the associated
+    link in MHz.
+  - `connectivity.wifi.link_speed_mbps` captures the current link speed of the
+    associated link with the highest RSSI in Mbps.
+  - `connectivity.wifi.security_type` captures the security type of the current
+    802.11 network connection as a human-readable string.
+  - `connectivity.wifi.standard_version` captures connection Wi-Fi standard as a
+    human-readable string.
+  - `connectivity.wifi.lost_tx_packets_per_second` captures the average rate of
+    lost transmitted packets, in units of packets per second.
+  - `connectivity.wifi.retried_tx_packets_per_second` captures the average rate
+    of transmitted retry packets, in units of packets per second.
+  - `connectivity.wifi.successful_tx_packets_per_second` captures the average
+    rate of successfully transmitted unicast packets, in units of packets per
+    second.
+  - `connectivity.wifi.successful_rx_packets_per_second` captures the average
+    rate of received unicast data packets, in units of packets per second.
 - Added support for Android 15.
 
 ### :chart_with_upwards_trend: Improvements

@@ -13,7 +13,6 @@ import com.memfault.bort.reporting.NumericAgg.COUNT
 import com.memfault.bort.reporting.NumericAgg.SUM
 import com.memfault.bort.reporting.RemoteMetricsService.HEARTBEAT_REPORT
 import com.memfault.bort.reporting.RemoteMetricsService.SESSION_REPORT
-import com.memfault.bort.reporting.ReportingClient.HeartbeatReport
 import com.memfault.bort.reporting.ReportingClient.Report
 import com.memfault.bort.reporting.ReportingClient.SessionReport
 import java.util.concurrent.CompletableFuture
@@ -524,38 +523,38 @@ public class ReportingClient @JvmOverloads constructor(
 
         @JvmOverloads
         public fun update(
-            value: Double?,
+            value: Double,
             timestamp: Long = timestamp(),
         ): CompletableFuture<Void> =
             add(timeMs = timestamp, numberVal = value)
 
         @JvmOverloads
         public fun update(
-            value: Float?,
+            value: Float,
             timestamp: Long = timestamp(),
         ): CompletableFuture<Void> =
-            add(timeMs = timestamp, numberVal = value?.toDouble())
+            add(timeMs = timestamp, numberVal = value.toDouble())
 
         @JvmOverloads
         public fun update(
-            value: Long?,
+            value: Long,
             timestamp: Long = timestamp(),
         ): CompletableFuture<Void> =
-            add(timeMs = timestamp, numberVal = value?.toDouble())
+            add(timeMs = timestamp, numberVal = value.toDouble())
 
         @JvmOverloads
         public fun update(
-            value: Int?,
+            value: Int,
             timestamp: Long = timestamp(),
         ): CompletableFuture<Void> =
-            add(timeMs = timestamp, numberVal = value?.toDouble())
+            add(timeMs = timestamp, numberVal = value.toDouble())
 
         @JvmOverloads
         public fun update(
-            value: Boolean?,
+            value: Boolean,
             timestamp: Long = timestamp(),
         ): CompletableFuture<Void> =
-            add(timeMs = timestamp, numberVal = value?.asNumber())
+            add(timeMs = timestamp, numberVal = value.asNumber())
     }
 
     public class SuccessOrFailure internal constructor(

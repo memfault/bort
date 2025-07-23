@@ -37,7 +37,6 @@ enum class LogLevel(val level: Int) {
 data class LoggerSettings(
     val minLogcatLevel: LogLevel,
     val minStructuredLevel: LogLevel,
-    val hrtEnabled: Boolean,
 )
 
 object Logger {
@@ -46,7 +45,6 @@ object Logger {
     private var settings: LoggerSettings = LoggerSettings(
         minLogcatLevel = LogLevel.NONE,
         minStructuredLevel = LogLevel.NONE,
-        hrtEnabled = false,
     )
 
     fun initSettings(settings: LoggerSettings) {

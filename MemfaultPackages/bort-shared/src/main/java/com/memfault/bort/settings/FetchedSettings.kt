@@ -73,6 +73,9 @@ data class FetchedSettings(
     @SerialName("bug_report.periodic_rate_limiting_percent")
     val bugReportPeriodicRateLimitingPercentOfPeriod: Int = 50,
 
+    @SerialName("bug_report.unbatch_uploads")
+    val bugReportUnbatchUploads: Boolean = false,
+
     @SerialName("chronicler.mar_enabled")
     val chroniclerMarEnabled: Boolean = true,
 

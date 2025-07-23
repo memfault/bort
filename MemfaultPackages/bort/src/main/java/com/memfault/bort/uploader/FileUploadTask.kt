@@ -44,7 +44,7 @@ data class FileUploadTaskInput(
 
         fun fromData(inputData: Data) =
             FileUploadTaskInput(
-                file = File(checkNotNull(inputData.getString(PATH_KEY), { "File path missing" })),
+                file = File(checkNotNull(inputData.getString(PATH_KEY)) { "File path missing" }),
                 payload = deserializePayload(checkNotNull(inputData.getString(METADATA_KEY)) { "Metadata missing" }),
             )
     }

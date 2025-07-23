@@ -9,6 +9,7 @@ import com.memfault.bort.chronicler.ClientChroniclerEntry
 import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.ProjectKey
 import com.memfault.bort.settings.Resolution
+import com.memfault.bort.shared.BugReportRequest
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.CombinedTime
 import kotlinx.serialization.SerialName
@@ -92,6 +93,8 @@ sealed class MarMetadata {
         val processingOptions: ProcessingOptions,
         @SerialName("request_id")
         val requestId: String? = null,
+        @SerialName("request")
+        val request: BugReportRequest? = null,
     ) : MarMetadata()
 
     @Serializable

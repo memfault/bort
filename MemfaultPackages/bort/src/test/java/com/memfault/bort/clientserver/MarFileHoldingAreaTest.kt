@@ -11,6 +11,7 @@ import assertk.assertions.isNotNull
 import com.google.testing.junit.testparameterinjector.TestParameter
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import com.memfault.bort.BortJson
+import com.memfault.bort.DevModeDisabled
 import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.clientserver.MarFileHoldingArea.Companion.manifestFileForMar
@@ -66,6 +67,8 @@ class MarFileHoldingAreaTest {
     private var maxMarSampledAge: Duration = Duration.ZERO
     private var maxMarUnsampledAge: Duration = Duration.ZERO
     private var maxMarUnsampledBytes: Long = 999_999_999
+
+    private var unbatchUploads: Boolean = false
 
     @Before
     fun setup() {
@@ -496,6 +499,20 @@ class MarFileHoldingAreaTest {
         assertThat(unsampledHoldingDirectory.listFiles()?.toList()).isNotNull().isEmpty()
     }
 
+    @Test
+    fun bugReportsUploadImmediately() = runTest {
+        unbatchUploads = true
+
+        val holdingArea = createHoldingArea(batchMarUploads = true, clientServerMode = DISABLED)
+        val manifest = MarFileWriterTest.bugreport(timeMs = 123456789, requestId = "requested")
+        val marFile = MarFileWriterTest.createMarFile("mar1.mar", manifest, FILE_CONTENT)
+        val marFileWithManifest = MarFileWithManifest(marFile = marFile, manifest = manifest)
+
+        holdingArea.addMarFile(marFileWithManifest)
+
+        coVerify(exactly = 1) { oneTimeMarUpload.uploadMarFile(marFile) }
+    }
+
     companion object {
         private const val NEW_REVISION = 543
 
@@ -531,5 +548,7 @@ class MarFileHoldingAreaTest {
         marMaxSampledAge = { maxMarSampledAge },
         deviceInfoProvider = FakeDeviceInfoProvider(),
         projectKey = { "" },
+        devMode = DevModeDisabled,
+        unbatchBugReportUploads = { unbatchUploads },
     )
 }

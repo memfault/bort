@@ -28,6 +28,7 @@ interface BugReportSettings {
     val firstBugReportDelayAfterBoot: Duration
     val rateLimitingSettings: RateLimitingSettings
     val periodicRateLimitingPercentOfPeriod: Int
+    val unbatchUploads: Boolean
 }
 
 interface DropBoxSettings {
@@ -289,7 +290,6 @@ fun SettingsProvider.selectSettingsToMap(): Map<String, Any> = mapOf(
 fun SettingsProvider.asLoggerSettings(): LoggerSettings = LoggerSettings(
     minLogcatLevel = minLogcatLevel,
     minStructuredLevel = minStructuredLogLevel,
-    hrtEnabled = structuredLogSettings.highResMetricsEnabled,
 )
 
 typealias ConfigValue<T> = () -> T

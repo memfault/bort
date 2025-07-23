@@ -29,8 +29,9 @@ import com.memfault.bort.connectivity.ConnectivityState.UNKNOWN
 import com.memfault.bort.connectivity.ConnectivityState.USB
 import com.memfault.bort.connectivity.ConnectivityState.VPN
 import com.memfault.bort.connectivity.ConnectivityState.WIFI
+import com.memfault.bort.reporting.NumericAgg
 import com.memfault.bort.reporting.Reporting
-import com.memfault.bort.reporting.StateAgg.LATEST_VALUE
+import com.memfault.bort.reporting.StateAgg
 import com.memfault.bort.reporting.StateAgg.TIME_PER_HOUR
 import com.memfault.bort.reporting.StateAgg.TIME_TOTALS
 import com.memfault.bort.scopes.Scope
@@ -77,31 +78,41 @@ class ConnectivityMetrics
 
     private val roamingMetric = Reporting.report().boolStateTracker(name = "connectivity.roaming")
     private val meteredMetric = Reporting.report()
-        .boolStateTracker(name = "connectivity.metered", aggregations = listOf(LATEST_VALUE))
+        .boolStateTracker(name = "connectivity.metered", aggregations = listOf(StateAgg.LATEST_VALUE))
     private val unmeteredTemporarilyMetric =
         Reporting.report().boolStateTracker(name = "connectivity.unmetered_temporarily")
 
-    private val wifiFrequencyMetric = Reporting.report().numberProperty(name = "connectivity.wifi.frequency")
-    private val wifiLinkSpeedMbpsMetric = Reporting.report().numberProperty(name = "connectivity.wifi.link_speed_mbps")
-    private val wifiSecurityMetric = Reporting.report().stringProperty(
+    private val wifiFrequencyMetric = Reporting.report().distribution(
+        name = "connectivity.wifi.frequency",
+        aggregations = listOf(NumericAgg.LATEST_VALUE),
+    )
+    private val wifiLinkSpeedMbpsMetric = Reporting.report().distribution(
+        name = "connectivity.wifi.link_speed_mbps",
+        aggregations = listOf(NumericAgg.LATEST_VALUE),
+    )
+    private val wifiSecurityMetric = Reporting.report().stringStateTracker(
         name = "connectivity.wifi.security_type",
-        addLatestToReport = true,
+        aggregations = listOf(StateAgg.LATEST_VALUE),
     )
-    private val wifiStandardVersionMetric = Reporting.report().stringProperty(
+    private val wifiStandardVersionMetric = Reporting.report().stringStateTracker(
         name = "connectivity.wifi.standard_version",
-        addLatestToReport = true,
+        aggregations = listOf(StateAgg.LATEST_VALUE),
     )
-    private val wifiLostTxPacketsPerSecondMetric = Reporting.report().numberProperty(
+    private val wifiLostTxPacketsPerSecondMetric = Reporting.report().distribution(
         name = "connectivity.wifi.lost_tx_packets_per_second",
+        aggregations = listOf(NumericAgg.LATEST_VALUE),
     )
-    private val wifiRetriedTxPacketsPerSecondMetric = Reporting.report().numberProperty(
+    private val wifiRetriedTxPacketsPerSecondMetric = Reporting.report().distribution(
         name = "connectivity.wifi.retried_tx_packets_per_second",
+        aggregations = listOf(NumericAgg.LATEST_VALUE),
     )
-    private val wifiSuccessfulTxPacketsPerSecond = Reporting.report().numberProperty(
+    private val wifiSuccessfulTxPacketsPerSecond = Reporting.report().distribution(
         name = "connectivity.wifi.successful_tx_packets_per_second",
+        aggregations = listOf(NumericAgg.LATEST_VALUE),
     )
-    private val wifiSuccessfulRxPacketsPerSecond = Reporting.report().numberProperty(
+    private val wifiSuccessfulRxPacketsPerSecond = Reporting.report().distribution(
         name = "connectivity.wifi.successful_rx_packets_per_second",
+        aggregations = listOf(NumericAgg.LATEST_VALUE),
     )
 
     private val replaySettingsFlow = MutableSharedFlow<Unit>()
@@ -254,21 +265,21 @@ class ConnectivityMetrics
     }
 
     private fun reportWifiInfo(wifiInfo: WifiInfo?) {
-        wifiFrequencyMetric.update(wifiInfo?.frequency)
-        wifiLinkSpeedMbpsMetric.update(wifiInfo?.linkSpeed)
-        wifiLostTxPacketsPerSecondMetric.update(wifiInfo?.getLostTxPacketsPerSecondReflectively())
-        wifiRetriedTxPacketsPerSecondMetric.update(wifiInfo?.getRetriedTxPacketsPerSecondReflectively())
-        wifiSuccessfulRxPacketsPerSecond.update(wifiInfo?.getSuccessfulRxPacketsPerSecondReflectively())
-        wifiSuccessfulTxPacketsPerSecond.update(wifiInfo?.getSuccessfulTxPacketsPerSecondReflectively())
+        wifiInfo?.frequency?.let { wifiFrequencyMetric.record(it.toLong()) }
+        wifiInfo?.linkSpeed?.let { wifiLinkSpeedMbpsMetric.record(it.toLong()) }
+        wifiInfo?.getLostTxPacketsPerSecondReflectively()?.let { wifiLostTxPacketsPerSecondMetric.record(it) }
+        wifiInfo?.getRetriedTxPacketsPerSecondReflectively()?.let { wifiRetriedTxPacketsPerSecondMetric.record(it) }
+        wifiInfo?.getSuccessfulRxPacketsPerSecondReflectively()?.let { wifiSuccessfulRxPacketsPerSecond.record(it) }
+        wifiInfo?.getSuccessfulTxPacketsPerSecondReflectively()?.let { wifiSuccessfulTxPacketsPerSecond.record(it) }
 
         // Android 11+ has a new API to get the wifi standard
         if (Build.VERSION.SDK_INT >= VERSION_CODES.R) {
-            wifiStandardVersionMetric.update(humanReadableWifiStandard(wifiInfo?.wifiStandard))
+            wifiStandardVersionMetric.state(humanReadableWifiStandard(wifiInfo?.wifiStandard))
         }
 
         // Android 12+ has a new API to get the wifi security type
         if (Build.VERSION.SDK_INT >= VERSION_CODES.S) {
-            wifiSecurityMetric.update(humanReadableWifiSecurityType(wifiInfo?.currentSecurityType))
+            wifiSecurityMetric.state(humanReadableWifiSecurityType(wifiInfo?.currentSecurityType))
         }
     }
 
