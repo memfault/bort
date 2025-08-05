@@ -24,7 +24,8 @@ data class BugReportOptions(
 data class BugReportRequest(
     val options: BugReportOptions = BugReportOptions(),
 
-    // NOTE: periodic bug report requests have a null requestId
+    // Note that periodic bug reports always have a null requestId, but explicit bug report requests must have a
+    // request_id specified in the request intent.
     @SerialName("request_id")
     val requestId: String? = null,
 

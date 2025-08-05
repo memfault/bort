@@ -909,7 +909,7 @@ class ValidateConnectedDevice(Command):
         self._errors.extend(
             _check_file_ownership_and_secontext(
                 path=MEMFAULT_DUMPSTATE_RUNNER_DATA_PATH,
-                mode="drwxrwx--x",
+                mode="drwxrwxrwx",
                 owner="system",
                 group="system",
                 secontext="u:object_r:memfault_bugreport_data_file:s0",

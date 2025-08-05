@@ -34,6 +34,7 @@ class RealRequestBugReportIntentUseCase
             Logger.e("Invalid bug report request", e)
             return
         }
+        request.broadcastReply(application, BugReportRequestStatus.OK_REQUESTED)
 
         if (!bortEnabledProvider.isEnabled()) {
             Logger.w("Bort not enabled; not sending request")

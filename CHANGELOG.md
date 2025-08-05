@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project currently does not attempt to adhere to Semantic Versioning, but
 breaking changes are avoided unless absolutely necessary.
 
+## v5.4.2 - August 4, 2025
+
+### :construction: Fixes
+
+- Fixed a bug where bugreports would not always be cleaned up due to incorrect
+  file permissions in the Bort app.
+
+### :chart_with_upwards_trend: Improvements
+
+- Refactored the device config handlers into clearer interfaces and
+  implementations.
+- Added several more bugreport reply broadcasts (OK_REQUESTED, OK_GENERATING,
+  OK_GENERATED, ERROR_GENERATED_TIMEOUT).
+- Added optional constraints on bugreport requests through a multibind
+  interface.
+
 ## v5.4.1 - July 22, 2025
 
 ### :rocket: New Features
