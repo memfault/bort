@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.Resources
 import androidx.preference.PreferenceManager
+import com.memfault.bort.bugreport.StartBugReportConstraint
 import com.memfault.bort.dagger.InjectSet
 import com.memfault.bort.diagnostics.BortErrorsDb
 import com.memfault.bort.http.RetrofitInterceptor
@@ -46,6 +47,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import dagger.multibindings.IntoSet
+import dagger.multibindings.Multibinds
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -66,6 +68,10 @@ import kotlin.time.toJavaDuration
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class BortAppModule {
+
+    @Multibinds
+    abstract fun startBugReportConstraints(): InjectSet<StartBugReportConstraint>
+
     companion object {
         @Provides
         @Singleton

@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.memfault.bort.android.SystemPropertiesProxy
+import com.memfault.bort.bugreport.BugReportRequestStatus.OK_GENERATING
+import com.memfault.bort.bugreport.broadcastReply
 import com.memfault.bort.shared.BugReportRequest
 import com.memfault.bort.shared.INTENT_ACTION_BUG_REPORT_START
 import com.memfault.bort.shared.Logger
@@ -23,6 +25,8 @@ class BugReportStartReceiver : BroadcastReceiver() {
             Logger.e("Invalid bug report request", e)
             return
         }
+        request.broadcastReply(context, OK_GENERATING)
+
         Logger.v("Starting $SERVICE_MEMFAULT_DUMPSTATE_RUNNER (options=$request)")
         SystemPropertiesProxy.setSafe(DUMPSTATE_MEMFAULT_MINIMAL_PROPERTY, if (request.options.minimal) "1" else "0")
         SystemPropertiesProxy.setSafe(DUMPSTATE_MEMFAULT_REQUEST_ID, request.requestId ?: "")

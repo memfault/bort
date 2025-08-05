@@ -3,6 +3,7 @@ package com.memfault.bort.settings
 import android.content.SharedPreferences
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.SETTINGS_CHANGED
+import com.memfault.bort.settings.FetchedDeviceConfigContainer.Companion.asSamplingConfig
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.PreferenceKeyProvider
 import javax.inject.Inject
@@ -13,8 +14,21 @@ class SettingsUpdateHandler @Inject constructor(
     private val settingsUpdateCallback: SettingsUpdateCallback,
     private val metrics: BuiltinMetricsStore,
     private val everFetchedSettingsPreferenceProvider: EverFetchedSettingsPreferenceProvider,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) {
-    suspend fun handleSettingsUpdate(new: FetchedSettings) {
+    suspend fun handleDeviceConfig(deviceConfig: DecodedDeviceConfig) {
+        deviceConfig.memfault?.bort?.sdkSettings?.let { newSettings ->
+            handleSettingsUpdate(newSettings)
+        }
+        deviceConfig.memfault?.sampling?.let { newSampling ->
+            currentSamplingConfig.update(
+                newConfig = newSampling.asSamplingConfig(deviceConfig.revision),
+                completedRevision = deviceConfig.completedRevision,
+            )
+        }
+    }
+
+    private suspend fun handleSettingsUpdate(new: FetchedSettings) {
         everFetchedSettingsPreferenceProvider.setValue(true)
         val old = storedSettingsPreferenceProvider.get()
         val changed = old != new

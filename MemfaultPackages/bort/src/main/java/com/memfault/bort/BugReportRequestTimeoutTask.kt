@@ -26,7 +26,7 @@ class BugReportRequestTimeoutTask @Inject constructor(
     override fun convertAndValidateInputData(inputData: Data): String? =
         inputData.getString(REQUEST_ID_INPUT_DATA_KEY)
 
-    override suspend fun doWork(input: String?): TaskResult = TaskResult.SUCCESS.also {
+    override suspend fun doWork(input: String?): TaskResult {
         val (_, request) = pendingBugReportRequestAccessor.compareAndSwap(null) { request ->
             if (request == null) {
                 false
@@ -35,10 +35,9 @@ class BugReportRequestTimeoutTask @Inject constructor(
             }
         }
 
-        request?.broadcastReply(
-            application,
-            BugReportRequestStatus.ERROR_TIMEOUT,
-        )
+        request?.broadcastReply(application, BugReportRequestStatus.ERROR_GENERATING_TIMEOUT)
+
+        return TaskResult.SUCCESS
     }
 
     companion object {

@@ -13,6 +13,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
 import org.junit.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -42,18 +43,31 @@ class SettingsUpdateHandlerTest {
     }
     private val everFetchedSettingsPreferenceProvider =
         EverFetchedSettingsPreferenceProvider(makeFakeSharedPreferences())
+    private val currentSamplingConfig = mockk<CurrentSamplingConfig>(relaxed = true)
     private val handler = SettingsUpdateHandler(
         settingsProvider = settingsProvider,
         storedSettingsPreferenceProvider = storedSettingsPreferenceProvider,
         settingsUpdateCallback = callback,
         metrics = mockk(relaxed = true),
         everFetchedSettingsPreferenceProvider = everFetchedSettingsPreferenceProvider,
+        currentSamplingConfig = currentSamplingConfig,
     )
 
     @Test
     fun validResponse() = runTest {
         val response1 = SETTINGS_FIXTURE.toSettings()
-        handler.handleSettingsUpdate(response1)
+        val deviceConfigResponse1 = DecodedDeviceConfig(
+            revision = 1,
+            completedRevision = 1,
+            memfault = FetchedDeviceConfigContainer.Memfault(
+                bort = FetchedDeviceConfigContainer.Bort(
+                    sdkSettings = response1,
+                ),
+                sampling = FetchedDeviceConfigContainer.Sampling(),
+            ),
+            others = JsonObject(emptyMap()),
+        )
+        handler.handleDeviceConfig(deviceConfigResponse1)
 
         // The first call returns the same stored fixture and thus set() won't be called
         verify {
@@ -61,9 +75,36 @@ class SettingsUpdateHandlerTest {
         }
         confirmVerified(storedSettingsPreferenceProvider)
 
+        coVerify {
+            currentSamplingConfig.update(
+                SamplingConfig(
+                    revision = 1,
+                    debuggingResolution = SamplingConfig.DEFAULT_DEBUGGING,
+                    loggingResolution = SamplingConfig.DEFAULT_LOGGING,
+                    monitoringResolution = SamplingConfig.DEFAULT_MONITORING,
+                ),
+                completedRevision = 1,
+            )
+        }
+
         // The second one will trigger the update
         val response2 = response1.copy(bortMinLogcatLevel = LogLevel.NONE.level)
-        handler.handleSettingsUpdate(response2)
+        val deviceConfigResponse2 = DecodedDeviceConfig(
+            revision = 2,
+            completedRevision = 2,
+            memfault = FetchedDeviceConfigContainer.Memfault(
+                bort = FetchedDeviceConfigContainer.Bort(
+                    sdkSettings = response2,
+                ),
+                sampling = FetchedDeviceConfigContainer.Sampling(
+                    debuggingResolution = "low",
+                    loggingResolution = "low",
+                    monitoringResolution = "low",
+                ),
+            ),
+            others = JsonObject(emptyMap()),
+        )
+        handler.handleDeviceConfig(deviceConfigResponse2)
 
         // Check that settings was invalidated after a remote update
         coVerify {
@@ -77,5 +118,17 @@ class SettingsUpdateHandlerTest {
         confirmVerified(settingsProvider)
         assertThat(fetchedSettingsUpdateSlot.captured.old).isEqualTo(SETTINGS_FIXTURE.toSettings())
         assertThat(fetchedSettingsUpdateSlot.captured.new).isEqualTo(response2)
+
+        coVerify {
+            currentSamplingConfig.update(
+                SamplingConfig(
+                    revision = 2,
+                    debuggingResolution = Resolution.LOW,
+                    loggingResolution = Resolution.LOW,
+                    monitoringResolution = Resolution.LOW,
+                ),
+                completedRevision = 2,
+            )
+        }
     }
 }

@@ -24,7 +24,8 @@ service memfault_dumpstatez /system/bin/dumpstate -S -d -z -q \
 # the source code of the program itself.
 
 on post-fs-data
-    mkdir /data/misc/MemfaultBugReports/ 0771 system system
+    mkdir /data/misc/MemfaultBugReports/ 0777 system system
+    chmod 0777 /data/misc/MemfaultBugReports/
     wait /data/misc/MemfaultBugReports/
 
 service memfault_dumpstate_runner /system/bin/MemfaultDumpstateRunner

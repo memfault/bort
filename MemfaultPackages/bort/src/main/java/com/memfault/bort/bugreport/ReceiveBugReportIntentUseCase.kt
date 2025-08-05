@@ -5,6 +5,8 @@ import android.content.Intent
 import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.INTENT_EXTRA_BUGREPORT_PATH
 import com.memfault.bort.ProcessingOptions
+import com.memfault.bort.bugreport.BugReportRequestStatus.ERROR_GENERATED_TIMEOUT
+import com.memfault.bort.bugreport.BugReportRequestStatus.OK_GENERATED
 import com.memfault.bort.clientserver.MarMetadata.BugReportMarMetadata
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.settings.SettingsProvider
@@ -37,11 +39,13 @@ class RealReceiveBugReportIntentUseCase
 
         Logger.v("Got bugreport path: $bugreportPath, request: $request")
         bugreportPath ?: return
+        request?.broadcastReply(application, OK_GENERATED)
 
         val file = File(bugreportPath)
         if (!success) {
             Logger.w("Bug report request timed out, not uploading!")
             file.deleteSilently()
+            request?.broadcastReply(application, ERROR_GENERATED_TIMEOUT)
             return
         }
 

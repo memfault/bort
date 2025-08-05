@@ -7,6 +7,8 @@ import androidx.work.ExistingWorkPolicy.KEEP
 import androidx.work.ExistingWorkPolicy.REPLACE
 import com.memfault.bort.BugReportRequestTimeoutTask
 import com.memfault.bort.bugreport.BugReportRequestStatus.ERROR_ALREADY_PENDING
+import com.memfault.bort.bugreport.BugReportRequestStatus.ERROR_CONSTRAINTS_NOT_SATISFIED
+import com.memfault.bort.dagger.InjectSet
 import com.memfault.bort.metrics.BUG_REPORT_DELETED_OLD
 import com.memfault.bort.metrics.BUG_REPORT_DELETED_STORAGE
 import com.memfault.bort.metrics.BuiltinMetricsStore
@@ -36,6 +38,7 @@ class RealStartBugReportUseCase
     private val pendingBugReportRequestAccessor: PendingBugReportRequestAccessor,
     private val bugReportSettings: BugReportSettings,
     private val builtInMetricsStore: BuiltinMetricsStore,
+    private val startBugReportConstraints: InjectSet<StartBugReportConstraint>,
 ) : StartBugReportUseCase {
     override suspend fun startBugReport(
         request: BugReportRequest,
@@ -47,7 +50,7 @@ class RealStartBugReportUseCase
         //
         // Note that we cannot tell which bugreports are still queued for upload as WorkManager tasks.
         val cleanupResult = cleanupFiles(
-            dir = File(context.filesDir, "bugreports"),
+            dir = File("/data/misc/MemfaultBugReports"),
             maxDirStorageBytes = bugReportSettings.maxStorageBytes.toLong(),
             maxFileAge = bugReportSettings.maxStoredAge,
         )
@@ -59,6 +62,14 @@ class RealStartBugReportUseCase
                 BUG_REPORT_DELETED_STORAGE,
                 incrementBy = cleanupResult.deletedForStorageCount,
             )
+        }
+
+        for (constraint in startBugReportConstraints) {
+            if (!constraint.ok()) {
+                Logger.w("Ignoring bug report start: constraint $constraint not satisfied")
+                request.broadcastReply(context, ERROR_CONSTRAINTS_NOT_SATISFIED)
+                return false
+            }
         }
 
         val (success, _) = pendingBugReportRequestAccessor.compareAndSwap(request) { pendingRequest ->

@@ -1,10 +1,8 @@
 package com.memfault.bort.dropbox
 
 import android.os.DropBoxManager
-import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.DecodedDeviceConfig
 import com.memfault.bort.settings.SettingsUpdateHandler
-import com.memfault.bort.settings.handleUpdate
 import com.memfault.bort.shared.CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesMultibinding
@@ -16,7 +14,6 @@ import javax.inject.Inject
 @ContributesMultibinding(SingletonComponent::class)
 class ClientServerDeviceConfigProcessor @Inject constructor(
     private val settingsUpdateHandler: Lazy<SettingsUpdateHandler>,
-    private val samplingConfig: CurrentSamplingConfig,
 ) : EntryProcessor() {
     override val tags: List<String> = listOf(CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG)
 
@@ -26,10 +23,11 @@ class ClientServerDeviceConfigProcessor @Inject constructor(
                 reader.readText()
             }
         } ?: return
+
         try {
             val newDeviceConfig = DecodedDeviceConfig.from(content)
             Logger.test("ClientServerDeviceConfigProcessor: newDeviceConfig = $newDeviceConfig")
-            newDeviceConfig.handleUpdate(settingsUpdateHandler.get(), samplingConfig)
+            settingsUpdateHandler.get().handleDeviceConfig(newDeviceConfig)
         } catch (e: SerializationException) {
             Logger.d("failed to deserialize fetched device config from client/server", e)
         }

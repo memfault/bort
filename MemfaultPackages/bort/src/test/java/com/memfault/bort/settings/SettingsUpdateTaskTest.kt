@@ -12,6 +12,8 @@ import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.clientserver.CachedClientServerMode
 import com.memfault.bort.clientserver.ClientDeviceInfoPreferenceProvider
 import com.memfault.bort.clientserver.LinkedDeviceFileSender
+import com.memfault.bort.deviceconfig.DefaultMemfaultFetchDeviceConfigUseCase
+import com.memfault.bort.deviceconfig.RealClientServerUpdateClientDeviceConfigUseCase
 import com.memfault.bort.settings.DeviceConfigUpdateService.DeviceConfigArgs
 import com.memfault.bort.shared.CLIENT_SERVER_DEVICE_CONFIG_DROPBOX_TAG
 import com.memfault.bort.shared.ClientServerMode
@@ -60,16 +62,19 @@ class SettingsUpdateTaskTest {
         val deviceConfigService = mockk<DeviceConfigUpdateService> {
             coEvery { deviceConfig(any()) } throws SerializationException("invalid data")
         }
-        val samplingConfig = mockk<CurrentSamplingConfig>()
         val task = SettingsUpdateTask(
-            deviceInfoProvider = FakeDeviceInfoProvider(),
+            fetchDeviceConfigUseCase = DefaultMemfaultFetchDeviceConfigUseCase(
+                deviceInfoProvider = FakeDeviceInfoProvider(),
+                deviceConfigUpdateService = deviceConfigService,
+            ),
             settingsUpdateHandler = settingsUpdateHandler,
-            deviceConfigUpdateService = deviceConfigService,
-            samplingConfig = samplingConfig,
-            cachedClientServerMode = cachedClientServerMode,
-            linkedDeviceFileSender = linkedDeviceFileSender,
-            temporaryFileFactory = temporaryFileFactory,
-            clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
+            clientServerUpdateClientDeviceConfigUseCase = RealClientServerUpdateClientDeviceConfigUseCase(
+                deviceConfigUpdateService = deviceConfigService,
+                cachedClientServerMode = cachedClientServerMode,
+                linkedDeviceFileSender = linkedDeviceFileSender,
+                temporaryFileFactory = temporaryFileFactory,
+                clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
+            ),
         )
         val worker = mockTaskRunnerWorker<SettingsUpdateTask>(
             context,
@@ -92,16 +97,19 @@ class SettingsUpdateTaskTest {
             coEvery { deviceConfig(any()) } throws
                 HttpException(Response.error<Any>(500, "".toResponseBody()))
         }
-        val samplingConfig = mockk<CurrentSamplingConfig>()
         val task = SettingsUpdateTask(
-            deviceInfoProvider = FakeDeviceInfoProvider(),
+            fetchDeviceConfigUseCase = DefaultMemfaultFetchDeviceConfigUseCase(
+                deviceInfoProvider = FakeDeviceInfoProvider(),
+                deviceConfigUpdateService = deviceConfigService,
+            ),
             settingsUpdateHandler = settingsUpdateHandler,
-            deviceConfigUpdateService = deviceConfigService,
-            samplingConfig = samplingConfig,
-            cachedClientServerMode = cachedClientServerMode,
-            linkedDeviceFileSender = linkedDeviceFileSender,
-            temporaryFileFactory = temporaryFileFactory,
-            clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
+            clientServerUpdateClientDeviceConfigUseCase = RealClientServerUpdateClientDeviceConfigUseCase(
+                deviceConfigUpdateService = deviceConfigService,
+                cachedClientServerMode = cachedClientServerMode,
+                linkedDeviceFileSender = linkedDeviceFileSender,
+                temporaryFileFactory = temporaryFileFactory,
+                clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
+            ),
         )
         val worker = mockTaskRunnerWorker<SettingsUpdateTask>(
             context,
@@ -124,16 +132,19 @@ class SettingsUpdateTaskTest {
             coEvery { deviceConfig(any()) } throws
                 SocketTimeoutException("failed to connect to /192.168.0.226")
         }
-        val samplingConfig = mockk<CurrentSamplingConfig>()
         val task = SettingsUpdateTask(
-            deviceInfoProvider = FakeDeviceInfoProvider(),
+            fetchDeviceConfigUseCase = DefaultMemfaultFetchDeviceConfigUseCase(
+                deviceInfoProvider = FakeDeviceInfoProvider(),
+                deviceConfigUpdateService = deviceConfigService,
+            ),
             settingsUpdateHandler = settingsUpdateHandler,
-            deviceConfigUpdateService = deviceConfigService,
-            samplingConfig = samplingConfig,
-            cachedClientServerMode = cachedClientServerMode,
-            linkedDeviceFileSender = linkedDeviceFileSender,
-            temporaryFileFactory = temporaryFileFactory,
-            clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
+            clientServerUpdateClientDeviceConfigUseCase = RealClientServerUpdateClientDeviceConfigUseCase(
+                deviceConfigUpdateService = deviceConfigService,
+                cachedClientServerMode = cachedClientServerMode,
+                linkedDeviceFileSender = linkedDeviceFileSender,
+                temporaryFileFactory = temporaryFileFactory,
+                clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
+            ),
         )
         val worker = mockTaskRunnerWorker<SettingsUpdateTask>(
             context,
@@ -167,16 +178,19 @@ class SettingsUpdateTaskTest {
         val deviceConfigService = mockk<DeviceConfigUpdateService> {
             coEvery { deviceConfig(any()) } answers { deviceConfigResponse }
         }
-        val samplingConfig = mockk<CurrentSamplingConfig>(relaxed = true)
         val task = SettingsUpdateTask(
-            deviceInfoProvider = FakeDeviceInfoProvider(),
+            fetchDeviceConfigUseCase = DefaultMemfaultFetchDeviceConfigUseCase(
+                deviceInfoProvider = FakeDeviceInfoProvider(),
+                deviceConfigUpdateService = deviceConfigService,
+            ),
             settingsUpdateHandler = settingsUpdateHandler,
-            deviceConfigUpdateService = deviceConfigService,
-            samplingConfig = samplingConfig,
-            cachedClientServerMode = cachedClientServerMode,
-            linkedDeviceFileSender = linkedDeviceFileSender,
-            temporaryFileFactory = temporaryFileFactory,
-            clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
+            clientServerUpdateClientDeviceConfigUseCase = RealClientServerUpdateClientDeviceConfigUseCase(
+                deviceConfigUpdateService = deviceConfigService,
+                cachedClientServerMode = cachedClientServerMode,
+                linkedDeviceFileSender = linkedDeviceFileSender,
+                temporaryFileFactory = temporaryFileFactory,
+                clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
+            ),
         )
         val worker = mockTaskRunnerWorker<SettingsUpdateTask>(
             context,
@@ -186,18 +200,7 @@ class SettingsUpdateTaskTest {
         assertThat(worker.doWork()).isEqualTo(Result.success())
 
         coVerify(exactly = 1) { deviceConfigService.deviceConfig(any()) }
-        coVerify { settingsUpdateHandler.handleSettingsUpdate(settings) }
-        coVerify {
-            samplingConfig.update(
-                SamplingConfig(
-                    revision = 1,
-                    debuggingResolution = SamplingConfig.DEFAULT_DEBUGGING,
-                    loggingResolution = SamplingConfig.DEFAULT_LOGGING,
-                    monitoringResolution = SamplingConfig.DEFAULT_MONITORING,
-                ),
-                completedRevision = 1,
-            )
-        }
+        coVerify { settingsUpdateHandler.handleDeviceConfig(deviceConfigResponse) }
         coVerify(exactly = 0) { linkedDeviceFileSender.sendFileToLinkedDevice(any(), any()) }
     }
 
@@ -259,16 +262,19 @@ class SettingsUpdateTaskTest {
             coEvery { deviceConfig(deviceConfigArgs_server) } answers { deviceConfigResponse_server }
             coEvery { deviceConfig(deviceConfigArgs_client) } answers { deviceConfigResponse_client }
         }
-        val samplingConfig = mockk<CurrentSamplingConfig>(relaxed = true)
         val task = SettingsUpdateTask(
-            deviceInfoProvider = deviceInfoProvider,
+            fetchDeviceConfigUseCase = DefaultMemfaultFetchDeviceConfigUseCase(
+                deviceInfoProvider = deviceInfoProvider,
+                deviceConfigUpdateService = deviceConfigService,
+            ),
             settingsUpdateHandler = settingsUpdateHandler,
-            deviceConfigUpdateService = deviceConfigService,
-            samplingConfig = samplingConfig,
-            cachedClientServerMode = cachedClientServerMode,
-            linkedDeviceFileSender = linkedDeviceFileSender,
-            temporaryFileFactory = temporaryFileFactory,
-            clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
+            clientServerUpdateClientDeviceConfigUseCase = RealClientServerUpdateClientDeviceConfigUseCase(
+                deviceConfigUpdateService = deviceConfigService,
+                cachedClientServerMode = cachedClientServerMode,
+                linkedDeviceFileSender = linkedDeviceFileSender,
+                temporaryFileFactory = temporaryFileFactory,
+                clientDeviceInfoPreferenceProvider = clientDeviceInfoPreferenceProvider,
+            ),
         )
         val worker = mockTaskRunnerWorker<SettingsUpdateTask>(
             context,
@@ -281,18 +287,7 @@ class SettingsUpdateTaskTest {
             deviceConfigService.deviceConfig(deviceConfigArgs_server)
             deviceConfigService.deviceConfig(deviceConfigArgs_client)
         }
-        coVerify { settingsUpdateHandler.handleSettingsUpdate(settings_server) }
-        coVerify {
-            samplingConfig.update(
-                SamplingConfig(
-                    revision = 2,
-                    debuggingResolution = Resolution.LOW,
-                    loggingResolution = Resolution.LOW,
-                    monitoringResolution = Resolution.LOW,
-                ),
-                completedRevision = 2,
-            )
-        }
+        coVerify { settingsUpdateHandler.handleDeviceConfig(deviceConfigResponse_server) }
         coVerify(exactly = 1) {
             linkedDeviceFileSender.sendFileToLinkedDevice(
                 any(),
