@@ -6,10 +6,12 @@ import android.content.Context
 import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.memfault.bort.DevModeDisabled
 import com.memfault.bort.DeviceInfo
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.battery.BatterySessionVitalsCalculator
 import com.memfault.bort.connectivity.ConnectivityTimeCalculator
+import com.memfault.bort.makeFakeSharedPreferences
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.OPERATIONAL_CRASHES_METRIC_KEY
 import com.memfault.bort.metrics.DropBoxTraceCountDerivedAggregations.Companion.DROP_BOX_TAGS
 import com.memfault.bort.metrics.HighResTelemetry.DataType.DoubleType
@@ -29,7 +31,9 @@ import com.memfault.bort.settings.HighResMetricsEnabled
 import com.memfault.bort.settings.MetricsSettings
 import com.memfault.bort.settings.RateLimitingSettings
 import com.memfault.bort.test.util.TemporaryFolderTemporaryFileFactory
-import com.memfault.bort.tokenbucket.TokenBucketStore
+import com.memfault.bort.tokenbucket.RealTokenBucketFactory
+import com.memfault.bort.tokenbucket.RealTokenBucketStorage
+import com.memfault.bort.tokenbucket.RealTokenBucketStore
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
@@ -38,6 +42,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import org.junit.rules.ExternalResource
 import org.junit.rules.TemporaryFolder
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 
 class MetricsDbTestEnvironment : ExternalResource() {
 
@@ -49,10 +54,17 @@ class MetricsDbTestEnvironment : ExternalResource() {
     var dailyHeartbeatEnabledValue: Boolean = false
     private val dailyHeartbeatEnabled = DailyHeartbeatEnabled { dailyHeartbeatEnabledValue }
 
-    private val tokenBucketStore = mockk<TokenBucketStore> {
-        val rateLimited = false
-        every { takeSimple(any(), any(), any()) } answers { !rateLimited }
-    }
+    var sessionTokenBucketFactory = RealTokenBucketFactory(
+        defaultCapacity = 125,
+        defaultPeriod = 24.hours,
+        metrics = BuiltinMetricsStore(),
+    )
+    private val sessionTokenBucketStore = RealTokenBucketStore(
+        storage = RealTokenBucketStorage(makeFakeSharedPreferences(), "session_metrics"),
+        getMaxBuckets = { 1 },
+        getTokenBucketFactory = { sessionTokenBucketFactory },
+        devMode = DevModeDisabled,
+    )
 
     var deviceInfo = DeviceInfo(
         deviceSerial = "device-serial",
@@ -88,6 +100,8 @@ class MetricsDbTestEnvironment : ExternalResource() {
         override val cpuProcessReportingThreshold: Int get() = TODO("not used")
         override val cpuProcessLimitTopN: Int get() = TODO("not used")
         override val alwaysCreateCpuProcessMetrics: Boolean get() = TODO("not used")
+        override val enableStatsdCollection: Boolean get() = TODO("not used")
+        override val extraStatsDAtoms: List<Int> get() = TODO("not used")
     }
 
     /**
@@ -143,7 +157,7 @@ class MetricsDbTestEnvironment : ExternalResource() {
             temporaryFileFactory = TemporaryFolderTemporaryFileFactory(temporaryFolder),
             dailyHeartbeatEnabled = dailyHeartbeatEnabled,
             highResMetricsEnabled = highResMetricsEnabled,
-            sessionMetricsTokenBucketStore = tokenBucketStore,
+            sessionMetricsTokenBucketStore = sessionTokenBucketStore,
             deviceInfoProvider = deviceInfoProvider,
             derivedAggregations = setOf(
                 BatterySessionVitalsCalculator(),

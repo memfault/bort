@@ -39,7 +39,9 @@ abstract class BortErrorsDb : RoomDatabase() {
             application,
             BortErrorsDb::class.java,
             BORT_ERRORS_DB_NAME,
-        ).build()
+        )
+            .fallbackToDestructiveMigration()
+            .build()
     }
 }
 

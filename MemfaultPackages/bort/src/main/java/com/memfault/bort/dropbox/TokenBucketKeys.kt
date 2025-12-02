@@ -6,7 +6,7 @@ import java.security.MessageDigest
 
 fun JavaException.tokenBucketKey() =
     MessageDigest.getInstance("MD5").let { digest ->
-        unparsedStackFrames.forEach {
+        signatureLines.forEach {
             digest.update(it.encodeToByteArray())
         }
         digest.digest().toByteString().hex()

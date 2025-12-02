@@ -47,10 +47,9 @@ typealias SendReply = (reply: ServiceMessage) -> Unit
 // android.os.Message cannot be instantiated in unit tests. The odd code splitting & injecting is
 // done to keep the toMessage() and fromMessage() out of the main body of code.
 class ReporterServiceMessageHandler(
-    private val enqueueCommand: (List<String>, CommandRunnerOptions, CommandRunnerReportResult) -> CommandRunner,
+    private val commandExecutor: TimeoutThreadPoolExecutor,
     private val serviceMessageFromMessage: (message: Message) -> ReporterServiceMessage,
-    private val setLogLevel: (logLevel: LogLevel) -> Unit,
-    private val getSendReply: (message: Message) -> SendReply,
+    private val logLevelPreferenceProvider: LogLevelPreferenceProvider,
     private val b2BClientServer: B2BClientServer,
     private val reporterSettings: ReporterSettingsPreferenceProvider,
     private val createPipe: CreatePipe,
@@ -97,6 +96,31 @@ class ReporterServiceMessageHandler(
         }
 
         return true
+    }
+
+    private fun enqueueCommand(
+        command: List<String>,
+        runnerOptions: CommandRunnerOptions,
+        reportResult: CommandRunnerReportResult,
+    ): CommandRunner {
+        val runner = CommandRunner(command, runnerOptions, reportResult)
+        commandExecutor.submitWithTimeout(runner, runnerOptions.timeout)
+        Logger.v("Enqueued command ${runner.options.id} to $commandExecutor")
+        return runner
+    }
+
+    private fun getSendReply(message: Message): SendReply {
+        // Pull out the replyTo, because the message might have been recycled by the time the lambda gets called!
+        val replyTo = message.replyTo
+        return { serviceMessage: ServiceMessage ->
+            replyTo.send(serviceMessage.toMessage())
+        }
+    }
+
+    private fun setLogLevel(logLevel: LogLevel) {
+        logLevelPreferenceProvider.setLogLevel(logLevel)
+        Logger.updateMinLogcatLevel(logLevel)
+        Logger.test("Reporter received a log level update $logLevel")
     }
 
     private fun handleSettingsUpdate(
@@ -153,9 +177,9 @@ class ReporterService : Service() {
     @Inject lateinit var logLevelPreferenceProvider: LogLevelPreferenceProvider
 
     private var messenger: Messenger? = null
-    private lateinit var commandExecutor: TimeoutThreadPoolExecutor
-    private lateinit var handlerThread: HandlerThread
-    private lateinit var messageHandler: ReporterServiceMessageHandler
+    private var commandExecutor: TimeoutThreadPoolExecutor? = null
+    private var handlerThread: HandlerThread? = null
+    private var messageHandler: ReporterServiceMessageHandler? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -163,17 +187,13 @@ class ReporterService : Service() {
         handlerThread = HandlerThread("ReporterService", THREAD_PRIORITY_BACKGROUND).apply {
             start()
         }
-        commandExecutor = TimeoutThreadPoolExecutor(COMMAND_EXECUTOR_MAX_THREADS)
+        val executor = TimeoutThreadPoolExecutor(COMMAND_EXECUTOR_MAX_THREADS)
+        commandExecutor = executor
 
         messageHandler = ReporterServiceMessageHandler(
-            enqueueCommand = ::enqueueCommand,
+            commandExecutor = executor,
             serviceMessageFromMessage = ReporterServiceMessage.Companion::fromMessage,
-            setLogLevel = { logLevel ->
-                logLevelPreferenceProvider.setLogLevel(logLevel)
-                Logger.updateMinLogcatLevel(logLevel)
-                Logger.test("Reporter received a log level update $logLevel")
-            },
-            getSendReply = ::getSendReply,
+            logLevelPreferenceProvider = logLevelPreferenceProvider,
             b2BClientServer = b2bClientServer,
             reporterSettings = reporterSettingsPreferenceProvider,
             createPipe = ParcelFileDescriptor::createPipe,
@@ -183,44 +203,36 @@ class ReporterService : Service() {
     override fun onDestroy() {
         Logger.d("Destroying ReporterService")
 
-        Handler(handlerThread.looper).post {
-            commandExecutor.shutdown()
+        handlerThread?.let {
+            Handler(it.looper).post {
+                commandExecutor?.shutdown()
+            }
+            it.quitSafely()
+            Logger.v("handlerThread quit safely!")
         }
-        handlerThread.quitSafely()
-        Logger.v("handlerThread quit safely!")
+        handlerThread = null
 
-        val timedOut = !commandExecutor.awaitTermination(
-            COMMAND_EXECUTOR_TERMINATION_WAIT_SECS,
-            TimeUnit.SECONDS,
-        )
-        Logger.v("commandExecutor shut down! (timedOut=$timedOut)")
+        commandExecutor?.let {
+            val timedOut = !it.awaitTermination(
+                COMMAND_EXECUTOR_TERMINATION_WAIT_SECS,
+                TimeUnit.SECONDS,
+            )
+            Logger.v("commandExecutor shut down! (timedOut=$timedOut)")
+        }
+        commandExecutor = null
+
+        messageHandler = null
 
         Logger.test("Destroyed ReporterService")
     }
 
-    private fun enqueueCommand(
-        command: List<String>,
-        runnerOptions: CommandRunnerOptions,
-        reportResult: CommandRunnerReportResult,
-    ): CommandRunner =
-        CommandRunner(command, runnerOptions, reportResult).also {
-            commandExecutor.submitWithTimeout(it, runnerOptions.timeout)
-            Logger.v("Enqueued command ${it.options.id} to $commandExecutor")
-        }
-
-    private fun getSendReply(message: Message): SendReply {
-        // Pull out the replyTo, because the message might have been recycled by the time the lambda gets called!
-        val replyTo = message.replyTo
-        return { serviceMessage: ServiceMessage ->
-            replyTo.send(serviceMessage.toMessage())
-        }
-    }
-
     override fun onBind(intent: Intent): IBinder? {
         Logger.d("ReporterService: onBind: $intent")
-        return Messenger(Handler(handlerThread.looper, messageHandler)).also {
-            messenger = it
-        }.binder
+        val thread = handlerThread ?: return null
+        val handler = messageHandler ?: return null
+        val newMessenger = Messenger(Handler(thread.looper, handler))
+        messenger = newMessenger
+        return newMessenger.binder
     }
 
     override fun onUnbind(intent: Intent?): Boolean {

@@ -40,7 +40,7 @@ class AppUpgrade @Inject constructor(
         // Set initial values for a couple of metrics.
         if (prevVersion < V2_ADD_METRICS) {
             devMode.updateMetric()
-            runBlocking { currentSamplingConfig.updateMetrics() }
+            runBlocking { currentSamplingConfig.updateMetrics(currentSamplingConfig.get()) }
         }
     }
 

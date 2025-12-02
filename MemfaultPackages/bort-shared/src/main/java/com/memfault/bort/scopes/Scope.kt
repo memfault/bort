@@ -1,10 +1,7 @@
 package com.memfault.bort.scopes
 
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.SupervisorJob
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.coroutineContext
 
 interface Scope {
     val name: String
@@ -71,19 +68,6 @@ interface Scope {
 
             return rootBuilder.build()
                 .apply { register(coroutineScopeScoped) }
-        }
-
-        fun buildTestScope(
-            name: String = "test",
-            context: CoroutineContext?,
-            builder: (Builder.() -> Unit)? = null,
-        ): Scope {
-            var coroutineContext = SupervisorJob() + CoroutineName(name)
-            if (context != null) {
-                coroutineContext += context
-            }
-
-            return buildRootScope(name = name, context = coroutineContext, builder = builder)
         }
     }
 }

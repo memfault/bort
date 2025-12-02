@@ -5,7 +5,8 @@ import com.memfault.bort.shared.LogcatFormat
 import com.memfault.bort.shared.LogcatFormatModifier
 import com.memfault.bort.shared.LogcatPriority
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flow
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -23,6 +24,7 @@ data class LogcatLine(
     val buffer: String? = null,
     val tag: String? = null,
     val priority: LogcatPriority? = null,
+    val separator: Boolean = false,
 )
 
 class LogcatParser(
@@ -56,44 +58,62 @@ class LogcatParser(
         // Example separators:
         // --------- beginning of kernel
         // --------- switch to main
-        if (line.startsWith("-")) {
+        return if (line.startsWith("-")) {
             buffer = line.substringAfterLast(" ", "").ifEmpty { buffer }
+            LogcatLine(message = line, buffer = buffer, separator = true)
+        } else {
+            LogcatLine(message = line, buffer = buffer)
         }
-        return LogcatLine(message = line, buffer = buffer)
     }
 
     fun parse(): Flow<LogcatLine> {
         val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.nnnnnnnnn Z")
-        return lines.map { line ->
-            LINE_REGEX.matchEntire(line)?.let { result ->
-                val time = result.groups.get(TIME_GROUP)?.value?.let {
-                    val time = try {
-                        ZonedDateTime.parse(it, timeFormatter).toInstant()
-                    } catch (e: DateTimeParseException) {
-                        null
-                    }
-                    time
-                }
+        return flow {
+            var pendingSeparator: LogcatLine? = null
 
-                val uid = result.groups.get(UID_GROUP)?.value?.let { parseUid(it) }
-                // Note: named groups can't contain other named groups, that's why this one is not named:
-                //  java.util.regex.PatternSyntaxException: named capturing group is missing trailing '>' near index 6
-                val upToTag = result.groups.get(UP_TO_TAG_GROUP)?.value
-                val msg = result.groups.get(MSG_GROUP)?.value
-                val tag = result.groups.get(TAG_GROUP)?.value
-                val priority = result.groups.get(PRIORITY_GROUP)?.value?.let { LogcatPriority.getByCliValue(it) }
-                LogcatLine(
-                    logTime = time,
-                    uid = uid,
-                    lineUpToTag = upToTag,
-                    message = msg,
-                    buffer = buffer,
-                    tag = tag,
-                    priority = priority,
-                )
-            } ?: parseSeparator(line)
+            lines.collect { line ->
+                val parsedLine = parseLine(line, timeFormatter)
+                if (parsedLine.separator) {
+                    pendingSeparator = parsedLine
+                } else {
+                    pendingSeparator?.let { emit(it) }
+                    pendingSeparator = null
+                    emit(parsedLine)
+                }
+            }
+
+            pendingSeparator?.let { emit(it) }
         }
     }
+
+    private fun parseLine(line: String, timeFormatter: DateTimeFormatter): LogcatLine =
+        LINE_REGEX.matchEntire(line)?.let { result ->
+            val time = result.groups.get(TIME_GROUP)?.value?.let {
+                val time = try {
+                    ZonedDateTime.parse(it, timeFormatter).toInstant()
+                } catch (e: DateTimeParseException) {
+                    null
+                }
+                time
+            }
+
+            val uid = result.groups.get(UID_GROUP)?.value?.let { parseUid(it) }
+            // Note: named groups can't contain other named groups, that's why this one is not named:
+            //  java.util.regex.PatternSyntaxException: named capturing group is missing trailing '>' near index 6
+            val upToTag = result.groups.get(UP_TO_TAG_GROUP)?.value
+            val msg = result.groups.get(MSG_GROUP)?.value
+            val tag = result.groups.get(TAG_GROUP)?.value
+            val priority = result.groups.get(PRIORITY_GROUP)?.value?.let { LogcatPriority.getByCliValue(it) }
+            LogcatLine(
+                logTime = time,
+                uid = uid,
+                lineUpToTag = upToTag,
+                message = msg,
+                buffer = buffer,
+                tag = tag,
+                priority = priority,
+            )
+        } ?: parseSeparator(line)
 
     private fun parseUid(uid: String): Int? =
         uid.toIntOrNull() ?: uidCache.computeIfAbsent(uid) {

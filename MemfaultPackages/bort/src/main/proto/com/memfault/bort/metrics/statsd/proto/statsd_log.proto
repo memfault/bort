@@ -1,0 +1,1159 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * These are manually distilled from the statsd protos
+ * (frameworks/proto_logging) to selectively include only what Bort needs.
+ */
+
+syntax = "proto2";
+
+package com.memfault.bort.metrics.statsd.proto;
+option java_package = "com.memfault.bort.metrics.statsd.proto";
+
+message AggregatedAtomInfo {
+  optional Atom atom = 1;
+  repeated int64 elapsed_timestamp_nanos = 2;
+}
+
+message EventMetricData {
+  optional int64 elapsed_timestamp_nanos = 1;
+  optional Atom atom = 2;
+  optional AggregatedAtomInfo aggregated_atom_info = 4;
+}
+
+message StatsLogReport {
+  message EventMetricDataWrapper {
+    repeated EventMetricData data = 1;
+  }
+  oneof data {
+    EventMetricDataWrapper event_metrics = 4;
+  }
+}
+
+message ConfigMetricsReport {
+  repeated StatsLogReport metrics = 1;
+}
+
+message ConfigMetricsReportList {
+  repeated ConfigMetricsReport reports = 2;
+}
+
+// Atoms follow
+
+message Atom {
+  oneof pushed {
+    // Android 8 - Not available
+    BleScanResultReceived ble_scan_result_received = 4;
+    LmkKillOccurred lmk_kill_kill_occurred = 51;
+    LowMemReported low_mem_reported = 81;
+    // Android 9 - Up to 81
+    SlowIo slow_io = 92;
+    UsbContaminantReported usb_contaminant_reported = 146;
+    BluetoothDeviceRssiReported bluetooth_device_rssi_reported = 157;
+    BluetoothDeviceTxPowerLevelReported bluetooth_device_tx_power_level_reported = 159;
+    BluetoothQualityReportReported bluetooth_quality_report_reported = 161;
+    // Android 10 - Up to 218
+    // Android 11 - Up to 304
+    WifiDisconnectReported wifi_disconnect_reported = 307;
+    WifiScanReported wifi_scan_reported = 325;
+    // Android 12 -  Up to 383
+    // Android 13 - Up to 478
+    // Android 14 - Up to 702
+    // Android 15 - Up to 900
+  }
+}
+
+/**
+ * This proto represents a node of an attribution chain.
+ * Note: All attribution chains are represented as a repeated field of type
+ * AttributionNode. It is understood that in such arrays, the order is that
+ * of calls, that is [A, B, C] if A calls B that calls C.
+ */
+message AttributionNode {
+    // The uid for a given element in the attribution chain.
+    optional int32 uid = 1;
+
+    // The (optional) string tag for an element in the attribution chain. If the
+    // element has no tag, it is encoded as an empty string.
+    optional string tag = 2;
+}
+
+/**
+ * Logs reporting of a ble scan finding results.
+ *
+ * Logged from:
+ *   packages/apps/Bluetooth/src/com/android/bluetooth/le_scan/AppScanStats.java
+ */
+// TODO: Consider also tracking per-scanner-id.
+message BleScanResultReceived {
+    repeated AttributionNode attribution_node = 1;
+
+    // Number of ble scan results returned.
+    optional int32 num_results = 2;
+}
+
+/*
+ * Logs the event when Low Memory Killer Daemon (LMKD) kills a process to reduce memory pressure.
+ * Logged from:
+ *      system/core/lmkd/lmkd.c
+ */
+message LmkKillOccurred {
+  enum Reason {
+    UNKNOWN = 0;
+    PRESSURE_AFTER_KILL = 1;
+    NOT_RESPONDING = 2;
+    LOW_SWAP_AND_THRASHING = 3;
+    LOW_MEM_AND_SWAP = 4;
+    LOW_MEM_AND_THRASHING = 5;
+    DIRECT_RECL_AND_THRASHING = 6;
+    LOW_MEM_AND_SWAP_UTIL = 7;
+    LOW_FILECACHE_AFTER_THRASHING = 8;
+    LOW_MEM = 9;
+    DIRECT_RECL_STUCK = 10;
+  }
+
+  // The uid if available. -1 means not available.
+  optional int32 uid = 1;
+
+  // The process name.
+  optional string process_name = 2;
+
+  // oom adj score.
+  optional int32 oom_adj_score = 3;
+
+  // # of page-faults
+  optional int64 page_fault = 4;
+
+  // # of major page-faults
+  optional int64 page_major_fault = 5;
+
+  // RSS
+  optional int64 rss_in_bytes = 6;
+
+  // CACHE
+  optional int64 cache_in_bytes = 7;
+
+  // SWAP
+  optional int64 swap_in_bytes = 8;
+
+  // The elapsed real time of start of the process.
+  optional int64 process_start_time_nanos = 9;
+
+  // Min oom adj score considered by lmkd.
+  optional int32 min_oom_score = 10;
+
+  // Free physical memory on device at LMK time.
+  optional int32 free_mem_kb = 11;
+
+  // Free swap on device at LMK time.
+  optional int32 free_swap_kb = 12;
+
+  // What triggered the LMK event.
+  optional Reason reason = 13;
+
+  // Current thrashing levels (workingset_refaults/filecache in %).
+  optional int32 thrashing = 14;
+
+  // Max thrashing levels (workingset_refaults/filecache in %).
+  optional int32 max_thrashing = 15;
+
+  // How many active foreground services across the system
+  optional int32 total_foreground_services = 16;
+
+  // How many processes hosting foreground services
+  optional int32 procs_with_foreground_services = 17;
+}
+
+/**
+ * Logs when system server reports low memory.
+ * Logged from:
+ *      frameworks/base/services/core/java/com/android/server/am/ActivityManagerService.java
+ */
+message LowMemReported {
+}
+
+/**
+ * Log slow I/O operations on the primary storage.
+ */
+message SlowIo {
+  // Classifications of IO Operations.
+  enum IoOperation {
+    UNKNOWN = 0;
+    READ = 1;
+    WRITE = 2;
+    UNMAP = 3;
+    SYNC = 4;
+  }
+  optional IoOperation operation = 1;
+
+  // The number of slow IO operations of this type over 24 hours.
+  optional int32 count = 2;
+}
+
+/**
+ * Logs USB connector contaminant status.
+ *
+ * Logged from: USB Service.
+ */
+message UsbContaminantReported {
+  enum ContaminantPresenceStatus {
+    CONTAMINANT_STATUS_UNKNOWN = 0;
+    CONTAMINANT_STATUS_NOT_SUPPORTED = 1;
+    CONTAMINANT_STATUS_DISABLED = 2;
+    CONTAMINANT_STATUS_NOT_DETECTED = 3;
+    CONTAMINANT_STATUS_DETECTED = 4;
+  }
+
+  optional string id = 1;
+  optional ContaminantPresenceStatus status = 2;
+}
+
+// HCI command opcodes (OCF+OGF) from Bluetooth 5.0 specification Vol 2, Part E, Section 7
+// Original definition: system/bt/stack/include/hcidefs.h
+enum CommandEnum {
+  // Opcode is at most 2 bytes (0xFFFF), thus 0xFFFFF must not be a valid value
+  CMD_UNKNOWN = 0xFFFFF;
+  // Link control commands 0x0400
+  CMD_INQUIRY = 0x0401;
+  CMD_INQUIRY_CANCEL = 0x0402;
+  CMD_PERIODIC_INQUIRY_MODE = 0x0403;
+  CMD_EXIT_PERIODIC_INQUIRY_MODE = 0x0404;
+  CMD_CREATE_CONNECTION = 0x0405;
+  CMD_DISCONNECT = 0x0406;
+  CMD_ADD_SCO_CONNECTION = 0x0407; // Deprecated since Bluetooth 1.2
+  CMD_CREATE_CONNECTION_CANCEL = 0x0408;
+  CMD_ACCEPT_CONNECTION_REQUEST = 0x0409;
+  CMD_REJECT_CONNECTION_REQUEST = 0x040A;
+  CMD_LINK_KEY_REQUEST_REPLY = 0x040B;
+  CMD_LINK_KEY_REQUEST_NEG_REPLY = 0x040C;
+  CMD_PIN_CODE_REQUEST_REPLY = 0x040D;
+  CMD_PIN_CODE_REQUEST_NEG_REPLY = 0x040E;
+  CMD_CHANGE_CONN_PACKET_TYPE = 0x040F;
+  CMD_AUTHENTICATION_REQUESTED = 0x0411;
+  CMD_SET_CONN_ENCRYPTION = 0x0413;
+  CMD_CHANGE_CONN_LINK_KEY = 0x0415;
+  CMD_MASTER_LINK_KEY = 0x0417;
+  CMD_RMT_NAME_REQUEST = 0x0419;
+  CMD_RMT_NAME_REQUEST_CANCEL = 0x041A;
+  CMD_READ_RMT_FEATURES = 0x041B;
+  CMD_READ_RMT_EXT_FEATURES = 0x041C;
+  CMD_READ_RMT_VERSION_INFO = 0x041D;
+  CMD_READ_RMT_CLOCK_OFFSET = 0x041F;
+  CMD_READ_LMP_HANDLE = 0x0420;
+  CMD_SETUP_ESCO_CONNECTION = 0x0428;
+  CMD_ACCEPT_ESCO_CONNECTION = 0x0429;
+  CMD_REJECT_ESCO_CONNECTION = 0x042A;
+  CMD_IO_CAPABILITY_REQUEST_REPLY = 0x042B;
+  CMD_USER_CONF_REQUEST_REPLY = 0x042C;
+  CMD_USER_CONF_VALUE_NEG_REPLY = 0x042D;
+  CMD_USER_PASSKEY_REQ_REPLY = 0x042E;
+  CMD_USER_PASSKEY_REQ_NEG_REPLY = 0x042F;
+  CMD_REM_OOB_DATA_REQ_REPLY = 0x0430;
+  CMD_REM_OOB_DATA_REQ_NEG_REPLY = 0x0433;
+  CMD_IO_CAP_REQ_NEG_REPLY = 0x0434;
+  // BEGIN: AMP commands (not used in system/bt)
+  CMD_CREATE_PHYSICAL_LINK = 0x0435;
+  CMD_ACCEPT_PHYSICAL_LINK = 0x0436;
+  CMD_DISCONNECT_PHYSICAL_LINK = 0x0437;
+  CMD_CREATE_LOGICAL_LINK = 0x0438;
+  CMD_ACCEPT_LOGICAL_LINK = 0x0439;
+  CMD_DISCONNECT_LOGICAL_LINK = 0x043A;
+  CMD_LOGICAL_LINK_CANCEL = 0x043B;
+  CMD_FLOW_SPEC_MODIFY = 0x043C;
+  // END: AMP commands
+  CMD_ENH_SETUP_ESCO_CONNECTION = 0x043D;
+  CMD_ENH_ACCEPT_ESCO_CONNECTION = 0x043E;
+  CMD_TRUNCATED_PAGE = 0x043F;
+  CMD_TRUNCATED_PAGE_CANCEL = 0x0440;
+  CMD_SET_CLB = 0x0441;
+  CMD_RECEIVE_CLB = 0x0442;
+  CMD_START_SYNC_TRAIN = 0x0443;
+  CMD_RECEIVE_SYNC_TRAIN = 0x0444;
+  CMD_REM_OOB_EXTENDED_DATA_REQ_REPLY = 0x0445; // Not currently used in system/bt
+  // Link policy commands 0x0800
+  CMD_HOLD_MODE = 0x0801;
+  CMD_SNIFF_MODE = 0x0803;
+  CMD_EXIT_SNIFF_MODE = 0x0804;
+  CMD_PARK_MODE = 0x0805;
+  CMD_EXIT_PARK_MODE = 0x0806;
+  CMD_QOS_SETUP = 0x0807;
+  CMD_ROLE_DISCOVERY = 0x0809;
+  CMD_SWITCH_ROLE = 0x080B;
+  CMD_READ_POLICY_SETTINGS = 0x080C;
+  CMD_WRITE_POLICY_SETTINGS = 0x080D;
+  CMD_READ_DEF_POLICY_SETTINGS = 0x080E;
+  CMD_WRITE_DEF_POLICY_SETTINGS = 0x080F;
+  CMD_FLOW_SPECIFICATION = 0x0810;
+  CMD_SNIFF_SUB_RATE = 0x0811;
+  // Host controller baseband commands 0x0C00
+  CMD_SET_EVENT_MASK = 0x0C01;
+  CMD_RESET = 0x0C03;
+  CMD_SET_EVENT_FILTER = 0x0C05;
+  CMD_FLUSH = 0x0C08;
+  CMD_READ_PIN_TYPE = 0x0C09;
+  CMD_WRITE_PIN_TYPE = 0x0C0A;
+  CMD_CREATE_NEW_UNIT_KEY = 0x0C0B;
+  CMD_GET_MWS_TRANS_LAYER_CFG = 0x0C0C; // Deprecated (not used in spec)
+  CMD_READ_STORED_LINK_KEY = 0x0C0D;
+  CMD_WRITE_STORED_LINK_KEY = 0x0C11;
+  CMD_DELETE_STORED_LINK_KEY = 0x0C12;
+  CMD_CHANGE_LOCAL_NAME = 0x0C13;
+  CMD_READ_LOCAL_NAME = 0x0C14;
+  CMD_READ_CONN_ACCEPT_TOUT = 0x0C15;
+  CMD_WRITE_CONN_ACCEPT_TOUT = 0x0C16;
+  CMD_READ_PAGE_TOUT = 0x0C17;
+  CMD_WRITE_PAGE_TOUT = 0x0C18;
+  CMD_READ_SCAN_ENABLE = 0x0C19;
+  CMD_WRITE_SCAN_ENABLE = 0x0C1A;
+  CMD_READ_PAGESCAN_CFG = 0x0C1B;
+  CMD_WRITE_PAGESCAN_CFG = 0x0C1C;
+  CMD_READ_INQUIRYSCAN_CFG = 0x0C1D;
+  CMD_WRITE_INQUIRYSCAN_CFG = 0x0C1E;
+  CMD_READ_AUTHENTICATION_ENABLE = 0x0C1F;
+  CMD_WRITE_AUTHENTICATION_ENABLE = 0x0C20;
+  CMD_READ_ENCRYPTION_MODE = 0x0C21; // Deprecated
+  CMD_WRITE_ENCRYPTION_MODE = 0x0C22; // Deprecated
+  CMD_READ_CLASS_OF_DEVICE = 0x0C23;
+  CMD_WRITE_CLASS_OF_DEVICE = 0x0C24;
+  CMD_READ_VOICE_SETTINGS = 0x0C25;
+  CMD_WRITE_VOICE_SETTINGS = 0x0C26;
+  CMD_READ_AUTOMATIC_FLUSH_TIMEOUT = 0x0C27;
+  CMD_WRITE_AUTOMATIC_FLUSH_TIMEOUT = 0x0C28;
+  CMD_READ_NUM_BCAST_REXMITS = 0x0C29;
+  CMD_WRITE_NUM_BCAST_REXMITS = 0x0C2A;
+  CMD_READ_HOLD_MODE_ACTIVITY = 0x0C2B;
+  CMD_WRITE_HOLD_MODE_ACTIVITY = 0x0C2C;
+  CMD_READ_TRANSMIT_POWER_LEVEL = 0x0C2D;
+  CMD_READ_SCO_FLOW_CTRL_ENABLE = 0x0C2E;
+  CMD_WRITE_SCO_FLOW_CTRL_ENABLE = 0x0C2F;
+  CMD_SET_HC_TO_HOST_FLOW_CTRL = 0x0C31;
+  CMD_HOST_BUFFER_SIZE = 0x0C33;
+  CMD_HOST_NUM_PACKETS_DONE = 0x0C35;
+  CMD_READ_LINK_SUPER_TOUT = 0x0C36;
+  CMD_WRITE_LINK_SUPER_TOUT = 0x0C37;
+  CMD_READ_NUM_SUPPORTED_IAC = 0x0C38;
+  CMD_READ_CURRENT_IAC_LAP = 0x0C39;
+  CMD_WRITE_CURRENT_IAC_LAP = 0x0C3A;
+  CMD_READ_PAGESCAN_PERIOD_MODE = 0x0C3B; // Deprecated
+  CMD_WRITE_PAGESCAN_PERIOD_MODE = 0x0C3C; // Deprecated
+  CMD_READ_PAGESCAN_MODE = 0x0C3D; // Deprecated
+  CMD_WRITE_PAGESCAN_MODE = 0x0C3E; // Deprecated
+  CMD_SET_AFH_CHANNELS = 0x0C3F;
+  CMD_READ_INQSCAN_TYPE = 0x0C42;
+  CMD_WRITE_INQSCAN_TYPE = 0x0C43;
+  CMD_READ_INQUIRY_MODE = 0x0C44;
+  CMD_WRITE_INQUIRY_MODE = 0x0C45;
+  CMD_READ_PAGESCAN_TYPE = 0x0C46;
+  CMD_WRITE_PAGESCAN_TYPE = 0x0C47;
+  CMD_READ_AFH_ASSESSMENT_MODE = 0x0C48;
+  CMD_WRITE_AFH_ASSESSMENT_MODE = 0x0C49;
+  CMD_READ_EXT_INQ_RESPONSE = 0x0C51;
+  CMD_WRITE_EXT_INQ_RESPONSE = 0x0C52;
+  CMD_REFRESH_ENCRYPTION_KEY = 0x0C53;
+  CMD_READ_SIMPLE_PAIRING_MODE = 0x0C55;
+  CMD_WRITE_SIMPLE_PAIRING_MODE = 0x0C56;
+  CMD_READ_LOCAL_OOB_DATA = 0x0C57;
+  CMD_READ_INQ_TX_POWER_LEVEL = 0x0C58;
+  CMD_WRITE_INQ_TX_POWER_LEVEL = 0x0C59;
+  CMD_READ_ERRONEOUS_DATA_RPT = 0x0C5A;
+  CMD_WRITE_ERRONEOUS_DATA_RPT = 0x0C5B;
+  CMD_ENHANCED_FLUSH = 0x0C5F;
+  CMD_SEND_KEYPRESS_NOTIF = 0x0C60;
+  CMD_READ_LOGICAL_LINK_ACCEPT_TIMEOUT = 0x0C61;
+  CMD_WRITE_LOGICAL_LINK_ACCEPT_TIMEOUT = 0x0C62;
+  CMD_SET_EVENT_MASK_PAGE_2 = 0x0C63;
+  CMD_READ_LOCATION_DATA = 0x0C64;
+  CMD_WRITE_LOCATION_DATA = 0x0C65;
+  CMD_READ_FLOW_CONTROL_MODE = 0x0C66;
+  CMD_WRITE_FLOW_CONTROL_MODE = 0x0C67;
+  CMD_READ_ENHANCED_TX_PWR_LEVEL = 0x0C68; // Not currently used in system/bt
+  CMD_READ_BE_FLUSH_TOUT = 0x0C69;
+  CMD_WRITE_BE_FLUSH_TOUT = 0x0C6A;
+  CMD_SHORT_RANGE_MODE = 0x0C6B;
+  CMD_READ_BLE_HOST_SUPPORT = 0x0C6C;
+  CMD_WRITE_BLE_HOST_SUPPORT = 0x0C6D;
+  CMD_SET_MWS_CHANNEL_PARAMETERS = 0x0C6E;
+  CMD_SET_EXTERNAL_FRAME_CONFIGURATION = 0x0C6F;
+  CMD_SET_MWS_SIGNALING = 0x0C70;
+  CMD_SET_MWS_TRANSPORT_LAYER = 0x0C71;
+  CMD_SET_MWS_SCAN_FREQUENCY_TABLE = 0x0C72;
+  CMD_SET_MWS_PATTERN_CONFIGURATION = 0x0C73;
+  CMD_SET_RESERVED_LT_ADDR = 0x0C74;
+  CMD_DELETE_RESERVED_LT_ADDR = 0x0C75;
+  CMD_WRITE_CLB_DATA = 0x0C76;
+  CMD_READ_SYNC_TRAIN_PARAM = 0x0C77;
+  CMD_WRITE_SYNC_TRAIN_PARAM = 0x0C78;
+  CMD_READ_SECURE_CONNS_SUPPORT = 0x0C79;
+  CMD_WRITE_SECURE_CONNS_SUPPORT = 0x0C7A;
+  CMD_READ_AUTHED_PAYLOAD_TIMEOUT = 0x0C7B; // Not currently used in system/bt
+  CMD_WRITE_AUTHED_PAYLOAD_TIMEOUT = 0x0C7C; // Not currently used in system/bt
+  CMD_READ_LOCAL_OOB_EXTENDED_DATA = 0x0C7D; // Not currently used in system/bt
+  CMD_READ_EXTENDED_PAGE_TIMEOUT = 0x0C7E; // Not currently used in system/bt
+  CMD_WRITE_EXTENDED_PAGE_TIMEOUT = 0x0C7F; // Not currently used in system/bt
+  CMD_READ_EXTENDED_INQUIRY_LENGTH = 0x0C80; // Not currently used in system/bt
+  CMD_WRITE_EXTENDED_INQUIRY_LENGTH = 0x0C81; // Not currently used in system/bt
+  // Informational parameter commands 0x1000
+  CMD_READ_LOCAL_VERSION_INFO = 0x1001;
+  CMD_READ_LOCAL_SUPPORTED_CMDS = 0x1002;
+  CMD_READ_LOCAL_FEATURES = 0x1003;
+  CMD_READ_LOCAL_EXT_FEATURES = 0x1004;
+  CMD_READ_BUFFER_SIZE = 0x1005;
+  CMD_READ_COUNTRY_CODE = 0x1007; // Deprecated
+  CMD_READ_BD_ADDR = 0x1009;
+  CMD_READ_DATA_BLOCK_SIZE = 0x100A;
+  CMD_READ_LOCAL_SUPPORTED_CODECS = 0x100B;
+  // Status parameter commands 0x1400
+  CMD_READ_FAILED_CONTACT_COUNTER = 0x1401;
+  CMD_RESET_FAILED_CONTACT_COUNTER = 0x1402;
+  CMD_GET_LINK_QUALITY = 0x1403;
+  CMD_READ_RSSI = 0x1405;
+  CMD_READ_AFH_CH_MAP = 0x1406;
+  CMD_READ_CLOCK = 0x1407;
+  CMD_READ_ENCR_KEY_SIZE = 0x1408;
+  CMD_READ_LOCAL_AMP_INFO = 0x1409;
+  CMD_READ_LOCAL_AMP_ASSOC = 0x140A;
+  CMD_WRITE_REMOTE_AMP_ASSOC = 0x140B;
+  CMD_GET_MWS_TRANSPORT_CFG = 0x140C; // Not currently used in system/bt
+  CMD_SET_TRIGGERED_CLK_CAPTURE = 0x140D; // Not currently used in system/bt
+  // Testing commands 0x1800
+  CMD_READ_LOOPBACK_MODE = 0x1801;
+  CMD_WRITE_LOOPBACK_MODE = 0x1802;
+  CMD_ENABLE_DEV_UNDER_TEST_MODE = 0x1803;
+  CMD_WRITE_SIMP_PAIR_DEBUG_MODE = 0x1804;
+  CMD_ENABLE_AMP_RCVR_REPORTS = 0x1807;
+  CMD_AMP_TEST_END = 0x1808;
+  CMD_AMP_TEST = 0x1809;
+  CMD_WRITE_SECURE_CONN_TEST_MODE = 0x180A; // Not currently used in system/bt
+  // BLE commands 0x2000
+  CMD_BLE_SET_EVENT_MASK = 0x2001;
+  CMD_BLE_READ_BUFFER_SIZE = 0x2002;
+  CMD_BLE_READ_LOCAL_SPT_FEAT = 0x2003;
+  CMD_BLE_WRITE_LOCAL_SPT_FEAT = 0x2004;
+  CMD_BLE_WRITE_RANDOM_ADDR = 0x2005;
+  CMD_BLE_WRITE_ADV_PARAMS = 0x2006;
+  CMD_BLE_READ_ADV_CHNL_TX_POWER = 0x2007;
+  CMD_BLE_WRITE_ADV_DATA = 0x2008;
+  CMD_BLE_WRITE_SCAN_RSP_DATA = 0x2009;
+  CMD_BLE_WRITE_ADV_ENABLE = 0x200A;
+  CMD_BLE_WRITE_SCAN_PARAMS = 0x200B;
+  CMD_BLE_WRITE_SCAN_ENABLE = 0x200C;
+  CMD_BLE_CREATE_LL_CONN = 0x200D;
+  CMD_BLE_CREATE_CONN_CANCEL = 0x200E;
+  CMD_BLE_READ_WHITE_LIST_SIZE = 0x200F;
+  CMD_BLE_CLEAR_WHITE_LIST = 0x2010;
+  CMD_BLE_ADD_WHITE_LIST = 0x2011;
+  CMD_BLE_REMOVE_WHITE_LIST = 0x2012;
+  CMD_BLE_UPD_LL_CONN_PARAMS = 0x2013;
+  CMD_BLE_SET_HOST_CHNL_CLASS = 0x2014;
+  CMD_BLE_READ_CHNL_MAP = 0x2015;
+  CMD_BLE_READ_REMOTE_FEAT = 0x2016;
+  CMD_BLE_ENCRYPT = 0x2017;
+  CMD_BLE_RAND = 0x2018;
+  CMD_BLE_START_ENC = 0x2019;
+  CMD_BLE_LTK_REQ_REPLY = 0x201A;
+  CMD_BLE_LTK_REQ_NEG_REPLY = 0x201B;
+  CMD_BLE_READ_SUPPORTED_STATES = 0x201C;
+  CMD_BLE_RECEIVER_TEST = 0x201D;
+  CMD_BLE_TRANSMITTER_TEST = 0x201E;
+  CMD_BLE_TEST_END = 0x201F;
+  CMD_BLE_RC_PARAM_REQ_REPLY = 0x2020;
+  CMD_BLE_RC_PARAM_REQ_NEG_REPLY = 0x2021;
+  CMD_BLE_SET_DATA_LENGTH = 0x2022;
+  CMD_BLE_READ_DEFAULT_DATA_LENGTH = 0x2023;
+  CMD_BLE_WRITE_DEFAULT_DATA_LENGTH = 0x2024;
+  CMD_BLE_GENERATE_DHKEY = 0x2026; // Not currently used in system/bt
+  CMD_BLE_ADD_DEV_RESOLVING_LIST = 0x2027;
+  CMD_BLE_RM_DEV_RESOLVING_LIST = 0x2028;
+  CMD_BLE_CLEAR_RESOLVING_LIST = 0x2029;
+  CMD_BLE_READ_RESOLVING_LIST_SIZE = 0x202A;
+  CMD_BLE_READ_RESOLVABLE_ADDR_PEER = 0x202B;
+  CMD_BLE_READ_RESOLVABLE_ADDR_LOCAL = 0x202C;
+  CMD_BLE_SET_ADDR_RESOLUTION_ENABLE = 0x202D;
+  CMD_BLE_SET_RAND_PRIV_ADDR_TIMOUT = 0x202E;
+  CMD_BLE_READ_MAXIMUM_DATA_LENGTH = 0x202F;
+  CMD_BLE_READ_PHY = 0x2030;
+  CMD_BLE_SET_DEFAULT_PHY = 0x2031;
+  CMD_BLE_SET_PHY = 0x2032;
+  CMD_BLE_ENH_RECEIVER_TEST = 0x2033;
+  CMD_BLE_ENH_TRANSMITTER_TEST = 0x2034;
+  CMD_BLE_SET_EXT_ADVERTISING_RANDOM_ADDRESS = 0x2035;
+  CMD_BLE_SET_EXT_ADVERTISING_PARAM = 0x2036;
+  CMD_BLE_SET_EXT_ADVERTISING_DATA = 0x2037;
+  CMD_BLE_SET_EXT_ADVERTISING_SCAN_RESP = 0x2038;
+  CMD_BLE_SET_EXT_ADVERTISING_ENABLE = 0x2039;
+  CMD_BLE_READ_MAXIMUM_ADVERTISING_DATA_LENGTH = 0x203A;
+  CMD_BLE_READ_NUMBER_OF_SUPPORTED_ADVERTISING_SETS = 0x203B;
+  CMD_BLE_REMOVE_ADVERTISING_SET = 0x203C;
+  CMD_BLE_CLEAR_ADVERTISING_SETS = 0x203D;
+  CMD_BLE_SET_PERIODIC_ADVERTISING_PARAM = 0x203E;
+  CMD_BLE_SET_PERIODIC_ADVERTISING_DATA = 0x203F;
+  CMD_BLE_SET_PERIODIC_ADVERTISING_ENABLE = 0x2040;
+  CMD_BLE_SET_EXTENDED_SCAN_PARAMETERS = 0x2041;
+  CMD_BLE_SET_EXTENDED_SCAN_ENABLE = 0x2042;
+  CMD_BLE_EXTENDED_CREATE_CONNECTION = 0x2043;
+  CMD_BLE_PERIODIC_ADVERTISING_CREATE_SYNC = 0x2044;
+  CMD_BLE_PERIODIC_ADVERTISING_CREATE_SYNC_CANCEL = 0x2045;
+  CMD_BLE_PERIODIC_ADVERTISING_TERMINATE_SYNC = 0x2046;
+  CMD_BLE_ADD_DEVICE_TO_PERIODIC_ADVERTISING_LIST = 0x2047;
+  CMD_BLE_RM_DEVICE_FROM_PERIODIC_ADVERTISING_LIST = 0x2048;
+  CMD_BLE_CLEAR_PERIODIC_ADVERTISING_LIST = 0x2049;
+  CMD_BLE_READ_PERIODIC_ADVERTISING_LIST_SIZE = 0x204A;
+  CMD_BLE_READ_TRANSMIT_POWER = 0x204B;
+  CMD_BLE_READ_RF_COMPENS_POWER = 0x204C;
+  CMD_BLE_WRITE_RF_COMPENS_POWER = 0x204D;
+  CMD_BLE_SET_PRIVACY_MODE = 0x204E;
+  // Vendor specific commands 0xFC00 and above
+  // Android vendor specific commands defined in
+  // https://source.android.com/devices/bluetooth/hci_requirements#vendor-specific-capabilities
+  CMD_BLE_VENDOR_CAP = 0xFD53;
+  CMD_BLE_MULTI_ADV = 0xFD54;
+  CMD_BLE_BATCH_SCAN = 0xFD56;
+  CMD_BLE_ADV_FILTER = 0xFD57;
+  CMD_BLE_TRACK_ADV = 0xFD58;
+  CMD_BLE_ENERGY_INFO = 0xFD59;
+  CMD_BLE_EXTENDED_SCAN_PARAMS = 0xFD5A;
+  CMD_CONTROLLER_DEBUG_INFO = 0xFD5B;
+  CMD_CONTROLLER_A2DP_OPCODE = 0xFD5D;
+  CMD_BRCM_SET_ACL_PRIORITY = 0xFC57;
+  // Other vendor specific commands below here
+}
+
+// HCI status code from the Bluetooth 5.0 specification Vol 2, Part D.
+// Original definition: system/bt/stack/include/hcidefs.h
+enum StatusEnum {
+    // Status is at most 1 byte (0xFF), thus 0xFFF must not be a valid value
+    STATUS_UNKNOWN = 0xFFF;
+    STATUS_SUCCESS = 0x00;
+    STATUS_ILLEGAL_COMMAND = 0x01;
+    STATUS_NO_CONNECTION = 0x02;
+    STATUS_HW_FAILURE = 0x03;
+    STATUS_PAGE_TIMEOUT = 0x04;
+    STATUS_AUTH_FAILURE = 0x05;
+    STATUS_KEY_MISSING = 0x06;
+    STATUS_MEMORY_FULL = 0x07;
+    STATUS_CONNECTION_TOUT = 0x08;
+    STATUS_MAX_NUM_OF_CONNECTIONS = 0x09;
+    STATUS_MAX_NUM_OF_SCOS = 0x0A;
+    STATUS_CONNECTION_EXISTS = 0x0B;
+    STATUS_COMMAND_DISALLOWED = 0x0C;
+    STATUS_HOST_REJECT_RESOURCES = 0x0D;
+    STATUS_HOST_REJECT_SECURITY = 0x0E;
+    STATUS_HOST_REJECT_DEVICE = 0x0F;
+    STATUS_HOST_TIMEOUT = 0x10;
+    STATUS_UNSUPPORTED_VALUE = 0x11;
+    STATUS_ILLEGAL_PARAMETER_FMT = 0x12;
+    STATUS_PEER_USER = 0x13;
+    STATUS_PEER_LOW_RESOURCES = 0x14;
+    STATUS_PEER_POWER_OFF = 0x15;
+    STATUS_CONN_CAUSE_LOCAL_HOST = 0x16;
+    STATUS_REPEATED_ATTEMPTS = 0x17;
+    STATUS_PAIRING_NOT_ALLOWED = 0x18;
+    STATUS_UNKNOWN_LMP_PDU = 0x19;
+    STATUS_UNSUPPORTED_REM_FEATURE = 0x1A;
+    STATUS_SCO_OFFSET_REJECTED = 0x1B;
+    STATUS_SCO_INTERVAL_REJECTED = 0x1C;
+    STATUS_SCO_AIR_MODE = 0x1D;
+    STATUS_INVALID_LMP_PARAM = 0x1E;
+    STATUS_UNSPECIFIED = 0x1F;
+    STATUS_UNSUPPORTED_LMP_FEATURE = 0x20;
+    STATUS_ROLE_CHANGE_NOT_ALLOWED = 0x21;
+    STATUS_LMP_RESPONSE_TIMEOUT = 0x22;
+    STATUS_LMP_STATUS_TRANS_COLLISION = 0x23;
+    STATUS_LMP_PDU_NOT_ALLOWED = 0x24;
+    STATUS_ENCRY_MODE_NOT_ACCEPTABLE = 0x25;
+    STATUS_UNIT_KEY_USED = 0x26;
+    STATUS_QOS_NOT_SUPPORTED = 0x27;
+    STATUS_INSTANT_PASSED = 0x28;
+    STATUS_PAIRING_WITH_UNIT_KEY_NOT_SUPPORTED = 0x29;
+    STATUS_DIFF_TRANSACTION_COLLISION = 0x2A;
+    STATUS_UNDEFINED_0x2B = 0x2B; // Not used
+    STATUS_QOS_UNACCEPTABLE_PARAM = 0x2C;
+    STATUS_QOS_REJECTED = 0x2D;
+    STATUS_CHAN_CLASSIF_NOT_SUPPORTED = 0x2E;
+    STATUS_INSUFFCIENT_SECURITY = 0x2F;
+    STATUS_PARAM_OUT_OF_RANGE = 0x30;
+    STATUS_UNDEFINED_0x31 = 0x31; // Not used
+    STATUS_ROLE_SWITCH_PENDING = 0x32;
+    STATUS_UNDEFINED_0x33 = 0x33;
+    STATUS_RESERVED_SLOT_VIOLATION = 0x34;
+    STATUS_ROLE_SWITCH_FAILED = 0x35;
+    STATUS_INQ_RSP_DATA_TOO_LARGE = 0x36;
+    STATUS_SIMPLE_PAIRING_NOT_SUPPORTED = 0x37;
+    STATUS_HOST_BUSY_PAIRING = 0x38;
+    STATUS_REJ_NO_SUITABLE_CHANNEL = 0x39;
+    STATUS_CONTROLLER_BUSY = 0x3A;
+    STATUS_UNACCEPT_CONN_INTERVAL = 0x3B;
+    STATUS_ADVERTISING_TIMEOUT = 0x3C;
+    STATUS_CONN_TOUT_DUE_TO_MIC_FAILURE = 0x3D;
+    STATUS_CONN_FAILED_ESTABLISHMENT = 0x3E;
+    STATUS_MAC_CONNECTION_FAILED = 0x3F;
+    STATUS_LT_ADDR_ALREADY_IN_USE = 0x40;
+    STATUS_LT_ADDR_NOT_ALLOCATED = 0x41;
+    STATUS_CLB_NOT_ENABLED = 0x42;
+    STATUS_CLB_DATA_TOO_BIG = 0x43;
+    STATUS_OPERATION_CANCELED_BY_HOST = 0x44; // Not currently used in system/bt
+}
+
+enum BqrIdEnum {
+    BQR_ID_UNKNOWN = 0x00;
+    BQR_ID_MONITOR_MODE = 0x01;
+    BQR_ID_APPROACH_LSTO = 0x02;
+    BQR_ID_A2DP_AUDIO_CHOPPY = 0x03;
+    BQR_ID_SCO_VOICE_CHOPPY = 0x04;
+}
+
+enum BqrPacketTypeEnum {
+    BQR_PACKET_TYPE_UNKNOWN = 0x00;
+    BQR_PACKET_TYPE_ID = 0x01;
+    BQR_PACKET_TYPE_NULL = 0x02;
+    BQR_PACKET_TYPE_POLL = 0x03;
+    BQR_PACKET_TYPE_FHS = 0x04;
+    BQR_PACKET_TYPE_HV1 = 0x05;
+    BQR_PACKET_TYPE_HV2 = 0x06;
+    BQR_PACKET_TYPE_HV3 = 0x07;
+    BQR_PACKET_TYPE_DV = 0x08;
+    BQR_PACKET_TYPE_EV3 = 0x09;
+    BQR_PACKET_TYPE_EV4 = 0x0A;
+    BQR_PACKET_TYPE_EV5 = 0x0B;
+    BQR_PACKET_TYPE_2EV3 = 0x0C;
+    BQR_PACKET_TYPE_2EV5 = 0x0D;
+    BQR_PACKET_TYPE_3EV3 = 0x0E;
+    BQR_PACKET_TYPE_3EV5 = 0x0F;
+    BQR_PACKET_TYPE_DM1 = 0x10;
+    BQR_PACKET_TYPE_DH1 = 0x11;
+    BQR_PACKET_TYPE_DM3 = 0x12;
+    BQR_PACKET_TYPE_DH3 = 0x13;
+    BQR_PACKET_TYPE_DM5 = 0x14;
+    BQR_PACKET_TYPE_DH5 = 0x15;
+    BQR_PACKET_TYPE_AUX1 = 0x16;
+    BQR_PACKET_TYPE_2DH1 = 0x17;
+    BQR_PACKET_TYPE_2DH3 = 0x18;
+    BQR_PACKET_TYPE_2DH5 = 0x19;
+    BQR_PACKET_TYPE_3DH1 = 0x1A;
+    BQR_PACKET_TYPE_3DH3 = 0x1B;
+    BQR_PACKET_TYPE_3DH5 = 0x1C;
+}
+
+/**
+ * Logs when we receive reports regarding a device's RSSI value
+ *
+ * Logged from:
+ *     system/bt
+ */
+message BluetoothDeviceRssiReported {
+    // An identifier that can be used to match events for this device.
+    // Currently, this is a salted hash of the MAC address of this Bluetooth device.
+    // Salt: Randomly generated 256 bit value
+    // Hash algorithm: HMAC-SHA256
+    // Size: 32 byte
+    // Default: null or empty if the device identifier is not known
+    optional bytes obfuscated_id = 1;
+    // Connection handle of this connection if available
+    // Range: 0x0000 - 0x0EFF (12 bits)
+    // Default: 0xFFFF if the handle is unknown
+    optional int32 connection_handle = 2;
+    // HCI command status code if this is triggerred by hci_cmd
+    // Default: STATUS_UNKNOWN
+    optional StatusEnum hci_status = 3;
+    // BR/EDR
+    //   Range: -128 ≤ N ≤ 127 (signed integer)
+    //   Units: dB
+    // LE:
+    //   Range: -127 to 20, 127 (signed integer)
+    //   Units: dBm
+    // Invalid when an out of range value is reported
+    optional int32 rssi = 4;
+    // An identifier that can be used to match events for this device.
+    // The incremental identifier is locally generated and guaranteed not derived
+    // from any globally unique hardware id.
+    // For paired devices, it stays consistent between Bluetooth toggling for the
+    // same remote device.
+    // For unpaired devices, it stays consistent within the same Bluetooth adapter
+    // session for the same remote device.
+    // Default: 0 if the device's metric id is unknown.
+    optional int32 metric_id = 5;
+}
+
+/**
+ * Logs when we receive reports regarding the transmit power level used for a specific connection
+ *
+ * Logged from:
+ *     system/bt
+ */
+message BluetoothDeviceTxPowerLevelReported {
+    // An identifier that can be used to match events for this device.
+    // Currently, this is a salted hash of the MAC address of this Bluetooth device.
+    // Salt: Randomly generated 256 bit value
+    // Hash algorithm: HMAC-SHA256
+    // Size: 32 byte
+    // Default: null or empty if the device identifier is not known
+    optional bytes obfuscated_id = 1;
+    // Connection handle of this connection if available
+    // Range: 0x0000 - 0x0EFF (12 bits)
+    // Default: 0xFFFF if the handle is unknown
+    optional int32 connection_handle = 2;
+    // HCI command status code if this is triggered by hci_cmd
+    // Default: STATUS_UNKNOWN
+    optional StatusEnum hci_status = 3;
+    // Range: -30 ≤ N ≤ 20
+    // Units: dBm
+    // Invalid when an out of range value is reported
+    optional int32 transmit_power_level = 4;
+    // An identifier that can be used to match events for this device.
+    // The incremental identifier is locally generated and guaranteed not derived
+    // from any globally unique hardware id.
+    // For paired devices, it stays consistent between Bluetooth toggling for the
+    // same remote device.
+    // For unpaired devices, it stays consistent within the same Bluetooth adapter
+    // session for the same remote device.
+    // Default: 0 if the device's metric id is unknown.
+    optional int32 metric_id = 5;
+}
+
+/**
+ * Logs when we receive Bluetooth Link Quality Report event from the controller
+ * See Android Bluetooth HCI specification for more details
+ *
+ * Note: all count and bytes field are counted since last event
+ *
+ * Logged from: system/bt
+ */
+message BluetoothQualityReportReported {
+    // Quality report ID
+    // Original type: uint8_t
+    // Default: BQR_ID_UNKNOWN
+    optional BqrIdEnum quality_report_id = 1;
+    // Packet type of the connection
+    // Original type: uint8_t
+    // Default: BQR_PACKET_TYPE_UNKNOWN
+    optional BqrPacketTypeEnum packet_types = 2;
+    // Connection handle of the connection
+    // Original type: uint16_t
+    optional int32 connection_handle = 3;
+    // Performing Role for the connection
+    // Original type: uint8_t
+    optional int32 connection_role = 4;
+    // Current Transmit Power Level for the connection. This value is the same as the controller's
+    // response to the HCI_Read_Transmit_Power_Level HCI command
+    // Original type: uint8_t
+    optional int32 tx_power_level = 5;
+    // Received Signal Strength Indication (RSSI) value for the connection. This value is an
+    // absolute receiver signal strength value
+    // Original type: int8_t
+    optional int32 rssi = 6;
+    // Signal-to-Noise Ratio (SNR) value for the connection. It is the average SNR of all the
+    // channels used by the link currently
+    // Original type: uint8_t
+    optional int32 snr = 7;
+    // Indicates the number of unused channels in AFH_channel_map
+    // Original type: uint8_t
+    optional int32 unused_afh_channel_count = 8;
+    // Indicates the number of the channels which are interfered and quality is bad but are still
+    // selected for AFH
+    // Original type: uint8_t
+    optional int32 afh_select_unideal_channel_count = 9;
+    // Current Link Supervision Timeout Setting
+    // Unit: N * 0.3125 ms (1 Bluetooth Clock)
+    // Original type: uint16_t
+    optional int32 lsto = 10;
+    // Piconet Clock for the specified Connection_Handle. This value is the same as the controller's
+    // response to HCI_Read_Clock HCI command with the parameter "Which_Clock" of
+    // 0x01 (Piconet Clock)
+    // Unit: N * 0.3125 ms (1 Bluetooth Clock)
+    // Original type: uint32_t
+    optional int64 connection_piconet_clock = 11;
+    // The count of retransmission
+    // Original type: uint32_t
+    optional int64 retransmission_count = 12;
+    // The count of no RX
+    // Original type: uint32_t
+    optional int64 no_rx_count = 13;
+    // The count of NAK (Negative Acknowledge)
+    // Original type: uint32_t
+    optional int64 nak_count = 14;
+    // Controller timestamp of last TX ACK
+    // Unit: N * 0.3125 ms (1 Bluetooth Clock)
+    // Original type: uint32_t
+    optional int64 last_tx_ack_timestamp = 15;
+    // The count of Flow-off (STOP)
+    // Original type: uint32_t
+    optional int64 flow_off_count = 16;
+    // Controller timestamp of last Flow-on (GO)
+    // Unit: N * 0.3125 ms (1 Bluetooth Clock)
+    // Original type: uint32_t
+    optional int64 last_flow_on_timestamp = 17;
+    // Buffer overflow count (how many bytes of TX data are dropped) since the last event
+    // Original type: uint32_t
+    optional int64 buffer_overflow_bytes = 18;
+    // Buffer underflow count (in byte) since last event
+    // Original type: uint32_t
+    optional int64 buffer_underflow_bytes = 19;
+}
+
+/**
+ * Logs when a Wifi connection drops.
+ *
+ * Logged from:
+ *   frameworks/opt/net/wifi/service/java/com/android/server/wifi/WifiMetrics.java
+ */
+message WifiDisconnectReported {
+  enum FailureCode {
+    UNKNOWN = 0;
+
+    // Wifi supplicant failure reason codes (IEEE Std 802.11-2016, 9.4.1.7, Table 9-45).
+    // See ISupplicantStaIfaceCallback.java:ReasonCode
+    UNSPECIFIED = 1;
+    PREV_AUTH_NOT_VALID = 2;
+    DEAUTH_LEAVING = 3;
+    DISASSOC_DUE_TO_INACTIVITY = 4;
+    DISASSOC_AP_BUSY = 5;
+    CLASS2_FRAME_FROM_NONAUTH_STA = 6;
+    CLASS3_FRAME_FROM_NONASSOC_STA = 7;
+    DISASSOC_STA_HAS_LEFT = 8;
+    STA_REQ_ASSOC_WITHOUT_AUTH = 9;
+    PWR_CAPABILITY_NOT_VALID = 10;
+    SUPPORTED_CHANNEL_NOT_VALID = 11;
+    BSS_TRANSITION_DISASSOC = 12;
+    INVALID_IE = 13;
+    MICHAEL_MIC_FAILURE = 14;
+    FOURWAY_HANDSHAKE_TIMEOUT = 15;
+    GROUP_KEY_UPDATE_TIMEOUT = 16;
+    IE_IN_4WAY_DIFFERS = 17;
+    GROUP_CIPHER_NOT_VALID = 18;
+    PAIRWISE_CIPHER_NOT_VALID = 19;
+    AKMP_NOT_VALID = 20;
+    UNSUPPORTED_RSN_IE_VERSION = 21;
+    INVALID_RSN_IE_CAPAB = 22;
+    IEEE_802_1X_AUTH_FAILED = 23;
+    CIPHER_SUITE_REJECTED = 24;
+    TDLS_TEARDOWN_UNREACHABLE = 25;
+    TDLS_TEARDOWN_UNSPECIFIED = 26;
+    SSP_REQUESTED_DISASSOC = 27;
+    NO_SSP_ROAMING_AGREEMENT = 28;
+    BAD_CIPHER_OR_AKM = 29;
+    NOT_AUTHORIZED_THIS_LOCATION = 30;
+    SERVICE_CHANGE_PRECLUDES_TS = 31;
+    UNSPECIFIED_QOS_REASON = 32;
+    NOT_ENOUGH_BANDWIDTH = 33;
+    DISASSOC_LOW_ACK = 34;
+    EXCEEDED_TXOP = 35;
+    STA_LEAVING = 36;
+    END_TS_BA_DLS = 37;
+    UNKNOWN_TS_BA = 38;
+    TIMEOUT = 39;
+    PEERKEY_MISMATCH = 45;
+    AUTHORIZED_ACCESS_LIMIT_REACHED = 46;
+    EXTERNAL_SERVICE_REQUIREMENTS = 47;
+    INVALID_FT_ACTION_FRAME_COUNT = 48;
+    INVALID_PMKID = 49;
+    INVALID_MDE = 50;
+    INVALID_FTE = 51;
+    MESH_PEERING_CANCELLED = 52;
+    MESH_MAX_PEERS = 53;
+    MESH_CONFIG_POLICY_VIOLATION = 54;
+    MESH_CLOSE_RCVD = 55;
+    MESH_MAX_RETRIES = 56;
+    MESH_CONFIRM_TIMEOUT = 57;
+    MESH_INVALID_GTK = 58;
+    MESH_INCONSISTENT_PARAMS = 59;
+    MESH_INVALID_SECURITY_CAP = 60;
+    MESH_PATH_ERROR_NO_PROXY_INFO = 61;
+    MESH_PATH_ERROR_NO_FORWARDING_INFO = 62;
+    MESH_PATH_ERROR_DEST_UNREACHABLE = 63;
+    MAC_ADDRESS_ALREADY_EXISTS_IN_MBSS = 64;
+    MESH_CHANNEL_SWITCH_REGULATORY_REQ = 65;
+    MESH_CHANNEL_SWITCH_UNSPECIFIED = 66;
+
+    // ClientModeImpl error codes
+    // Defined in /frameworks/opt/net/wifi/service/java/com/android/server/wifi/WifiMetrics.java
+    IFACE_DESTROYED = 10000;
+    WIFI_DISABLED = 10001;
+    SUPPLICANT_DISCONNECTED = 10002;
+    CONNECTING_WATCHDOG_TIMER = 10003;
+    ROAM_WATCHDOG_TIMER = 10004;
+
+    // New reasons tracking disconnections initiated by wifi framework
+    DISCONNECT_GENERAL = 10005; // Framework disconnect, generic reason
+    // Disconnecting due to unspecified IP reachability lost.
+    DISCONNECT_NUD_FAILURE_GENERIC = 10006;
+    // Disconnecting due to IP reachability lost from roaming
+    DISCONNECT_NUD_FAILURE_ROAM = 10007;
+    // Disconnecting due to IP reachability lost from the CONFIRM command
+    DISCONNECT_NUD_FAILURE_CONFIRM = 10008;
+    // Disconnecting due to IP reachability lost from kernel check
+    DISCONNECT_NUD_FAILURE_ORGANIC = 10009;
+    // Connectivity no longer wants this network
+    DISCONNECT_UNWANTED_BY_CONNECTIVITY = 10010;
+    // Timeout creating the IP client
+    DISCONNECT_CREATE_IP_CLIENT_TIMEOUT = 10011;
+    DISCONNECT_IP_PROVISIONING_FAILURE = 10012; // IP provisioning failure
+    DISCONNECT_P2P_REQUESTED_DISCONNECT = 10013; // Disconnect by P2P
+    // Network is removed from the WifiConfigManager
+    DISCONNECT_NETWORK_REMOVED = 10014;
+    DISCONNECT_NETWORK_UNTRUSTED = 10015; // Network is marked as untrusted
+    DISCONNECT_NETWORK_METERED = 10016; // Network is marked as metered
+    DISCONNECT_TEMP_DISABLED = 10017; // Network is temporarily disabled
+    DISCONNECT_PERM_DISABLED = 10018; // Network is permanently disabled
+    DISCONNECT_CARRIER_OFFLOAD_DISABLED = 10019;
+    // Disconnecting due to Passpoint terms and conditions page
+    DISCONNECT_PASSPOINT_TAC = 10020;
+    // Disconnecting due to issues with terms and conditions URL
+    DISCONNECT_VNC_REQUEST = 10021;
+    // Connected to a network that is already removed
+    DISCONNECT_UNKNOWN_NETWORK = 10022;
+    // User initiated a new connection
+    DISCONNECT_NEW_CONNECTION_USER = 10023;
+    // New connection triggered by non-user
+    DISCONNECT_NEW_CONNECTION_OTHERS = 10024;
+    // Wi-Fi 7 is enabled or disabled for this network
+    DISCONNECT_NETWORK_WIFI7_TOGGLED = 10025;
+  }
+
+  /**
+   * Bucketed wifi band.
+   */
+  enum WifiBandBucket {
+    BAND_UNKNOWN = 0;
+
+    // All of 2.4GHz band
+    BAND_2G = 1;
+    // Frequencies in the range of [5150, 5250) GHz
+    BAND_5G_LOW = 2;
+    // Frequencies in the range of [5250, 5725) GHz
+    BAND_5G_MIDDLE = 3;
+    // Frequencies in the range of [5725, 5850) GHz
+    BAND_5G_HIGH = 4;
+    // Frequencies in the range of [5925, 6425) GHz
+    BAND_6G_LOW = 5;
+    // Frequencies in the range of [6425, 6875) GHz
+    BAND_6G_MIDDLE = 6;
+    // Frequencies in the range of [6875, 7125) GHz
+    BAND_6G_HIGH = 7;
+  }
+
+  /**
+ * Wifi authentication type.
+ */
+  enum WifiAuthType {
+    AUTH_TYPE_NONE = 0;
+
+    // WPA pre-shared key.
+    AUTH_TYPE_WPA_PSK = 1;
+    // WPA using EAP authentication. Generally used with an external authentication server.
+    AUTH_TYPE_WPA_EAP = 2;
+    // IEEE 802.1X using EAP authentication and (optionally) dynamically generated WEP keys.
+    AUTH_TYPE_IEEE8021X = 3;
+    // WPA2 pre-shared key for use with soft access point.
+    AUTH_TYPE_WPA2_PSK = 4;
+    // Hotspot 2.0 r2 OSEN.
+    AUTH_TYPE_OSEN = 5;
+    // IEEE 802.11r Fast BSS Transition with PSK authentication.
+    AUTH_TYPE_FT_PSK = 6;
+    // IEEE 802.11r Fast BSS Transition with EAP authentication.
+    AUTH_TYPE_FT_EAP = 7;
+    // Simultaneous Authentication of Equals.
+    AUTH_TYPE_SAE = 8;
+    // Opportunistic Wireless Encryption.
+    AUTH_TYPE_OWE = 9;
+    // SUITE_B_192 192 bit level
+    AUTH_TYPE_SUITE_B_192 = 10;
+    // WPA pre-shared key with stronger SHA256-based algorithms.
+    AUTH_TYPE_WPA_PSK_SHA256 = 11;
+    // WPA using EAP authentication with stronger SHA256-based algorithms.
+    AUTH_TYPE_WPA_EAP_SHA256 = 12;
+    // WAPI pre-shared key.
+    AUTH_TYPE_WAPI_PSK = 13;
+    // WAPI certificate to be specified.
+    AUTH_TYPE_WAPI_CERT = 14;
+    // IEEE 802.11ai FILS SK with SHA256.
+    AUTH_TYPE_FILS_SHA256 = 15;
+    // IEEE 802.11ai FILS SK with SHA384.
+    AUTH_TYPE_FILS_SHA384 = 16;
+    // Simultaneous Authentication of Equals transition mode.
+    AUTH_TYPE_SAE_TRANSITION = 17;
+    // Opportunistic Wireless Encryption transition mode.
+    AUTH_TYPE_OWE_TRANSITION = 18;
+  }
+
+  /**
+   * Role of the client mode manager
+   */
+  enum ClientModeRole {
+    ROLE_UNSPECIFIED = 0;
+    ROLE_CLIENT_PRIMARY = 1;
+    ROLE_CLIENT_SECONDARY_LONG_LIVED = 2;
+    ROLE_CLIENT_SECONDARY_TRANSIENT = 3;
+    ROLE_CLIENT_SECONDARY_INTERNET = 4;
+    ROLE_CLIENT_LOCAL_ONLY = 5;
+    ROLE_CLIENT_OTHERS = 6;
+  }
+
+  enum EapType {
+    // Unknown Type
+    TYPE_UNKNOWN = 0;
+    // EAP_TLS (13)
+    TYPE_EAP_TLS = 1;
+    // EAP_TTLS (21)
+    TYPE_EAP_TTLS = 2;
+    // EAP_SIM (18)
+    TYPE_EAP_SIM = 3;
+    // EAP_AKA (23)
+    TYPE_EAP_AKA = 4;
+    // EAP_AKA_PRIME (50)
+    TYPE_EAP_AKA_PRIME = 5;
+    TYPE_EAP_WAPI_CERT = 6;
+    TYPE_EAP_UNAUTH_TLS = 7;
+    TYPE_EAP_PEAP = 8;
+    TYPE_EAP_PWD = 9;
+    TYPE_EAP_OTHERS = 10;
+  }
+
+  enum EapInnerMethod {
+    METHOD_UNKNOWN = 0;
+    METHOD_PAP = 1;
+    METHOD_MSCHAP = 2;
+    METHOD_MSCHAP_V2 = 3;
+    METHOD_OTHERS = 4;
+    // Generic Token Card
+    METHOD_GTC = 5;
+    // EAP-Subscriber Identity Module [RFC-4186]
+    METHOD_SIM = 6;
+    // EAP-Authentication and Key Agreement [RFC-4187]
+    METHOD_AKA = 7;
+    // EAP-Authentication and Key Agreement Prime [RFC-5448]
+    METHOD_AKA_PRIME = 8;
+  }
+
+  enum RoamingType {
+    ROAMING_UNKNOWN = 0;
+    // Not a Passpoint network
+    ROAMING_NOT_PASSPOINT = 1;
+    // Non-Roaming
+    ROAMING_NONE = 2;
+    // Other RCOI Roaming
+    ROAMING_RCOI_OTHERS = 3;
+    // Free OpenRoaming
+    ROAMING_RCOI_OPENROAMING_FREE = 4;
+    // Settled OpenRoaming
+    ROAMING_RCOI_OPENROAMING_SETTLED = 5;
+    // Not RCOI roaming
+    ROAMING_NOT_RCOI = 6;
+  }
+
+  // How long the session lasted from successful connection to disconnect.
+  optional int32 connected_duration_seconds = 1;
+
+  // Reason for the disconnect.
+  optional FailureCode failure_code = 2;
+
+  // Band bucket the connected network was on.
+  optional WifiBandBucket band = 3;
+
+  // Authentication type.
+  optional WifiAuthType auth_type = 4;
+
+  // Last seen RSSI before the disconnect.
+  optional int32 last_rssi = 5;
+
+  // Last seen link speed before the disconnect.
+  optional int32 last_link_speed = 6;
+
+  // Time since the last RSSI and link speed update.
+  // Useful for filtering out very old data
+  optional int32 time_since_last_rssi_poll_seconds = 7;
+
+  // Time from the last NETWORK_CONNECTION_EVENT to the disconnect
+  optional int32 connected_time_since_last_roam_seconds = 8;
+
+  // The purpose the of the connection
+  optional ClientModeRole role = 9;
+
+  // The type of EAP authentication. Only applicable for EAP networks.
+  optional EapType eap_type = 10;
+
+  optional EapInnerMethod eap_inner_method = 11;
+
+  optional RoamingType passpoint_roaming_type = 12;
+
+  // Carrier id of the network.
+  optional int32 carrier_id = 13;
+
+  // uid of the caller who initiated this connection
+  optional int32 connection_uid = 14;
+}
+
+/**
+ * Logs when a Wifi network scan happens.
+ *
+ * Logged from:
+ *   frameworks/opt/net/wifi/service/java/com/android/server/wifi/WifiMetrics.java
+ */
+message WifiScanReported {
+  enum Type {
+    TYPE_UNKNOWN = 0;
+    // Single scan.
+    TYPE_SINGLE = 1;
+    // Background scan (deprecated, should not happen).
+    TYPE_BACKGROUND = 2;
+  }
+  enum Result {
+    RESULT_UNKNOWN = 0;
+    // Failed to start scan.
+    RESULT_FAILED_TO_START = 1;
+    // The HAL reported a scan failure after the scan was started.
+    RESULT_FAILED_TO_SCAN = 2;
+    // Scan succeeded.
+    RESULT_SUCCESS = 3;
+  }
+  enum Source {
+    SOURCE_UNKNOWN = 0;
+    // No work source set - not possible to determine the origin.
+    SOURCE_NO_WORK_SOURCE = 1;
+    // The Wifi stack.
+    SOURCE_WIFI_STACK = 2;
+    // GMS on behalf of some other app.
+    SOURCE_GMS = 3;
+    // Settings app.
+    SOURCE_SETTINGS_APP = 4;
+    // Other app directly.
+    SOURCE_OTHER_APP = 5;
+  }
+  enum Importance {
+    IMPORTANCE_UNKNOWN = 0;
+    // Foreground app. Corresponds to the value of
+    // ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND or less.
+    IMPORTANCE_FOREGROUND = 1;
+    // Foreground service. Corresponds to the value of
+    // ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE
+    IMPORTANCE_FOREGROUND_SERVICE = 2;
+    // Everything else.
+    IMPORTANCE_BACKGROUND = 3;
+  }
+  // Scan type
+  optional Type type = 1;
+  // Outcome: success/failure
+  optional Result result = 2;
+  // What initiated a scan.
+  optional Source source = 3;
+  // Process importance of the initiator.
+  // This is only available for non-system calls.
+  optional Importance importance = 4;
+  // Time taken for the scan.
+  optional int32 scan_duration_millis = 5;
+  // Count of found networks.
+  optional int32 count_networks_found = 6;
+}

@@ -9,6 +9,13 @@ private fun WifiInfo.invokeDoubleMethodReflectively(methodName: String): Double?
     null
 }
 
+private fun WifiInfo.invokeBooleanMethodReflectively(methodName: String): Boolean? = try {
+    val method = this.javaClass.getMethod(methodName)
+    method.invoke(this) as? Boolean
+} catch (e: Exception) {
+    null
+}
+
 fun WifiInfo.getLostTxPacketsPerSecondReflectively(): Double? =
     invokeDoubleMethodReflectively("getLostTxPacketsPerSecond")
 
@@ -20,3 +27,12 @@ fun WifiInfo.getSuccessfulTxPacketsPerSecondReflectively(): Double? =
 
 fun WifiInfo.getSuccessfulRxPacketsPerSecondReflectively(): Double? =
     invokeDoubleMethodReflectively("getSuccessfulRxPacketsPerSecond")
+
+fun WifiInfo.is24GHzReflectively(): Boolean? =
+    invokeBooleanMethodReflectively("is24GHz")
+
+fun WifiInfo.is5GHzReflectively(): Boolean? =
+    invokeBooleanMethodReflectively("is5GHz")
+
+fun WifiInfo.is6GHzReflectively(): Boolean? =
+    invokeBooleanMethodReflectively("is6GHz")

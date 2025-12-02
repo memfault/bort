@@ -4,10 +4,12 @@ import android.os.DropBoxManager
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
+import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import com.memfault.bort.settings.OperationalCrashesExclusions
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -32,27 +34,31 @@ class KmsgUploadingEntryProcessorDelegateTest {
     )
 
     @Test
-    fun `normal reboot is not crash`() {
+    fun `normal reboot is not crash`() = runTest {
         val file = tempFolder.newFile()
         file.writeText(NORMAL_KMSG.trimIndent())
 
         val entry = DropBoxManager.Entry("SYSTEM_RECOVERY_KMSG", System.currentTimeMillis())
 
-        assertThat(delegate.isCrash(entry, file)).isFalse()
+        val info = delegate.getEntryInfo(entry, file)
+
+        assertThat(info.isCrash).isFalse()
     }
 
     @Test
-    fun `kernel panic is crash`() {
+    fun `kernel panic is crash`() = runTest {
         val file = tempFolder.newFile()
         file.writeText(KERNEL_PANIC_KMSG.trimIndent())
 
         val entry = DropBoxManager.Entry("SYSTEM_LAST_KMSG", System.currentTimeMillis())
 
-        assertThat(delegate.isCrash(entry, file)).isTrue()
+        val info = delegate.getEntryInfo(entry, file)
+
+        assertThat(info.isCrash).isTrue()
     }
 
     @Test
-    fun `exclusions ignores random strings`() {
+    fun `exclusions ignores random strings`() = runTest {
         operationalCrashesExclusions.exclusions += "kernel_panic"
 
         val file = tempFolder.newFile()
@@ -60,11 +66,13 @@ class KmsgUploadingEntryProcessorDelegateTest {
 
         val entry = DropBoxManager.Entry("SYSTEM_LAST_KMSG", System.currentTimeMillis())
 
-        assertThat(delegate.isCrash(entry, file)).isTrue()
+        val info = delegate.getEntryInfo(entry, file)
+
+        assertThat(info.isCrash).isTrue()
     }
 
     @Test
-    fun `exclusions works`() {
+    fun `exclusions works`() = runTest {
         operationalCrashesExclusions.exclusions += "SYSTEM_LAST_KMSG"
 
         val file = tempFolder.newFile()
@@ -73,7 +81,26 @@ class KmsgUploadingEntryProcessorDelegateTest {
         val entry = DropBoxManager.Entry("SYSTEM_LAST_KMSG", System.currentTimeMillis())
 
         assertThat(entry.tag).isEqualTo("SYSTEM_LAST_KMSG")
-        assertThat(delegate.isCrash(entry, file)).isFalse()
+
+        val info = delegate.getEntryInfo(entry, file)
+
+        assertThat(info.isCrash).isFalse()
+    }
+
+    @Test
+    fun entryInfoDefaults() = runTest {
+        val file = tempFolder.newFile()
+        file.writeText(KERNEL_PANIC_KMSG.trimIndent())
+
+        val entry = DropBoxManager.Entry("SYSTEM_LAST_KMSG", System.currentTimeMillis())
+
+        val info = delegate.getEntryInfo(entry, file)
+
+        assertThat(info.isCrash).isTrue()
+        assertThat(info.isTrace).isTrue()
+        assertThat(info.ignored).isFalse()
+        assertThat(info.crashTag).isEqualTo("panic")
+        assertThat(info.packageName).isNull()
     }
 
     companion object {

@@ -17,7 +17,6 @@ import com.memfault.bort.settings.BundledConfig
 import com.memfault.bort.settings.DeviceConfigUpdateService
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.readBundledSettings
-import com.memfault.bort.shared.BASIC_COMMAND_TIMEOUT_MS
 import com.memfault.bort.shared.BuildConfig
 import com.memfault.bort.tokenbucket.Anr
 import com.memfault.bort.tokenbucket.BugReportPeriodic
@@ -129,10 +128,6 @@ abstract class BortAppModule {
         fun bundledConfig(resources: Resources) = BundledConfig {
             resources.readBundledSettings()
         }
-
-        @Provides
-        @BasicCommandTimeout
-        fun basicTimeout(): Long = BASIC_COMMAND_TIMEOUT_MS
 
         @Provides
         @Singleton

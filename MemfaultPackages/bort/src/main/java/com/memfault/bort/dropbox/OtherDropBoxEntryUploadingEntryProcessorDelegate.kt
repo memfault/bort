@@ -20,17 +20,17 @@ class OtherDropBoxEntryUploadingEntryProcessorDelegate @Inject constructor(
     override val tags: List<String>
         get() = settingsProvider.dropBoxSettings.otherTags.toList()
 
-    override val debugTag: String
-        get() = "OTHER_TAGS"
-
-    override val crashTag: String? = null
-
-    override fun allowedByRateLimit(
+    private fun allowedByRateLimit(
         tokenBucketKey: String,
         tag: String,
     ): Boolean = tokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
 
-    override fun isTraceEntry(entry: DropBoxManager.Entry): Boolean = false
-
-    override fun isCrash(entry: DropBoxManager.Entry, entryFile: File): Boolean = false
+    override suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo = EntryInfo(
+        tokenBucketKey = entry.tag,
+        allowedByRateLimit = allowedByRateLimit(tokenBucketKey = entry.tag, tag = entry.tag),
+        ignored = false,
+        isTrace = false,
+        isCrash = false,
+        crashTag = null,
+    )
 }

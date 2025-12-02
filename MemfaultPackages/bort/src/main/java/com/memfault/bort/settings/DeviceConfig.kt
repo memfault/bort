@@ -4,6 +4,7 @@ import com.memfault.bort.BortJson
 import com.memfault.bort.settings.SamplingConfig.Companion.DEFAULT_DEBUGGING
 import com.memfault.bort.settings.SamplingConfig.Companion.DEFAULT_LOGGING
 import com.memfault.bort.settings.SamplingConfig.Companion.DEFAULT_MONITORING
+import com.memfault.bort.time.NullableInstantAsIso8601String
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
@@ -12,6 +13,7 @@ import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonObject
+import java.time.Instant
 
 /**
  * We use a custom serializer here, because the structure of the response is not strictly defined - it contains a set of
@@ -95,6 +97,9 @@ data class FetchedDeviceConfigContainer(
         val bort: Bort,
         @SerialName("sampling")
         val sampling: Sampling,
+        @Serializable(with = NullableInstantAsIso8601String::class)
+        @SerialName("data_upload_start_date")
+        val dataUploadStartDate: Instant? = null,
     )
 
     @Serializable

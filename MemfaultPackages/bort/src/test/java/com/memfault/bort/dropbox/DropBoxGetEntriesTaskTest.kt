@@ -62,6 +62,8 @@ class DropBoxGetEntriesTaskTest {
         override val processImmediately: Boolean = true
         override val pollingInterval: Duration = 15.minutes
         override val otherTags: Set<String> = emptySet()
+        override val ignoreCommonWtfs: Boolean = false
+        override val ignoredWtfs: Set<String> = emptySet()
     }
 
     @Before

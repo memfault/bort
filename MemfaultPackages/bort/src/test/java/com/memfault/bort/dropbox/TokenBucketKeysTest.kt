@@ -12,10 +12,12 @@ class TokenBucketKeysTest {
         assertThat(
             JavaException(
                 packageName = null,
-                unparsedStackFrames = listOf(
+                signatureLines = listOf(
                     "android.app.ActivityThread.handleReceiver(ActivityThread.java:3194)",
                     "com.android.internal.os.RuntimeInit.MethodAndArgsCaller.run(RuntimeInit.java:438)",
                 ),
+                exceptionClass = null,
+                exceptionMessage = null,
             ).tokenBucketKey(),
         ).isEqualTo(
             "7e881ac7cda0b9a1182d3448cdbaa67d",

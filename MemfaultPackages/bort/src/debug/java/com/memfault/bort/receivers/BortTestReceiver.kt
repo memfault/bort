@@ -22,6 +22,8 @@ import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.logcat.NextLogcatStartTimeProvider
 import com.memfault.bort.metrics.CpuMetricsCollector
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger
+import com.memfault.bort.metrics.statsd.FakeStatsdReportFixtures
+import com.memfault.bort.metrics.statsd.TestStatsdManagerService
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.requester.MetricsCollectionRequester
 import com.memfault.bort.requester.restartPeriodicLogcatCollection
@@ -79,6 +81,7 @@ class BortTestReceiver : FilteringReceiver(
         "com.memfault.intent.action.TEST_CRASH_FREE_HOURS_METRICS",
         "com.memfault.intent.action.TEST_BORT_ERROR",
         "com.memfault.intent.action.TEST_BORT_CHANGE_SOFTWARE_VERSION",
+        "com.memfault.intent.action.TEST_BORT_INJECT_FAKE_STATSD_FIXTURES",
         "com.memfault.intent.action.TEST_DROPBOX_GET_ENTRIES",
     ),
 ) {
@@ -119,6 +122,8 @@ class BortTestReceiver : FilteringReceiver(
     @Inject lateinit var testDeviceInfoProvider: TestDeviceInfoProvider
 
     @Inject lateinit var cpuMetricsCollector: CpuMetricsCollector
+
+    @Inject lateinit var statsdManagerProxy: TestStatsdManagerService
 
     override fun onIntentReceived(
         context: Context,
@@ -228,6 +233,7 @@ class BortTestReceiver : FilteringReceiver(
                 resetRateLimits()
                 resetDropboxCursor()
                 devMode.setEnabled(true, context)
+                statsdManagerProxy.overrideInjectedReports = { listOf() }
             }
 
             "com.memfault.intent.action.TEST_TEARDOWN" -> {
@@ -259,6 +265,10 @@ class BortTestReceiver : FilteringReceiver(
                 testDeviceInfoProvider.overrideDeviceInfo = OverrideDeviceInfo { deviceInfo ->
                     deviceInfo.copy(softwareVersion = swv)
                 }
+            }
+
+            "com.memfault.intent.action.TEST_BORT_INJECT_FAKE_STATSD_FIXTURES" -> {
+                statsdManagerProxy.overrideInjectedReports = { listOf(FakeStatsdReportFixtures.mockReport()) }
             }
 
             "com.memfault.intent.action.TEST_DROPBOX_GET_ENTRIES" -> {

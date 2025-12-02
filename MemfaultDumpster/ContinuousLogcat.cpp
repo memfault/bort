@@ -19,19 +19,14 @@
 #include <utils/String8.h>
 #include <utils/String16.h>
 #include <utils/SystemClock.h>
-#include <reporting.h>
 
 namespace memfault {
-
-static constexpr char kLogBufferExpiredCounterName[] = "log_buffer_expired_counter";
 
 ContinuousLogcat::ContinuousLogcat() :
     logger_list(nullptr, android_logger_list_close),
     log_format(nullptr, android_log_format_free),
     total_bytes_written(0),
     last_collection_uptime_ms(android::uptimeMillis()) {
-  report_ = std::make_unique<Report>();
-  log_buffer_expired_counter_ = report_->counter(kLogBufferExpiredCounterName);
   // Compute the list of buffers we want to read from. Buffers
   // may vary between platform versions we use the liblog API
   // to match names to buffer ids.
@@ -277,7 +272,6 @@ void ContinuousLogcat::run() {
 
       if ((log_mode & ANDROID_LOG_WRAP) && !expiry_reported) {
         expiry_reported = true;
-        log_buffer_expired_counter_->increment();
       }
 
       AndroidLogEntry entry;
@@ -345,6 +339,7 @@ void ContinuousLogcat::run() {
           snprintf(buf, sizeof(buf), "--------- %s %s\n",
               hasPrinted ? "switch to" : "beginning of", name->second);
           auto len = strlen(buf);
+#if PLATFORM_SDK_VERSION <= 32
           if (write(output_fd, buf, len) >= 0) {
             total_bytes_written += len;
             last_printed_log_id = log_id;
@@ -352,6 +347,16 @@ void ContinuousLogcat::run() {
           } else {
             ALOGW("Failed to write separator to continuous log output");
           }
+#else
+          if (fwrite(buf, 1, len, output_fp) == len) {
+            total_bytes_written += len;
+            last_printed_log_id = log_id;
+            fflush(output_fp);
+            fsync(output_fd);
+          } else {
+            ALOGW("Failed to write separator to continuous log output");
+          }
+#endif
         }
       }
 

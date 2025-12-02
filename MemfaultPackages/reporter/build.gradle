@@ -40,6 +40,8 @@ kapt {
 dependencies {
     api project(':bort-shared')
 
+    debugImplementation deps.leakcanary
+
     implementation deps.android.hilt.work
     implementation deps.android.preference
     implementation deps.android.work
@@ -51,6 +53,8 @@ dependencies {
     kapt deps.dagger.hilt.compiler
     // An explicit reference to this transitive dependency fixes a duplicate class error during build.
     implementation deps.android.viewmodel
+
+    testImplementation deps.test.robolectric
 }
 
 afterEvaluate {

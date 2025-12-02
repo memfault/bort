@@ -37,6 +37,18 @@ public enum NumericAgg implements AggregationType {
    * The total amount the value "dropped" during the period.
    */
   VALUE_DROP("VALUE_DROP"),
+
+  /**
+   * The moving average of the value during the period.
+   */
+  EXP_MOVING_AVG("EXP_MOVING_AVG"),
+
+  /**
+   * The moving average of the RSSI during the period. This
+   * special case will convert from dBm to mW for averaging
+   * and back.
+   */
+  EXP_MOVING_AVG_RSSI("EXP_MOVING_AVG_RSSI"),
   ;
 
   public final String value;

@@ -6,6 +6,184 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project currently does not attempt to adhere to Semantic Versioning, but
 breaking changes are avoided unless absolutely necessary.
 
+## v5.5.0 - November 18, 2025
+
+### :rocket: New Features
+
+- Added ability to ignore common WTF patterns. These were chosen across multiple
+  projects based off of WTF volume and usefulness. Ignoring these will make the
+  WTFs that do show up more useful. In addition, introduces new SDK settings to
+  control whether these patterns are used, and to add additional WTF ignore
+  patterns.
+  - The default ignored patterns are:
+    - "No service published for: appwidget at
+      android.app.SystemServiceRegistry.onServiceNotFound.\*"
+    - "EXTRA_USER_HANDLE missing or invalid, value=0.\*"
+    - "Failed to read field SystemLocale.\*"
+    - "BUG: NetworkAgentInfo.\*"
+    - "Attempt to decrement existing alarm count 0 by 1 for uid 1000.\*"
+    - "Removed TIME_TICK alarm.\*"
+    - "requesting nits when no mapping exists.\*"
+    - "Could not open /sys/kernel/tracing/instances/bootreceiver/trace_pipe.\*"
+- Added Bluetooth quality metrics.
+  - `bluetooth.ble_scan_result.count` tracks the number of BLE devices found in
+    each scan
+  - `bluetooth.ble_scan_result.attribution` tracks the initiator of the BLE scan
+  - `bluetooth.device_rssi.(min|mean|max)` tracks the Bluetooth RSSI
+    distribution
+  - `bluetooth.device_rssi.device_id.latest` tracks the Bluetooth device
+    reporting the RSSI value
+  - `bluetooth.device_tx_power_level.(min|mean|max)` tracks the Bluetooth TX
+    power level distribution
+  - `bluetooth.device_tx_power_level.device_id` tracks the Bluetooth device
+    reporting the TX power level value
+  - `bluetooth.quality_report.rssi.(min|mean|max)` tracks the Bluetooth RSSI
+    distribution reported by the Bluetooth quality report (if available)
+  - `bluetooth.quality_report.snr.(min|mean|max)` tracks the Bluetooth SNR
+    distribution reported by the Bluetooth quality report (if available)
+  - `bluetooth.quality_report.retransmission_count.(mean|max|sum)` tracks the
+    number of retransmissions reported by the Bluetooth quality report (if
+    available).
+  - `bluetooth.quality_report.reported.latest` reports the latest Bluetooth
+    quality report.
+- Added heartbeat metrics for any batterystats metrics that were previously only
+  used in HRT.
+  - camera
+    - `camera_on_ratio`
+  - video
+    - `video_on_ratio`
+  - flashlight
+    - `flashlight_on_ratio`
+  - bluetooth
+    - `bluetooth_on_ratio`
+  - usb_data
+    - `usb_data_on_ratio`
+  - wake_lock
+    - `wake_lock_on_ratio`
+  - wifi_full_lock
+    - `wifi_full_lock_ratio`
+  - long_wake_lock
+    - `long_wake_lock_on_ratio`
+  - screen_wake
+    - `screen_wake_count`
+  - package_install
+    - `package_install_count`
+  - phone_connection
+    - `phone_connection_latest`
+  - phone_in_call
+    - `phone_in_call_ratio`
+  - phone_state
+    - `phone_state_in_ratio`
+    - `phone_state_out_ratio`
+    - `phone_state_em_ratio`
+  - cellular_high_tx_power
+    - `cellular_high_tx_power_on_ratio`
+  - nr_state
+    - `nr_state_none_ratio`
+    - `nr_state_restricted_ratio`
+    - `nr_state_not_restricted_ratio`
+    - `nr_state_connected_ratio`
+- Added support for reporting USB contaminant events.
+  - `usb.contaminant_reported.latest`
+- Updated existing network metrics to generate a heartbeat metric as well.
+  - `connectivity.airplane_mode.latest`
+  - `connectivity.internet.latest`
+  - `connectivity.validated.latest`
+  - `connectivity.captive_portal.latest`
+  - `connectivity.roaming.latest`
+  - `connectivity.unmetered_temporarily.latest`
+- Added basic IPv4 and IPv6 connectivity metrics.
+  - `connectivity.ip_version.latest` with states "IPv4", "IPv6", "IPv4+IPv6",
+    "?"
+  - `connectivity.ipv4_status.latest` with states "Internet Available",
+    "Configuration Error", "Not Available"
+  - `connectivity.ipv6_status.latest` with states "Internet Available", "Local
+    Only", "Not Available"
+- Added Wi-Fi RSSI time-based moving average metric. This metric is calculated
+  from raw values obtained from WifiManager broadcasts using an exponential
+  moving average.
+  - `connectivity.wifi.rssi.moving_avg`
+- Added Wi-Fi roaming and channel hop counters.
+  - `connectivity.wifi.roaming_count` increments when connected to the same
+    configured network but the connected access point changed
+  - `connectivity.wifi.channel_hop_count` increments when connected to the same
+    network, but the channel changed
+- Added metric to distinguish between 2.4/5/6 GHz Wi-Fi frequency bands for
+  easier device identification.
+  - `connectivity.wifi.frequency`
+  - `connectivity.wifi.frequency_band`
+- Added count of scanned Wi-Fi networks metric from statsd.
+  - `connectivity.wifi.scan_network_count`
+  - `connectivity.wifi.scan_network_count.count`
+  - `connectivity.wifi.scan_network_count.mean`
+- Added low memory event reporting when low memory is reported by the System
+  Server.
+  - `memory.low_mem_reported`
+- Added slow I/O event metrics which contain a 24h count of the slow I/O events
+  of a given type.
+  - `disk.slow_io_(read|write|unmap|sync|unknown)_24h_count`
+- Added USB device attached/detached event reports. These will be reported when
+  USB devices are attached or detached and will contain the full list of
+  connected devices in each category.
+  - `usb.devices`
+  - `usb.accessories`
+- Added Wi-Fi OUI (Organizationally Unique Identifier) support. The OUI is
+  queried via the Dumpster service using `dumpsys wifi`. Memfault will
+  automatically calculate the manufacturer of the device based off of its OUI.
+  - `connectivity.wifi.ap_oui`
+- Added Wi-Fi disconnected session metric. The event contains the disconnect
+  reason, time connected, last RSSI and link speed as well as channel. These
+  metrics are available in Android 12+.
+  - `wifi_disconnect_session`
+    - `wifi.frequency-band-bucket`
+    - `wifi.frequency-band`
+    - `wifi.failure-code-name`
+    - `wifi.failure-code`
+    - `wifi.last-rssi`
+    - `wifi.last-link-speed`
+- Added low memory kill event reporting when applications are killed by the
+  system due to low memory.
+  - `memory.lmk_kill_occurred`
+
+### :construction: Fixes
+
+- Coalesced consecutive logcat "switch to" separators. This should reduce the
+  spam where multiple log lines in a row are just buffer switches.
+- Fixed incorrect session end time. The session end will now be recorded when
+  end is called, instead of at the heartbeat collection time.
+- Cleaned up continuous logcat "switch to" buffer logs to always append a
+  newline. This avoids the "switch to" lines intermixing with normal output.
+- Fixed invalid boot id parsing in Bort Lite. Returns a zero'd UUID instead of
+  "unknown" for the Linux boot id. Also, falls back to "reboot,permissiondenied"
+  instead of "reboot,bort_unknown" for better clarity.
+- Fixed potential memory leak in UsageReporter found by LeakCanary.
+- Fixed session deadlock when the sessions rate limit is hit.
+- Increased rate limit defaults.
+  - The Sessions rate limit was thought to be 125 every day, but ended up being
+    125, and then 1 back every day due to the token bucket algorithm.
+  - Similarly, the mar_file/client server mar file rate limit implied 500 files
+    per hour but ended up being 24 a day once the limit was hit.
+- Ignored potential Room database migration failures. Fallback to destructive
+  migration if the database migration fails on downgrade.
+
+### :chart_with_upwards_trend: Improvements
+
+- Bumped to reporting library 1.6.0.
+- Added support for Gradle testFixtures.
+- Changed Android Studio default project. Load the project root in Android
+  Studio instead of `MemfaultPackages/`. `MemfaultDumpstateRunner`,
+  `MemfaultDumpster`, and `MemfaultStructuredLogd` will now be visible in the
+  IDE.
+- Updated MAR unspooling to use new `data_upload_start_date` device config
+  variable to control what data should be uploaded.
+- Added leakcanary to the Bort, OTA, and Reporter apps to check for leaks.
+- Enabled Android lint.
+- Deleted `log_buffer_expired` counter metric. This was too spammy.
+
+### :house: Internal
+
+- Fixed MetricsIntegrationTest race condition.
+
 ## v5.4.2 - August 4, 2025
 
 ### :construction: Fixes

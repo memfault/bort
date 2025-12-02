@@ -14,7 +14,7 @@ class AndroidBootReasonParsingTest {
         val input: String?,
         val output: AndroidBootReason,
     ) {
-        UNKNOWN(null, AndroidBootReason("reboot", "bort_unknown")),
+        UNKNOWN(null, AndroidBootReason("reboot", "permissiondenied")),
         EMPTY("", AndroidBootReason("")),
         REBOOT("reboot", AndroidBootReason("reboot")),
         REBOOT_REASON("reboot,userrequested", AndroidBootReason("reboot", "userrequested")),

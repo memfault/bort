@@ -24,12 +24,14 @@ class NativeBacktraceParserParseProcessMetadata {
     @Test
     fun ok() {
         val metadata = NativeBacktraceParser.parseProcessMetadata(
-            """
+            Lines(
+                """
                 Cmd line: com.memfault.bort_e2e_helper
                 ABI: 'x86'
 
                 "bort_e2e_helper" sysTid=2535
-            """.trimIndent().asLines(),
+                """.trimIndent().lineSequence().asIterable(),
+            ),
         )
         assertThat(metadata).isEqualTo(
             mapOf(
@@ -43,11 +45,13 @@ class NativeBacktraceParserParseProcessMetadata {
     fun badInput() {
         assertFailure {
             NativeBacktraceParser.parseProcessMetadata(
-                """
-                Cmd line
-
-                "bort_e2e_helper" sysTid=2535
-                """.trimIndent().asLines(),
+                Lines(
+                    """
+                    Cmd line
+    
+                    "bort_e2e_helper" sysTid=2535
+                    """.trimIndent().lineSequence().asIterable(),
+                ),
             )
         }.isInstanceOf<InvalidNativeBacktraceException>()
     }

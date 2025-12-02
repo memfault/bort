@@ -2,6 +2,7 @@ package com.memfault.bort.settings
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import com.memfault.bort.clientserver.MarFileHoldingArea
 import com.memfault.bort.makeFakeSharedPreferences
 import com.memfault.bort.shared.LogLevel
 import com.memfault.bort.time.boxed
@@ -43,7 +44,9 @@ class SettingsUpdateHandlerTest {
     }
     private val everFetchedSettingsPreferenceProvider =
         EverFetchedSettingsPreferenceProvider(makeFakeSharedPreferences())
-    private val currentSamplingConfig = mockk<CurrentSamplingConfig>(relaxed = true)
+    private val currentSamplingConfig: CurrentSamplingConfig = mockk(relaxed = true)
+    private val marHoldingArea: MarFileHoldingArea = mockk(relaxed = true)
+
     private val handler = SettingsUpdateHandler(
         settingsProvider = settingsProvider,
         storedSettingsPreferenceProvider = storedSettingsPreferenceProvider,
@@ -51,6 +54,7 @@ class SettingsUpdateHandlerTest {
         metrics = mockk(relaxed = true),
         everFetchedSettingsPreferenceProvider = everFetchedSettingsPreferenceProvider,
         currentSamplingConfig = currentSamplingConfig,
+        marFileHoldingArea = marHoldingArea,
     )
 
     @Test
@@ -75,7 +79,7 @@ class SettingsUpdateHandlerTest {
         }
         confirmVerified(storedSettingsPreferenceProvider)
 
-        coVerify {
+        coVerify(exactly = 1) {
             currentSamplingConfig.update(
                 SamplingConfig(
                     revision = 1,
@@ -83,7 +87,18 @@ class SettingsUpdateHandlerTest {
                     loggingResolution = SamplingConfig.DEFAULT_LOGGING,
                     monitoringResolution = SamplingConfig.DEFAULT_MONITORING,
                 ),
-                completedRevision = 1,
+            )
+        }
+        coVerify(exactly = 1) { marHoldingArea.addDeviceConfigMarEntry(1) }
+        coVerify(exactly = 1) {
+            marHoldingArea.handleSamplingConfigChange(
+                SamplingConfig(
+                    revision = 1,
+                    debuggingResolution = SamplingConfig.DEFAULT_DEBUGGING,
+                    loggingResolution = SamplingConfig.DEFAULT_LOGGING,
+                    monitoringResolution = SamplingConfig.DEFAULT_MONITORING,
+                ),
+                null,
             )
         }
 
@@ -127,7 +142,114 @@ class SettingsUpdateHandlerTest {
                     loggingResolution = Resolution.LOW,
                     monitoringResolution = Resolution.LOW,
                 ),
-                completedRevision = 2,
+            )
+        }
+        coVerify(exactly = 1) { marHoldingArea.addDeviceConfigMarEntry(2) }
+        coVerify(exactly = 1) {
+            marHoldingArea.handleSamplingConfigChange(
+                SamplingConfig(
+                    revision = 2,
+                    debuggingResolution = Resolution.LOW,
+                    loggingResolution = Resolution.LOW,
+                    monitoringResolution = Resolution.LOW,
+                ),
+                null,
+            )
+        }
+    }
+
+    @Test
+    fun skipDeviceConfigExactSame() = runTest {
+        val defaultSamplingConfig = SamplingConfig(
+            revision = 1,
+            debuggingResolution = SamplingConfig.DEFAULT_DEBUGGING,
+            loggingResolution = SamplingConfig.DEFAULT_LOGGING,
+            monitoringResolution = SamplingConfig.DEFAULT_MONITORING,
+        )
+        coEvery { currentSamplingConfig.get() } answers { defaultSamplingConfig }
+        val response1 = SETTINGS_FIXTURE.toSettings()
+        val deviceConfigResponse1 = DecodedDeviceConfig(
+            revision = 1,
+            completedRevision = 1,
+            memfault = FetchedDeviceConfigContainer.Memfault(
+                bort = FetchedDeviceConfigContainer.Bort(
+                    sdkSettings = response1,
+                ),
+                sampling = FetchedDeviceConfigContainer.Sampling(),
+            ),
+            others = JsonObject(emptyMap()),
+        )
+        handler.handleDeviceConfig(deviceConfigResponse1)
+
+        coVerify(exactly = 1) { currentSamplingConfig.update(defaultSamplingConfig) }
+        coVerify(exactly = 0) { marHoldingArea.addDeviceConfigMarEntry(any()) }
+        coVerify(exactly = 0) { marHoldingArea.handleSamplingConfigChange(any(), any()) }
+    }
+
+    @Test
+    fun validSampling() = runTest {
+        val response1 = SETTINGS_FIXTURE.toSettings()
+        val deviceConfigResponse1 = DecodedDeviceConfig(
+            revision = 1,
+            completedRevision = 1,
+            memfault = FetchedDeviceConfigContainer.Memfault(
+                bort = FetchedDeviceConfigContainer.Bort(sdkSettings = response1),
+                sampling = FetchedDeviceConfigContainer.Sampling(),
+            ),
+            others = JsonObject(emptyMap()),
+        )
+        handler.handleDeviceConfig(deviceConfigResponse1)
+
+        // The first call returns the same stored fixture and thus set() won't be called
+
+        val config = SamplingConfig(
+            revision = 1,
+            debuggingResolution = SamplingConfig.DEFAULT_DEBUGGING,
+            loggingResolution = SamplingConfig.DEFAULT_LOGGING,
+            monitoringResolution = SamplingConfig.DEFAULT_MONITORING,
+        )
+        coVerify { currentSamplingConfig.update(config) }
+        coEvery { currentSamplingConfig.get() } answers { config }
+
+        // The second one will trigger the update
+        val response2 = response1.copy(bortMinLogcatLevel = LogLevel.NONE.level)
+        val deviceConfigResponse2 = DecodedDeviceConfig(
+            revision = 2,
+            completedRevision = 2,
+            memfault = FetchedDeviceConfigContainer.Memfault(
+                bort = FetchedDeviceConfigContainer.Bort(
+                    sdkSettings = response2,
+                ),
+                sampling = FetchedDeviceConfigContainer.Sampling(
+                    debuggingResolution = "low",
+                    loggingResolution = "low",
+                    monitoringResolution = "low",
+                ),
+            ),
+            others = JsonObject(emptyMap()),
+        )
+        handler.handleDeviceConfig(deviceConfigResponse2)
+
+        coVerify {
+            currentSamplingConfig.update(
+                SamplingConfig(
+                    revision = 2,
+                    debuggingResolution = Resolution.LOW,
+                    loggingResolution = Resolution.LOW,
+                    monitoringResolution = Resolution.LOW,
+                ),
+            )
+        }
+        coVerify(exactly = 1) { marHoldingArea.addDeviceConfigMarEntry(2) }
+        coVerify(exactly = 1) {
+            marHoldingArea.handleSamplingConfigChange(
+                SamplingConfig(
+                    revision = 2,
+                    debuggingResolution = Resolution.LOW,
+                    loggingResolution = Resolution.LOW,
+                    monitoringResolution = Resolution.LOW,
+                ),
+                null,
             )
         }
     }

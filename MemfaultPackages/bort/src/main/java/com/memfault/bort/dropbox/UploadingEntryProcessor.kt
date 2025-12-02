@@ -23,29 +23,20 @@ import javax.inject.Inject
 interface UploadingEntryProcessorDelegate {
     val tags: List<String>
 
-    val debugTag: String
-
-    fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean
-
-    suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo =
-        EntryInfo(tokenBucketKey = entry.tag)
-
-    fun isTraceEntry(entry: DropBoxManager.Entry): Boolean = true
+    suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo
 
     fun scrub(inputFile: File, tag: String): File = inputFile
-
-    fun isCrash(entry: DropBoxManager.Entry, entryFile: File): Boolean
-
-    /**
-     * Set to non-null to record another metric if [isCrash] returned true.
-     */
-    val crashTag: String?
 }
 
 data class EntryInfo(
     val tokenBucketKey: String,
     val packageName: String? = null,
     val packages: List<AndroidPackage> = emptyList(),
+    val ignored: Boolean,
+    val allowedByRateLimit: Boolean,
+    val isTrace: Boolean,
+    val isCrash: Boolean,
+    val crashTag: String?,
 )
 
 class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject constructor(
@@ -74,6 +65,9 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
             }
 
             val info = delegate.getEntryInfo(entry, tempFile)
+            if (info.ignored) {
+                return
+            }
             if (info.packageName !in packageNameAllowList) {
                 return
             }
@@ -83,15 +77,15 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
             val fileTime = entry.timeMillis.toAbsoluteTime()
 
             // The crash rate should be incremented even if this dropbox trace would be rate limited.
-            if (delegate.isCrash(entry, tempFile)) {
+            if (info.isCrash) {
                 crashHandler.onCrash(componentName = info.packageName, crashTimestamp = fileTime.timestamp)
 
-                delegate.crashTag?.let { crashTag ->
+                info.crashTag?.let { crashTag ->
                     dropBoxTagCounter(crashTag).increment()
                 }
             }
 
-            if (!delegate.allowedByRateLimit(info.tokenBucketKey, entry.tag)) {
+            if (!info.allowedByRateLimit) {
                 return
             }
 
@@ -115,7 +109,7 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
             preventDeletion()
 
             // Only consider trace entries as "events of interest" for log collection purposes:
-            if (delegate.isTraceEntry(entry)) {
+            if (info.isTrace) {
                 handleEventOfInterest.handleEventOfInterest(now)
             }
         }

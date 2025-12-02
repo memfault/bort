@@ -5,9 +5,12 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import assertk.assertAll
 import assertk.assertThat
+import assertk.assertions.contains
 import assertk.assertions.hasSize
+import assertk.assertions.isBetween
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
 import assertk.assertions.text
 import com.memfault.bort.metrics.custom.CustomReport
 import com.memfault.bort.metrics.custom.MetricReport
@@ -26,11 +29,13 @@ import com.memfault.bort.reporting.MetricType
 import com.memfault.bort.reporting.MetricValue
 import com.memfault.bort.reporting.NumericAgg
 import com.memfault.bort.reporting.NumericAgg.COUNT
+import com.memfault.bort.reporting.NumericAgg.EXP_MOVING_AVG
 import com.memfault.bort.reporting.NumericAgg.LATEST_VALUE
 import com.memfault.bort.reporting.NumericAgg.MAX
 import com.memfault.bort.reporting.StateAgg
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.double
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -468,6 +473,81 @@ class MetricsDbTest {
                 ),
                 dailyHeartbeatReport = null,
             ),
+        )
+    }
+
+    @Test
+    fun aggregation_moving_avg() = runTest {
+        val val1 = MetricValue(
+            "key",
+            "Heartbeat",
+            listOf(EXP_MOVING_AVG),
+            false,
+            MetricType.PROPERTY,
+            DataType.DOUBLE,
+            false,
+            1,
+            null,
+            1.0,
+            null,
+            2,
+            null,
+        )
+        dao.insert(val1)
+        val val2 = MetricValue(
+            "key",
+            "Heartbeat",
+            listOf(EXP_MOVING_AVG),
+            false,
+            MetricType.PROPERTY,
+            DataType.DOUBLE,
+            false,
+            2,
+            null,
+            4.0,
+            null,
+            2,
+            null,
+        )
+        dao.insert(val2)
+        val val3 = MetricValue(
+            "key",
+            "Heartbeat",
+            listOf(EXP_MOVING_AVG),
+            false,
+            MetricType.PROPERTY,
+            DataType.DOUBLE,
+            false,
+            3,
+            null,
+            12.0,
+            null,
+            2,
+            null,
+        )
+        dao.insert(val3)
+
+        val hrtFileFactory = object : HrtFileFactory {
+            var file: File? = null
+            override fun create(): File = checkNotNull(file)
+        }
+        val hrtFile1 = tempFolder.newFile()
+        hrtFileFactory.file = hrtFile1
+
+        val report = dao.collectHeartbeat(endTimestampMs = 4, hrtFileFactory = hrtFileFactory)
+        assertThat(report.hourlyHeartbeatReport.metrics)
+            .hasSize(1)
+        assertThat(report.hourlyHeartbeatReport.metrics.keys)
+            .contains("key_moving_avg")
+        assertThat(report.hourlyHeartbeatReport.metrics["key_moving_avg"]?.double)
+            .isNotNull()
+            .isBetween(4.0, 12.0)
+
+        // Check HRT
+        assertThat(hrtFile1.readText()).isEqualTo(
+            """
+            {"schema_version":1,"start_time":1,"duration_ms":3,"report_type":"Heartbeat","producer":{"version":"1","id":"bort"},"rollups":[{"metadata":{"string_key":"key","metric_type":"property","data_type":"double","internal":false},"data":[{"t":1,"value":1.0},{"t":2,"value":4.0},{"t":3,"value":12.0}]}]}
+            """.trimIndent(),
         )
     }
 

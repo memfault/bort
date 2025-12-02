@@ -3,14 +3,12 @@ package com.memfault.bort.ota
 import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
-import com.memfault.bort.BasicCommandTimeout
 import com.memfault.bort.ota.lib.ABUpdateActionHandler
 import com.memfault.bort.ota.lib.DEFAULT_STATE_PREFERENCE_FILE
 import com.memfault.bort.ota.lib.IsAbDevice
 import com.memfault.bort.ota.lib.RecoveryBasedUpdateActionHandler
 import com.memfault.bort.ota.lib.SoftwareUpdateSettingsProvider
 import com.memfault.bort.ota.lib.UpdateActionHandler
-import com.memfault.bort.shared.BASIC_COMMAND_TIMEOUT_MS
 import com.memfault.cloud.sdk.MemfaultCloud
 import dagger.Lazy
 import dagger.Module
@@ -24,10 +22,6 @@ class OtaAppModule {
     @Provides
     fun updaterSharedPreferences(application: Application): SharedPreferences =
         application.getSharedPreferences(DEFAULT_STATE_PREFERENCE_FILE, Context.MODE_PRIVATE)
-
-    @Provides
-    @BasicCommandTimeout
-    fun basicTimeout(): Long = BASIC_COMMAND_TIMEOUT_MS
 
     @Provides
     fun createDefaultActionHandlerFactory(
