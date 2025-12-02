@@ -13,7 +13,6 @@
 #include <log/log_time.h>
 #include <log/log_id.h>
 #include <utils/String16.h>
-#include <reporting.h>
 
 #define CONTINUOUS_LOGCAT_TAG "memfault_clog"
 #define CONTINUOUS_LOGCAT_FILE "/data/system/MemfaultDumpster/clog"
@@ -110,9 +109,6 @@ class ContinuousLogcat {
     int output_fd;
     FILE *output_fp;
     ContinuousLogcatConfig config;
-
-    std::unique_ptr<Report> report_;
-    std::unique_ptr<Counter> log_buffer_expired_counter_;
 
     std::unique_ptr<EventTagMap, decltype(&android_closeEventTagMap)> event_tag_map_{
             nullptr, &android_closeEventTagMap};

@@ -2,6 +2,7 @@ package com.memfault.bort.android
 
 import android.annotation.SuppressLint
 import android.net.ConnectivityManager
+import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
 import kotlinx.coroutines.channels.awaitClose
@@ -14,6 +15,10 @@ sealed class NetworkCallbackEvent {
     data class OnCapabilitiesChanged(
         val network: Network,
         val networkCapabilities: NetworkCapabilities,
+    ) : NetworkCallbackEvent()
+    data class OnLinkPropertiesChanged(
+        val network: Network,
+        val linkProperties: LinkProperties,
     ) : NetworkCallbackEvent()
 }
 
@@ -37,6 +42,10 @@ suspend fun ConnectivityManager.registerForDefaultNetworkCallback(): Flow<Networ
             networkCapabilities: NetworkCapabilities,
         ) {
             trySend(NetworkCallbackEvent.OnCapabilitiesChanged(network, networkCapabilities))
+        }
+
+        override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
+            trySend(NetworkCallbackEvent.OnLinkPropertiesChanged(network, linkProperties))
         }
     }
 

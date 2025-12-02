@@ -36,9 +36,9 @@ data class AndroidBootReason(
                 )
             }
 
-        const val SYS_BOOT_REASON_KEY = "sys.boot.reason"
+        internal const val SYS_BOOT_REASON_KEY = "sys.boot.reason"
 
-        const val FALLBACK_SYS_BOOT_REASON_VALUE = "reboot,bort_unknown"
+        private const val FALLBACK_SYS_BOOT_REASON_VALUE = "reboot,permissiondenied"
     }
 }
 

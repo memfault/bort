@@ -13,14 +13,11 @@ class Lines(iterable: Iterable<String>) : Iterator<String>, Iterable<String> {
 
     fun peek() = peekable.peek()
 
-    fun until(predicate: LinePredicate): Lines = until(consumeMatch = false, predicate)
-    fun until(consumeMatch: Boolean = false, predicate: LinePredicate): Lines =
+    fun until(predicate: LinePredicate): Lines =
         sequence {
             for (line in this@Lines) {
                 if (predicate(line)) {
-                    if (!consumeMatch) {
-                        peekable.prepend(line)
-                    }
+                    peekable.prepend(line)
                     break
                 }
                 yield(line)
@@ -34,5 +31,4 @@ class Lines(iterable: Iterable<String>) : Iterator<String>, Iterable<String> {
         }
 }
 
-fun Sequence<String>.asLines() = Lines(this.asIterable())
-fun String.asLines() = this.lineSequence().asLines()
+private fun Sequence<String>.asLines() = Lines(this.asIterable())

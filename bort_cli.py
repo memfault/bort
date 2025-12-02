@@ -141,13 +141,14 @@ class PatchAOSPCommand(Command):
 
     def __init__(
         self,
-        aosp_root,
+        aosp_root: str,
         check_patch_command,
         apply_patch_command,
-        force,
+        force: bool,
         android_release,
         patch_dir,
         exclude,
+        include: List[str],  # pyright: ignore[reportDeprecated]
     ):
         self._aosp_root = aosp_root
         self._check_patch_command = check_patch_command or self._default_check_patch_command()
@@ -157,6 +158,7 @@ class PatchAOSPCommand(Command):
         self._patches_dir = os.path.join(patch_dir, f"android-{android_release}")
 
         self._exclude_dirs = exclude or []
+        self._include_dirs = include or []  # pyright: ignore[reportUnannotatedClassAttribute]
         self._errors = []
         self._warnings = []
 
@@ -195,6 +197,9 @@ class PatchAOSPCommand(Command):
             "--exclude", action="append", help="Directories to exclude from patching"
         )
         parser.add_argument(
+            "--include", action="append", type=str, help="Directories to include in patching"
+        )
+        parser.add_argument(  # pyright: ignore[reportUnknownMemberType]
             "--patch-dir",
             type=str,
             default=os.path.join(SCRIPT_DIR, "patches"),
@@ -229,9 +234,11 @@ class PatchAOSPCommand(Command):
     def _apply_all_patches(self):
         glob_pattern = os.path.join(self._patches_dir, "**", "git.diff")
 
-        mapping = {
-            PLACEHOLDER_BORT_AOSP_PATCH_VERSION: _get_bort_version(),
-        }
+        mapping = (
+            {}
+            if self._include_dirs == ["system/core/rootdir/etc"]
+            else {PLACEHOLDER_BORT_AOSP_PATCH_VERSION: _get_bort_version()}
+        )
 
         for patch_abspath in glob.iglob(glob_pattern, recursive=True):
             patch_relpath = os.path.relpath(patch_abspath, self._patches_dir)
@@ -239,6 +246,10 @@ class PatchAOSPCommand(Command):
 
             if repo_subdir in self._exclude_dirs:
                 logging.info("Skipping patch: %r: excluded!", patch_relpath)
+                continue
+
+            if self._include_dirs and repo_subdir not in self._include_dirs:
+                logging.info("Skipping patch: %r: not included!", patch_relpath)
                 continue
 
             with open(patch_abspath) as patch_file:

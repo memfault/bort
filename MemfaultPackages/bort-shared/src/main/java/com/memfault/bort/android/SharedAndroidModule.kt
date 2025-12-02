@@ -13,9 +13,11 @@ import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.DropBoxManager
 import android.os.Looper
+import com.memfault.bort.BasicCommandTimeout
 import com.memfault.bort.Default
 import com.memfault.bort.IO
 import com.memfault.bort.Main
+import com.memfault.bort.shared.BASIC_COMMAND_TIMEOUT_MS
 import com.squareup.anvil.annotations.ContributesTo
 import dagger.Module
 import dagger.Provides
@@ -85,4 +87,8 @@ class SharedAndroidModule {
     @Provides
     fun usageStatsManager(application: Application): UsageStatsManager =
         application.getSystemService(UsageStatsManager::class.java)
+
+    @Provides
+    @BasicCommandTimeout
+    fun basicTimeout(): Long = BASIC_COMMAND_TIMEOUT_MS
 }

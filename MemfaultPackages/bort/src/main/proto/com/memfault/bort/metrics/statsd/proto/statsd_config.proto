@@ -1,0 +1,723 @@
+/*
+ * Copyright (C) 2017 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Snapshot taken by Memfault at revision 4b33093564dbfb3ae85653fc24a15df040a778ed:
+ * https://cs.android.com/android/_/android/platform/packages/modules/StatsD/+/4b33093564dbfb3ae85653fc24a15df040a778ed
+ */
+
+syntax = "proto2";
+
+
+package com.memfault.bort.metrics.statsd.proto;
+option java_package = "com.memfault.bort.metrics.statsd.proto";
+
+enum Position {
+  POSITION_UNKNOWN = 0;
+
+  FIRST = 1;
+
+  LAST = 2;
+
+  ANY = 3;
+
+  ALL = 4;
+}
+
+enum TimeUnit {
+  TIME_UNIT_UNSPECIFIED = 0;
+  ONE_MINUTE = 1;  // WILL BE GUARDRAILED TO 5 MINS UNLESS UID = SHELL OR ROOT
+  FIVE_MINUTES = 2;
+  TEN_MINUTES = 3;
+  THIRTY_MINUTES = 4;
+  ONE_HOUR = 5;
+  THREE_HOURS = 6;
+  SIX_HOURS = 7;
+  TWELVE_HOURS = 8;
+  ONE_DAY = 9;
+  ONE_WEEK = 10;
+  CTS = 1000;
+}
+
+message FieldMatcher {
+  optional int32 field = 1;
+
+  optional Position position = 2;
+
+  repeated FieldMatcher child = 3;
+}
+
+message StringReplacer {
+  // Regex for matching the string.
+  optional string regex = 1;
+
+  // String with which to replace the matched string.
+  optional string replacement = 2;
+}
+
+message FieldValueMatcher {
+  optional int32 field = 1;
+
+  optional Position position = 2;
+
+  oneof value_matcher {
+    bool eq_bool = 3;
+    string eq_string = 4;
+    int64 eq_int = 5;
+
+    int64 lt_int = 6;
+    int64 gt_int = 7;
+    float lt_float = 8;
+    float gt_float = 9;
+
+    int64 lte_int = 10;
+    int64 gte_int = 11;
+
+    MessageMatcher matches_tuple = 12;
+
+    StringListMatcher eq_any_string = 13;
+    StringListMatcher neq_any_string = 14;
+    IntListMatcher eq_any_int = 15;
+    IntListMatcher neq_any_int = 16;
+
+    string eq_wildcard_string = 17;
+    StringListMatcher eq_any_wildcard_string = 18;
+    StringListMatcher neq_any_wildcard_string = 19;
+  }
+
+  // Can only be present if either:
+  // 1. value_matcher is not set.
+  // 2. value_matcher is set to one that is applicable to string fields.
+  optional StringReplacer replace_string = 20;
+}
+
+message MessageMatcher {
+  repeated FieldValueMatcher field_value_matcher = 1;
+}
+
+message StringListMatcher {
+  repeated string str_value = 1;
+}
+
+message IntListMatcher {
+  repeated int64 int_value = 1;
+}
+
+enum LogicalOperation {
+  LOGICAL_OPERATION_UNSPECIFIED = 0;
+  AND = 1;
+  OR = 2;
+  NOT = 3;
+  NAND = 4;
+  NOR = 5;
+}
+
+message SimpleAtomMatcher {
+  optional int32 atom_id = 1;
+
+  repeated FieldValueMatcher field_value_matcher = 2;
+}
+
+message AtomMatcher {
+  optional int64 id = 1;
+
+  message Combination {
+    optional LogicalOperation operation = 1;
+
+    repeated int64 matcher = 2;
+  }
+  oneof contents {
+    SimpleAtomMatcher simple_atom_matcher = 2;
+    Combination combination = 3;
+  }
+}
+
+message SimplePredicate {
+  optional int64 start = 1;
+
+  optional int64 stop = 2;
+
+  optional bool count_nesting = 3 [default = true];
+
+  optional int64 stop_all = 4;
+
+  enum InitialValue {
+    UNKNOWN = 0;
+    FALSE = 1;
+  }
+
+  // If unspecified, the default value will be UNKNOWN for conditions without dimensions, and
+  // FALSE for conditions with dimensions.
+  optional InitialValue initial_value = 5;
+
+  optional FieldMatcher dimensions = 6;
+}
+
+message Predicate {
+  optional int64 id = 1;
+
+  message Combination {
+    optional LogicalOperation operation = 1;
+
+    repeated int64 predicate = 2;
+  }
+
+  oneof contents {
+    SimplePredicate simple_predicate = 2;
+    Combination combination = 3;
+  }
+}
+
+message StateMap {
+  message StateGroup {
+    optional int64 group_id = 1;
+
+    repeated int32 value = 2;
+  }
+
+  repeated StateGroup group = 1;
+}
+
+message State {
+  optional int64 id = 1;
+
+  optional int32 atom_id = 2;
+
+  optional StateMap map = 3;
+}
+
+message MetricConditionLink {
+  optional int64 condition = 1;
+
+  optional FieldMatcher fields_in_what = 2;
+
+  optional FieldMatcher fields_in_condition = 3;
+}
+
+message MetricStateLink {
+  optional int32 state_atom_id = 1;
+
+  optional FieldMatcher fields_in_what = 2;
+
+  optional FieldMatcher fields_in_state = 3;
+}
+
+message FieldFilter {
+  optional bool include_all = 1 [default = false];
+
+  oneof field_matcher {
+    FieldMatcher fields = 2;
+    FieldMatcher omit_fields = 3;
+  }
+}
+
+message UploadThreshold {
+  oneof value_comparison {
+    int64 lt_int = 1;
+    int64 gt_int = 2;
+    float lt_float = 3;
+    float gt_float = 4;
+    int64 lte_int = 5;
+    int64 gte_int = 6;
+  }
+}
+
+message DimensionalSamplingInfo {
+  optional FieldMatcher sampled_what_field = 1;
+
+  optional int32 shard_count = 2;
+}
+
+message EventMetric {
+  optional int64 id = 1;
+
+  optional int64 what = 2;
+
+  optional int64 condition = 3;
+
+  repeated int64 slice_by_state = 7;
+
+  repeated MetricConditionLink links = 4;
+
+  repeated MetricStateLink state_link = 8;
+
+  optional int32 sampling_percentage = 5 [default = 100];
+
+  optional FieldMatcher uid_fields = 6;
+
+  optional FieldFilter fields_filter = 9;
+
+  reserved 100;
+  reserved 101;
+}
+
+message CountMetric {
+  optional int64 id = 1;
+
+  optional int64 what = 2;
+
+  optional int64 condition = 3;
+
+  optional FieldMatcher dimensions_in_what = 4;
+
+  repeated int64 slice_by_state = 8;
+
+  optional TimeUnit bucket = 5;
+
+  repeated MetricConditionLink links = 6;
+
+  repeated MetricStateLink state_link = 9;
+
+  optional UploadThreshold threshold = 10;
+
+  optional bool split_bucket_for_app_upgrade = 11;
+
+  optional FieldMatcher dimensions_in_condition = 7 [deprecated = true];
+
+  optional DimensionalSamplingInfo dimensional_sampling_info = 12;
+
+  optional int32 max_dimensions_per_bucket = 13;
+
+  optional FieldMatcher uid_fields = 14;
+
+  reserved 100;
+  reserved 101;
+}
+
+message DurationMetric {
+  optional int64 id = 1;
+
+  optional int64 what = 2;
+
+  optional int64 condition = 3;
+
+  repeated int64 slice_by_state = 9;
+
+  repeated MetricConditionLink links = 4;
+
+  repeated MetricStateLink state_link = 10;
+
+  enum AggregationType {
+    SUM = 1;
+
+    MAX_SPARSE = 2;
+  }
+  optional AggregationType aggregation_type = 5 [default = SUM];
+
+  optional FieldMatcher dimensions_in_what = 6;
+
+  optional TimeUnit bucket = 7;
+
+  optional UploadThreshold threshold = 11;
+
+  optional bool split_bucket_for_app_upgrade = 12;
+
+  optional FieldMatcher dimensions_in_condition = 8 [deprecated = true];
+
+  optional DimensionalSamplingInfo dimensional_sampling_info = 13;
+
+  optional int32 max_dimensions_per_bucket = 14;
+
+  optional FieldMatcher uid_fields = 15;
+
+  reserved 100;
+  reserved 101;
+}
+
+message GaugeMetric {
+  optional int64 id = 1;
+
+  optional int64 what = 2;
+
+  optional int64 trigger_event = 12;
+
+  optional FieldFilter gauge_fields_filter = 3;
+
+  optional int64 condition = 4;
+
+  repeated int64 slice_by_state = 20;
+
+  optional FieldMatcher dimensions_in_what = 5;
+
+  optional FieldMatcher dimensions_in_condition = 8 [deprecated = true];
+
+  optional TimeUnit bucket = 6;
+
+  repeated MetricConditionLink links = 7;
+
+  repeated MetricStateLink state_link = 21;
+
+  enum SamplingType {
+    RANDOM_ONE_SAMPLE = 1;
+    ALL_CONDITION_CHANGES = 2 [deprecated = true];
+    CONDITION_CHANGE_TO_TRUE = 3;
+    FIRST_N_SAMPLES = 4;
+  }
+  optional SamplingType sampling_type = 9 [default = RANDOM_ONE_SAMPLE] ;
+
+  optional int64 min_bucket_size_nanos = 10;
+
+  optional int64 max_num_gauge_atoms_per_bucket = 11 [default = 10];
+
+  optional int32 max_pull_delay_sec = 13 [default = 30];
+
+  optional bool split_bucket_for_app_upgrade = 14;
+
+  optional DimensionalSamplingInfo dimensional_sampling_info = 15;
+
+  optional int32 max_dimensions_per_bucket = 16;
+
+  optional int32 sampling_percentage = 17 [default = 100];
+
+  optional int32 pull_probability = 18 [default = 100];
+
+  optional FieldMatcher uid_fields = 19;
+
+  reserved 100;
+  reserved 101;
+}
+
+// Empty proto message to indicate that histogram bins are populated in the client process.
+// No additional configuration parameters are needed in this message.
+message ClientAggregatedBins {
+}
+
+message HistogramBinConfig {
+  message ExplicitBins {
+    repeated float bin = 1;
+  }
+
+  message GeneratedBins {
+    enum Strategy {
+      UNKNOWN = 0;
+      LINEAR = 1;
+      EXPONENTIAL = 2;
+    }
+
+    optional float min = 1;
+    optional float max = 2;
+    optional int32 count = 3;
+    optional Strategy strategy = 4;
+  }
+
+  optional int64 id = 1;
+  oneof binning_strategy {
+    GeneratedBins generated_bins = 2;
+    ExplicitBins explicit_bins = 3;
+    ClientAggregatedBins client_aggregated_bins = 4;
+  }
+}
+
+message ValueMetric {
+  optional int64 id = 1;
+
+  optional int64 what = 2;
+
+  optional FieldMatcher value_field = 3;
+
+  optional int64 condition = 4;
+
+  optional FieldMatcher dimensions_in_what = 5;
+
+  repeated int64 slice_by_state = 18;
+
+  optional TimeUnit bucket = 6;
+
+  repeated MetricConditionLink links = 7;
+
+  repeated MetricStateLink state_link = 19;
+
+  optional UploadThreshold threshold = 20;
+
+  optional int64 condition_correction_threshold_nanos = 21;
+
+  enum AggregationType {
+    SUM = 1;
+    MIN = 2;
+    MAX = 3;
+    AVG = 4;
+    HISTOGRAM = 5;
+  }
+  optional AggregationType aggregation_type = 8 [default = SUM];
+
+  repeated AggregationType aggregation_types = 25;
+
+  // The number of entries should match the number of times HISTOGRAM appears in aggregation_types.
+  // Each i'th HistogramBinConfig corresponds to the i'th HISTOGRAM entry in aggregation_types so
+  // ordering matters.
+  repeated HistogramBinConfig histogram_bin_configs = 26;
+
+  optional bool include_sample_size = 22;
+
+  optional int64 min_bucket_size_nanos = 10;
+
+  optional bool use_absolute_value_on_reset = 11 [default = false];
+
+  optional bool use_diff = 12;
+
+  optional bool use_zero_default_base = 15 [default = false];
+
+  enum ValueDirection {
+    UNKNOWN = 0;
+    INCREASING = 1;
+    DECREASING = 2;
+    ANY = 3;
+  }
+  optional ValueDirection value_direction = 13 [default = INCREASING];
+
+  optional bool skip_zero_diff_output = 14 [default = true];
+
+  optional int32 max_pull_delay_sec = 16 [default = 30];
+
+  optional bool split_bucket_for_app_upgrade = 17;
+
+  optional FieldMatcher dimensions_in_condition = 9 [deprecated = true];
+
+  optional DimensionalSamplingInfo dimensional_sampling_info = 23;
+
+  optional int32 max_dimensions_per_bucket = 24;
+
+  optional FieldMatcher uid_fields = 27;
+
+  reserved 100;
+  reserved 101;
+}
+
+message KllMetric {
+  optional int64 id = 1;
+
+  optional int64 what = 2;
+
+  optional FieldMatcher kll_field = 3;
+
+  optional int64 condition = 4;
+
+  optional FieldMatcher dimensions_in_what = 5;
+
+  optional TimeUnit bucket = 6;
+
+  repeated MetricConditionLink links = 7;
+
+  optional int64 min_bucket_size_nanos = 8;
+
+  optional bool split_bucket_for_app_upgrade = 9;
+
+  repeated int64 slice_by_state = 10;
+
+  repeated MetricStateLink state_link = 11;
+
+  optional DimensionalSamplingInfo dimensional_sampling_info = 12;
+
+  optional int32 max_dimensions_per_bucket = 13;
+
+  optional FieldMatcher uid_fields = 14;
+
+  reserved 100;
+  reserved 101;
+}
+
+message Alert {
+  optional int64 id = 1;
+
+  optional int64 metric_id = 2;
+
+  optional int32 num_buckets = 3;
+
+  optional int32 refractory_period_secs = 4;
+
+  optional double trigger_if_sum_gt = 5;
+
+  optional float probability_of_informing = 6 [default = 1.1];
+}
+
+message Alarm {
+  optional int64 id = 1;
+
+  optional int64 offset_millis = 2;
+
+  optional int64 period_millis = 3;
+
+  optional float probability_of_informing = 4 [default = 1.1];
+}
+
+message IncidentdDetails {
+  repeated int32 section = 1;
+
+  enum Destination {
+    AUTOMATIC = 0;
+    EXPLICIT = 1;
+  }
+  optional Destination dest = 2;
+
+  // Package name of the incident report receiver.
+  optional string receiver_pkg = 3;
+
+  // Class name of the incident report receiver.
+  optional string receiver_cls = 4;
+
+  optional string alert_description = 5;
+}
+
+message PerfettoDetails {
+  // The |trace_config| field is a proto-encoded message of type
+  // perfetto.protos.TraceConfig defined in
+  // //external/perfetto/protos/perfetto/config/. On device,
+  // statsd doesn't need to deserialize the message as it's just
+  // passed binary-encoded to the perfetto cmdline client.
+  optional bytes trace_config = 1;
+}
+
+message UprobestatsDetails {
+  // The |config| field is a proto-encoded message of type
+  // uprobestats.protos.UprobestatsConfig defined in
+  // //packages/modules/UprobeStats/src/config.proto. On device,
+  // statsd doesn't need to deserialize the message as it's just
+  // passed binary-encoded to the Uprobestats API.
+  optional bytes config = 1;
+}
+
+message BroadcastSubscriberDetails {
+  optional int64 subscriber_id = 1;
+  repeated string cookie = 2;
+}
+
+message Subscription {
+  optional int64 id = 1;
+
+  enum RuleType {
+    RULE_TYPE_UNSPECIFIED = 0;
+    ALARM = 1;
+    ALERT = 2;
+  }
+  optional RuleType rule_type = 2;
+
+  optional int64 rule_id = 3;
+
+  oneof subscriber_information {
+    IncidentdDetails incidentd_details = 4;
+    PerfettoDetails perfetto_details = 5;
+    BroadcastSubscriberDetails broadcast_subscriber_details = 6;
+    UprobestatsDetails uprobestats_details = 9;
+  }
+
+  optional float probability_of_informing = 7 [default = 1.1];
+
+  // This was used for perfprofd historically.
+  reserved 8;
+}
+
+enum ActivationType {
+  ACTIVATION_TYPE_UNKNOWN = 0;
+  ACTIVATE_IMMEDIATELY = 1;
+  ACTIVATE_ON_BOOT = 2;
+}
+
+message EventActivation {
+  optional int64 atom_matcher_id = 1;
+  optional int64 ttl_seconds = 2;
+  optional int64 deactivation_atom_matcher_id = 3;
+  optional ActivationType activation_type = 4;
+}
+
+message MetricActivation {
+  optional int64 metric_id = 1;
+
+  optional ActivationType activation_type = 3 [deprecated = true];
+
+  repeated EventActivation event_activation = 2;
+}
+
+message PullAtomPackages {
+  optional int32 atom_id = 1;
+
+  repeated string packages = 2;
+}
+
+message StatsdConfig {
+  optional int64 id = 1;
+
+  repeated EventMetric event_metric = 2;
+
+  repeated CountMetric count_metric = 3;
+
+  repeated ValueMetric value_metric = 4;
+
+  repeated GaugeMetric gauge_metric = 5;
+
+  repeated DurationMetric duration_metric = 6;
+
+  repeated KllMetric kll_metric = 25;
+
+  repeated AtomMatcher atom_matcher = 7;
+
+  repeated Predicate predicate = 8;
+
+  repeated Alert alert = 9;
+
+  repeated Alarm alarm = 10;
+
+  repeated Subscription subscription = 11;
+
+  repeated string allowed_log_source = 12;
+
+  repeated int64 no_report_metric = 13;
+
+  message Annotation {
+    optional int64 field_int64 = 1;
+    optional int32 field_int32 = 2;
+  }
+  repeated Annotation annotation = 14;
+
+  optional int64 ttl_in_seconds = 15;
+
+  optional bool hash_strings_in_metric_report = 16 [default = true];
+
+  repeated MetricActivation metric_activation = 17;
+
+  optional bool version_strings_in_metric_report = 18;
+
+  optional bool installer_in_metric_report = 19;
+
+  optional bool persist_locally = 20 [default = false];
+
+  repeated State state = 21;
+
+  repeated string default_pull_packages = 22;
+
+  repeated PullAtomPackages pull_atom_packages = 23;
+
+  repeated int32 whitelisted_atom_ids = 24;
+
+  optional uint32 package_certificate_hash_size_bytes = 26;
+
+  optional string restricted_metrics_delegate_package_name = 27;
+
+  optional int32 max_metrics_memory_kb = 28;
+
+  optional int32 soft_metrics_memory_kb = 29;
+
+  message StatsdConfigOptions {
+    optional bool use_v2_soft_memory_limit = 1;
+    optional bool omit_system_uids_in_uidmap = 2;
+    optional bool omit_unused_uids_in_uidmap = 3;
+    repeated string uidmap_package_allowlist = 4;
+  }
+
+  optional StatsdConfigOptions statsd_config_options = 30;
+
+  // Do not use.
+  reserved 1000, 1001;
+}

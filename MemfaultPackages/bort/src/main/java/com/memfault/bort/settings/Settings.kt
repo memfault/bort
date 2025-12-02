@@ -51,6 +51,8 @@ interface DropBoxSettings {
     val processImmediately: Boolean
     val pollingInterval: Duration
     val otherTags: Set<String>
+    val ignoreCommonWtfs: Boolean
+    val ignoredWtfs: Set<String>
 }
 
 interface BatteryStatsSettings {
@@ -83,6 +85,8 @@ interface MetricsSettings {
     val cpuProcessReportingThreshold: Int
     val cpuProcessLimitTopN: Int
     val alwaysCreateCpuProcessMetrics: Boolean
+    val enableStatsdCollection: Boolean
+    val extraStatsDAtoms: List<Int>
 }
 
 interface LogcatSettings {

@@ -133,6 +133,12 @@ data class FetchedSettings(
     @SerialName("drop_box.java_exceptions.rate_limiting_settings")
     val dropBoxJavaExceptionsRateLimitingSettings: RateLimitingSettings,
 
+    @SerialName("drop_box.wtfs.ignore_common")
+    val dropBoxWtfsIgnoreCommon: Boolean = true,
+
+    @SerialName("drop_box.wtfs.ignores")
+    val dropBoxWtfsIgnores: Set<String> = setOf(),
+
     @SerialName("drop_box.wtfs.rate_limiting_settings")
     val dropBoxWtfsRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 5,
@@ -366,6 +372,12 @@ data class FetchedSettings(
     @SerialName("metrics.always_create_cpu_process_metrics")
     val alwaysCreateCpuProcessMetrics: Boolean = false,
 
+    @SerialName("metrics.enable_statsd_collection")
+    val enableStatsdCollection: Boolean = true,
+
+    @SerialName("metrics.extra_statsd_atoms")
+    val extraStatsDAtoms: List<Int> = emptyList(),
+
     @SerialName("ota.update_check_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val otaUpdateCheckInterval: BoxedDuration = 12.hours.boxed(),
@@ -458,7 +470,7 @@ data class FetchedSettings(
     @SerialName("metric_report.sessions_rate_limiting_settings")
     val metricReportSessionsRateLimitingSettings: RateLimitingSettings = RateLimitingSettings(
         defaultCapacity = 125,
-        defaultPeriod = 24.hours.boxed(),
+        defaultPeriod = 10.minutes.boxed(),
         maxBuckets = 1,
     ),
 

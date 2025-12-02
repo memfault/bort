@@ -18,23 +18,37 @@ class AnrUploadingEntryProcessorDelegate @Inject constructor(
         "system_app_anr",
         "system_server_anr",
     )
-    override val debugTag: String
-        get() = "UPLOAD_ANR"
 
-    override val crashTag: String? = null
-
-    override fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean =
+    private fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean =
         tokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
 
     override suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo = try {
-        entryFile.inputStream().use {
-            EntryInfo(tokenBucketKey = entry.tag, packageName = AnrParser(it).parse().packageName)
+        entryFile.inputStream().use { inputStream ->
+            inputStream.bufferedReader().use { bufferedReader ->
+                bufferedReader.useLines { linesSequence ->
+                    val anr = AnrParser(linesSequence).parse()
+
+                    EntryInfo(
+                        tokenBucketKey = entry.tag,
+                        packageName = anr.packageName,
+                        ignored = false,
+                        allowedByRateLimit = allowedByRateLimit(tokenBucketKey = entry.tag, tag = entry.tag),
+                        isTrace = true,
+                        isCrash = entry.tag !in operationalCrashesExclusions(),
+                        crashTag = null,
+                    )
+                }
+            }
         }
     } catch (ex: Exception) {
         Logger.w("Unable to parse ANR", ex)
-        EntryInfo(entry.tag)
+        EntryInfo(
+            tokenBucketKey = entry.tag,
+            ignored = false,
+            allowedByRateLimit = allowedByRateLimit(tokenBucketKey = entry.tag, tag = entry.tag),
+            isTrace = true,
+            isCrash = entry.tag !in operationalCrashesExclusions(),
+            crashTag = null,
+        )
     }
-
-    override fun isCrash(entry: DropBoxManager.Entry, entryFile: File): Boolean =
-        entry.tag !in operationalCrashesExclusions()
 }

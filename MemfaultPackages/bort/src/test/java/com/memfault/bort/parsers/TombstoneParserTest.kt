@@ -107,15 +107,15 @@ backtrace:
 """
 
 val EXAMPLE_TOMBSTONE_THREADNAME_PROCESSNAME = """isPrevious: true
-Build: Square/t2_sdm660_64/t2_sdm660_64:10/5.21.0052/029d2ef:user/dev-keys
-Hardware: sdm660
+Build: Android/aosp_arm64/generic_arm64:8.1.0/OC/root04302340:eng/test-keys
+Hardware: aosp_arm64
 Revision: 0
 Bootloader: unknown
 Radio: null
-Kernel: Linux version 4.14.156-perf+ (build@squid-build-dev-8) (clang version 8.0.12 for Android NDK) #1 SMP PREEMPT Wed Jul 6 03:48:53 UTC 2022
+Kernel: Linux version 4.14.156-perf+ (build@build-dev-8) (clang version 8.0.12 for Android NDK) #1 SMP PREEMPT Wed Jul 6 03:48:53 UTC 2022
 
 *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
-Build fingerprint: 'Square/t2_sdm660_64/t2_sdm660_64:10/5.21.0052/029d2ef:user/dev-keys'
+Build fingerprint: 'Android/aosp_arm64/generic_arm64:8.1.0/OC/root04302340:eng/test-keys'
 Revision: '0'
 ABI: 'arm64'
 Timestamp: 2023-09-23 09:12:30-0600

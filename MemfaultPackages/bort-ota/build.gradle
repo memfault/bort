@@ -49,6 +49,8 @@ dependencies {
     api project(':bort-ota-lib')
     api project(':bort-shared')
 
+    debugImplementation deps.leakcanary
+
     implementation deps.android.activity
     implementation deps.android.appcompat
     implementation deps.android.fragment

@@ -182,17 +182,18 @@ class MarFileHoldingArea @Inject constructor(
         return marFileWriter.batchMarFiles(pendingFiles)
     }
 
-    suspend fun handleSamplingConfigChange(newConfig: SamplingConfig) = mutex.withLock {
+    suspend fun handleSamplingConfigChange(
+        newConfig: SamplingConfig,
+        dataUploadStartDate: Instant?,
+    ) = mutex.withLock {
         // Move files from unsampled -> sampled, if new sampling configuration allows.
         var addedFilesFromUnsampled = false
-        unsampledEligibleForUpload(newConfig).forEach { mar ->
+        unsampledEligibleForUpload(newConfig, dataUploadStartDate).forEach { mar ->
             Logger.d("moving to sampled: $mar")
             addSampledMarFile(mar)
             manifestFileForMar(unsampledHoldingDirectory, mar.marFile).deleteSilently()
             addedFilesFromUnsampled = true
         }
-        // Add a new mar entry, confirming that we processed this config revision.
-        addDeviceConfigMarEntry(newConfig.revision)
 
         if (addedFilesFromUnsampled) {
             Logger.d("Triggering one-time mar upload after moving files from unsampled")
@@ -320,20 +321,38 @@ class MarFileHoldingArea @Inject constructor(
         manifestFile.writeText(manifestSerialized, charset = Charsets.UTF_8)
     }
 
+    private fun MarManifest.shouldUpload(dataUploadStartDate: Instant?): Boolean = if (dataUploadStartDate == null) {
+        // No date provided, upload this file.
+        true
+    } else if (collectionTime.timestamp.isAfter(dataUploadStartDate)) {
+        // If the file was collected after the upload date, upload it.
+        true
+    } else {
+        // If the file was collected an arbitrarily long time in the past (2 times max unsampled duration),
+        // but hasn't been cleaned up yet, then upload the file anyways just in case there was a clock issue
+        // because we don't know that the actual clock on the device is correct.
+        Duration.between(collectionTime.timestamp, dataUploadStartDate).abs() >=
+            marMaxUnsampledAge().times(2).toJavaDuration()
+    }
+
     @VisibleForTesting
-    internal fun unsampledEligibleForUpload(samplingConfig: SamplingConfig): List<MarFileWithManifest> {
+    internal fun unsampledEligibleForUpload(
+        samplingConfig: SamplingConfig,
+        dataUploadStartDate: Instant?,
+    ): List<MarFileWithManifest> {
         val manifestFiles =
             unsampledHoldingDirectory.listFiles()?.asList()?.filter { it.extension == MANIFEST_EXTENSION }
                 ?: emptyList()
+
         return manifestFiles.mapNotNull { manifestFile ->
             val manifestJson = manifestFile.readText(charset = Charsets.UTF_8)
-            val manifest = try {
+            val marManifest = try {
                 BortJson.decodeFromString(MarManifest.serializer(), manifestJson)
             } catch (e: SerializationException) {
                 null
             }
-            manifest?.let { _ ->
-                if (samplingConfig.shouldUpload(manifest)) {
+            marManifest?.let { manifest ->
+                if (samplingConfig.shouldUpload(manifest) && manifest.shouldUpload(dataUploadStartDate)) {
                     val marFile = marFileForManifest(unsampledHoldingDirectory, manifestFile)
                     if (marFile.exists()) {
                         MarFileWithManifest(marFile, manifest)

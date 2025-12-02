@@ -2,7 +2,6 @@ package com.memfault.bort
 
 import android.os.Build
 import android.os.StrictMode
-import com.memfault.bort.scopes.ForScope
 import com.memfault.bort.scopes.Scope
 import com.memfault.bort.scopes.Scoped
 import com.memfault.bort.scopes.Scoped.ScopedPriority
@@ -12,7 +11,6 @@ import dagger.hilt.components.SingletonComponent
 import java.util.concurrent.Executors
 import javax.inject.Inject
 
-@ForScope(SingletonComponent::class)
 @ContributesMultibinding(SingletonComponent::class)
 class DebugConfigureStrictMode
 @Inject constructor() : Scoped {

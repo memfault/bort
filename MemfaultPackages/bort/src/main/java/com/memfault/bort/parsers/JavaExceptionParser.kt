@@ -1,7 +1,5 @@
 package com.memfault.bort.parsers
 
-import java.io.InputStream
-
 /**
  * NOTE: This parser does not parse much at all!
  * All it needs to do today, is grab the list of (unparsed) functions in the stack trace.
@@ -11,22 +9,75 @@ import java.io.InputStream
  */
 data class JavaException(
     val packageName: String?,
-    val unparsedStackFrames: List<String>,
+    val signatureLines: List<String>,
+    val exceptionClass: String?,
+    val exceptionMessage: String?,
 )
 
-class JavaExceptionParser(val inputStream: InputStream) {
+class JavaExceptionParser(
+    private val linesSequence: Sequence<String>,
+) {
     fun parse(): JavaException {
-        val lines = Lines(inputStream.bufferedReader().lineSequence().asIterable())
+        var packageName: String? = null
+        var topLevelExceptionClass: String? = null
+        var topLevelExceptionMessage: String? = null
+        val lines = linesSequence.iterator()
+        val signatureLines = mutableListOf<String>()
 
-        val packageName = ActivityManagerHeaderParser.dropUntilAndGetPackageName(lines)
-        ActivityManagerHeaderParser.dropActivityManagerMetadata(lines)
+        fun parseMetadata(line: String): Boolean {
+            if (packageName == null) {
+                packageName = AmMetadataHeader.parsePackage(line)
+            }
+            return AmMetadataHeader.notMetadataLine(line)
+        }
+
+        fun parseStacktrace(line: String): Boolean {
+            val classMessageMatch = CLASS_MESSAGE_REGEX.matchEntire(line)
+            val frameMatch = FRAME_REGEX.matchEntire(line)
+            if (line.isBlank()) {
+                return false
+            } else if (frameMatch != null) {
+                signatureLines.add(frameMatch.groupValues[1].trim())
+                return false
+            } else if (classMessageMatch != null) {
+                val exceptionClass = classMessageMatch.groupValues[1].trim()
+                val exceptionMessage = classMessageMatch.groupValues[2].trim()
+
+                // Don't use the exception message in the signature - it can vary too much (such as with numbers).
+                signatureLines.add(exceptionClass)
+
+                if (topLevelExceptionClass == null) {
+                    topLevelExceptionClass = exceptionClass
+                }
+                if (topLevelExceptionMessage == null) {
+                    topLevelExceptionMessage = exceptionMessage
+                }
+                return false
+            } else {
+                return true
+            }
+        }
+
+        var parser: (String) -> Boolean = ::parseMetadata
+
+        for (line in lines) {
+            val stop = parser(line)
+            if (parser == ::parseMetadata && stop) {
+                parser = ::parseStacktrace
+                parser(line)
+            } else if (parser == ::parseStacktrace && stop) {
+                break
+            }
+        }
+
         return JavaException(
             packageName = packageName,
-            unparsedStackFrames = lines.mapNotNull {
-                FRAME_REGEX.matchEntire(it)?.groupValues?.get(1)
-            },
+            signatureLines = signatureLines,
+            exceptionClass = topLevelExceptionClass,
+            exceptionMessage = topLevelExceptionMessage,
         )
     }
 }
 
-private val FRAME_REGEX = Regex("""^\s*at (.*)""")
+private val CLASS_MESSAGE_REGEX = Regex("""^\s*(?:Caused by: |Suppressed: )?([^:\s]+)(?:: (.+))?$""")
+private val FRAME_REGEX = Regex("""^\s*at ([^(]+)(\(.+\))?""")

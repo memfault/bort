@@ -2,6 +2,7 @@ package com.memfault.bort.metrics
 
 import assertk.all
 import assertk.assertThat
+import assertk.assertions.contains
 import assertk.assertions.containsOnly
 import assertk.assertions.hasSize
 import assertk.assertions.index
@@ -43,6 +44,7 @@ import com.memfault.bort.reporting.StateAgg
 import com.memfault.bort.reporting.StateAgg.TIME_PER_HOUR
 import com.memfault.bort.reporting.StateAgg.TIME_TOTALS
 import com.memfault.bort.time.AbsoluteTime
+import com.memfault.bort.tokenbucket.RealTokenBucketFactory
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
@@ -1297,6 +1299,32 @@ class MetricsIntegrationTest {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::internalMetrics).containsOnly(
                 "internal_metric" to JsonPrimitive("test value"),
             )
+        }
+    }
+
+    @Test(timeout = 10_000)
+    fun `Re-entrant call doesn't lock`() = runTest {
+        metricsDbTestEnvironment.sessionTokenBucketFactory = RealTokenBucketFactory(
+            defaultCapacity = 0,
+            defaultPeriod = 1.days,
+            metrics = BuiltinMetricsStore(),
+        )
+
+        val time = System.currentTimeMillis()
+
+        Reporting.session("session")
+        val anySession = Reporting.session("session")
+        anySession.start(time)
+        anySession.start(time + 1)
+        anySession.finish(time + 3)
+
+        assertThat(dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis())).all {
+            prop(CustomReport::hourlyHeartbeatReport).all {
+                prop(MetricReport::internalMetrics).all {
+                    contains("rate_limit_applied_session" to JsonPrimitive(2.0))
+                }
+            }
+            prop(CustomReport::sessions).isEmpty()
         }
     }
 }

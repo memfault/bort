@@ -100,6 +100,8 @@ class DropBoxGetEntriesTask @Inject constructor(
                 entry.use {
                     if (entry.tag in dropBoxFilters.tagFilter()) {
                         processEntry(entry)
+                    } else {
+                        Logger.d("Skipped DropBox entry... tag=${entry.tag}")
                     }
                     cursor = cursor.next(entry.timeMillis)
                 }

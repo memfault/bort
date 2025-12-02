@@ -6,6 +6,7 @@
         <permission name="android.permission.DUMP" />
         <!-- DropBoxManager.getNextEntry() requires these: -->
         <permission name="android.permission.READ_LOGS" />
+        <permission name="android.permission.READ_DROPBOX_DATA" />
         <permission name="android.permission.PACKAGE_USAGE_STATS" />
         <!-- UserHandle.CURRENT and battery stats require this:-->
         <permission name="android.permission.INTERACT_ACROSS_USERS" />
@@ -13,5 +14,7 @@
         <permission name="android.permission.WRITE_SECURE_SETTINGS" />
         <!-- Read IMEI -->
         <permission name="android.permission.READ_PRIVILEGED_PHONE_STATE" />
+        <!-- Access wifi connection state -->
+        <permission name="android.permission.ACCESS_WIFI_STATE" />
     </privapp-permissions>
 </permissions>

@@ -1,10 +1,10 @@
 [versions]
-agp = "8.3.2"
+agp = "8.5.2"
 hilt = "2.49"
 kotlin = "1.9.23"
 kotlinx-coroutines = "1.8.0"
 room = "2.6.1"
-memfault-reporting = "1.5"
+memfault-reporting = "1.6.0"
 
 
 [libraries]
@@ -15,6 +15,7 @@ okio = { module = "com.squareup.okio:okio", version = "3.4.0" }
 result = { module = "com.michael-bull.kotlin-result:kotlin-result", version = "1.1.17" }
 jackson = { module = "com.fasterxml.jackson.core:jackson-databind", version = "2.15.0" }
 zjsonpatch = { module = "com.flipkart.zjsonpatch:zjsonpatch", version = "0.4.14" }
+leakcanary = { module = "com.squareup.leakcanary:leakcanary-android", version = "2.14" }
 
 # android
 android-activity = { module = "androidx.activity:activity-ktx", version = "1.9.0" }
@@ -81,3 +82,4 @@ gradle-versions = { id = "com.github.ben-manes.versions", version = "0.46.0" }
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-ktlint = { id = "org.jlleitschuh.gradle.ktlint", version = "12.1.1" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+wire = { id = "com.squareup.wire", version = "4.9.11" }

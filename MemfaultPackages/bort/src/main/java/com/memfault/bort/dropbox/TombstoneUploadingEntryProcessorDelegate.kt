@@ -36,12 +36,7 @@ class TombstoneUploadingEntryProcessorDelegate @Inject constructor(
             listOf("SYSTEM_TOMBSTONE")
         }
 
-    override val debugTag: String
-        get() = "UPLOAD_TOMBSTONE"
-
-    override val crashTag: String? = null
-
-    override fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean =
+    private fun allowedByRateLimit(tokenBucketKey: String, tag: String): Boolean =
         tokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
 
     override suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo {
@@ -50,6 +45,11 @@ class TombstoneUploadingEntryProcessorDelegate @Inject constructor(
             tokenBucketKey = entry.tag,
             packageName = processName,
             packages = getPackages(processName),
+            allowedByRateLimit = allowedByRateLimit(tokenBucketKey = entry.tag, tag = entry.tag),
+            ignored = false,
+            isTrace = true,
+            isCrash = isCrash(entry),
+            crashTag = null,
         )
     }
 
@@ -76,7 +76,7 @@ class TombstoneUploadingEntryProcessorDelegate @Inject constructor(
         }
     }
 
-    override fun isCrash(entry: DropBoxManager.Entry, entryFile: File): Boolean =
+    private fun isCrash(entry: DropBoxManager.Entry): Boolean =
         entry.tag !in operationalCrashesExclusions()
 
     private fun findProcessName(tempFile: File) =

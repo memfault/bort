@@ -177,6 +177,10 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.dropBoxPollingInterval.duration
         override val otherTags: Set<String>
             get() = settings.dropBoxOtherTags
+        override val ignoreCommonWtfs: Boolean
+            get() = settings.dropBoxWtfsIgnoreCommon
+        override val ignoredWtfs: Set<String>
+            get() = settings.dropBoxWtfsIgnores
     }
 
     override val metricsSettings = object : MetricsSettings {
@@ -222,6 +226,10 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.alwaysCreateCpuProcessMetrics
         override val cpuProcessLimitTopN: Int
             get() = settings.metricsCpuProcessLimitTopN
+        override val enableStatsdCollection: Boolean
+            get() = settings.enableStatsdCollection
+        override val extraStatsDAtoms: List<Int>
+            get() = settings.extraStatsDAtoms
     }
 
     override val batteryStatsSettings = object : BatteryStatsSettings {

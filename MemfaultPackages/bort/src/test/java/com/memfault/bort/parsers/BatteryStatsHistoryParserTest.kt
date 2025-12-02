@@ -54,12 +54,14 @@ import io.mockk.Called
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 
+@OptIn(ExperimentalSerializationApi::class)
 class BatteryStatsHistoryParserTest {
     @get:Rule
     val tempFolder: TemporaryFolder = TemporaryFolder.builder().assureDeletion().build()
@@ -294,6 +296,26 @@ class BatteryStatsHistoryParserTest {
         "wifi_signal_strength_poor_or_very_poor_ratio" to JsonPrimitive(0.2),
         "battery_discharge_duration_ms" to JsonPrimitive(1000000.0),
         "battery_soc_pct_drop" to JsonPrimitive(10.0),
+        "wake_lock_on_ratio" to JsonPrimitive(0.0),
+        "camera_on_ratio" to JsonPrimitive(0.0),
+        "video_on_ratio" to JsonPrimitive(0.0),
+        "wifi_full_lock_ratio" to JsonPrimitive(0.0),
+        "package_install_count" to JsonPrimitive(0.0),
+        "phone_connection_latest" to JsonPrimitive(null),
+        "phone_in_call_ratio" to JsonPrimitive(0.0),
+        "phone_state_in_ratio" to JsonPrimitive(0.0),
+        "phone_state_out_ratio" to JsonPrimitive(0.0),
+        "phone_state_em_ratio" to JsonPrimitive(0.0),
+        "long_wake_lock_on_ratio" to JsonPrimitive(0.0),
+        "flashlight_on_ratio" to JsonPrimitive(0.0),
+        "bluetooth_on_ratio" to JsonPrimitive(0.0),
+        "usb_data_on_ratio" to JsonPrimitive(0.0),
+        "cellular_high_tx_power_on_ratio" to JsonPrimitive(0.0),
+        "nr_state_none_ratio" to JsonPrimitive(0.0),
+        "nr_state_restricted_ratio" to JsonPrimitive(0.0),
+        "nr_state_not_restricted_ratio" to JsonPrimitive(0.0),
+        "nr_state_connected_ratio" to JsonPrimitive(0.0),
+        "screen_wake_count" to JsonPrimitive(0.0),
     )
 
     @Test
@@ -593,6 +615,26 @@ class BatteryStatsHistoryParserTest {
                 "phone_signal_strength_poor_ratio" to JsonPrimitive(0.0),
                 // Also the battery level but only because we need any extra value to make the parser work.
                 "battery_level_pct_avg" to JsonPrimitive(99.5),
+                "wake_lock_on_ratio" to JsonPrimitive(0.0),
+                "camera_on_ratio" to JsonPrimitive(0.0),
+                "video_on_ratio" to JsonPrimitive(0.0),
+                "wifi_full_lock_ratio" to JsonPrimitive(0.0),
+                "package_install_count" to JsonPrimitive(0.0),
+                "phone_connection_latest" to JsonPrimitive(null),
+                "phone_in_call_ratio" to JsonPrimitive(0.0),
+                "phone_state_in_ratio" to JsonPrimitive(0.0),
+                "phone_state_out_ratio" to JsonPrimitive(0.0),
+                "phone_state_em_ratio" to JsonPrimitive(0.0),
+                "long_wake_lock_on_ratio" to JsonPrimitive(0.0),
+                "flashlight_on_ratio" to JsonPrimitive(0.0),
+                "bluetooth_on_ratio" to JsonPrimitive(0.0),
+                "usb_data_on_ratio" to JsonPrimitive(0.0),
+                "cellular_high_tx_power_on_ratio" to JsonPrimitive(0.0),
+                "nr_state_none_ratio" to JsonPrimitive(0.0),
+                "nr_state_restricted_ratio" to JsonPrimitive(0.0),
+                "nr_state_not_restricted_ratio" to JsonPrimitive(0.0),
+                "nr_state_connected_ratio" to JsonPrimitive(0.0),
+                "screen_wake_count" to JsonPrimitive(0.0),
             )
         }
         coVerify { bortErrors wasNot Called }

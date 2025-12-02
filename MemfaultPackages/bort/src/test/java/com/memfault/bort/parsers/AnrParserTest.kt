@@ -10,17 +10,16 @@ class AnrParserTest {
     @Test
     fun packageNameOK() {
         assertThat(
-            AnrParser(FIXTURE.byteInputStream()).parse().packageName,
+            AnrParser(FIXTURE.lineSequence()).parse().packageName,
         ).isEqualTo(
             "com.memfault.bort_e2e_helper",
-
         )
     }
 
     @Test
     fun noPackage() {
         assertThat(
-            AnrParser(INVALID_FIXTURE.byteInputStream()).parse().packageName,
+            AnrParser(INVALID_FIXTURE.lineSequence()).parse().packageName,
         ).isNull()
     }
 }

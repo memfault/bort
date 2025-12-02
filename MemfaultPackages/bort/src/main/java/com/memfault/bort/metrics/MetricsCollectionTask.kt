@@ -28,6 +28,7 @@ import com.memfault.bort.metrics.custom.softwareVersionChanged
 import com.memfault.bort.metrics.database.DAILY_HEARTBEAT_REPORT_TYPE
 import com.memfault.bort.metrics.database.HOURLY_HEARTBEAT_REPORT_TYPE
 import com.memfault.bort.metrics.database.SESSION_REPORT_TYPE
+import com.memfault.bort.metrics.statsd.StatsdMetricCollector
 import com.memfault.bort.networkstats.NetworkStatsCollector
 import com.memfault.bort.reporting.MetricType
 import com.memfault.bort.reporting.MetricType.COUNTER
@@ -146,6 +147,7 @@ class MetricsCollectionTask @Inject constructor(
     private val deviceInfoProvider: DeviceInfoProvider,
     private val everCollectedMetricsPreferenceProvider: EverCollectedMetricsPreferenceProvider,
     private val usageStatsCollector: UsageStatsCollector,
+    private val statsDMetricCollector: StatsdMetricCollector,
 ) : Task<Unit> {
     override fun getMaxAttempts(input: Unit) = 1
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -209,6 +211,8 @@ class MetricsCollectionTask @Inject constructor(
             value = supportsCaliperMetrics,
             internal = true,
         )
+
+        statsDMetricCollector.collect()
 
         crashHandler.process()
 
@@ -325,7 +329,12 @@ class MetricsCollectionTask @Inject constructor(
             .forEach { session ->
                 uploadHeartbeat(
                     batteryStatsFile = null,
-                    collectionTime = actualCollectionTime,
+                    collectionTime = actualCollectionTime.copy(
+                        // Uptime, elapsedRealtime, boot id and boot count are wrong here, but at the moment the
+                        // values are unused in the backend, and we also don't persist them as part of the session.
+                        // Let's just get the timestamp correct and worry about it down the line.
+                        timestamp = Instant.ofEpochMilli(session.endTimestampMs),
+                    ),
                     heartbeatInterval = (session.endTimestampMs - session.startTimestampMs).toDuration(MILLISECONDS),
                     heartbeatReportMetrics = session.metrics,
                     heartbeatReportInternalMetrics = session.internalMetrics,

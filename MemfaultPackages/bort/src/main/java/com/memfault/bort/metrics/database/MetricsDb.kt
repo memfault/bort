@@ -59,7 +59,9 @@ abstract class MetricsDb : RoomDatabase() {
             application,
             MetricsDb::class.java,
             CURRENT_METRICS_DB_NAME,
-        ).build()
+        )
+            .fallbackToDestructiveMigration()
+            .build()
     }
 }
 

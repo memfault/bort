@@ -39,6 +39,8 @@ class ThermalDerivedCalculatorTest {
             override val cpuProcessReportingThreshold: Int get() = TODO("not used")
             override val cpuProcessLimitTopN: Int get() = TODO("not used")
             override val alwaysCreateCpuProcessMetrics: Boolean get() = TODO("not used")
+            override val enableStatsdCollection: Boolean get() = TODO("not used")
+            override val extraStatsDAtoms: List<Int> get() = TODO("not used")
         },
     )
 

@@ -35,6 +35,7 @@ class LogcatParserTest {
                 message = "Waiting for service AtCmdFwd...",
                 priority = INFO,
                 tag = "ServiceManager",
+                separator = false,
             ),
         )
     }
@@ -80,6 +81,7 @@ class LogcatParserTest {
                     message = "uid=0(root) logd identical 11 lines",
                     priority = INFO,
                     tag = "chatty",
+                    separator = false,
                 ),
                 LogcatLine(
                     logTime = null,
@@ -87,6 +89,7 @@ class LogcatParserTest {
                     lineUpToTag = null,
                     message = "--------- beginning of kernel",
                     buffer = "kernel",
+                    separator = true,
                 ),
                 LogcatLine(
                     logTime = Instant.ofEpochSecond(1610973242, 168273087),
@@ -96,6 +99,7 @@ class LogcatParserTest {
                     buffer = "kernel",
                     priority = INFO,
                     tag = "ServiceManager",
+                    separator = false,
                 ),
                 LogcatLine(
                     logTime = null,
@@ -103,6 +107,7 @@ class LogcatParserTest {
                     lineUpToTag = null,
                     message = "--------- switch to main",
                     buffer = "main",
+                    separator = true,
                 ),
                 LogcatLine(
                     logTime = Instant.ofEpochSecond(1610973313, 22471886),
@@ -112,7 +117,62 @@ class LogcatParserTest {
                     buffer = "main",
                     priority = ERROR,
                     tag = "foo",
+                    separator = false,
                 ),
+            ),
+        )
+    }
+
+    @Test
+    fun coalescesAfterNonSeparator() = runTest {
+        assertThat(
+            LogcatParser(
+                flowOf(
+                    "2021-01-18 12:33:17.718860224 +0000  root     0 I chatty  : uid=0(root) logd identical 11 lines",
+                    "--------- beginning of kernel",
+                    "--------- switch to main",
+                    "2021-01-18 12:35:13.022471886 +0000  root     0 E foo  : bar",
+                    "--------- switch to kernel",
+                    "--------- switch to radio",
+                ),
+                COMMAND,
+                ::dummyUidParser,
+            ).parse().toList(),
+        ).containsExactly(
+            LogcatLine(
+                logTime = Instant.ofEpochSecond(1610973197, 718860224),
+                uid = 0,
+                lineUpToTag = "2021-01-18 12:33:17.718860224 +0000  root     0 I chatty  : ",
+                message = "uid=0(root) logd identical 11 lines",
+                priority = INFO,
+                tag = "chatty",
+                separator = false,
+            ),
+            LogcatLine(
+                logTime = null,
+                uid = null,
+                lineUpToTag = null,
+                message = "--------- switch to main",
+                buffer = "main",
+                separator = true,
+            ),
+            LogcatLine(
+                logTime = Instant.ofEpochSecond(1610973313, 22471886),
+                uid = 0,
+                lineUpToTag = "2021-01-18 12:35:13.022471886 +0000  root     0 E foo  : ",
+                message = "bar",
+                buffer = "main",
+                priority = ERROR,
+                tag = "foo",
+                separator = false,
+            ),
+            LogcatLine(
+                logTime = null,
+                uid = null,
+                lineUpToTag = null,
+                message = "--------- switch to radio",
+                buffer = "radio",
+                separator = true,
             ),
         )
     }
@@ -187,6 +247,7 @@ class LogcatParserTest {
                 priority = WARN,
                 tag = null,
                 buffer = "kernel",
+                separator = false,
             ),
         )
     }

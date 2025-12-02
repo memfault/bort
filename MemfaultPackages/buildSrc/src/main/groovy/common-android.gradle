@@ -22,9 +22,17 @@ android {
 
         allWarningsAsErrors = true
     }
+
+    testFixtures {
+        enable true
+    }
 }
 
 dependencies {
     api deps.bundles.kotlin
     testImplementation deps.test.assertk
+
+    // Test fixtures require exposing the Kotlin stdlib until AGP 8.9.0.
+    // https://issuetracker.google.com/issues/340315591.
+    testFixturesApi deps.bundles.kotlin
 }

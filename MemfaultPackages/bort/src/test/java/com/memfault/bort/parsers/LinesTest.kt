@@ -17,14 +17,6 @@ class LinesTest {
     }
 
     @Test
-    fun untilConsuming() {
-        val lines = makeLinesRange(5)
-        val some = lines.until(consumeMatch = true) { it == "3" }
-        assertThat(some.toList()).containsExactly("0", "1", "2")
-        assertThat(lines.toList()).containsExactly("4")
-    }
-
-    @Test
     fun untilWarningExplainer() {
         // More of an explanation than a test on why one has to use `use` when using `until`
         val lines = makeLinesRange(5)

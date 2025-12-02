@@ -7,6 +7,7 @@ apply plugin: 'kotlinx-serialization'
 apply from: rootProject.file("properties.gradle")
 apply plugin: 'common-android'
 apply plugin: 'androidx.room'
+apply plugin: 'com.squareup.wire'
 
 def keystoreProperties = loadBortKeystoreProperties()
 def keystoreFilePath = getKeystoreFilePath()
@@ -79,6 +80,8 @@ kapt {
 dependencies {
     api project(':bort-shared')
 
+    debugImplementation deps.leakcanary
+
     implementation deps.android.work
     implementation deps.android.preference
     // An explicit reference to this transitive dependency fixes a duplicate class error during build.
@@ -102,6 +105,7 @@ dependencies {
     kapt deps.android.hilt.compiler
     kapt deps.dagger.hilt.compiler
 
+    testImplementation(testFixtures(project(':bort-shared')))
     testImplementation deps.test.androidx.test
     testImplementation deps.test.androidx.work.testing
     // Required for unit tests to access JSONObject
@@ -137,4 +141,8 @@ afterEvaluate {
     tasks.named("assembleDebug").configure {
         finalizedBy tasks.named("exportPem")
     }
+}
+
+wire {
+  kotlin {}
 }

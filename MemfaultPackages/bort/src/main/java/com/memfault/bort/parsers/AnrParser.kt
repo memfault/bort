@@ -1,14 +1,23 @@
 package com.memfault.bort.parsers
 
-import java.io.InputStream
+data class Anr(
+    val packageName: String?,
+)
 
-data class Anr(val packageName: String?)
-
-class AnrParser(val inputStream: InputStream) {
+class AnrParser(
+    private val linesSequence: Sequence<String>,
+) {
     fun parse(): Anr {
-        val lines = Lines(inputStream.bufferedReader().lineSequence().asIterable())
+        var packageName: String? = null
+        for (line in linesSequence) {
+            packageName = AmMetadataHeader.parsePackage(line)
+            if (packageName != null) {
+                break
+            }
+        }
+
         return Anr(
-            ActivityManagerHeaderParser.dropUntilAndGetPackageName(lines),
+            packageName = packageName,
         )
     }
 }

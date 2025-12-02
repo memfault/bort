@@ -64,6 +64,7 @@ object BatteryStatsConstants {
     const val USB_DATA = "usb_data"
     const val CELLULAR_HIGH_TX_POWER = "cellular_high_tx_power"
     const val NR_STATE = "nr_state"
+    const val SCREEN_WAKE = "screen_wake"
 
     fun <T : Enum<T>> enumNames(values: List<Enum<T>>): List<JsonPrimitive> = values.map { JsonPrimitive(it.name) }
 
@@ -221,25 +222,6 @@ object BatteryStatsConstants {
 
         companion object {
             private val map = values().associateBy(WifiSupplicantState::value)
-            fun fromString(type: String) = map[type]
-        }
-    }
-
-    enum class PhoneConnection(
-        private val value: String,
-    ) {
-        None("none"),
-        Other("other"),
-        EHRPD("ehrpd"),
-        LTE("lte"),
-        EDGE("edge"),
-        HSPA("hspa"),
-        HSPAP("hspap"),
-        OneXRTT("1xrtt"),
-        ;
-
-        companion object {
-            private val map = values().associateBy(PhoneConnection::value)
             fun fromString(type: String) = map[type]
         }
     }

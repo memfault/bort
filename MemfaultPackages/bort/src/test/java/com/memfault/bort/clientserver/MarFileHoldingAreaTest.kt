@@ -65,7 +65,7 @@ class MarFileHoldingAreaTest {
 
     private var maxMarStorageBytes: Long = 999_999_999
     private var maxMarSampledAge: Duration = Duration.ZERO
-    private var maxMarUnsampledAge: Duration = Duration.ZERO
+    private var maxMarUnsampledAge: Duration = 7.days
     private var maxMarUnsampledBytes: Long = 999_999_999
 
     private var unbatchUploads: Boolean = false
@@ -175,13 +175,13 @@ class MarFileHoldingAreaTest {
         assertThat(unsampledHoldingDirectory.listFiles()?.toList()).isNotNull()
             .containsExactlyInAnyOrder(unsampledFile, unsampledManifest)
 
-        holdingArea.handleSamplingConfigChange(SamplingConfig(revision = NEW_REVISION, loggingResolution = HIGH))
+        holdingArea.handleSamplingConfigChange(SamplingConfig(revision = NEW_REVISION, loggingResolution = HIGH), null)
+        holdingArea.addDeviceConfigMarEntry(NEW_REVISION)
 
-        val sampledFile = File(sampledHoldingDirectory, marFileWithManifest.marFile.name)
         assertThat(sampledHoldingDirectory.listFiles()?.toList()).isNotNull()
             .containsExactlyInAnyOrder(
                 File(sampledHoldingDirectory, deviceConfigMar.marFile.name),
-                sampledFile,
+                File(sampledHoldingDirectory, marFileWithManifest.marFile.name),
             )
         // Additional mar file was created + added (to sampled) with handled revision.
         assertThat(unsampledHoldingDirectory.listFiles()?.toList()).isNotNull().isEmpty()
@@ -196,12 +196,14 @@ class MarFileHoldingAreaTest {
         assertThat(sampledHoldingDirectory.listFiles()?.toList()).isNotNull().isEmpty()
         assertThat(unsampledHoldingDirectory.listFiles()?.toList()).isNotNull().isEmpty()
 
-        holdingArea.handleSamplingConfigChange(SamplingConfig(revision = NEW_REVISION, loggingResolution = HIGH))
+        holdingArea.handleSamplingConfigChange(SamplingConfig(revision = NEW_REVISION, loggingResolution = HIGH), null)
+        holdingArea.addDeviceConfigMarEntry(NEW_REVISION)
 
         // File was moved from unsampled -> sampled.
-        val sampledFile = File(sampledHoldingDirectory, deviceConfigMarFile.name)
         assertThat(sampledHoldingDirectory.listFiles()?.toList()).isNotNull()
-            .containsExactlyInAnyOrder(sampledFile)
+            .containsExactlyInAnyOrder(
+                File(sampledHoldingDirectory, deviceConfigMarFile.name),
+            )
         assertThat(unsampledHoldingDirectory.listFiles()?.toList()).isNotNull().isEmpty()
 
         verify(exactly = 0) { oneTimeMarUpload.batchAndUpload() }
@@ -388,7 +390,7 @@ class MarFileHoldingAreaTest {
         val marFile = MarFileWriterTest.createMarFile("mar1.mar", manifest, FILE_CONTENT)
         val marFileWithManifest = MarFileWithManifest(marFile = marFile, manifest = manifest)
 
-        assertThat(holdingArea.unsampledEligibleForUpload(SamplingConfig())).isEmpty()
+        assertThat(holdingArea.unsampledEligibleForUpload(SamplingConfig(), null)).isEmpty()
 
         holdingArea.addMarFile(marFileWithManifest)
 
@@ -402,12 +404,12 @@ class MarFileHoldingAreaTest {
             )
 
         // Not returned when config isn't high enough.
-        assertThat(holdingArea.unsampledEligibleForUpload(SamplingConfig())).isEmpty()
+        assertThat(holdingArea.unsampledEligibleForUpload(SamplingConfig(), null)).isEmpty()
 
         // Run cleanup (no-op)
         holdingArea.cleanupIfRequired()
 
-        val eligible = holdingArea.unsampledEligibleForUpload(SamplingConfig(monitoringResolution = HIGH))
+        val eligible = holdingArea.unsampledEligibleForUpload(SamplingConfig(monitoringResolution = HIGH), null)
         assertThat(eligible).first().transform { it.manifest }.isEqualTo(manifest)
 
         assertThat(sampledHoldingDirectory.listFiles()?.toList()).isNotNull().isEmpty()
@@ -465,7 +467,7 @@ class MarFileHoldingAreaTest {
                 unsampledManifest2,
             )
 
-        val eligible = holdingArea.unsampledEligibleForUpload(SamplingConfig(monitoringResolution = HIGH))
+        val eligible = holdingArea.unsampledEligibleForUpload(SamplingConfig(monitoringResolution = HIGH), null)
         assertThat(eligible).first().transform { it.manifest }.isEqualTo(manifest2)
     }
 
@@ -490,7 +492,7 @@ class MarFileHoldingAreaTest {
 
         assertThat(sampledHoldingDirectory.listFiles()?.toList()).isNotNull().isEmpty()
         assertThat(unsampledHoldingDirectory.listFiles()?.toList()).isNotNull().hasSize(1)
-        assertThat(holdingArea.unsampledEligibleForUpload(SamplingConfig())).isEmpty()
+        assertThat(holdingArea.unsampledEligibleForUpload(SamplingConfig(), null)).isEmpty()
 
         // Run cleanup
         holdingArea.cleanupIfRequired()
@@ -527,6 +529,87 @@ class MarFileHoldingAreaTest {
             loggingResolution = Resolution.OFF,
             monitoringResolution = Resolution.OFF,
         )
+    }
+
+    @Test
+    fun eligibleForUpload_alwaysUploadNullDate() = runTest {
+        val holdingArea = createHoldingArea(batchMarUploads = true, clientServerMode = DISABLED)
+        val manifest = MarFileWriterTest.heartbeat(timeMs = 123456789, resolution = HIGH)
+        val marFile = MarFileWriterTest.createMarFile("mar1.mar", manifest, FILE_CONTENT)
+        val marFileWithManifest = MarFileWithManifest(marFile = marFile, manifest = manifest)
+
+        holdingArea.addMarFile(marFileWithManifest)
+
+        assertThat(sampledHoldingDirectory.listFiles()).isNotNull().isEmpty()
+        assertThat(unsampledHoldingDirectory.listFiles()).isNotNull().hasSize(2)
+        assertThat(holdingArea.unsampledEligibleForUpload(SamplingConfig(monitoringResolution = HIGH), null))
+            .hasSize(1)
+    }
+
+    @Test
+    fun eligibleForUpload_uploadDateRecentSkips() = runTest {
+        val collectionTime = Instant.ofEpochMilli(123456789)
+        val holdingArea = createHoldingArea(batchMarUploads = true, clientServerMode = DISABLED)
+        val manifest = MarFileWriterTest.heartbeat(timeMs = 123456789, resolution = HIGH)
+        val marFile = MarFileWriterTest.createMarFile("mar1.mar", manifest, FILE_CONTENT)
+        val marFileWithManifest = MarFileWithManifest(marFile = marFile, manifest = manifest)
+
+        holdingArea.addMarFile(marFileWithManifest)
+
+        assertThat(sampledHoldingDirectory.listFiles()).isNotNull().isEmpty()
+        assertThat(unsampledHoldingDirectory.listFiles()).isNotNull().hasSize(2)
+        assertThat(
+            holdingArea.unsampledEligibleForUpload(
+                SamplingConfig(monitoringResolution = HIGH),
+                collectionTime.plusMillis(1),
+            ),
+        )
+            .hasSize(0)
+    }
+
+    @Test
+    fun eligibleForUpload_uploadDateOldUploads() = runTest {
+        val collectionTime = Instant.ofEpochMilli(123456789)
+        val holdingArea = createHoldingArea(batchMarUploads = true, clientServerMode = DISABLED)
+        val manifest = MarFileWriterTest.heartbeat(timeMs = 123456789, resolution = HIGH)
+        val marFile = MarFileWriterTest.createMarFile("mar1.mar", manifest, FILE_CONTENT)
+        val marFileWithManifest = MarFileWithManifest(marFile = marFile, manifest = manifest)
+
+        holdingArea.addMarFile(marFileWithManifest)
+
+        assertThat(sampledHoldingDirectory.listFiles()).isNotNull().isEmpty()
+        assertThat(unsampledHoldingDirectory.listFiles()).isNotNull().hasSize(2)
+        assertThat(
+            holdingArea.unsampledEligibleForUpload(
+                SamplingConfig(monitoringResolution = HIGH),
+                collectionTime.minusMillis(1),
+            ),
+        )
+            .hasSize(1)
+    }
+
+    @Test
+    fun eligibleForUpload_oldCollectionGetsUploadedAnyways() = runTest {
+        val collectionTime = Instant.now()
+        val holdingArea = createHoldingArea(batchMarUploads = true, clientServerMode = DISABLED)
+        val manifest = MarFileWriterTest.heartbeat(
+            timeMs = collectionTime.minus(maxMarUnsampledAge.times(2).toJavaDuration()).toEpochMilli(),
+            resolution = HIGH,
+        )
+        val marFile = MarFileWriterTest.createMarFile("mar1.mar", manifest, FILE_CONTENT)
+        val marFileWithManifest = MarFileWithManifest(marFile = marFile, manifest = manifest)
+
+        holdingArea.addMarFile(marFileWithManifest)
+
+        assertThat(sampledHoldingDirectory.listFiles()).isNotNull().isEmpty()
+        assertThat(unsampledHoldingDirectory.listFiles()).isNotNull().hasSize(2)
+        assertThat(
+            holdingArea.unsampledEligibleForUpload(
+                SamplingConfig(monitoringResolution = HIGH),
+                collectionTime,
+            ),
+        )
+            .hasSize(1)
     }
 
     private fun createHoldingArea(

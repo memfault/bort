@@ -10,6 +10,7 @@ import assertk.assertions.isInstanceOf
 import assertk.assertions.prop
 import assertk.assertions.single
 import com.memfault.bort.scopes.Scope
+import com.memfault.bort.scopes.buildTestScope
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow

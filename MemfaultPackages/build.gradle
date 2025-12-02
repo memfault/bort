@@ -37,6 +37,7 @@ plugins {
     alias(deps.plugins.kotlin.serialization) apply false
     alias(deps.plugins.gradle.versions) apply true
     alias(deps.plugins.aaraar) apply false
+    alias(deps.plugins.wire) apply false
 }
 
 // Configure gradle-versions plugin to only tell us about stable releases.

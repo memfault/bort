@@ -8,7 +8,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
-suspend fun Context.registerForIntents(
+fun Context.registerForIntents(
     vararg actions: String,
     sticky: Boolean = false,
 ): Flow<Intent> {

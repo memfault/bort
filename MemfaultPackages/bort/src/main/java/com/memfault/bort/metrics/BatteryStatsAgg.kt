@@ -1,8 +1,10 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.metrics.BatteryStatsAgg.TimeByNominalAggregator.TimeByNominalMatcher.TimeByNominalStatesMatcher
 import com.memfault.bort.parsers.BatteryStatsHistoryParser.Companion.BATTERY_DROP_METRIC
 import com.memfault.bort.parsers.BatteryStatsHistoryParser.Companion.BATTERY_RISE_METRIC
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlin.time.Duration.Companion.hours
 
@@ -10,20 +12,44 @@ import kotlin.time.Duration.Companion.hours
  * Replicates the existing batterystats aggregations which were done in the backend, when the raw batterystats file was
  * uploaded.
  */
-sealed class BatteryStatsAgg {
-    abstract fun addValue(elapsedMs: Long, value: JsonPrimitive)
+interface BatteryStatsAgg {
+    fun addValue(elapsedMs: Long, value: JsonPrimitive)
 
-    abstract fun finish(elapsedMs: Long): List<Pair<String, JsonPrimitive>>
+    fun finish(elapsedMs: Long): List<Pair<String, JsonPrimitive>>
 
     class TimeByNominalAggregator(
         private val metricName: String,
-        private val states: List<JsonPrimitive>,
+        private val matcher: TimeByNominalMatcher,
         /** Use "raw" elapsed value, rather than dividing by total time */
         private val useRawElapsedMs: Boolean = false,
-    ) : BatteryStatsAgg() {
+    ) : BatteryStatsAgg {
         private var prevVal: JsonPrimitive? = null
         private var prevElapsedMs: Long? = null
         private var timeInStateMsRunning: Long = 0
+
+        constructor(
+            metricName: String,
+            states: List<JsonPrimitive>,
+            useRawElapsedMs: Boolean = false,
+        ) : this(
+            metricName,
+            TimeByNominalStatesMatcher(states),
+            useRawElapsedMs,
+        )
+
+        sealed interface TimeByNominalMatcher {
+            fun match(value: JsonPrimitive): Boolean
+
+            data class TimeByNominalStatesMatcher(
+                val states: List<JsonPrimitive>,
+            ) : TimeByNominalMatcher {
+                override fun match(value: JsonPrimitive): Boolean = value in states
+            }
+
+            data object TimeByNominalNonNullStateMatcher : TimeByNominalMatcher {
+                override fun match(value: JsonPrimitive): Boolean = value.contentOrNull != null
+            }
+        }
 
         override fun addValue(elapsedMs: Long, value: JsonPrimitive) {
             handleLastVal(elapsedMs)
@@ -35,7 +61,7 @@ sealed class BatteryStatsAgg {
             prevVal?.let { prev ->
                 val prevTime = prevElapsedMs ?: return@let
                 val msSincePrev = elapsedMs - prevTime
-                if (msSincePrev > 0 && prev in states) {
+                if (msSincePrev > 0 && matcher.match(prev)) {
                     timeInStateMsRunning += msSincePrev
                 }
             }
@@ -56,7 +82,7 @@ sealed class BatteryStatsAgg {
     class CountByNominalAggregator(
         private val metricName: String,
         private val state: JsonPrimitive,
-    ) : BatteryStatsAgg() {
+    ) : BatteryStatsAgg {
         private var count = 0
 
         override fun addValue(elapsedMs: Long, value: JsonPrimitive) {
@@ -71,10 +97,27 @@ sealed class BatteryStatsAgg {
         )
     }
 
+    class CountEventAggregator(
+        private val metricName: String,
+    ) : BatteryStatsAgg {
+        private var count = 0
+
+        override fun addValue(elapsedMs: Long, value: JsonPrimitive) {
+            count++
+        }
+
+        override fun finish(elapsedMs: Long): List<Pair<String, JsonPrimitive>> = listOf(
+            Pair(
+                metricName,
+                JsonPrimitive(count.toDouble()),
+            ),
+        )
+    }
+
     class MinimumValueAggregator(
         private val metricName: String,
         private val scale: Double? = null,
-    ) : BatteryStatsAgg() {
+    ) : BatteryStatsAgg {
         private var minValue: Double? = null
 
         override fun addValue(elapsedMs: Long, value: JsonPrimitive) {
@@ -94,7 +137,7 @@ sealed class BatteryStatsAgg {
 
     class MaximumValueAggregator(
         private val metricName: String,
-    ) : BatteryStatsAgg() {
+    ) : BatteryStatsAgg {
         private var maxValue: Double? = null
 
         override fun addValue(elapsedMs: Long, value: JsonPrimitive) {
@@ -109,7 +152,20 @@ sealed class BatteryStatsAgg {
         } ?: emptyList()
     }
 
-    class BatteryLevelAggregator : BatteryStatsAgg() {
+    class LatestValueAggregator(
+        private val metricName: String,
+    ) : BatteryStatsAgg {
+        private var value: String? = null
+
+        override fun addValue(elapsedMs: Long, value: JsonPrimitive) {
+            this.value = value.contentOrNull
+        }
+
+        override fun finish(elapsedMs: Long): List<Pair<String, JsonPrimitive>> =
+            listOf(Pair(metricName, JsonPrimitive(value)))
+    }
+
+    class BatteryLevelAggregator : BatteryStatsAgg {
         private var prevVal: JsonPrimitive? = null
         private var prevElapsedMs: Long? = null
 

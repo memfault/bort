@@ -429,6 +429,8 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
                     NumericAgg.MIN -> metrics["$key.min"] = JsonPrimitive(results.min)
                     NumericAgg.SUM -> metrics["$key.sum"] = JsonPrimitive(results.sum)
                     NumericAgg.VALUE_DROP -> Unit // handled below
+                    NumericAgg.EXP_MOVING_AVG -> Unit // handled below
+                    NumericAgg.EXP_MOVING_AVG_RSSI -> Unit // handled below
                 }
             }
         }
@@ -464,6 +466,16 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
             },
             if (aggs.any { it == NumericAgg.VALUE_DROP }) {
                 ValueDropValueAggregations(key)
+            } else {
+                null
+            },
+            if (aggs.any { it == NumericAgg.EXP_MOVING_AVG }) {
+                ExponentialMovingAverageValueAggregations(key)
+            } else {
+                null
+            },
+            if (aggs.any { it == NumericAgg.EXP_MOVING_AVG_RSSI }) {
+                ExponentialMovingAverageValueAggregations(key = key, transformer = DecibelMilliwattTransformer)
             } else {
                 null
             },

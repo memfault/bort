@@ -47,6 +47,8 @@ class SystemPropertiesCollectorTest {
             override val cpuProcessReportingThreshold: Int get() = TODO("not used")
             override val cpuProcessLimitTopN: Int get() = TODO("not used")
             override val alwaysCreateCpuProcessMetrics: Boolean get() = TODO("not used")
+            override val enableStatsdCollection: Boolean get() = TODO("not used")
+            override val extraStatsDAtoms: List<Int> get() = TODO("not used")
         }
         val deviceImei = "12345678987654321"
         val telephony: TelephonyManager = mockk {

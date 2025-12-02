@@ -28,8 +28,6 @@ import com.memfault.bort.tokenbucket.SessionMetrics
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import javax.inject.Inject
@@ -82,15 +80,13 @@ class RealCustomMetrics @Inject constructor(
     private val deviceInfoProvider: DeviceInfoProvider,
     private val derivedAggregations: InjectSet<CalculateDerivedAggregations>,
 ) : CustomMetrics {
-    private val mutex = Mutex()
-
     private val dbReportBuilder = DbReportBuilder { report ->
         report.copy(
             softwareVersion = deviceInfoProvider.getDeviceInfo().softwareVersion,
         )
     }
 
-    override suspend fun add(metric: MetricValue): Long = mutex.withLock {
+    override suspend fun add(metric: MetricValue): Long =
         if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
             metric.eventName == OPERATIONAL_CRASHES_METRIC_KEY
         ) {
@@ -114,9 +110,8 @@ class RealCustomMetrics @Inject constructor(
         } else {
             -1
         }
-    }
 
-    override suspend fun start(start: StartReport): Long = mutex.withLock {
+    override suspend fun start(start: StartReport): Long =
         when (start.reportType) {
             SESSION_REPORT_TYPE -> {
                 val allowedByRateLimit = sessionMetricsTokenBucketStore.takeSimple(tag = "session")
@@ -136,15 +131,13 @@ class RealCustomMetrics @Inject constructor(
                 -1
             }
         }
-    }
 
-    override suspend fun finish(finish: FinishReport): Long = mutex.withLock {
+    override suspend fun finish(finish: FinishReport): Long =
         if (finish.reportType == SESSION_REPORT_TYPE) {
             db.dao().finish(finish)
         } else {
             -1L
         }
-    }
 
     override suspend fun startedHeartbeatOrNull(): DbReport? =
         db.dao().singleStartedReport(reportType = HOURLY_HEARTBEAT_REPORT_TYPE)
@@ -152,8 +145,8 @@ class RealCustomMetrics @Inject constructor(
     override suspend fun collectHeartbeat(
         endTimestampMs: Long,
         forceEndAllReports: Boolean,
-    ): CustomReport = mutex.withLock {
-        val report = db.dao().collectHeartbeat(
+    ): CustomReport = db.dao()
+        .collectHeartbeat(
             dailyHeartbeatReportType = if (dailyHeartbeatEnabled()) {
                 DAILY_HEARTBEAT_REPORT_TYPE
             } else {
@@ -185,13 +178,13 @@ class RealCustomMetrics @Inject constructor(
             dbReportBuilder = dbReportBuilder,
             forceEndAllReports = forceEndAllReports,
         )
-
-        report.copy(
-            hourlyHeartbeatReport = report.hourlyHeartbeatReport.filterAndRenameMetrics(Hourly),
-            dailyHeartbeatReport = report.dailyHeartbeatReport?.filterAndRenameMetrics(Daily),
-            sessions = report.sessions.map { it.filterAndRenameMetrics(Session) },
-        )
-    }
+        .let { report ->
+            report.copy(
+                hourlyHeartbeatReport = report.hourlyHeartbeatReport.filterAndRenameMetrics(Hourly),
+                dailyHeartbeatReport = report.dailyHeartbeatReport?.filterAndRenameMetrics(Daily),
+                sessions = report.sessions.map { it.filterAndRenameMetrics(Session) },
+            )
+        }
 }
 
 data class CustomReport(

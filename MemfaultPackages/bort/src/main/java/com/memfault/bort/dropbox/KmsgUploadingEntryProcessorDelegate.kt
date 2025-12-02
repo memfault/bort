@@ -16,20 +16,14 @@ class KmsgUploadingEntryProcessorDelegate @Inject constructor(
         "SYSTEM_LAST_KMSG",
         "SYSTEM_RECOVERY_KMSG",
     )
-    override val debugTag: String
-        get() = "UPLOAD_KMSG"
 
-    override val crashTag: String = "panic"
-
-    override fun allowedByRateLimit(
+    private fun allowedByRateLimit(
         tokenBucketKey: String,
         tag: String,
     ): Boolean =
         tokenBucketStore.allowedByRateLimit(tokenBucketKey = tokenBucketKey, tag = tag)
 
-    override fun isTraceEntry(entry: DropBoxManager.Entry): Boolean = false
-
-    override fun isCrash(
+    private fun isCrash(
         entry: DropBoxManager.Entry,
         entryFile: File,
     ): Boolean {
@@ -47,6 +41,18 @@ class KmsgUploadingEntryProcessorDelegate @Inject constructor(
             Logger.e("Unable to parse Kmsg", e)
             false
         }
+    }
+
+    override suspend fun getEntryInfo(entry: DropBoxManager.Entry, entryFile: File): EntryInfo {
+        val isCrash = isCrash(entry, entryFile)
+        return EntryInfo(
+            tokenBucketKey = entry.tag,
+            allowedByRateLimit = allowedByRateLimit(tokenBucketKey = entry.tag, tag = entry.tag),
+            ignored = false,
+            isTrace = isCrash,
+            isCrash = isCrash,
+            crashTag = "panic",
+        )
     }
 
     companion object {
