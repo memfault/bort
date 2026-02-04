@@ -1,0 +1,111 @@
+diff --git a/cmds/dumpstate/dumpstate.cpp b/cmds/dumpstate/dumpstate.cpp
+index 0929d9b..6a01709 100644
+--- a/cmds/dumpstate/dumpstate.cpp
++++ b/cmds/dumpstate/dumpstate.cpp
+@@ -1317,6 +1317,97 @@ static std::string SHA256_file_hash(std::string filepath) {
+     return std::string(hash_buffer);
+ }
+
++static bool use_minimal_dumpstate() {
++    char value[PROPERTY_VALUE_MAX];
++    property_get("dumpstate.memfault.minimal", value, "");
++    return std::string(value) == "1";
++}
++
++static void dumpstate_memfault_minimal_mode() {
++    MYLOGI("Running Dumpstate in Memfault Minimal Mode...\n");
++
++    if (!dump_anrd_trace()) {
++        dump_systrace();
++    }
++
++    /* Run some operations that require root. */
++    get_tombstone_fds(tombstone_data);
++
++    add_dir(RECOVERY_DIR, true);
++    add_dir(RECOVERY_DATA_DIR, true);
++    add_dir(LOGPERSIST_DATA_DIR, false);
++
++    if (!drop_root_user()) {
++        return;
++    }
++
++    run_command("PRINTENV", 10, "printenv", NULL);
++    do_dmesg();
++    do_logcat();
++
++    /* only show ANR traces if they're less than 15 minutes old */
++    struct stat st;
++    char anr_traces_path[PATH_MAX];
++    property_get("dalvik.vm.stack-trace-file", anr_traces_path, "");
++    if (!anr_traces_path[0]) {
++        printf("*** NO VM TRACES FILE DEFINED (dalvik.vm.stack-trace-file)\n\n");
++    } else {
++      int fd = TEMP_FAILURE_RETRY(open(anr_traces_path,
++                                       O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK));
++      if (fd < 0) {
++          printf("*** NO ANR VM TRACES FILE (%s): %s\n\n", anr_traces_path, strerror(errno));
++      } else {
++          dump_file_from_fd("VM TRACES AT LAST ANR", anr_traces_path, fd);
++      }
++    }
++
++    /* slow traces for slow operations */
++    if (anr_traces_path[0] != 0) {
++        int tail = strlen(anr_traces_path)-1;
++        while (tail > 0 && anr_traces_path[tail] != '/') {
++            tail--;
++        }
++        int i = 0;
++        while (1) {
++            sprintf(anr_traces_path+tail+1, "slow%02d.txt", i);
++            if (stat(anr_traces_path, &st)) {
++                // No traces file at this index, done with the files.
++                break;
++            }
++            dump_file("VM TRACES WHEN SLOW", anr_traces_path);
++            i++;
++        }
++    }
++
++
++    int dumped = 0;
++    for (size_t i = 0; i < NUM_TOMBSTONES; i++) {
++        if (tombstone_data[i].fd != -1) {
++            const char *name = tombstone_data[i].name;
++            int fd = tombstone_data[i].fd;
++            dumped = 1;
++            if (zip_writer) {
++                if (!add_zip_entry_from_fd(ZIP_ROOT_DIR + name, fd)) {
++                    MYLOGE("Unable to add tombstone %s to zip file\n", name);
++                }
++            } else {
++                dump_file_from_fd("TOMBSTONE", name, fd);
++            }
++            close(fd);
++            tombstone_data[i].fd = -1;
++        }
++    }
++    if (!dumped) {
++        printf("*** NO TOMBSTONES to dump in %s\n\n", TOMBSTONE_DIR);
++    }
++
++    do_kmsg();
++
++    run_command("SYSTEM PROPERTIES", 20, "getprop");
++    run_command("DUMPSYS", 90, "dumpsys", "-t", "90", "--skip", "meminfo", "cpuinfo", NULL);
++    run_command("CHECKIN BATTERYSTATS", 30, "dumpsys", "-t", "30", "batterystats", "-c", NULL);
++}
++
+ int main(int argc, char *argv[]) {
+     struct sigaction sigact;
+     int do_add_date = 0;
+@@ -1593,6 +1684,8 @@ int main(int argc, char *argv[]) {
+         do_kmsg();
+         dumpstate_board();
+         dump_modem_logs();
++    } else if (use_minimal_dumpstate()) {
++        dumpstate_memfault_minimal_mode();
+     } else {
+         // Dumps systrace right away, otherwise it will be filled with unnecessary events.
+         // First try to dump anrd trace if the daemon is running. Otherwise, dump

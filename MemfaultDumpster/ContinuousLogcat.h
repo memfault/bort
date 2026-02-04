@@ -10,8 +10,12 @@
 #include <log/event_tag_map.h>
 #include <log/log_read.h>
 #include <log/logprint.h>
+#if PLATFORM_SDK_VERSION >= 26
 #include <log/log_time.h>
 #include <log/log_id.h>
+#else
+#include <log/logger.h>
+#endif
 #include <utils/String16.h>
 
 #define CONTINUOUS_LOGCAT_TAG "memfault_clog"

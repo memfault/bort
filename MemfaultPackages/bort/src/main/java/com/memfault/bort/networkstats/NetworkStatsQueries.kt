@@ -124,10 +124,14 @@ data class NetworkStatsSummary(
                     Bucket.STATE_DEFAULT -> NetworkStatsState.DEFAULT
                     else -> NetworkStatsState.ALL
                 },
-                metered = when (bucket.metered) {
-                    Bucket.METERED_YES -> NetworkStatsMetered.METERED
-                    Bucket.METERED_NO -> NetworkStatsMetered.UNMETERED
-                    else -> NetworkStatsMetered.ALL
+                metered = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    when (bucket.metered) {
+                        Bucket.METERED_YES -> NetworkStatsMetered.METERED
+                        Bucket.METERED_NO -> NetworkStatsMetered.UNMETERED
+                        else -> NetworkStatsMetered.ALL
+                    }
+                } else {
+                    NetworkStatsMetered.ALL
                 },
                 roaming = when (bucket.roaming) {
                     Bucket.ROAMING_YES -> NetworkStatsRoaming.ROAMING

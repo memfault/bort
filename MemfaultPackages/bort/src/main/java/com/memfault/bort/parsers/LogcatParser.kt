@@ -1,5 +1,6 @@
 package com.memfault.bort.parsers
 
+import android.annotation.SuppressLint
 import com.memfault.bort.shared.LogcatCommand
 import com.memfault.bort.shared.LogcatFormat
 import com.memfault.bort.shared.LogcatFormatModifier
@@ -10,7 +11,9 @@ import kotlinx.coroutines.flow.flow
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeFormatterBuilder
 import java.time.format.DateTimeParseException
+import java.time.temporal.ChronoField
 
 /**
  * After running logcat, Bort will need to pull out the timestamp of the last log line.
@@ -67,7 +70,16 @@ class LogcatParser(
     }
 
     fun parse(): Flow<LogcatLine> {
-        val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.nnnnnnnnn Z")
+        // Android lint gets confused with desugaring, these libraries are available at runtime but we need to
+        // suppress the warning.
+        @SuppressLint("NewApi")
+        val timeFormatter = DateTimeFormatterBuilder()
+            .appendPattern("yyyy-MM-dd HH:mm:ss")
+            .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+            .appendLiteral(' ')
+            .appendOffset("+HHmm", "Z")
+            .toFormatter()
+
         return flow {
             var pendingSeparator: LogcatLine? = null
 

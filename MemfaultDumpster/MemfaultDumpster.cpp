@@ -6,7 +6,11 @@
 #include <binder/PersistableBundle.h>
 #include <binder/ProcessState.h>
 #include <DumpstateUtil.h>
+#if PLATFORM_SDK_VERSION < 26
+#include <log/log.h>
+#else
 #include <log/log_main.h>
+#endif
 #include <com/memfault/dumpster/BnDumpster.h>
 #include <com/memfault/dumpster/IDumpsterBasicCommandListener.h>
 
@@ -20,7 +24,9 @@
 #include <unistd.h>
 
 #include "android-9/file.h"
+#ifdef BORT_SUPPORTS_CLOG
 #include "ContinuousLogcat.h"
+#endif
 #include "storage.h"
 
 #define DUMPSTER_SERVICE_NAME "memfault_dumpster"
@@ -46,8 +52,8 @@ namespace {
       return rv;
   }
 
-  std::set<pid_t> allPids() {
-    std::set<pid_t> pids;
+  std::vector<pid_t> allPids() {
+    std::vector<pid_t> pids;
     DIR *dir = opendir("/proc");
     if (!dir) {
       return pids;
@@ -58,7 +64,7 @@ namespace {
         // we're not interested in non-numeric entries such as /proc/stat and /proc/self
         std::string name = entry->d_name;
         if (name.find_first_not_of("0123456789") == std::string::npos) {
-          pids.insert(std::stoi(name));
+          pids.push_back(std::stoi(name));
         }
       }
     }
@@ -151,8 +157,13 @@ namespace {
 
   class DumpsterService : public BnDumpster {
         public:
+#ifdef BORT_SUPPORTS_CLOG
         DumpsterService() : clog(new memfault::ContinuousLogcat()) {
         }
+#else
+        DumpsterService() {
+        }
+#endif
 
         android::binder::Status getVersion(int *_aidl_return) {
           *_aidl_return = IDumpster::VERSION;
@@ -218,6 +229,7 @@ namespace {
 
         android::binder::Status startContinuousLogging(
             const PersistableBundle &options) override {
+#ifdef BORT_SUPPORTS_CLOG
           int32_t version;
           if (options.getInt(android::String16("version"), &version) && version == 1) {
             std::vector<android::String16> filter_specs_s16;
@@ -259,26 +271,33 @@ namespace {
           ALOGT("clog: starting");
           clog->start();
           ALOGT("clog: started");
+#endif
           return android::binder::Status::ok();
         }
 
         android::binder::Status stopContinuousLogging() override {
+#ifdef BORT_SUPPORTS_CLOG
           ALOGT("clog: stopping");
           clog->stop();
           ALOGT("clog: joining");
           clog->join();
           ALOGT("clog: stopped");
+#endif
           return android::binder::Status::ok();
         }
 
         void requestContinuousLogDump() {
+#ifdef BORT_SUPPORTS_CLOG
           ALOGT("clog: requesting dump");
           clog->request_dump();
           ALOGT("clog: requesting dump done");
+#endif
         }
 
     private:
+#ifdef BORT_SUPPORTS_CLOG
         std::unique_ptr<memfault::ContinuousLogcat> clog;
+#endif
 
         CommandFunc cmdToStringFunc(const std::vector<std::string>& command) {
           return [command](std::string& output) { return RunCommandToString(command, output); };
@@ -288,6 +307,7 @@ namespace {
 
 static void uncaught_handler(int signum __unused) {}
 
+#ifdef BORT_SUPPORTS_CLOG
 void watch_dump_signal(DumpsterService *service) {
         sigset_t set;
         sigemptyset(&set);
@@ -301,6 +321,7 @@ void watch_dump_signal(DumpsterService *service) {
           }
         }
 }
+#endif
 
 int main(void) {
     ALOGI("Starting...");
@@ -330,13 +351,18 @@ int main(void) {
         exit(2);
     }
 
+#ifdef BORT_SUPPORTS_CLOG
     std::thread signalWatchThread([dumpsterService] { watch_dump_signal(dumpsterService); });
+#endif
 
     android::IPCThreadState::self()->joinThreadPool();
 
     dumpsterService = nullptr;
     raise(SIGUSR1);
+
+#ifdef BORT_SUPPORTS_CLOG
     signalWatchThread.join();
+#endif
 
     return EXIT_SUCCESS;
 }

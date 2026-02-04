@@ -1,0 +1,11 @@
+diff --git a/target/product/base.mk b/target/product/base.mk
+index 4d70664..f8bc843 100644
+--- a/target/product/base.mk
++++ b/target/product/base.mk
+@@ -140,3 +140,6 @@ PRODUCT_COPY_FILES += $(call add-to-product-copy-files-if-exists,\
+
+
+ $(call inherit-product, $(SRC_TARGET_DIR)/product/embedded.mk)
++
++PRODUCT_PROPERTY_OVERRIDES += \
++    vendor.memfault.bort.ver.patch=manually_patched

@@ -3,6 +3,7 @@ package com.memfault.bort
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.NameNotFoundException
+import android.os.Build
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.settings.CachePackageManagerReport
@@ -22,6 +23,7 @@ class PackageManagerClient @Inject constructor(
     private val packageManager: PackageManager,
     private val cachePackageManagerReport: CachePackageManagerReport,
     @IO private val ioCoroutineContext: CoroutineContext,
+    @AndroidSdkVersion private val androidSdkVersion: Int,
 ) {
     private val mutex = Mutex()
 
@@ -40,8 +42,9 @@ class PackageManagerClient @Inject constructor(
      * Get the latest installed packages report. This will always be current. State is cached internally, but there is
      * a small cost to calling this method, so iterate over the result if required, rather than calling multiple times.
      */
+    @SuppressLint("NewApi")
     suspend fun getPackageManagerReport(): PackageManagerReport = mutex.withLock {
-        if (!cachePackageManagerReport()) {
+        if (!cachePackageManagerReport() || androidSdkVersion < Build.VERSION_CODES.O) {
             cachedReport = null
             return fetchApplicationsFromPackageManager()
         }

@@ -69,13 +69,15 @@ class UsageReporter : Application(), Configuration.Provider {
 
         rootScopeBuilder.onCreate("reporter-root")
 
-        val sysProp = SystemPropertiesProxy.get(ClientServerMode.SYSTEM_PROP)
-        val clientServerMode = ClientServerMode.decode(sysProp)
-        Logger.test("UsageReporter started, clientServerMode=$clientServerMode")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val sysProp = SystemPropertiesProxy.get(ClientServerMode.SYSTEM_PROP)
+            val clientServerMode = ClientServerMode.decode(sysProp)
+            Logger.test("UsageReporter started, clientServerMode=$clientServerMode")
 
-        // This is created in the application, rather than the service, so that it keeps running when the service
-        // unbinds.
-        _b2bClientServer = create(clientServerMode, this, reporterSettingsPreferenceProvider)
+            // This is created in the application, rather than the service, so that it keeps running when the service
+            // unbinds.
+            _b2bClientServer = create(clientServerMode, this, reporterSettingsPreferenceProvider)
+        }
 
         ReporterFileCleanupTask.schedule(this)
     }

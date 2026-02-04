@@ -5,8 +5,14 @@ BORT_MINOR_VERSION := $(shell cat $(BORT_PATH)/$(GRADLE_PROPERTIES) | grep UPSTR
 BORT_PATCH_VERSION := $(shell cat $(BORT_PATH)/$(GRADLE_PROPERTIES) | grep UPSTREAM_PATCH_VERSION | cut -f2 -d"=")
 BORT_VERSION := $(BORT_MAJOR_VERSION).$(BORT_MINOR_VERSION).$(BORT_PATCH_VERSION)
 
+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -le 26 && echo true),true)
+# Android 7.1 and lower have a 31-character limit for property names
+PRODUCT_PROPERTY_OVERRIDES += \
+  vendor.memfault.bort.versionsdk=$(BORT_VERSION)
+else
 PRODUCT_PROPERTY_OVERRIDES += \
   vendor.memfault.bort.version.sdk=$(BORT_VERSION)
+endif
 
 PRODUCT_PACKAGES += \
   MemfaultBort \

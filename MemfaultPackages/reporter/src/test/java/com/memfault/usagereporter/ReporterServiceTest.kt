@@ -59,7 +59,7 @@ class ReporterServiceTest {
             commandExecutor = threadPoolExecutor,
             serviceMessageFromMessage = ReporterServiceMessage.Companion::fromMessage,
             logLevelPreferenceProvider = logLevelPreferenceProvider,
-            b2BClientServer = mockk(),
+            getB2BClientServer = { mockk() },
             reporterSettings = mockk(),
             createPipe = { arrayOf(readFd, writeFd) },
         )

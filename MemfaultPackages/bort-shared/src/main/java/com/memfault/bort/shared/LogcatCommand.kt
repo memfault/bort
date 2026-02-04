@@ -184,7 +184,12 @@ data class LogcatCommand(
     }
 
     private fun formatModifiersFlags() = formatModifiers.map {
-        listOf("-v", it.cliValue)
+        // NSEC is not available before oreo
+        if (getSdkVersion() < Build.VERSION_CODES.O && it == LogcatFormatModifier.NSEC) {
+            listOf()
+        } else {
+            listOf("-v", it.cliValue)
+        }
     }.flatten()
 
     private fun bufferFlags() = buffers.map {
