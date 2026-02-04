@@ -21,7 +21,11 @@
 #include <android-base/file.h>
 #include <android-base/logging.h>
 #include <android-base/macros.h>
+#if PLATFORM_SDK_VERSION >= 27
 #include <android-base/properties.h>
+#else
+#include <cutils/properties.h>
+#endif
 #include <android-base/stringprintf.h>
 #include <android-base/strings.h>
 #include <android-base/unique_fd.h>
@@ -31,7 +35,13 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <ftw.h>
+#if PLATFORM_SDK_VERSION >= 27
 #include <log/log_main.h>
+#else
+#include <log/log.h>
+#include <log/logd.h>
+#include <libgen.h>
+#endif
 #include <private/android_filesystem_config.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -188,7 +198,7 @@ bool doBugreport(size_t* out_bytesWritten, std::string* zipPath) {
         }
         *out_bytesWritten += bytes_read;
     }
-    s.reset();
+    s.reset(-1);
     // Process final line, in case it didn't finish with newline.
     processLine(line, zipPath, &last_nonempty_line);
     // if doBugReport finished successfully, zip path should be set.
@@ -210,13 +220,24 @@ void SendBroadcast(
     const std::string& bugreportPath,
     const std::string& requestId
 ) {
+#if PLATFORM_SDK_VERSION >= 26
     std::vector<std::string> am = {
         "/system/bin/cmd", "activity", "broadcast", "--user", "all",
-        "--receiver-foreground", "--receiver-include-background",
+        "--receiver-foreground",
+        "--receiver-include-background",
         "-a", "com.memfault.intent.action.BUGREPORT_FINISHED",
         "--es", "com.memfault.intent.extra.BUGREPORT_PATH", bugreportPath,
         "-n", TARGET_COMPONENT
     };
+#else
+    std::vector<std::string> am = {
+        "am", "broadcast", "--user", "all",
+        "--receiver-foreground",
+        "-a", "com.memfault.intent.action.BUGREPORT_FINISHED",
+        "--es", "com.memfault.intent.extra.BUGREPORT_PATH", bugreportPath,
+        "-n", TARGET_COMPONENT
+    };
+#endif
 
     if (!requestId.empty()) {
         am.push_back("--es");
@@ -233,6 +254,7 @@ void SendBroadcast(
 }
 
 uint32_t GetTargetUid(void) {
+#if PLATFORM_SDK_VERSION >= 26
     std::vector<std::string> cmd = {
         "/system/bin/pm", "list", "packages", "-U", TARGET_APP_ID
     };
@@ -254,6 +276,28 @@ uint32_t GetTargetUid(void) {
         return 0;
     }
     return std::stoi(pmOutput.substr(found + pattern.size()));
+#else
+    std::vector<std::string> cmd = {
+        "/system/bin/pm", "dump", TARGET_APP_ID
+    };
+    TemporaryFile tempFile;
+    RunCommandToFd(tempFile.fd, "", cmd,
+               CommandOptions::WithTimeout(20)
+                   .Log("Getting " TARGET_APP_ID " UID: '%s'\n")
+                   .Always()
+                   .Build());
+    std::string pmOutput;
+    android::base::ReadFileToString(tempFile.path, &pmOutput);
+
+    const std::string pattern = "      userId=";
+    std::size_t found = pmOutput.rfind(pattern);
+    if (found == std::string::npos) {
+        ALOGE("Failed to find UID in %s\n", pmOutput.c_str());
+        return 0;
+    }
+    return std::stoi(pmOutput.substr(found + pattern.size()));
+
+#endif
 }
 
 int DumpstateLogScandirFilter(const dirent* de) {
@@ -285,6 +329,40 @@ void CleanupDumpstateLogs(void) {
 
 }  // namespace
 
+std::string get_prop(const std::string& property, const std::string& defaultValue) {
+#if PLATFORM_SDK_VERSION < 27
+  char value[PROPERTY_VALUE_MAX];
+  property_get(property.c_str(), value, defaultValue.c_str());
+  return std::string(value);
+#else
+  return android::base::GetProperty(property, defaultValue);
+#endif
+}
+
+void set_prop(const std::string& property, const std::string& value) {
+#if PLATFORM_SDK_VERSION < 27
+  property_set(property.c_str(), value.c_str());
+#else
+  android::base::SetProperty(property, value);
+#endif
+}
+
+std::string _basename(const std::string& path) {
+#if PLATFORM_SDK_VERSION < 27
+  std::vector<char> path_copy(path.begin(), path.end());
+  path_copy.push_back('\0');
+  return std::string(basename(path_copy.data()));
+#else
+  return android::base::Basename(path);
+#endif
+}
+
+#if PLATFORM_SDK_VERSION < 27
+#define MEMFAULT_DUMPSTATEZ "memfault_dumpz"
+#else
+#define MEMFAULT_DUMPSTATEZ "memfault_dumpstatez"
+#endif
+
 int main(void) {
     const uint32_t targetUid = GetTargetUid();
     ALOGI("Target UID: %d", targetUid);
@@ -294,10 +372,10 @@ int main(void) {
     auto t0 = std::chrono::steady_clock::now();
 
     // Start the dumpstatez service.
-    android::base::SetProperty("ctl.start", "memfault_dumpstatez");
+    set_prop("ctl.start", MEMFAULT_DUMPSTATEZ);
 
     // See DUMPSTATE_MEMFAULT_REQUEST_ID in BugReportStartReceiver.kt:
-    std::string requestId = android::base::GetProperty("dumpstate.memfault.requestid", "");
+    std::string requestId = get_prop("dumpstate.memfault.requestid", "");
 
     size_t bytesWritten = 0;
 
@@ -316,7 +394,7 @@ int main(void) {
     }
 
     ALOGI("Bugreport captured %s", zipPath.c_str());
-    std::string targetPath = TARGET_DIR + android::base::Basename(zipPath);
+    std::string targetPath = TARGET_DIR + _basename(zipPath);
 
     ALOGI("Coping bugreport to %s", targetPath.c_str());
     if (!copyFile(zipPath, targetPath)) {
@@ -338,7 +416,7 @@ cleanup:
 
     // No matter how doBugreport() finished, let's try to explicitly stop
     // dumpstatez in case it stalled.
-    android::base::SetProperty("ctl.stop", "memfault_dumpstatez");
+    set_prop("ctl.stop", MEMFAULT_DUMPSTATEZ);
 
     return EXIT_SUCCESS;
 }

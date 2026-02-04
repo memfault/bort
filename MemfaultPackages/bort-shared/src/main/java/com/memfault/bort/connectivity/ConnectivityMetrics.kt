@@ -237,6 +237,12 @@ class ConnectivityMetrics
                     is OnAvailable -> {
                         // Not used (we get all the info we need from onCapabilitiesChanged,
                         // which follows this callback).
+                        // Except on Android 7.1.x and lower, where it does not.
+                        if (Build.VERSION.SDK_INT < VERSION_CODES.O) {
+                            connectivityManager.getNetworkCapabilities(event.network)?.let {
+                                recordNetworkCapabilities(it)
+                            }
+                        }
                     }
 
                     is OnLost -> {

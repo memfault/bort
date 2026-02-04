@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics
 
+import android.os.Build
 import androidx.work.Data
 import com.memfault.bort.BortSystemCapabilities
 import com.memfault.bort.DeviceInfoProvider
@@ -47,6 +48,7 @@ import com.memfault.bort.time.toAbsoluteTime
 import com.memfault.bort.tokenbucket.MetricsCollection
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.memfault.bort.uploader.EnqueueUpload
+import dagger.Lazy
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.doubleOrNull
@@ -142,7 +144,7 @@ class MetricsCollectionTask @Inject constructor(
     private val batteryStatsCollector: BatteryStatsCollector,
     private val crashHandler: CrashHandler,
     private val clientRateLimitCollector: ClientRateLimitCollector,
-    private val appStorageStatsCollector: AppStorageStatsCollector,
+    private val appStorageStatsCollector: Lazy<AppStorageStatsCollector>,
     private val databaseSizeCollector: DatabaseSizeCollector,
     private val deviceInfoProvider: DeviceInfoProvider,
     private val everCollectedMetricsPreferenceProvider: EverCollectedMetricsPreferenceProvider,
@@ -223,10 +225,10 @@ class MetricsCollectionTask @Inject constructor(
             installationIdProvider,
         )
 
-        val inMemoryMetrics = listOf(
-            appStorageStatsCollector,
-            databaseSizeCollector,
-        ).flatMap { collector -> collector.collect(initialCollectionTime) }
+        val inMemoryMetrics = buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) add(appStorageStatsCollector.get())
+            add(databaseSizeCollector)
+        }.flatMap { collector -> collector.collect(initialCollectionTime) }
             .toMutableList()
 
         val collectorsDuration = startMark.elapsedNow()

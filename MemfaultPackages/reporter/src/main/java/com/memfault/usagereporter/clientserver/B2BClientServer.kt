@@ -1,8 +1,10 @@
 package com.memfault.usagereporter.clientserver
 
 import android.content.Context
+import android.os.Build
 import android.os.DropBoxManager
 import android.os.ParcelFileDescriptor
+import androidx.annotation.RequiresApi
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.shared.BuildConfig
@@ -38,6 +40,7 @@ import kotlin.time.Duration.Companion.seconds
  *
  * Host/port are configured in bort.properties.
  */
+@RequiresApi(Build.VERSION_CODES.O)
 interface B2BClientServer {
     fun enqueueFile(dropboxTag: String, descriptor: ParcelFileDescriptor)
 
@@ -64,6 +67,7 @@ interface B2BClientServer {
 
 fun clientServerUploadsDir(context: Context) = File(context.filesDir, "client-server-uploads")
 
+@RequiresApi(Build.VERSION_CODES.O)
 class RealB2BClientServer(
     private val clientServerMode: ClientServerMode,
     private val getDropBoxManager: () -> DropBoxManager?,
@@ -154,6 +158,7 @@ class RealB2BClientServer(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 object NoOpB2BClientServer : B2BClientServer {
     override fun enqueueFile(dropboxTag: String, descriptor: ParcelFileDescriptor) {
         Logger.w("Received file to forward, but not configured to forward files!")
@@ -171,6 +176,7 @@ interface ASCWrapper {
     ): ReceiveChannel<BortMessage>
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 class RealASCWrapper(
     private val channel: AsynchronousSocketChannel,
 ) : ASCWrapper {
@@ -178,6 +184,7 @@ class RealASCWrapper(
         channel.writeMessage(message)
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun readMessages(
         directory: File,
         scope: CoroutineScope,

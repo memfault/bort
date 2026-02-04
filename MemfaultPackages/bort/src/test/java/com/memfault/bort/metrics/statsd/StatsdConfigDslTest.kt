@@ -14,6 +14,8 @@ internal class StatsdConfigDslTest {
     @Test fun `builds an exhaustive config of all top level elements`() {
         val config = statsdConfig(0xdeadbeef) {
             allowFromSystem()
+            allowFromWifi()
+            allowFromBluetooth()
             allowFromLowMemoryKiller()
             whitelistAllAtomIds(true)
 
@@ -34,7 +36,7 @@ internal class StatsdConfigDslTest {
         assertThat(config).isEqualTo(
             StatsdConfig(
                 id = 0xdeadbeef,
-                allowed_log_source = listOf("AID_LMKD", "AID_SYSTEM"),
+                allowed_log_source = listOf("AID_BLUETOOTH", "AID_LMKD", "AID_NETWORK_STACK", "AID_SYSTEM", "AID_WIFI"),
                 whitelisted_atom_ids = listOf(12, 31, 72, 91),
                 atom_matcher = listOf(
                     AtomMatcher(

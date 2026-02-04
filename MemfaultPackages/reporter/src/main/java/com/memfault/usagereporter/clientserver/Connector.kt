@@ -1,5 +1,7 @@
 package com.memfault.usagereporter.clientserver
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.Logger
@@ -31,6 +33,7 @@ private val DISCONNECTED_METRIC =
  * Used when vendor.memfault.bort.client.server.mode is set to "client".
  */
 @OptIn(FlowPreview::class)
+@RequiresApi(Build.VERSION_CODES.O)
 class ClientConnector(
     private val port: Int,
     private val host: String,
@@ -76,6 +79,7 @@ class ClientConnector(
  * Used when vendor.memfault.bort.client.server.mode is set to "server".
  */
 @OptIn(FlowPreview::class)
+@RequiresApi(Build.VERSION_CODES.O)
 class ServerConnector(
     private val port: Int,
     private val connectionHandler: ConnectionHandler,

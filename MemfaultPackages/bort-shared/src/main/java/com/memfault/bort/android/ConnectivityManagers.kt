@@ -51,5 +51,7 @@ suspend fun ConnectivityManager.registerForDefaultNetworkCallback(): Flow<Networ
 
     registerDefaultNetworkCallback(callback)
 
+    // On < Android 8, we don't get a callback for the active network
+    // if it's already setup, so hydrate the callback with one if it exists
     awaitClose { unregisterNetworkCallback(callback) }
 }

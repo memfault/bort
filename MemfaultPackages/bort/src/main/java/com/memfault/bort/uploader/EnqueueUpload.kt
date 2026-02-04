@@ -20,10 +20,10 @@ import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.CombinedTime
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.CoroutineContext
-import kotlin.time.toJavaDuration
 
 /**
  * Enqueue a file or event for upload.
@@ -104,10 +104,17 @@ class EnqueuePreparedUploadTask @Inject constructor(
             FileUploadTaskInput(file, metadata, shouldCompress).toWorkerInputData(),
         ) {
             if (applyJitter) {
-                setInitialDelay(jitterDelayProvider.randomJitterDelay().toJavaDuration())
+                setInitialDelay(
+                    jitterDelayProvider.randomJitterDelay().inWholeMilliseconds,
+                    TimeUnit.MILLISECONDS,
+                )
             }
+            setBackoffCriteria(
+                BackoffPolicy.EXPONENTIAL,
+                BACKOFF_DURATION.inWholeMilliseconds,
+                TimeUnit.MILLISECONDS,
+            )
             setConstraints(constraints())
-            setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())
             addTag(debugTag)
         }
     }

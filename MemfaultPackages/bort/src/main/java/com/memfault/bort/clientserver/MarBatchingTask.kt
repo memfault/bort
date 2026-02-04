@@ -49,7 +49,6 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.toJavaDuration
 
 /**
  * Can be either periodic or one-time.
@@ -135,7 +134,11 @@ class MarBatchingTask @Inject constructor(
         fun enqueueOneTimeBatchMarFiles(context: Context) {
             oneTimeWorkRequest<MarBatchingTask>(workDataOf()) {
                 addTag(WORK_UNIQUE_NAME_ONE_TIME)
-                setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())
+                setBackoffCriteria(
+                    BackoffPolicy.EXPONENTIAL,
+                    BACKOFF_DURATION.inWholeMilliseconds,
+                    TimeUnit.MILLISECONDS,
+                )
             }.also { workRequest ->
                 WorkManager.getInstance(context)
                     .enqueueUniqueWork(
@@ -154,7 +157,11 @@ class MarBatchingTask @Inject constructor(
         ) {
             periodicWorkRequest<MarBatchingTask>(period, workDataOf()) {
                 addTag(WORK_UNIQUE_NAME_PERIODIC)
-                setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_DURATION.toJavaDuration())
+                setBackoffCriteria(
+                    BackoffPolicy.EXPONENTIAL,
+                    BACKOFF_DURATION.inWholeMilliseconds,
+                    TimeUnit.MILLISECONDS,
+                )
                 setInitialDelay(initialDelay.inWholeMilliseconds, TimeUnit.MILLISECONDS)
                 setConstraints(constraints)
             }.also { workRequest ->

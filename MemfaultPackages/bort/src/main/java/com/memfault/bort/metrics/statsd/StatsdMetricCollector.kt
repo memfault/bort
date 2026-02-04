@@ -47,6 +47,7 @@ class StatsdMetricCollector @Inject constructor(
         allowFromSystem()
         allowFromLowMemoryKiller()
         allowFromWifi()
+        allowFromBluetooth()
         whitelistAllAtomIds()
 
         val eventMetricAtoms = eventMetricListeners

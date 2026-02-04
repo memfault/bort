@@ -1,7 +1,18 @@
 LOCAL_PATH := $(call my-dir)
 
-bort-sepolicy-canary-check: selinux_policy $(shell test $(PLATFORM_SDK_VERSION) -lt 28 && echo nonplat_seapp_contexts)
-	$(hide) (grep memfault_dumpster_service $(TARGET_OUT_INTERMEDIATES)/ETC/*_service_contexts_intermediates/*_service_contexts > /dev/null || ( \
+BORT_SEPOLICY_CANARY_DEPS :=
+
+ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 26 && echo true), true)
+	BORT_SEPOLICY_CANARY_DEPS := sepolicy service_contexts
+else ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 28 && echo true), true)
+	BORT_SEPOLICY_CANARY_DEPS := selinux_policy nonplat_seapp_contexts
+else
+	BORT_SEPOLICY_CANARY_DEPS := selinux_policy
+endif
+
+
+bort-sepolicy-canary-check: $(BORT_SEPOLICY_CANARY_DEPS)
+	$(hide) (grep memfault_dumpster_service $(TARGET_OUT_INTERMEDIATES)/ETC/*service_contexts_intermediates/*service_contexts > /dev/null || ( \
 					echo "==========" 1>&2; \
 					echo "ERROR: memfault_dumpster_service not found in sepolicy contexts" 1>&2; \
 					echo "       this usually indicates an integration issue. Please ensure" 1>&2; \

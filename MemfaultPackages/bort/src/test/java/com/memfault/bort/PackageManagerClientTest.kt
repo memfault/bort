@@ -3,6 +3,7 @@ package com.memfault.bort
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.os.Build
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import com.memfault.bort.parsers.Package
@@ -28,10 +29,17 @@ class PackageManagerClientTest {
     }
     private var cachePackages: Boolean = true
 
+    private var androidSdkVersion = Build.VERSION_CODES.O
+
     @Test
     fun runsAndCachesResult() = runTest {
         val packageManagerClient =
-            PackageManagerClient(packageManager, { cachePackages }, StandardTestDispatcher(testScheduler))
+            PackageManagerClient(
+                packageManager,
+                { cachePackages },
+                StandardTestDispatcher(testScheduler),
+                androidSdkVersion,
+            )
         assertThat(packageManagerClient.getPackageManagerReport().findByPackage(APP_BORT.id)).isEqualTo(APP_BORT)
         assertThat(packageManagerClient.getPackageManagerReport().findByPackage(APP_BORT.id)).isEqualTo(APP_BORT)
         verify(exactly = 2) { packageManager.getChangedPackages(any()) }
@@ -42,7 +50,12 @@ class PackageManagerClientTest {
     @Test
     fun runsAndInvalidatesCache() = runTest {
         val packageManagerClient =
-            PackageManagerClient(packageManager, { cachePackages }, StandardTestDispatcher(testScheduler))
+            PackageManagerClient(
+                packageManager,
+                { cachePackages },
+                StandardTestDispatcher(testScheduler),
+                androidSdkVersion,
+            )
         assertThat(packageManagerClient.getPackageManagerReport().findByPackage(APP_BORT.id)).isEqualTo(APP_BORT)
         changedPackagesSequence = 1
         assertThat(packageManagerClient.getPackageManagerReport().findByPackage(APP_BORT.id)).isEqualTo(APP_BORT)
@@ -54,7 +67,12 @@ class PackageManagerClientTest {
     @Test
     fun returnsAllAppsWithSameUid() = runTest {
         val packageManagerClient =
-            PackageManagerClient(packageManager, { cachePackages }, StandardTestDispatcher(testScheduler))
+            PackageManagerClient(
+                packageManager,
+                { cachePackages },
+                StandardTestDispatcher(testScheduler),
+                androidSdkVersion,
+            )
         val report = packageManagerClient.getPackageManagerReport()
         assertThat(report).isEqualTo(PackageManagerReport(APPS))
         assertThat(report.packages.size).isEqualTo(3)
@@ -64,7 +82,28 @@ class PackageManagerClientTest {
     fun doesNotCacheIfDisabled() = runTest {
         cachePackages = false
         val packageManagerClient =
-            PackageManagerClient(packageManager, { cachePackages }, StandardTestDispatcher(testScheduler))
+            PackageManagerClient(
+                packageManager,
+                { cachePackages },
+                StandardTestDispatcher(testScheduler),
+                androidSdkVersion,
+            )
+        assertThat(packageManagerClient.getPackageManagerReport().findByPackage(APP_BORT.id)).isEqualTo(APP_BORT)
+        assertThat(packageManagerClient.getPackageManagerReport().findByPackage(APP_BORT.id)).isEqualTo(APP_BORT)
+        verify(exactly = 0) { packageManager.getChangedPackages(any()) }
+        verify(exactly = 2) { packageManager.getInstalledPackages(0) }
+        verify(exactly = 2) { packageManager.getInstalledApplications(0) }
+    }
+
+    @Test
+    fun doesNotCacheIfApiUnavailable() = runTest {
+        val packageManagerClient =
+            PackageManagerClient(
+                packageManager,
+                { cachePackages },
+                StandardTestDispatcher(testScheduler),
+                Build.VERSION_CODES.N_MR1,
+            )
         assertThat(packageManagerClient.getPackageManagerReport().findByPackage(APP_BORT.id)).isEqualTo(APP_BORT)
         assertThat(packageManagerClient.getPackageManagerReport().findByPackage(APP_BORT.id)).isEqualTo(APP_BORT)
         verify(exactly = 0) { packageManager.getChangedPackages(any()) }
@@ -75,7 +114,12 @@ class PackageManagerClientTest {
     @Test
     fun mapsUids() = runTest {
         val packageManagerClient =
-            PackageManagerClient(packageManager, { cachePackages }, StandardTestDispatcher(testScheduler))
+            PackageManagerClient(
+                packageManager,
+                { cachePackages },
+                StandardTestDispatcher(testScheduler),
+                androidSdkVersion,
+            )
         val report = packageManagerClient.getPackageManagerReport()
         assertThat(report.findByUid(11000)).isEqualTo(listOf(APP_BORT))
         assertThat(report.findByUid(12000)).isEqualTo(listOf(APP_YOUTUBE, APP_YOUTUBE_2))

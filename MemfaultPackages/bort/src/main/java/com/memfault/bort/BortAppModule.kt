@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.Resources
+import android.os.Build
 import androidx.preference.PreferenceManager
 import com.memfault.bort.bugreport.StartBugReportConstraint
 import com.memfault.bort.dagger.InjectSet
@@ -571,8 +572,15 @@ abstract class BortAppModule {
 
         @Provides
         fun allowProjectKeyChange() = AllowProjectKeyChange { BuildConfig.ALLOW_PROJECT_KEY_CHANGE }
+
+        @Provides
+        @AndroidSdkVersion
+        fun provideSdkVersion(): Int = Build.VERSION.SDK_INT
     }
 }
+
+@Qualifier
+annotation class AndroidSdkVersion
 
 @Qualifier
 annotation class UploadHoldingArea

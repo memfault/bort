@@ -11,8 +11,10 @@ import android.content.res.Resources
 import android.net.ConnectivityManager
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
+import android.os.Build
 import android.os.DropBoxManager
 import android.os.Looper
+import androidx.annotation.RequiresApi
 import com.memfault.bort.BasicCommandTimeout
 import com.memfault.bort.Default
 import com.memfault.bort.IO
@@ -72,6 +74,7 @@ class SharedAndroidModule {
     fun wifiManager(application: Application): WifiManager? =
         application.getSystemService(WifiManager::class.java)
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @Provides
     fun storageStatsManager(application: Application): StorageStatsManager =
         application.getSystemService(StorageStatsManager::class.java)

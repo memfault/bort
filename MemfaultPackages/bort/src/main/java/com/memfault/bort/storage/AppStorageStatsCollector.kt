@@ -5,6 +5,7 @@ import android.app.usage.StorageStatsManager
 import android.content.pm.PackageManager.NameNotFoundException
 import android.os.Build
 import android.os.storage.StorageManager
+import androidx.annotation.RequiresApi
 import com.memfault.bort.IO
 import com.memfault.bort.metrics.InMemoryMetric
 import com.memfault.bort.metrics.InMemoryMetricCollector
@@ -24,13 +25,16 @@ interface AppStorageStatsCollector : InMemoryMetricCollector
 
 @ContributesBinding(SingletonComponent::class)
 class RealAppStorageStatsCollector
-@Inject constructor(
+@RequiresApi(Build.VERSION_CODES.O)
+@Inject
+constructor(
     private val storageSettings: StorageSettings,
     private val significantAppsProvider: SignificantAppsProvider,
     private val storageStatsManager: StorageStatsManager,
     @IO private val ioCoroutineContext: CoroutineContext,
 ) : AppStorageStatsCollector {
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override suspend fun collect(
         collectionTime: CombinedTime,
     ): List<InMemoryMetric> {
@@ -87,6 +91,7 @@ class RealAppStorageStatsCollector
             }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private suspend fun queryForPackage(packageName: String?): StorageStats? = withContext(ioCoroutineContext) {
         packageName?.let {
             try {

@@ -5,10 +5,8 @@ import android.os.StrictMode
 import com.memfault.bort.scopes.Scope
 import com.memfault.bort.scopes.Scoped
 import com.memfault.bort.scopes.Scoped.ScopedPriority
-import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
-import java.util.concurrent.Executors
 import javax.inject.Inject
 
 @ContributesMultibinding(SingletonComponent::class)
@@ -29,9 +27,7 @@ class DebugConfigureStrictMode
                 penaltyLog()
                 // We can only use the callback on P (9) and above. On 8, crash to to hope that fails the test.
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    penaltyListener(Executors.newSingleThreadExecutor()) {
-                        Logger.test("Bort StrictMode violation!!")
-                    }
+                    LoggablePenaltyListenerInstaller.installInVmPolicy(this)
                 } else {
                     penaltyDeath()
                 }
@@ -43,9 +39,7 @@ class DebugConfigureStrictMode
                 penaltyLog()
                 // We can only use the callback on P (9) and above. On 8, crash to to hope that fails the test.
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    penaltyListener(Executors.newSingleThreadExecutor()) {
-                        Logger.test("Bort StrictMode violation!!")
-                    }
+                    LoggablePenaltyListenerInstaller.installInThreadPolicy(this)
                 } else {
                     penaltyDeath()
                 }
