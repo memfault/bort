@@ -1,5 +1,7 @@
 package com.memfault.usagereporter.clientserver
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
@@ -14,6 +16,7 @@ import kotlin.coroutines.resumeWithException
  * Coroutine wrappers for java channel nio methods.
  */
 
+@RequiresApi(Build.VERSION_CODES.O)
 suspend fun AsynchronousSocketChannel.cConnect(host: String, port: Int) = suspendCancellableCoroutine<Unit> { cont ->
     connect(
         InetSocketAddress(host, port),
@@ -32,6 +35,7 @@ suspend fun AsynchronousSocketChannel.cConnect(host: String, port: Int) = suspen
  *
  * @return number of bytes written.
  */
+@RequiresApi(Build.VERSION_CODES.O)
 suspend fun AsynchronousByteChannel.cWrite(data: ByteArray) = cWrite(ByteBuffer.wrap(data))
 
 /**
@@ -41,6 +45,7 @@ suspend fun AsynchronousByteChannel.cWrite(data: ByteArray) = cWrite(ByteBuffer.
  *
  * @return number of bytes written.
  */
+@RequiresApi(Build.VERSION_CODES.O)
 suspend fun AsynchronousByteChannel.cWrite(buffer: ByteBuffer): Int {
     while (buffer.hasRemaining()) {
         val wrote = cWriteChunk(buffer)
@@ -52,6 +57,7 @@ suspend fun AsynchronousByteChannel.cWrite(buffer: ByteBuffer): Int {
 /**
  * Perform a single write.
  */
+@RequiresApi(Build.VERSION_CODES.O)
 private suspend fun AsynchronousByteChannel.cWriteChunk(buffer: ByteBuffer) = suspendCancellableCoroutine<Int> { cont ->
     write(
         buffer,
@@ -66,6 +72,7 @@ private suspend fun AsynchronousByteChannel.cWriteChunk(buffer: ByteBuffer) = su
 /**
  * Read [bytes] bytes from the channel, using multiple reads if required.
  */
+@RequiresApi(Build.VERSION_CODES.O)
 suspend fun AsynchronousByteChannel.cRead(
     bytes: Int,
 ): ByteBuffer {
@@ -82,6 +89,7 @@ suspend fun AsynchronousByteChannel.cRead(
 /**
  * Perform a single read.
  */
+@RequiresApi(Build.VERSION_CODES.O)
 private suspend fun AsynchronousByteChannel.cReadChunk(
     buffer: ByteBuffer,
 ) = suspendCancellableCoroutine<Int> { cont ->
@@ -99,6 +107,7 @@ private suspend fun AsynchronousByteChannel.cReadChunk(
     )
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 suspend fun AsynchronousServerSocketChannel.cAccept() = suspendCancellableCoroutine<AsynchronousSocketChannel> { cont ->
     accept(
         Unit,

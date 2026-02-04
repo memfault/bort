@@ -21,8 +21,8 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.toJavaDuration
 
 /**
  * A periodic worker that triggers an OTA download.
@@ -142,7 +142,11 @@ class OtaDownloadWorker @AssistedInject constructor(
             val request = OneTimeWorkRequestBuilder<OtaDownloadWorker>().apply {
                 setConstraints(constraints)
                 addTag(SCHEDULED_DOWNLOAD_WORK)
-                setBackoffCriteria(BackoffPolicy.LINEAR, 15.minutes.toJavaDuration())
+                setBackoffCriteria(
+                    BackoffPolicy.LINEAR,
+                    15.minutes.inWholeMilliseconds,
+                    TimeUnit.MILLISECONDS,
+                )
             }.build()
 
             WorkManager.getInstance(context)

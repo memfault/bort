@@ -26,7 +26,7 @@ PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_BORT_OTA_APP_ID = "vnd.myandroid.bort.otaappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
 PLACEHOLDER_SYSTEM = "__SYSTEM_PATH__"
-RELEASES = range(8, 15 + 1)
+RELEASES = range(7, 15 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 GRADLE_PROPERTIES = os.path.join(SCRIPT_DIR, "MemfaultPackages", "gradle.properties")
 PYTHON_MIN_VERSION = (3, 6, 0)
@@ -148,7 +148,7 @@ class PatchAOSPCommand(Command):
         android_release,
         patch_dir,
         exclude,
-        include: List[str],  # pyright: ignore[reportDeprecated]
+        include: List[str],
     ):
         self._aosp_root = aosp_root
         self._check_patch_command = check_patch_command or self._default_check_patch_command()

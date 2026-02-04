@@ -1,5 +1,6 @@
 package com.memfault.usagereporter
 
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import com.memfault.bort.shared.CommandRunnerOptions
 import com.memfault.bort.shared.Logger
@@ -74,7 +75,11 @@ class CommandRunner(
         override fun close() {
             process.destroy()
             val exited = try {
-                process.waitFor(EXIT_TIMEOUT_SECS, TimeUnit.SECONDS)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    process.waitFor(EXIT_TIMEOUT_SECS, TimeUnit.SECONDS)
+                } else {
+                    process.waitFor()
+                }
             } catch (e: InterruptedException) {
                 false
             }

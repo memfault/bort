@@ -33,6 +33,10 @@ class StatsdConfigBuilder internal constructor(private val id: Long) {
         allowedLogSources.add("AID_WIFI")
     }
 
+    fun allowFromBluetooth() {
+        allowedLogSources.add("AID_BLUETOOTH")
+    }
+
     fun whitelistAllAtomIds(enabled: Boolean = true) {
         whitelistAllAtomIds = enabled
     }

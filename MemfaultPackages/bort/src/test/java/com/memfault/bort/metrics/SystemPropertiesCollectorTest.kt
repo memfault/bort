@@ -1,6 +1,7 @@
 package com.memfault.bort.metrics
 
 import android.app.Application
+import android.os.Build
 import android.telephony.TelephonyManager
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.settings.MetricsSettings
@@ -69,7 +70,7 @@ class SystemPropertiesCollectorTest {
                     "1.3" to "1.3",
                     "false" to "0",
                     "true" to "true",
-                    "vendor.memfault.bort.version.sdk" to "4.0",
+                    "vendor.memfault.bort.versionsdk" to "4.0",
                     "vendor.memfault.bort.version.patch" to "4.1",
                     "notypelisted" to "notype",
                 )
@@ -85,7 +86,7 @@ class SystemPropertiesCollectorTest {
                     "1.3" to "somethingelse",
                     "false" to "bool",
                     "true" to "bool",
-                    "sysprop.vendor.memfault.bort.version.sdk" to "string",
+                    "sysprop.vendor.memfault.bort.versionsdk" to "string",
                     "sysprop.vendor.memfault.bort.version.patch" to "string",
                 )
             }
@@ -94,6 +95,7 @@ class SystemPropertiesCollectorTest {
             settings = settings,
             dumpsterClient = dumpsterClient,
             application = application,
+            androidSdkVersion = Build.VERSION_CODES.O,
         )
         collector.collect()?.let { collector.record(it, store) }
         coVerify(exactly = 1) {

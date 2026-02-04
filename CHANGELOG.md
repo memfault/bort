@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project currently does not attempt to adhere to Semantic Versioning, but
 breaking changes are avoided unless absolutely necessary.
 
+## v5.6.0 - February 4, 2026
+
+### :rocket: New Features
+
+- Support for [Android 7.1](https://github.com/memfault/bort/tree/7).
+
+### :construction: Fixes
+
+- Fixed missing bluetooth metrics coming from statsd.
+
+### :house: Internal
+
+- Updated zjsonpatch.
+
 ## v5.5.0 - November 18, 2025
 
 ### :rocket: New Features

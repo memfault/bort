@@ -1,4 +1,4 @@
-# Defines an init service called "memfault_dumpstatez". AOSP already exposes a very similar init
+# Defines an init service called "memfault_dumpz". AOSP already exposes a very similar init
 # service, called "dumpstatez". Significant changes with the "vanilla" dumpstatez:
 # 1. -q / "quiet" flag, which skips vibing
 # 2. the control socket is owned by root:root, allowing the connecting program
@@ -6,7 +6,7 @@
 # Note: the -o option is ignored as of Android 10, but is required in Android 9!
 # See https://cs.android.com/android/_/android/platform/frameworks/native/+/0f58ab624b96f7f2e49a606ee8ce0cedeb10004d:cmds/dumpstate/dumpstate.rc;l=14;drc=235864b47896d308f56a012b1d509588a5069daf
 
-service memfault_dumpstatez /system/bin/dumpstate -S -d -z -q \
+service memfault_dumpz /system/bin/dumpstate -S -d -z -q \
           -o /data/user_de/0/com.android.shell/files/bugreports/bugreport
     setenv MEMFAULT_UPLOADER_CAPTURED 1
     socket dumpstate stream 0660 root root
@@ -14,9 +14,9 @@ service memfault_dumpstatez /system/bin/dumpstate -S -d -z -q \
     disabled
     oneshot
 
-# Defines an init service called "memfault_dumpstate_runner", which is used to invoke the
+# Defines an init service called "memfault_dumpr", which is used to invoke the
 # MemfaultDumpstateRunner program to collect a bugreport.
-# The only purpose of memfault_dumpstate_runner is to trigger "memfault_dumpstatez", wait for
+# The only purpose of memfault_dumpstate_runner is to trigger "memfault_dumpz", wait for
 # it to complete and copy the bugreport.zip into a location that can be accessed by Bort.
 # It runs as root and in the "dumpstate" sepolicy domain, because it needs
 # to access both the shell-owned bugreport output of dumpstate and it needs to be able to copy it
@@ -28,7 +28,7 @@ on post-fs-data
     chmod 0777 /data/misc/MemfaultBugReports/
     wait /data/misc/MemfaultBugReports/
 
-service memfault_dumpstate_runner /system_ext/bin/MemfaultDumpstateRunner
+service memfault_dumpr /system/bin/MemfaultDumpstateRunner
     class core
     disabled
     oneshot

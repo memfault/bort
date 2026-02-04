@@ -364,6 +364,29 @@ class LogcatParserTest {
             ),
         )
     }
+
+    // Nougat does not support -v utc
+    @Test
+    fun nougatLogcats() = runTest {
+        assertThat(
+            LogcatParser(
+                flowOf(
+                    "2025-10-14 10:59:45.525 +0000 10016  2742  2780 E bort    : CustomMetricsProvider: Bort is disabled",
+                ),
+                COMMAND,
+                ::dummyUidParser,
+            ).parse().toList().last(),
+        ).isEqualTo(
+            LogcatLine(
+                logTime = Instant.ofEpochSecond(1760439585, 525000000),
+                uid = 10016,
+                lineUpToTag = "2025-10-14 10:59:45.525 +0000 10016  2742  2780 E bort    : ",
+                message = "CustomMetricsProvider: Bort is disabled",
+                priority = ERROR,
+                tag = "bort",
+            ),
+        )
+    }
 }
 
 private val COMMAND = LogcatCommand(

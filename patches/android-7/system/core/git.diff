@@ -1,0 +1,51 @@
+diff --git a/debuggerd/test/tombstone_test.cpp b/debuggerd/test/tombstone_test.cpp
+index 58d640e..cd5286f 100644
+--- a/debuggerd/test/tombstone_test.cpp
++++ b/debuggerd/test/tombstone_test.cpp
+@@ -15,6 +15,7 @@
+  */
+
+ #include <stdlib.h>
++#include <time.h>
+
+ #include <memory>
+ #include <string>
+@@ -631,3 +632,10 @@ TEST_F(TombstoneTest, dump_header_info) {
+   expected += android::base::StringPrintf("ABI: '%s'\n", ABI_STRING);
+   ASSERT_STREQ(expected.c_str(), amfd_data_.c_str());
+ }
++
++TEST_F(TombstoneTest, dump_timestamp) {
++  setenv("TZ", "UTC", 1);
++  tzset();
++  dump_timestamp(&log_, 0);
++  ASSERT_STREQ("Timestamp: 1970-01-01 00:00:00+0000\n", amfd_data_.c_str());
++}
+diff --git a/debuggerd/tombstone.cpp b/debuggerd/tombstone.cpp
+index dfdf29c..3030fc6 100644
+--- a/debuggerd/tombstone.cpp
++++ b/debuggerd/tombstone.cpp
+@@ -176,6 +176,15 @@ static void dump_header_info(log_t* log) {
+   _LOG(log, logtype::HEADER, "ABI: '%s'\n", ABI_STRING);
+ }
+
++static void dump_timestamp(log_t* log, time_t time) {
++  struct tm tm;
++  localtime_r(&time, &tm);
++
++  char buf[strlen("1970-01-01 00:00:00+0830") + 1];
++  strftime(buf, sizeof(buf), "%F %T%z", &tm);
++  _LOG(log, logtype::HEADER, "Timestamp: %s\n", buf);
++}
++
+ static void dump_signal_info(log_t* log, pid_t tid, int signal, int si_code) {
+   siginfo_t si;
+   memset(&si, 0, sizeof(si));
+@@ -616,6 +625,7 @@ static void dump_crash(log_t* log, BacktraceMap* map, pid_t pid, pid_t tid,
+   _LOG(log, logtype::HEADER,
+        "*** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***\n");
+   dump_header_info(log);
++  dump_timestamp(log, time(nullptr));
+   dump_thread(log, pid, tid, map, signal, si_code, abort_msg_address, true);
+   if (want_logs) {
+     dump_logs(log, pid, 5);

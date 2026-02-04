@@ -1,7 +1,10 @@
 package com.memfault.bort.metrics
 
+import android.annotation.SuppressLint
 import android.app.Application
+import android.os.Build
 import android.telephony.TelephonyManager
+import com.memfault.bort.AndroidSdkVersion
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.metrics.SystemPropertiesCollector.TypedSyspropVal.BoolVal
 import com.memfault.bort.metrics.SystemPropertiesCollector.TypedSyspropVal.DoubleVal
@@ -24,23 +27,41 @@ class SystemPropertiesCollector @Inject constructor(
     private val settings: MetricsSettings,
     private val dumpsterClient: DumpsterClient,
     private val application: Application,
+    @AndroidSdkVersion private val androidSdkVersion: Int,
 ) {
     suspend fun collect(): DeviceSystemProperties? {
         val systemProperties = dumpsterClient.getprop() ?: return null
-        val systemPropertyTypes = dumpsterClient.getpropTypes() ?: return null
+        val systemPropertyTypes = dumpsterClient.getpropTypes() ?: emptyMap()
+
+        val sanitizedProperties = sanitizePropertyKeys(systemProperties)
+        val sanitizedPropertyTypes = sanitizePropertyKeys(systemPropertyTypes)
+
         return DeviceSystemProperties(
-            properties = systemProperties,
-            propertyTypes = systemPropertyTypes,
+            properties = sanitizedProperties,
+            propertyTypes = sanitizedPropertyTypes,
         )
     }
 
+    /**
+     * Applies version-specific quirks to property names so that the end result
+     * is the same regardelss of the android version.
+     *
+     * Android N limits property name length to 31 characters and some names
+     * had to be shortened to fit.
+     */
+    private fun <R> sanitizePropertyKeys(systemProperties: Map<String, R>): Map<String, R> =
+        systemProperties.mapKeys { (key, _) ->
+            ANDROID_N_PROPERTY_NAME_REPLACEMENTS[key] ?: key
+        }
+
+    @SuppressLint("NewApi")
     fun record(deviceSystemProperties: DeviceSystemProperties, devicePropertiesStore: DevicePropertiesStore) {
         updateSystemPropertiesWith(
             systemProperties = deviceSystemProperties.properties,
             systemPropertyTypes = deviceSystemProperties.propertyTypes,
             devicePropertiesStore = devicePropertiesStore,
         )
-        if (settings.recordImei) {
+        if (androidSdkVersion >= Build.VERSION_CODES.O && settings.recordImei) {
             try {
                 application.getSystemService(TelephonyManager::class.java)?.let { telephony ->
                     telephony.imei?.let { imei ->
@@ -121,6 +142,11 @@ class SystemPropertiesCollector @Inject constructor(
             ClientServerMode.SYSTEM_PROP,
         )
         private const val SYSTEM_PROPERTY_PREFIX = "sysprop."
+
+        private val ANDROID_N_PROPERTY_NAME_REPLACEMENTS = mapOf(
+            "vendor.memfault.bort.versionsdk" to "vendor.memfault.bort.version.sdk",
+            "sysprop.vendor.memfault.bort.versionsdk" to "sysprop.vendor.memfault.bort.version.sdk",
+        )
         const val IMEI_METRIC = "phone.imei"
     }
 }

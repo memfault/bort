@@ -1,5 +1,6 @@
 package com.memfault.bort.shared
 
+import android.os.Build
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
@@ -48,6 +49,7 @@ class LogcatCommandTest {
                     LogcatFormatModifier.ZONE,
                     LogcatFormatModifier.NSEC,
                 ),
+                getSdkVersion = { Build.VERSION_CODES.O },
             ).toList(),
         ).isEqualTo(
             listOf(
@@ -63,6 +65,42 @@ class LogcatCommandTest {
                 "-v", "year",
                 "-v", "zone",
                 "-v", "nsec",
+            ),
+        )
+    }
+
+    @Test
+    fun formatModifiersPreOreo() {
+        assertThat(
+            LogcatCommand(
+                formatModifiers = listOf(
+                    LogcatFormatModifier.COLOR,
+                    LogcatFormatModifier.DESCRIPTIVE,
+                    LogcatFormatModifier.EPOCH,
+                    LogcatFormatModifier.MONOTONIC,
+                    LogcatFormatModifier.PRINTABLE,
+                    LogcatFormatModifier.UID,
+                    LogcatFormatModifier.USEC,
+                    LogcatFormatModifier.UTC,
+                    LogcatFormatModifier.YEAR,
+                    LogcatFormatModifier.ZONE,
+                    LogcatFormatModifier.NSEC,
+                ),
+                getSdkVersion = { Build.VERSION_CODES.N_MR1 },
+            ).toList(),
+        ).isEqualTo(
+            listOf(
+                "logcat", "-d",
+                "-v", "color",
+                "-v", "descriptive",
+                "-v", "epoch",
+                "-v", "monotonic",
+                "-v", "printable",
+                "-v", "uid",
+                "-v", "usec",
+                "-v", "UTC",
+                "-v", "year",
+                "-v", "zone",
             ),
         )
     }

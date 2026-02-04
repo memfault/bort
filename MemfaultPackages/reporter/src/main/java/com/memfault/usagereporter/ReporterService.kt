@@ -3,6 +3,7 @@ package com.memfault.usagereporter
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.DropBoxManager
 import android.os.Handler
 import android.os.HandlerThread
@@ -12,6 +13,7 @@ import android.os.Messenger
 import android.os.ParcelFileDescriptor
 import android.os.Process.THREAD_PRIORITY_BACKGROUND
 import android.os.RemoteException
+import androidx.annotation.RequiresApi
 import com.memfault.bort.shared.CommandRunnerOptions
 import com.memfault.bort.shared.ErrorResponse
 import com.memfault.bort.shared.LogLevel
@@ -50,7 +52,7 @@ class ReporterServiceMessageHandler(
     private val commandExecutor: TimeoutThreadPoolExecutor,
     private val serviceMessageFromMessage: (message: Message) -> ReporterServiceMessage,
     private val logLevelPreferenceProvider: LogLevelPreferenceProvider,
-    private val b2BClientServer: B2BClientServer,
+    private val getB2BClientServer: () -> B2BClientServer,
     private val reporterSettings: ReporterSettingsPreferenceProvider,
     private val createPipe: CreatePipe,
 ) : Handler.Callback {
@@ -84,7 +86,13 @@ class ReporterServiceMessageHandler(
             is RunCommandRequest<*> -> handleRunCommandRequest(serviceMessage, sendReply)
             is SetLogLevelRequest -> handleSetLogLevelRequest(serviceMessage.level, sendReply)
             is VersionRequest -> handleVersionRequest(sendReply)
-            is ServerSendFileRequest -> handleSendFileRequest(serviceMessage, sendReply)
+            is ServerSendFileRequest -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    handleSendFileRequest(serviceMessage, sendReply)
+                } else {
+                    sendReply(ErrorResponse("Minimum sdk version required is 26, current is ${Build.VERSION.SDK_INT}"))
+                }
+            }
             is SetMetricCollectionIntervalRequest -> handleSetMetricIntervalRequest(sendReply)
             is SetReporterSettingsRequest -> handleSettingsUpdate(serviceMessage, sendReply)
             null -> sendReply(ErrorResponse("Unknown Message: $message")).also {
@@ -132,11 +140,12 @@ class ReporterServiceMessageHandler(
         sendReply(SetReporterSettingsResponse)
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun handleSendFileRequest(
         message: ServerSendFileRequest,
         sendReply: (reply: ServiceMessage) -> Unit,
     ) {
-        b2BClientServer.enqueueFile(message.dropboxTag, message.descriptor)
+        getB2BClientServer().enqueueFile(message.dropboxTag, message.descriptor)
         sendReply(ServerSendFileResponse)
     }
 
@@ -194,7 +203,7 @@ class ReporterService : Service() {
             commandExecutor = executor,
             serviceMessageFromMessage = ReporterServiceMessage.Companion::fromMessage,
             logLevelPreferenceProvider = logLevelPreferenceProvider,
-            b2BClientServer = b2bClientServer,
+            getB2BClientServer = { b2bClientServer },
             reporterSettings = reporterSettingsPreferenceProvider,
             createPipe = ParcelFileDescriptor::createPipe,
         )

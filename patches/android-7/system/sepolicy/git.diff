@@ -1,0 +1,212 @@
+diff --git a/file.te b/file.te
+index 87cec82..c827707 100644
+--- a/file.te
++++ b/file.te
+@@ -260,3 +260,6 @@ allow postinstall_file self:filesystem associate;
+ # Should be:
+ #   type apk_data_file, file_type, data_file_type;
+ neverallow fs_type file_type:filesystem associate;
++
++type memfault_dumpster_data_file, file_type, data_file_type;
++type memfault_bugreport_data_file, file_type, data_file_type, mlstrustedobject;
+diff --git a/file_contexts b/file_contexts
+index 085a57b..e4b9885 100644
+--- a/file_contexts
++++ b/file_contexts
+@@ -402,3 +402,14 @@
+ /mnt/user(/.*)?             u:object_r:mnt_user_file:s0
+ /mnt/runtime(/.*)?          u:object_r:storage_file:s0
+ /storage(/.*)?              u:object_r:storage_file:s0
++
++# For use with memfault_dumpstate_runner.te -- hack inspired by:
++# https://cs.android.com/android/_/android/platform/packages/services/Car/+/2a84c7a9fe001e111778ccda84af1580a082b3e0:car_product/sepolicy/private/file_contexts;l=6;drc=a85b7e7058b8cb7f94ecf8f4728a76a821de4c3b
++/(system|system_ext|system/system_ext)/bin/MemfaultDumpstateRunner   u:object_r:dumpstate_exec:s0
++
++/(system|system_ext|system/system_ext)/bin/MemfaultDumpster          u:object_r:dumpstate_exec:s0
++
++/data/system/MemfaultDumpster(/.*)?   u:object_r:memfault_dumpster_data_file:s0
++
++/data/misc/MemfaultBugReports(/.*)?   u:object_r:memfault_bugreport_data_file:s0
++
+diff --git a/keys.conf b/keys.conf
+index 7a307b5..2722d5d 100644
+--- a/keys.conf
++++ b/keys.conf
+@@ -23,3 +23,21 @@ ENG       : $DEFAULT_SYSTEM_DEV_CERTIFICATE/testkey.x509.pem
+ USER      : $DEFAULT_SYSTEM_DEV_CERTIFICATE/testkey.x509.pem
+ USERDEBUG : $DEFAULT_SYSTEM_DEV_CERTIFICATE/testkey.x509.pem
+ 
++# This file maps .pem certificate files to a named signer (@BORT) which is used
++# in mac_permissions.xml. The MemfaultBort.x509.pem certificate is generated as
++# part of the MemfaultBort gradle build. The certificate is just the exported
++# (public) key from the keystore that is used to sign MemfaultBort.apk.
++#
++# If needed, different certificates can be used per build variant by adjusting
++# the paths below.
++#
++# IMPORTANT:
++# - The certificate MUST NOT be the platform certificate!
++# - The certificate MUST MATCH the one that is used to sign MemfaultBort.apk!
++# - The certificate MUST ONLY be used to sign MemfaultBort.apk, no other apps,
++#   otherwise the sepolicy rules from seapp_contexts would also be applied to
++#   those apps!
++[@BORT]
++ENG         : vendor/memfault/bort/MemfaultPackages/MemfaultBort.x509.pem
++USERDEBUG   : vendor/memfault/bort/MemfaultPackages/MemfaultBort.x509.pem
++USER        : vendor/memfault/bort/MemfaultPackages/MemfaultBort.x509.pem
+diff --git a/mac_permissions.xml b/mac_permissions.xml
+index 87efe0e..1348b30 100644
+--- a/mac_permissions.xml
++++ b/mac_permissions.xml
+@@ -51,4 +51,8 @@
+       <seinfo value="platform" />
+     </signer>
+ 
++    <signer signature="@BORT">
++      <seinfo value="bort" />
++    </signer>
++
+ </policy>
+diff --git a/memfault_dumpstate_runner.te b/memfault_dumpstate_runner.te
+new file mode 100644
+index 0000000..5fb5589
+--- /dev/null
++++ b/memfault_dumpstate_runner.te
+@@ -0,0 +1,12 @@
++# Allow to set system properties "ctl.start" / "ctl.stop":
++set_prop(dumpstate, ctl_default_prop)
++set_prop(dumpstate, ctl_bugreport_prop)
++
++# Allow to connect to the dumpstate control socket:
++unix_socket_connect(dumpstate, dumpstate, dumpstate)
++
++allow dumpstate memfault_bugreport_data_file:dir create_dir_perms;
++allow dumpstate memfault_bugreport_data_file:file create_file_perms;
++
++get_prop(dumpstate, dumpstate_prop)
++set_prop(system_app, dumpstate_prop)
+diff --git a/memfault_dumpster.te b/memfault_dumpster.te
+new file mode 100644
+index 0000000..cda7ca8
+--- /dev/null
++++ b/memfault_dumpster.te
+@@ -0,0 +1,24 @@
++type memfault_dumpster_service, service_manager_type;
++
++allow dumpstate memfault_dumpster_service:service_manager { add find };
++neverallow { domain -dumpstate } memfault_dumpster_service:service_manager { add };
++
++# MemfaultDumpster exposes a binder service. MemfaultDumpster uses the dumpstate label.
++# dumpstate (the program) runs, it goes through all services and tries to call dump.
++# This won't be allowed and is expected to be denied. So, don't audit this access:
++dontaudit dumpstate dumpstate:binder call;
++
++# Allow setting the bort enabled property
++set_prop(dumpstate, system_prop);
++
++# Allow getting vendor.memfault.* props (Android 8 or below):
++get_prop(dumpstate, memfault_prop)
++
++# Allow memfault_dumpster rw access to its data dir
++allow dumpstate memfault_dumpster_data_file:dir rw_dir_perms;
++allow dumpstate memfault_dumpster_data_file:file create_file_perms;
++
++# Allow dropbox service to read the log data file
++allow system_server memfault_dumpster_data_file:file r_file_perms;
++
++allow priv_app sysfs:dir r_dir_perms;
+diff --git a/memfault_structured_app.te b/memfault_structured_app.te
+new file mode 100644
+index 0000000..b3b33bb
+--- /dev/null
++++ b/memfault_structured_app.te
+@@ -0,0 +1,20 @@
++type memfault_structured_app, service_manager_type, domain;
++
++app_domain(memfault_structured_app);
++
++# Allow memfault_structured_app to use binder
++binder_use(memfault_structured_app)
++
++# Allow memfault_structured_app to register a service with service manager
++allow memfault_structured_app memfault_structured_service:service_manager { add find };
++neverallow { domain - memfault_structured_app } memfault_structured_service:service_manager add;
++
++# Allow apps to call memfault_structured_app
++binder_call(appdomain, memfault_structured_app)
++
++# Allow memfault_structured_app to find the activity_service
++allow memfault_structured_app activity_service:service_manager find;
++
++# Allow dumpstate (via MemfaultDumpster) to add metrics
++allow dumpstate memfault_structured_app:service_manager find;
++binder_call(dumpstate, memfault_structured_app)
+diff --git a/priv_app.te b/priv_app.te
+index 85516a6..653d351 100644
+--- a/priv_app.te
++++ b/priv_app.te
+@@ -142,3 +142,10 @@ neverallow priv_app mlstrustedsubject:process fork;
+ # bugs, so we want to ensure priv_app never has this
+ # capability.
+ neverallow priv_app file_type:file link;
++
++
++allow priv_app memfault_dumpster_service:service_manager find;
++
++allow priv_app memfault_bugreport_data_file:dir create_dir_perms;
++allow priv_app memfault_bugreport_data_file:file create_file_perms;
++binder_call(priv_app, dumpstate)
+diff --git a/property.te b/property.te
+index af7013f..9f71489 100644
+--- a/property.te
++++ b/property.te
+@@ -40,3 +40,5 @@ type device_logging_prop, property_type;
+ type safemode_prop, property_type;
+ 
+ allow property_type tmpfs:filesystem associate;
++
++type memfault_prop, property_type;
+diff --git a/seapp_contexts b/seapp_contexts
+index 5d5ad75..dc35fff 100644
+--- a/seapp_contexts
++++ b/seapp_contexts
+@@ -97,3 +97,5 @@ user=_app seinfo=platform domain=platform_app type=app_data_file levelFrom=user
+ user=_app isAutoPlayApp=true domain=autoplay_app type=autoplay_data_file levelFrom=all
+ user=_app isPrivApp=true domain=priv_app type=app_data_file levelFrom=user
+ user=_app domain=untrusted_app type=app_data_file levelFrom=user
++
++user=system seinfo=platform name=com.memfault.structuredlogd domain=memfault_structured_app type=system_app_data_file
+diff --git a/service.te b/service.te
+index 9a77ce2..24883fd 100644
+--- a/service.te
++++ b/service.te
+@@ -120,3 +120,5 @@ type wifip2p_service, app_api_service, system_server_service, service_manager_ty
+ type wifiscanner_service, system_api_service, system_server_service, service_manager_type;
+ type wifi_service, app_api_service, system_server_service, service_manager_type;
+ type window_service, system_api_service, system_server_service, service_manager_type;
++
++type memfault_structured_service, app_api_service, service_manager_type;
+diff --git a/service_contexts b/service_contexts
+index fffbd4d..6893026 100644
+--- a/service_contexts
++++ b/service_contexts
+@@ -81,6 +81,8 @@ media_projection                          u:object_r:media_projection_service:s0
+ media_resource_monitor                    u:object_r:media_session_service:s0
+ media_router                              u:object_r:media_router_service:s0
+ media_session                             u:object_r:media_session_service:s0
++memfault_dumpster                         u:object_r:memfault_dumpster_service:s0
++memfault_structured                       u:object_r:memfault_structured_service:s0
+ meminfo                                   u:object_r:meminfo_service:s0
+ midi                                      u:object_r:midi_service:s0
+ mount                                     u:object_r:mount_service:s0
+diff --git a/system_app.te b/system_app.te
+index 50320c5..33afefa 100644
+--- a/system_app.te
++++ b/system_app.te
+@@ -75,3 +75,6 @@ allow system_app sysfs_zram:dir search;
+ allow system_app sysfs_zram:file r_file_perms;
+ 
+ control_logd(system_app)
++
++# Allow system_app (usage reporter) to read memfault properties
++get_prop(system_app, memfault_prop)

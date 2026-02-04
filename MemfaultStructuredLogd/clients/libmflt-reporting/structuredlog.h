@@ -3,6 +3,7 @@
 #ifdef __cplusplus
 #include <string>
 #include <memory>
+#include <mutex>
 
 namespace memfault {
 

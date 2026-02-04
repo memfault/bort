@@ -14,12 +14,13 @@ okhttp = { module = "com.squareup.okhttp3:okhttp", version = "4.11.0" }
 okio = { module = "com.squareup.okio:okio", version = "3.4.0" }
 result = { module = "com.michael-bull.kotlin-result:kotlin-result", version = "1.1.17" }
 jackson = { module = "com.fasterxml.jackson.core:jackson-databind", version = "2.15.0" }
-zjsonpatch = { module = "com.flipkart.zjsonpatch:zjsonpatch", version = "0.4.14" }
+zjsonpatch = { module = "com.flipkart.zjsonpatch:zjsonpatch", version = "0.4.16" }
 leakcanary = { module = "com.squareup.leakcanary:leakcanary-android", version = "2.14" }
 
 # android
 android-activity = { module = "androidx.activity:activity-ktx", version = "1.9.0" }
 android-appcompat = { module = "androidx.appcompat:appcompat", version = "1.6.1" }
+android-desugar = { module = "com.android.tools:desugar_jdk_libs", version = "2.1.5" }
 android-fragment = { module = "androidx.fragment:fragment-ktx", version = "1.6.2" }
 android-lifecycle-service = { module = "androidx.lifecycle:lifecycle-service", version = "2.7.0" }
 android-material = { module = "com.google.android.material:material", version = "1.11.0" }

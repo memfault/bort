@@ -1,5 +1,6 @@
 package com.memfault.bort.ota
 
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.MenuItem
@@ -180,7 +181,9 @@ class CheckingForUpdatesFragment : Fragment() {
     fun setProgress(progress: Int) {
         if (this::progressBar.isInitialized) {
             progressBar.isIndeterminate = progress == -1
-            progressBar.min = 0
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                progressBar.min = 0
+            }
             progressBar.max = 100
             progressBar.progress = progress
         }
@@ -262,7 +265,9 @@ class FinalizingUpdateFragment : Fragment() {
     fun setProgress(progress: Int) {
         if (this::progressBar.isInitialized) {
             progressBar.isIndeterminate = progress == 0
-            progressBar.min = 0
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                progressBar.min = 0
+            }
             progressBar.max = 100
             progressBar.progress = progress
         }

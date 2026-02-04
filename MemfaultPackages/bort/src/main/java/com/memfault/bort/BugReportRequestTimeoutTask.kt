@@ -9,10 +9,10 @@ import androidx.work.workDataOf
 import com.memfault.bort.bugreport.BugReportRequestStatus
 import com.memfault.bort.bugreport.PendingBugReportRequestAccessor
 import com.memfault.bort.bugreport.broadcastReply
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.toJavaDuration
 
 private const val REQUEST_ID_INPUT_DATA_KEY = "request-id"
 private const val TIMEOUT_WORK_TAG = "BUG_REPORT_TIMEOUT"
@@ -55,7 +55,7 @@ class BugReportRequestTimeoutTask @Inject constructor(
                 ),
             ) {
                 addTag(TIMEOUT_WORK_TAG)
-                setInitialDelay(duration.toJavaDuration())
+                setInitialDelay(duration.inWholeMilliseconds, TimeUnit.MILLISECONDS)
             }.also { workRequest ->
                 WorkManager.getInstance(context)
                     .enqueueUniqueWork(

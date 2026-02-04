@@ -246,7 +246,9 @@ class MetricsCollectionTaskTest {
         batteryStatsCollector = batteryStatsCollector,
         crashHandler = crashHandler,
         clientRateLimitCollector = clientRateLimitCollector,
-        appStorageStatsCollector = appStorageStatsCollector,
+        appStorageStatsCollector = object : dagger.Lazy<AppStorageStatsCollector> {
+            override fun get(): AppStorageStatsCollector = appStorageStatsCollector
+        },
         databaseSizeCollector = databaseSizeCollector,
         deviceInfoProvider = deviceInfoProvider,
         everCollectedMetricsPreferenceProvider = everCollectedMetricsPreferenceProvider,

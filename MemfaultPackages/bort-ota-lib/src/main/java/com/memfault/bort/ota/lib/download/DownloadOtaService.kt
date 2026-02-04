@@ -123,7 +123,7 @@ class DownloadOtaService : LifecycleService() {
         notificationBuilder = setupForegroundNotification(this)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(NOTIFICATION_ID, notificationBuilder.build(), FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        } else {
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForeground(NOTIFICATION_ID, notificationBuilder.build())
         }
 
@@ -363,11 +363,14 @@ class DownloadOtaService : LifecycleService() {
             context: Context,
             url: String,
         ) {
-            context.startForegroundService(
-                Intent(context, DownloadOtaService::class.java).apply {
-                    putExtra(EXTRA_URL, url)
-                },
-            )
+            val intent = Intent(context, DownloadOtaService::class.java).apply {
+                putExtra(EXTRA_URL, url)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
         }
 
         private fun ensureNotificationChannel(context: Context) {

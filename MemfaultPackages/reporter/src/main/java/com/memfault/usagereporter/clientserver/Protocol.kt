@@ -1,5 +1,7 @@
 package com.memfault.usagereporter.clientserver
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.shared.Logger
@@ -43,6 +45,7 @@ import kotlin.time.Duration.Companion.seconds
  * - End marker: Long (8 bytes)
  *
  */
+@RequiresApi(Build.VERSION_CODES.O)
 sealed class BortMessage {
     protected abstract val messageType: Long
 
@@ -148,6 +151,7 @@ sealed class BortMessage {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 suspend fun AsynchronousByteChannel.writeMessage(message: BortMessage) = message.writeMessage(this)
 
 /**
@@ -157,12 +161,14 @@ suspend fun AsynchronousByteChannel.writeMessage(message: BortMessage) = message
  * - String bytes
  */
 
+@RequiresApi(Build.VERSION_CODES.O)
 private suspend fun AsynchronousByteChannel.readString(): String {
     val lenBuffer = readBuffer(4)
     val len = lenBuffer.getInt()
     return readBuffer(len).array().decodeToString()
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 private suspend fun AsynchronousByteChannel.writeString(string: String) {
     val nameBytes = string.encodeToByteArray()
     writeBytes(nameBytes.size + 4) {
@@ -178,6 +184,7 @@ private suspend fun AsynchronousByteChannel.writeString(string: String) {
  * - File bytes
  */
 
+@RequiresApi(Build.VERSION_CODES.O)
 private suspend fun AsynchronousByteChannel.readFileWithName(directory: File): File {
     val fileName = readString()
     val size = readBuffer(8).getLong()
@@ -208,6 +215,7 @@ private suspend fun AsynchronousByteChannel.readFileWithName(directory: File): F
 }
 
 @VisibleForTesting
+@RequiresApi(Build.VERSION_CODES.O)
 suspend fun AsynchronousByteChannel.writeFileWithName(file: File) {
     writeString(file.name)
     writeBytes(8) {
@@ -230,6 +238,7 @@ suspend fun AsynchronousByteChannel.writeFileWithName(file: File) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 private suspend fun AsynchronousByteChannel.readBuffer(len: Int) = cRead(len).apply { order(BIG_ENDIAN) }
 
 /**
@@ -238,6 +247,7 @@ private suspend fun AsynchronousByteChannel.readBuffer(len: Int) = cRead(len).ap
  * Wraps [ByteBuffer] configuration.
  */
 @VisibleForTesting
+@RequiresApi(Build.VERSION_CODES.O)
 suspend fun AsynchronousByteChannel.writeBytes(size: Int, block: ByteBuffer.() -> Unit) {
     val buffer = ByteBuffer.allocate(size)
     buffer.order(BIG_ENDIAN)

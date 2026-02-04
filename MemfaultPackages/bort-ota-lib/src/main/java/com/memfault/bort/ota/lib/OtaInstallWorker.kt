@@ -15,8 +15,8 @@ import com.memfault.bort.shared.NoOpJobReporter
 import com.memfault.bort.shared.runAndTrackExceptions
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.toJavaDuration
 
 /**
  * A periodic worker that triggers an OTA install/reboot.
@@ -95,7 +95,11 @@ class OtaInstallWorker @AssistedInject constructor(
             val request = OneTimeWorkRequestBuilder<OtaInstallWorker>().apply {
                 setConstraints(constraints)
                 addTag(SCHEDULED_INSTALL_WORK)
-                setBackoffCriteria(BackoffPolicy.LINEAR, 15.minutes.toJavaDuration())
+                setBackoffCriteria(
+                    BackoffPolicy.LINEAR,
+                    15.minutes.inWholeMilliseconds,
+                    TimeUnit.MILLISECONDS,
+                )
             }.build()
 
             WorkManager.getInstance(context)

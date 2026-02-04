@@ -4,16 +4,13 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := MemfaultDumpster
 LOCAL_MODULE_CLASS := EXECUTABLES
 LOCAL_SRC_FILES := \
-  ContinuousLogcatConfigProto.proto \
-  ContinuousLogcat.cpp \
   MemfaultDumpster.cpp \
   android-9/file.cpp
 LOCAL_C_INCLUDES += $(call local-generated-sources-dir)/proto/$(LOCAL_PATH)
-LOCAL_CFLAGS := -Werror -Wall -DPLATFORM_SDK_VERSION=$(PLATFORM_SDK_VERSION) -fstack-protector-all
+LOCAL_CFLAGS := -Werror -Wall -DPLATFORM_SDK_VERSION=$(PLATFORM_SDK_VERSION) -fstack-protector-all -Wno-unused-parameter
 ifeq ($(TARGET_BUILD_BORT_UNDER_TEST),1)
 LOCAL_CFLAGS += -DBORT_UNDER_TEST
 endif
-LOCAL_CPP_FLAGS := -Wno-unused-parameter -fstack-protector-all
 LOCAL_SHARED_LIBRARIES := \
   libbase \
   libbinder \
@@ -21,7 +18,6 @@ LOCAL_SHARED_LIBRARIES := \
   libdumpstateutil \
   libmemfault_dumpster_aidl \
   libutils \
-  libservices \
   libprotobuf-cpp-full \
   libmflt-reporting
 LOCAL_STATIC_LIBRARIES := liblog
@@ -77,3 +73,31 @@ LOCAL_PROTOC_OPTIMIZE_TYPE := full
 LOCAL_INIT_RC := memfault_dumpster.rc
 LOCAL_SYSTEM_EXT_MODULE := true
 include $(BUILD_EXECUTABLE)
+
+include $(CLEAR_VARS)
+
+# Module name
+LOCAL_MODULE := libmemfault_dumpster_aidl
+LOCAL_MODULE_CLASS := SHARED_LIBRARIES
+
+# Shared library dependencies
+LOCAL_SHARED_LIBRARIES := \
+    libbinder \
+    libutils
+
+# AIDL source files
+LOCAL_AIDL_INCLUDES := \
+    $(LOCAL_PATH) \
+    $(TOP)/frameworks/native/aidl/binder
+
+LOCAL_SRC_FILES := \
+    com/memfault/dumpster/IDumpsterBasicCommandListener.aidl \
+    com/memfault/dumpster/IDumpster.aidl
+
+aidl_include := $(call local-generated-sources-dir)/aidl-generated/include
+
+LOCAL_C_INCLUDES := $(aidl_include)
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(aidl_include)
+
+# Build as shared library
+include $(BUILD_SHARED_LIBRARY)
