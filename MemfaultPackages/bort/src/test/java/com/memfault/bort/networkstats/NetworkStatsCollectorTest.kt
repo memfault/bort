@@ -118,7 +118,10 @@ class NetworkStatsCollectorTest {
 
         collector.collectAndRecord(time(2.hours.inWholeMilliseconds), time(1.hours.inWholeMilliseconds))
 
-        dao.collectHeartbeat(endTimestampMs = 2.hours.inWholeMilliseconds).apply {
+        dao.collectHeartbeat(
+            endTimestampMs = 2.hours.inWholeMilliseconds,
+            endUptimeMs = 2.hours.inWholeMilliseconds,
+        ).apply {
             assertThat(hourlyHeartbeatReport).prop(MetricReport::metrics).isEmpty()
         }
     }
@@ -137,7 +140,12 @@ class NetworkStatsCollectorTest {
 
         collector.collectAndRecord(time(2.hours.inWholeMilliseconds), time(1.hours.inWholeMilliseconds))
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = 2.hours.inWholeMilliseconds)).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = 2.hours.inWholeMilliseconds,
+                endUptimeMs = 2.hours.inWholeMilliseconds,
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "connectivity_recv_bytes" to JsonPrimitive(40_000_000.0),
                 "connectivity_wifi_recv_bytes" to JsonPrimitive(10_000_000.0),
@@ -211,7 +219,12 @@ class NetworkStatsCollectorTest {
 
         collector.collectAndRecord(time(2.hours.inWholeMilliseconds), time(1.hours.inWholeMilliseconds))
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = 2.hours.inWholeMilliseconds)).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = 2.hours.inWholeMilliseconds,
+                endUptimeMs = 2.hours.inWholeMilliseconds,
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).containsOnly(
                     "connectivity_recv_bytes" to JsonPrimitive(0.0),
@@ -314,7 +327,12 @@ class NetworkStatsCollectorTest {
 
         collector.collectAndRecord(time(2.hours.inWholeMilliseconds), time(1.hours.inWholeMilliseconds))
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = 2.hours.inWholeMilliseconds)).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = 2.hours.inWholeMilliseconds,
+                endUptimeMs = 2.hours.inWholeMilliseconds,
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).containsOnly(
                     "connectivity_recv_bytes" to JsonPrimitive(4.0),
@@ -424,7 +442,12 @@ class NetworkStatsCollectorTest {
 
         collector.collectAndRecord(time(2.hours.inWholeMilliseconds), time(1.hours.inWholeMilliseconds))
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = 2.hours.inWholeMilliseconds)).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = 2.hours.inWholeMilliseconds,
+                endUptimeMs = 2.hours.inWholeMilliseconds,
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::internalMetrics).containsOnly(
                     "connectivity_comp_bort_recv_bytes" to JsonPrimitive(4_000.0),
@@ -485,7 +508,12 @@ class NetworkStatsCollectorTest {
             lastHeartbeatUptime = time(3.hours.inWholeMilliseconds),
         )
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = 4.hours.inWholeMilliseconds)).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = 4.hours.inWholeMilliseconds,
+                endUptimeMs = 2.hours.inWholeMilliseconds,
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).isEmpty()
         }
     }
@@ -514,7 +542,12 @@ class NetworkStatsCollectorTest {
 
         collector.collectAndRecord(time(2.hours.inWholeMilliseconds), time(1.hours.inWholeMilliseconds))
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = 2.hours.inWholeMilliseconds)).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = 2.hours.inWholeMilliseconds,
+                endUptimeMs = 2.hours.inWholeMilliseconds,
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).containsOnly(
                     "connectivity_recv_bytes" to JsonPrimitive(0.0),

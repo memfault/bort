@@ -73,6 +73,7 @@ class MemoryMetricsCollectorTest {
 
         val report = metricsDbTestEnvironment.dao.collectHeartbeat(
             endTimestampMs = System.currentTimeMillis(),
+            endUptimeMs = System.currentTimeMillis(),
         )
         assertThat(report.hourlyHeartbeatReport.metrics["memory_pct"]!!.double).isCloseTo(92.3, delta = 0.001)
         assertThat(report.hourlyHeartbeatReport.metrics["memory_pct_max"]!!.double).isCloseTo(92.9, delta = 0.001)
@@ -91,6 +92,7 @@ class MemoryMetricsCollectorTest {
 
         val report = metricsDbTestEnvironment.dao.collectHeartbeat(
             endTimestampMs = System.currentTimeMillis(),
+            endUptimeMs = System.currentTimeMillis(),
         )
         assertThat(report.hourlyHeartbeatReport.metrics).isEmpty()
     }

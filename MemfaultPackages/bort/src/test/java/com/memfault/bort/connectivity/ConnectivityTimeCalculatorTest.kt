@@ -22,6 +22,8 @@ class ConnectivityTimeCalculatorTest {
             ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
                 startTimestampMs = null,
                 endTimestampMs = null,
+                startUptimeMs = null,
+                endUptimeMs = null,
                 heartbeatReportMetrics = emptyMap(),
             ),
         ).isEmpty()
@@ -31,6 +33,8 @@ class ConnectivityTimeCalculatorTest {
                 startTimestampMs = 0,
                 endTimestampMs = 1.hours.inWholeMilliseconds,
                 heartbeatReportMetrics = emptyMap(),
+                startUptimeMs = 0,
+                endUptimeMs = 1.hours.inWholeMilliseconds,
             ),
         ).isEmpty()
 
@@ -38,6 +42,8 @@ class ConnectivityTimeCalculatorTest {
             ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
                 startTimestampMs = 0,
                 endTimestampMs = null,
+                startUptimeMs = 0,
+                endUptimeMs = null,
                 heartbeatReportMetrics = mapOf(
                     "connectivity.type_NONE.total_secs" to JsonPrimitive(3_600.0),
                 ),
@@ -48,6 +54,8 @@ class ConnectivityTimeCalculatorTest {
             ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
                 startTimestampMs = null,
                 endTimestampMs = 1.hours.inWholeMilliseconds,
+                startUptimeMs = null,
+                endUptimeMs = 1.hours.inWholeMilliseconds,
                 heartbeatReportMetrics = mapOf(
                     "connectivity.type_NONE.total_secs" to JsonPrimitive(3_600.0),
                 ),
@@ -59,6 +67,8 @@ class ConnectivityTimeCalculatorTest {
         val results = ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
             startTimestampMs = 0,
             endTimestampMs = 1.hours.inWholeMilliseconds,
+            startUptimeMs = 0,
+            endUptimeMs = 1.hours.inWholeMilliseconds,
             heartbeatReportMetrics = mapOf(
                 "connectivity.type_NONE.total_secs" to JsonPrimitive(3_600.0),
             ),
@@ -76,6 +86,8 @@ class ConnectivityTimeCalculatorTest {
         val results = ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
             startTimestampMs = 0,
             endTimestampMs = 30.minutes.inWholeMilliseconds,
+            startUptimeMs = 0,
+            endUptimeMs = 30.minutes.inWholeMilliseconds,
             heartbeatReportMetrics = mapOf(
                 "connectivity.type_NONE.total_secs" to JsonPrimitive(1_800.0),
             ),
@@ -93,6 +105,8 @@ class ConnectivityTimeCalculatorTest {
         val results = ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
             startTimestampMs = 0,
             endTimestampMs = 2.hours.inWholeMilliseconds,
+            startUptimeMs = 0,
+            endUptimeMs = 2.hours.inWholeMilliseconds,
             heartbeatReportMetrics = mapOf(
                 "connectivity.type_NONE.total_secs" to JsonPrimitive(900.0),
                 "connectivity.type_WIFI.total_secs" to JsonPrimitive(2_700.0),
@@ -111,6 +125,8 @@ class ConnectivityTimeCalculatorTest {
         val results = ConnectivityTimeCalculator().calculateConnectedTimeMetrics(
             startTimestampMs = 0,
             endTimestampMs = 1.hours.inWholeMilliseconds,
+            startUptimeMs = 0,
+            endUptimeMs = 1.hours.inWholeMilliseconds,
             heartbeatReportMetrics = mapOf(
                 "connectivity.type_UNKNOWN.total_secs" to JsonPrimitive(900.0),
                 "connectivity.type_WIFI.total_secs" to JsonPrimitive(900.0),

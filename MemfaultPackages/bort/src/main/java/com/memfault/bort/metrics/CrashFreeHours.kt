@@ -1,6 +1,7 @@
 package com.memfault.bort.metrics
 
 import android.content.SharedPreferences
+import android.os.SystemClock
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.reporting.ReportingClient.Counter
 import com.memfault.bort.settings.OperationalCrashesComponentGroupsProvider
@@ -56,13 +57,17 @@ class CrashFreeHoursMetricLogger @Inject constructor() {
     }
 
     fun incrementCrashes(componentName: String?, timestamp: Long) {
+        // TODO: we use stat on the dropbox file to know the timestamp, there is no
+        // good way to derive the uptime
+        val uptime = SystemClock.elapsedRealtime()
+
         if (componentName?.isNotBlank() == true) {
             Reporting.report()
                 .counter(name = "${OPERATIONAL_CRASHES_METRIC_KEY}_$componentName")
-                .increment(timestamp = timestamp)
+                .increment(timestamp = timestamp, uptime = uptime)
         } else {
             OPERATIONAL_CRASHES_METRIC
-                .increment(timestamp = timestamp)
+                .increment(timestamp = timestamp, uptime = uptime)
         }
     }
 

@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project currently does not attempt to adhere to Semantic Versioning, but
 breaking changes are avoided unless absolutely necessary.
 
+## v5.7.0 - March 10, 2026
+
+### :rocket: New Features
+
+- Added support for [Android 16](https://github.com/memfault/bort/tree/master).
+- Added `uptime` (elapsed realtime since device start) and `boot_id` to metrics
+  and reports.
+- Introduces optional uptime-based timestamp adjustment in metric aggregation
+  and HRT, controlled by the new `useUptimeTimeAdjustment` SDK setting.
+- SDK API: previous metric recording methods that only accepted a timestamp are
+  deprecated. Updated variants accept both a timestamp and an uptime. Existing
+  call-sites continue to work and will automatically include the current uptime.
+
+### :construction: Fixes
+
+- Fixed Logs2Metrics not matching logcat entries with an empty/null tag. System
+  components commonly omit the tag, so empty string and null are now treated
+  equivalently.
+- Fixed diskstats block size calculation that caused written-bytes metrics to be
+  over-reported by 8×. Kernel diskstats always uses 512-byte blocks regardless
+  of the hardware sector size.
+
 ## v5.6.0 - February 4, 2026
 
 ### :rocket: New Features

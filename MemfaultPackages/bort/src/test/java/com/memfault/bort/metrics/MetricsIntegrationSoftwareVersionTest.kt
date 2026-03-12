@@ -44,7 +44,12 @@ class MetricsIntegrationSoftwareVersionTest {
 
     @Test
     fun checkEmptyReportSoftwareVersion() = runTest {
-        assertThat(dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis())).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = System.currentTimeMillis(),
+                endUptimeMs = System.currentTimeMillis(),
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport)
                 .prop(MetricReport::softwareVersion)
                 .isNull()
@@ -68,7 +73,12 @@ class MetricsIntegrationSoftwareVersionTest {
             .prop(DbReport::softwareVersion)
             .isEqualTo("1")
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis())).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = System.currentTimeMillis(),
+                endUptimeMs = System.currentTimeMillis(),
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport)
                 .prop(MetricReport::softwareVersion)
                 .isEqualTo("1")
@@ -94,6 +104,7 @@ class MetricsIntegrationSoftwareVersionTest {
         assertThat(
             dao.collectHeartbeat(
                 endTimestampMs = System.currentTimeMillis(),
+                endUptimeMs = System.currentTimeMillis(),
                 forceEndAllReports = true,
             ),
         ).all {

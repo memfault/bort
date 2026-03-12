@@ -16,10 +16,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalStdlibApi::class)
 @ContributesMultibinding(scope = SingletonComponent::class)
 class BluetoothDeviceRssiReportedEventMetricListener @Inject constructor() : StatsdEventMetricListener {
-    override fun reportEventMetric(
-        eventTimestampMillis: Long,
-        atom: Atom,
-    ) {
+    override fun reportEventMetric(eventTimestampMillis: Long, eventElapsedRealtimeMillis: Long, atom: Atom) {
         if (atom.bluetooth_device_rssi_reported != null) {
             val rssiEvent = atom.bluetooth_device_rssi_reported
 
@@ -29,7 +26,7 @@ class BluetoothDeviceRssiReportedEventMetricListener @Inject constructor() : Sta
                 Reporting.report().distribution(
                     name = BLUETOOTH_DEVICE_RSSI_DISTRIBUTION,
                     aggregations = listOf(MEAN, MIN, MAX),
-                ).record(rssi.toDouble(), timestamp = eventTimestampMillis)
+                ).record(rssi.toDouble(), timestamp = eventTimestampMillis, uptime = eventElapsedRealtimeMillis)
 
                 val obfuscatedId = rssiEvent.obfuscated_id?.toByteArray()?.toHexString().orEmpty()
                 Reporting.report().event(

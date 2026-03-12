@@ -72,6 +72,9 @@ class MetricsCollectionTaskTest {
     private val mockSession = MetricReport(
         startTimestampMs = sessionStartMs,
         endTimestampMs = sessionEndMs,
+        startUptimeMs = sessionStartMs,
+        endUptimeMs = sessionEndMs,
+        bootId = "",
         metrics = emptyMap(),
         internalMetrics = emptyMap(),
         reportName = "test-session",
@@ -84,6 +87,9 @@ class MetricsCollectionTaskTest {
     private val mockHourlyReport = MetricReport(
         startTimestampMs = 0L,
         endTimestampMs = collectionTimeMs,
+        startUptimeMs = 0L,
+        endUptimeMs = collectionTimeMs,
+        bootId = "",
         metrics = emptyMap(),
         internalMetrics = emptyMap(),
         softwareVersion = null,

@@ -99,26 +99,24 @@ class SystemPropertiesCollectorTest {
         )
         collector.collect()?.let { collector.record(it, store) }
         coVerify(exactly = 1) {
-            store.upsert(name = "sysprop.a", value = "a", internal = false, timestamp = any())
-            store.upsert(name = "sysprop.c", value = "c", internal = false, timestamp = any())
-            store.upsert(name = "sysprop.1", value = 1L, internal = false, timestamp = any())
-            store.upsert(name = "sysprop.1.2", value = 1.2, internal = false, timestamp = any())
-            store.upsert(name = "sysprop.1.3", value = "1.3", internal = false, timestamp = any())
-            store.upsert(name = "sysprop.true", value = true, internal = false, timestamp = any())
+            store.upsert(name = "sysprop.a", value = "a", internal = false)
+            store.upsert(name = "sysprop.c", value = "c", internal = false)
+            store.upsert(name = "sysprop.1", value = 1L, internal = false)
+            store.upsert(name = "sysprop.1.2", value = 1.2, internal = false)
+            store.upsert(name = "sysprop.1.3", value = "1.3", internal = false)
+            store.upsert(name = "sysprop.true", value = true, internal = false)
             store.upsert(
                 name = "sysprop.vendor.memfault.bort.version.sdk",
                 value = "4.0",
                 internal = true,
-                timestamp = any(),
             )
             store.upsert(
                 name = "sysprop.vendor.memfault.bort.version.patch",
                 value = "4.1",
                 internal = true,
-                timestamp = any(),
             )
-            store.upsert(name = "sysprop.notypelisted", value = "notype", internal = false, timestamp = any())
-            store.upsert(name = "phone.imei", value = deviceImei, timestamp = any())
+            store.upsert(name = "sysprop.notypelisted", value = "notype", internal = false)
+            store.upsert(name = "phone.imei", value = deviceImei)
         }
     }
 }

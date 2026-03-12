@@ -77,7 +77,7 @@ class UsageStatsCollectorTest {
         events.add(TestEvent(DEVICE_STARTUP, 3L.toAbsoluteTime(), "android"))
         events.add(TestEvent(FOREGROUND_SERVICE_START, 4L.toAbsoluteTime(), "android"))
         collector.collectUsageStats(from = 1L.toAbsoluteTime(), to = 4L.toAbsoluteTime())
-        assertThat(metrics.collectHeartbeat(endTimestampMs = 4)).all {
+        assertThat(metrics.collectHeartbeat(endTimestampMs = 4, endUptimeMs = 40)).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).isEmpty()
 
@@ -111,7 +111,7 @@ class UsageStatsCollectorTest {
         events.add(TestEvent(DEVICE_STARTUP, 3L.toAbsoluteTime(), "android"))
         events.add(TestEvent(FOREGROUND_SERVICE_START, 4L.toAbsoluteTime(), "android"))
         collector.collectUsageStats(null, to = 4L.toAbsoluteTime())
-        assertThat(metrics.collectHeartbeat(endTimestampMs = 4)).all {
+        assertThat(metrics.collectHeartbeat(endTimestampMs = 4, endUptimeMs = 40)).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).isEmpty()
 

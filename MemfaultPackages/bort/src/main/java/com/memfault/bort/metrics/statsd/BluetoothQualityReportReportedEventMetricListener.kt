@@ -15,10 +15,7 @@ import javax.inject.Inject
  */
 @ContributesMultibinding(scope = SingletonComponent::class)
 class BluetoothQualityReportReportedEventMetricListener @Inject constructor() : StatsdEventMetricListener {
-    override fun reportEventMetric(
-        eventTimestampMillis: Long,
-        atom: Atom,
-    ) {
+    override fun reportEventMetric(eventTimestampMillis: Long, eventElapsedRealtimeMillis: Long, atom: Atom) {
         if (atom.bluetooth_quality_report_reported != null) {
             val qualityReport = atom.bluetooth_quality_report_reported
 
@@ -27,7 +24,7 @@ class BluetoothQualityReportReportedEventMetricListener @Inject constructor() : 
                 Reporting.report().distribution(
                     name = BLUETOOTH_QUALITY_REPORT_RSSI_DISTRIBUTION,
                     aggregations = listOf(MEAN, MIN, MAX),
-                ).record(rssi.toDouble(), timestamp = eventTimestampMillis)
+                ).record(rssi.toDouble(), timestamp = eventTimestampMillis, uptime = eventElapsedRealtimeMillis)
             }
 
             val snr = qualityReport.snr
@@ -35,7 +32,7 @@ class BluetoothQualityReportReportedEventMetricListener @Inject constructor() : 
                 Reporting.report().distribution(
                     name = BLUETOOTH_QUALITY_REPORT_SNR_DISTRIBUTION,
                     aggregations = listOf(MEAN, MIN, MAX),
-                ).record(snr.toDouble(), timestamp = eventTimestampMillis)
+                ).record(snr.toDouble(), timestamp = eventTimestampMillis, uptime = eventElapsedRealtimeMillis)
             }
 
             val retransmissionCount = qualityReport.retransmission_count
@@ -43,13 +40,17 @@ class BluetoothQualityReportReportedEventMetricListener @Inject constructor() : 
                 Reporting.report().distribution(
                     name = BLUETOOTH_QUALITY_REPORT_RETRANSMISSION_COUNT_DISTRIBUTION,
                     aggregations = listOf(MEAN, MAX, SUM),
-                ).record(retransmissionCount.toDouble(), timestamp = eventTimestampMillis)
+                ).record(
+                    retransmissionCount.toDouble(),
+                    timestamp = eventTimestampMillis,
+                    uptime = eventElapsedRealtimeMillis,
+                )
             }
 
             Reporting.report().event(
                 name = BLUETOOTH_QUALITY_REPORT_REPORTED_EVENT,
                 latestInReport = true,
-            ).add(value = qualityReport.toString(), eventTimestampMillis)
+            ).add(value = qualityReport.toString(), eventTimestampMillis, uptime = eventElapsedRealtimeMillis)
         }
     }
 

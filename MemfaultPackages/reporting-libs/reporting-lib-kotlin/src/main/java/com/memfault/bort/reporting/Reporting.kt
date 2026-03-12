@@ -2,6 +2,7 @@ package com.memfault.bort.reporting
 
 import android.app.Application
 import android.content.Context
+import android.os.SystemClock
 import com.memfault.bort.reporting.DataType.DOUBLE
 import com.memfault.bort.reporting.DataType.STRING
 import com.memfault.bort.reporting.MetricType.COUNTER
@@ -19,6 +20,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutorService
 
 private fun timestamp(): Long = System.currentTimeMillis()
+private fun uptime(): Long = SystemClock.elapsedRealtime()
 
 /**
  * Common interface for the Memfault Reporting library.
@@ -152,6 +154,7 @@ public class ReportingClient @JvmOverloads constructor(
     ): CompletableFuture<Boolean> = remoteMetricsService.startReport(
         StartReport(
             timestampMs,
+            uptime(),
             REPORTING_CLIENT_VERSION,
             SESSION_REPORT,
             name,
@@ -168,6 +171,7 @@ public class ReportingClient @JvmOverloads constructor(
     ): CompletableFuture<Boolean> = remoteMetricsService.finishReport(
         FinishReport(
             timestampMs,
+            uptime(),
             REPORTING_CLIENT_VERSION,
             SESSION_REPORT,
             /** startNextReport */
@@ -182,31 +186,49 @@ public class ReportingClient @JvmOverloads constructor(
         remoteMetricsService: RemoteMetricsService,
         reportName: String,
     ) : Report(remoteMetricsService = remoteMetricsService, reportType = SESSION_REPORT, reportName = reportName) {
-        @JvmOverloads
+        public fun start(): CompletableFuture<Boolean> = start(timestamp(), uptime())
+
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("start(timestamp, uptime)"),
+        )
         public fun start(
-            timestampMs: Long = timestamp(),
+            timestampMs: Long,
+        ): CompletableFuture<Boolean> = start(timestampMs, uptime())
+
+        public fun start(
+            timestampMs: Long,
+            uptimeMs: Long,
         ): CompletableFuture<Boolean> = remoteMetricsService.startReport(
             StartReport(
                 timestampMs,
+                uptimeMs,
                 REPORTING_CLIENT_VERSION,
                 SESSION_REPORT,
                 reportName,
             ),
         )
 
-        @JvmOverloads
-        public fun finish(
-            timestampMs: Long = timestamp(),
-        ): CompletableFuture<Boolean> = remoteMetricsService.finishReport(
-            FinishReport(
-                timestampMs,
-                REPORTING_CLIENT_VERSION,
-                SESSION_REPORT,
-                /** startNextReport */
-                false,
-                reportName,
-            ),
+        public fun finish(): CompletableFuture<Boolean> = finish(timestamp(), uptime())
+
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("finish(timestamp, uptime)"),
         )
+        public fun finish(timestampMs: Long): CompletableFuture<Boolean> = finish(timestampMs, uptime())
+
+        public fun finish(timestampMs: Long, uptimeMs: Long): CompletableFuture<Boolean> =
+            remoteMetricsService.finishReport(
+                FinishReport(
+                    timestampMs,
+                    uptimeMs,
+                    REPORTING_CLIENT_VERSION,
+                    SESSION_REPORT,
+                    /** startNextReport */
+                    false,
+                    reportName,
+                ),
+            )
     }
 
     public class HeartbeatReport internal constructor(
@@ -462,6 +484,7 @@ public class ReportingClient @JvmOverloads constructor(
 
         protected fun add(
             timeMs: Long,
+            uptimeMs: Long,
             stringVal: String? = null,
             numberVal: Double? = null,
             boolVal: Boolean? = null,
@@ -477,6 +500,7 @@ public class ReportingClient @JvmOverloads constructor(
                     dataType,
                     carryOverValue,
                     timeMs,
+                    uptimeMs,
                     stringVal,
                     numberVal,
                     boolVal,
@@ -500,12 +524,27 @@ public class ReportingClient @JvmOverloads constructor(
         override val dataType = STRING
         override val carryOverValue = true
 
-        @JvmOverloads
         public fun update(
             value: String?,
-            timestamp: Long = timestamp(),
         ): CompletableFuture<Void> =
-            add(timeMs = timestamp, stringVal = value ?: "")
+            add(timeMs = timestamp(), uptimeMs = uptime(), stringVal = value ?: "")
+
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("update(value, timestamp, uptime)"),
+        )
+        public fun update(
+            value: String?,
+            timestamp: Long,
+        ): CompletableFuture<Void> =
+            add(timeMs = timestamp, uptimeMs = uptime(), stringVal = value ?: "")
+
+        public fun update(
+            value: String?,
+            timestamp: Long,
+            uptime: Long,
+        ): CompletableFuture<Void> =
+            add(timeMs = timestamp, uptimeMs = uptime, stringVal = value ?: "")
     }
 
     public data class NumberProperty internal constructor(
@@ -521,60 +560,94 @@ public class ReportingClient @JvmOverloads constructor(
         override val dataType = DOUBLE
         override val carryOverValue = true
 
-        @JvmOverloads
         public fun update(
-            value: Double,
-            timestamp: Long = timestamp(),
+            value: Number,
         ): CompletableFuture<Void> =
-            add(timeMs = timestamp, numberVal = value)
+            add(timeMs = timestamp(), uptimeMs = uptime(), numberVal = value.toDouble())
 
-        @JvmOverloads
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("update(value, timestamp, uptime)"),
+        )
         public fun update(
-            value: Float,
-            timestamp: Long = timestamp(),
+            value: Number,
+            timestamp: Long,
         ): CompletableFuture<Void> =
-            add(timeMs = timestamp, numberVal = value.toDouble())
+            add(timeMs = timestamp, uptimeMs = uptime(), numberVal = value.toDouble())
 
-        @JvmOverloads
         public fun update(
-            value: Long,
-            timestamp: Long = timestamp(),
+            value: Number,
+            timestamp: Long,
+            uptime: Long,
         ): CompletableFuture<Void> =
-            add(timeMs = timestamp, numberVal = value.toDouble())
+            add(timeMs = timestamp, uptimeMs = uptime, numberVal = value.toDouble())
 
-        @JvmOverloads
-        public fun update(
-            value: Int,
-            timestamp: Long = timestamp(),
-        ): CompletableFuture<Void> =
-            add(timeMs = timestamp, numberVal = value.toDouble())
-
-        @JvmOverloads
         public fun update(
             value: Boolean,
-            timestamp: Long = timestamp(),
         ): CompletableFuture<Void> =
-            add(timeMs = timestamp, numberVal = value.asNumber())
+            add(timeMs = timestamp(), uptimeMs = uptime(), numberVal = value.asNumber())
+
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("update(value, timestamp, uptime)"),
+        )
+        public fun update(
+            value: Boolean,
+            timestamp: Long,
+        ): CompletableFuture<Void> =
+            add(timeMs = timestamp, uptimeMs = uptime(), numberVal = value.asNumber())
+
+        public fun update(
+            value: Boolean,
+            timestamp: Long,
+            uptime: Long,
+        ): CompletableFuture<Void> =
+            add(timeMs = timestamp, uptimeMs = uptime, numberVal = value.asNumber())
     }
 
     public class SuccessOrFailure internal constructor(
         private val successCounter: Counter,
         private val failureCounter: Counter,
     ) {
+        public fun record(successful: Boolean): CompletableFuture<Void> =
+            record(successful, timestamp(), uptime())
+
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("record(successful, timestamp, uptime)"),
+        )
+        public fun record(successful: Boolean, timestamp: Long): CompletableFuture<Void> =
+            record(successful, timestamp, uptime())
+
         public fun record(
             successful: Boolean,
-            timestamp: Long = timestamp(),
+            timestamp: Long,
+            uptime: Long,
         ): CompletableFuture<Void> = if (successful) {
-            success(timestamp = timestamp)
+            success(timestamp = timestamp, uptime = uptime)
         } else {
-            failure(timestamp = timestamp)
+            failure(timestamp = timestamp, uptime = uptime)
         }
 
-        public fun success(timestamp: Long = timestamp()): CompletableFuture<Void> =
-            successCounter.increment(timestamp = timestamp)
+        public fun success(): CompletableFuture<Void> = success(timestamp(), uptime())
 
-        public fun failure(timestamp: Long = timestamp()): CompletableFuture<Void> =
-            failureCounter.increment(timestamp = timestamp)
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("success(timestamp, uptime)"),
+        )
+        public fun success(timestamp: Long): CompletableFuture<Void> = success(timestamp, uptime())
+        public fun success(timestamp: Long, uptime: Long): CompletableFuture<Void> =
+            successCounter.increment(timestamp = timestamp, uptime = uptime)
+
+        public fun failure(): CompletableFuture<Void> = failure(timestamp(), uptime())
+
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("failure(timestamp, uptime)"),
+        )
+        public fun failure(timestamp: Long): CompletableFuture<Void> = failure(timestamp, uptime())
+        public fun failure(timestamp: Long, uptime: Long): CompletableFuture<Void> =
+            failureCounter.increment(timestamp = timestamp, uptime = uptime)
     }
 
     public data class Counter internal constructor(
@@ -590,23 +663,45 @@ public class ReportingClient @JvmOverloads constructor(
         override val dataType = DOUBLE
         override val carryOverValue = false
 
-        @JvmOverloads
         public fun incrementBy(
-            byDouble: Double = 1.0,
-            timestamp: Long = timestamp(),
-        ): CompletableFuture<Void> = add(timeMs = timestamp, numberVal = byDouble)
+            by: Number = 1.0,
+        ): CompletableFuture<Void> = add(timeMs = timestamp(), uptimeMs = uptime(), numberVal = by.toDouble())
 
-        @JvmName("incrementByInt")
-        @JvmOverloads
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("incrementBy(value, timestamp, uptime)"),
+        )
         public fun incrementBy(
-            by: Int = 1,
-            timestamp: Long = timestamp(),
-        ): CompletableFuture<Void> = add(timeMs = timestamp, numberVal = by.toDouble())
+            by: Number = 1.0,
+            timestamp: Long,
+        ): CompletableFuture<Void> = add(timeMs = timestamp, uptimeMs = uptime(), numberVal = by.toDouble())
 
-        @JvmOverloads
-        public fun increment(timestamp: Long = timestamp()): CompletableFuture<Void> = incrementBy(
+        public fun incrementBy(
+            by: Number = 1.0,
+            timestamp: Long,
+            uptime: Long,
+        ): CompletableFuture<Void> = add(timeMs = timestamp, uptimeMs = uptime, numberVal = by.toDouble())
+
+        public fun increment(): CompletableFuture<Void> = incrementBy(
+            1,
+            timestamp = timestamp(),
+            uptime = uptime(),
+        )
+
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("increment(timestamp, uptime)"),
+        )
+        public fun increment(timestamp: Long): CompletableFuture<Void> = incrementBy(
             1,
             timestamp = timestamp,
+            uptime = uptime(),
+        )
+
+        public fun increment(timestamp: Long, uptime: Long): CompletableFuture<Void> = incrementBy(
+            1,
+            timestamp = timestamp,
+            uptime = uptime,
         )
     }
 
@@ -622,12 +717,29 @@ public class ReportingClient @JvmOverloads constructor(
         override val dataType = STRING
         override val carryOverValue = true
 
-        @JvmOverloads
         public fun state(
             state: T?,
-            timestamp: Long = timestamp(),
         ) {
-            add(timeMs = timestamp, stringVal = state?.name ?: "")
+            add(timeMs = timestamp(), uptimeMs = uptime(), stringVal = state?.name ?: "")
+        }
+
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("state(S, timestamp, uptime)"),
+        )
+        public fun state(
+            state: T?,
+            timestamp: Long,
+        ) {
+            add(timeMs = timestamp, uptimeMs = uptime(), stringVal = state?.name ?: "")
+        }
+
+        public fun state(
+            state: T?,
+            timestamp: Long,
+            uptime: Long,
+        ) {
+            add(timeMs = timestamp, uptimeMs = uptime, stringVal = state?.name ?: "")
         }
     }
 
@@ -643,12 +755,29 @@ public class ReportingClient @JvmOverloads constructor(
         override val dataType = STRING
         override val carryOverValue = true
 
-        @JvmOverloads
         public fun state(
             state: String?,
-            timestamp: Long = timestamp(),
         ) {
-            add(timeMs = timestamp, stringVal = state ?: "")
+            add(timeMs = timestamp(), uptimeMs = uptime(), stringVal = state ?: "")
+        }
+
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("state(S, timestamp, uptime)"),
+        )
+        public fun state(
+            state: String?,
+            timestamp: Long,
+        ) {
+            add(timeMs = timestamp, uptimeMs = uptime(), stringVal = state ?: "")
+        }
+
+        public fun state(
+            state: String?,
+            timestamp: Long,
+            uptime: Long,
+        ) {
+            add(timeMs = timestamp, uptimeMs = uptime, stringVal = state ?: "")
         }
     }
 
@@ -664,12 +793,29 @@ public class ReportingClient @JvmOverloads constructor(
         override val dataType = DataType.BOOLEAN
         override val carryOverValue = true
 
-        @JvmOverloads
         public fun state(
             state: Boolean,
-            timestamp: Long = timestamp(),
         ) {
-            add(timeMs = timestamp, boolVal = state)
+            add(timeMs = timestamp(), uptimeMs = uptime(), boolVal = state)
+        }
+
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("state(S, timestamp, uptime)"),
+        )
+        public fun state(
+            state: Boolean,
+            timestamp: Long,
+        ) {
+            add(timeMs = timestamp, uptimeMs = uptime(), boolVal = state)
+        }
+
+        public fun state(
+            state: Boolean,
+            timestamp: Long,
+            uptime: Long,
+        ) {
+            add(timeMs = timestamp, uptimeMs = uptime, boolVal = state)
         }
     }
 
@@ -685,20 +831,29 @@ public class ReportingClient @JvmOverloads constructor(
         override val dataType = DOUBLE
         override val carryOverValue = false
 
-        @JvmOverloads
         public fun record(
-            value: Double,
-            timestamp: Long = timestamp(),
+            value: Number,
         ) {
-            add(timeMs = timestamp, numberVal = value)
+            add(timeMs = timestamp(), uptimeMs = uptime(), numberVal = value.toDouble())
         }
 
-        @JvmOverloads
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("record(value, timestamp, uptime)"),
+        )
         public fun record(
-            value: Long,
-            timestamp: Long = timestamp(),
+            value: Number,
+            timestamp: Long,
         ) {
-            add(timeMs = timestamp, numberVal = value.toDouble())
+            add(timeMs = timestamp, uptimeMs = uptime(), numberVal = value.toDouble())
+        }
+
+        public fun record(
+            value: Number,
+            timestamp: Long,
+            uptime: Long,
+        ) {
+            add(timeMs = timestamp, uptimeMs = uptime, numberVal = value.toDouble())
         }
     }
 
@@ -719,11 +874,24 @@ public class ReportingClient @JvmOverloads constructor(
             if (latestInReport) StateAgg.LATEST_VALUE else null,
         )
 
-        @JvmOverloads
         public fun add(
             value: String,
-            timestamp: Long = timestamp(),
-        ): CompletableFuture<Void> = add(timeMs = timestamp, stringVal = value)
+        ): CompletableFuture<Void> = add(timeMs = timestamp(), uptimeMs = uptime(), stringVal = value)
+
+        @Deprecated(
+            message = "Consider passing an uptime in addition to the timestamp or the current uptime will be used",
+            replaceWith = ReplaceWith("add(value, timestamp, uptime)"),
+        )
+        public fun add(
+            value: String,
+            timestamp: Long,
+        ): CompletableFuture<Void> = add(timeMs = timestamp, uptimeMs = uptime(), stringVal = value)
+
+        public fun add(
+            value: String,
+            timestamp: Long,
+            uptime: Long,
+        ): CompletableFuture<Void> = add(timeMs = timestamp, uptimeMs = uptime, stringVal = value)
     }
 }
 

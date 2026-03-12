@@ -11,14 +11,18 @@ import javax.inject.Inject
 
 @ContributesMultibinding(scope = SingletonComponent::class)
 class WifiScanReportedEventMetricListener @Inject constructor() : StatsdEventMetricListener {
-    override fun reportEventMetric(eventTimestampMillis: Long, atom: Atom) {
+    override fun reportEventMetric(eventTimestampMillis: Long, eventElapsedRealtimeMillis: Long, atom: Atom) {
         if (atom.wifi_scan_reported != null) {
             val foundNetworks = atom.wifi_scan_reported.count_networks_found ?: return
             Reporting.report()
                 .distribution(
                     name = METRIC_NAME,
                     aggregations = listOf(MEAN, COUNT, LATEST_VALUE),
-                ).record(value = foundNetworks.toLong(), timestamp = eventTimestampMillis)
+                ).record(
+                    value = foundNetworks.toLong(),
+                    timestamp = eventTimestampMillis,
+                    uptime = eventElapsedRealtimeMillis,
+                )
         }
     }
 

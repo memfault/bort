@@ -1,5 +1,6 @@
 package com.memfault.bort.java.reporting;
 
+import android.os.SystemClock;
 import com.memfault.bort.reporting.AggregationType;
 import com.memfault.bort.reporting.DataType;
 import com.memfault.bort.reporting.MetricType;
@@ -34,31 +35,52 @@ public abstract class Metric {
     this.reportName = reportName;
   }
 
+  @Deprecated
   void addMetric(String stringVal, Long timeMs) {
+    addMetric(stringVal, timeMs, MetricValue.INVALID_UPTIME);
+  }
+
+  void addMetric(String stringVal, Long timeMs, Long uptimeMs) {
     dataType.verifyValueType(stringVal);
     remoteMetricsService.record(new MetricValue(
         eventName, reportType, aggregations, false, metricType, dataType, carryOverValue,
-        timeMs, stringVal, null, null, REPORTING_CLIENT_VERSION, reportName)
+        timeMs, uptimeMs, stringVal, null, null, REPORTING_CLIENT_VERSION,
+        reportName)
     );
   }
 
+  @Deprecated
   void addMetric(Double numberVal, Long timeMs) {
+    addMetric(numberVal, timeMs, MetricValue.INVALID_UPTIME);
+  }
+
+  void addMetric(Double numberVal, Long timeMs, Long uptimeMs) {
     dataType.verifyValueType(numberVal);
     remoteMetricsService.record(new MetricValue(
         eventName, reportType, aggregations, false, metricType, dataType, carryOverValue,
-        timeMs, null, numberVal, null, REPORTING_CLIENT_VERSION, reportName)
+        timeMs, uptimeMs, null, numberVal, null, REPORTING_CLIENT_VERSION, reportName)
     );
   }
 
+  @Deprecated
   void addMetric(Boolean boolVal, Long timeMs) {
+    addMetric(boolVal, timeMs, MetricValue.INVALID_UPTIME);
+  }
+
+  void addMetric(Boolean boolVal, Long timeMs, Long uptimeMs) {
     dataType.verifyValueType(boolVal);
     remoteMetricsService.record(new MetricValue(
         eventName, reportType, aggregations, false, metricType, dataType, carryOverValue,
-        timeMs, null, null, boolVal, REPORTING_CLIENT_VERSION, reportName)
+        timeMs, uptimeMs, null, null, boolVal, REPORTING_CLIENT_VERSION,
+        reportName)
     );
   }
 
   static Long timestamp() {
     return System.currentTimeMillis();
+  }
+
+  static Long uptime() {
+    return SystemClock.elapsedRealtime();
   }
 }

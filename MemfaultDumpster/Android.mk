@@ -49,7 +49,9 @@ ifeq ($(call math_gt_or_eq, $(PLATFORM_SDK_VERSION), 30), true)
 
     # Health HAL NDK is used to wrap HIDL health HALs, but has different versions depending on the
     # platform release ids
-    ifeq ($(call math_gt_or_eq, $(PLATFORM_SDK_VERSION), 35), true)
+    ifeq ($(call math_gt_or_eq, $(PLATFORM_SDK_VERSION), 36), true)
+        LOCAL_SHARED_LIBRARIES += android.hardware.health-V4-ndk
+    else ifeq ($(call math_gt_or_eq, $(PLATFORM_SDK_VERSION), 35), true)
       # Android 15 has three point releases (AP3A, AP4A and BP1A) and the health hal NDK
       # version differs between them
       ifeq ($(findstring BP1A,$(BUILD_ID)),BP1A)

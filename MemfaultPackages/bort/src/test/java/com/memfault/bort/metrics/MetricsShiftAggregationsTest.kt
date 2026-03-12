@@ -45,15 +45,15 @@ class MetricsShiftAggregationsTest {
 
         val now = System.currentTimeMillis()
 
-        stateTracker.state(true, timestamp = now)
-        stateTracker.state(false, timestamp = now + 5.minutesMs)
-        stateTracker.state(true, timestamp = now + 15.minutesMs)
-        stateTracker.state(false, timestamp = now + 20.minutesMs)
-        stateTracker.state(true, timestamp = now + 30.minutesMs)
-        stateTracker.state(false, timestamp = now + 35.minutesMs)
-        stateTracker.state(true, timestamp = now + 45.minutesMs)
+        stateTracker.state(true, timestamp = now, uptime = now)
+        stateTracker.state(false, timestamp = now + 5.minutesMs, uptime = now + 5.minutesMs)
+        stateTracker.state(true, timestamp = now + 15.minutesMs, uptime = now + 15.minutesMs)
+        stateTracker.state(false, timestamp = now + 20.minutesMs, uptime = now + 20.minutesMs)
+        stateTracker.state(true, timestamp = now + 30.minutesMs, uptime = now + 30.minutesMs)
+        stateTracker.state(false, timestamp = now + 35.minutesMs, uptime = now + 35.minutesMs)
+        stateTracker.state(true, timestamp = now + 45.minutesMs, uptime = now + 45.minutesMs)
 
-        val report = dao.collectHeartbeat(endTimestampMs = now + 45.minutesMs)
+        val report = dao.collectHeartbeat(endTimestampMs = now + 45.minutesMs, endUptimeMs = now + 45.minutesMs)
 
         assertThat(report.hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
             "state_1.total_secs" to JsonPrimitive(15.minutes.inWholeSeconds),
@@ -69,15 +69,15 @@ class MetricsShiftAggregationsTest {
 
         val now = System.currentTimeMillis()
 
-        stateTracker.state(NumericAgg.MIN, timestamp = now)
-        stateTracker.state(NumericAgg.MAX, timestamp = now + 5.minutesMs)
-        stateTracker.state(NumericAgg.MIN, timestamp = now + 15.minutesMs)
-        stateTracker.state(NumericAgg.MAX, timestamp = now + 20.minutesMs)
-        stateTracker.state(NumericAgg.MIN, timestamp = now + 30.minutesMs)
-        stateTracker.state(NumericAgg.MAX, timestamp = now + 35.minutesMs)
-        stateTracker.state(NumericAgg.MIN, timestamp = now + 45.minutesMs)
+        stateTracker.state(NumericAgg.MIN, timestamp = now, uptime = now)
+        stateTracker.state(NumericAgg.MAX, timestamp = now + 5.minutesMs, uptime = now + 5.minutesMs)
+        stateTracker.state(NumericAgg.MIN, timestamp = now + 15.minutesMs, uptime = now + 15.minutesMs)
+        stateTracker.state(NumericAgg.MAX, timestamp = now + 20.minutesMs, uptime = now + 20.minutesMs)
+        stateTracker.state(NumericAgg.MIN, timestamp = now + 30.minutesMs, uptime = now + 30.minutesMs)
+        stateTracker.state(NumericAgg.MAX, timestamp = now + 35.minutesMs, uptime = now + 35.minutesMs)
+        stateTracker.state(NumericAgg.MIN, timestamp = now + 45.minutesMs, uptime = now + 45.minutesMs)
 
-        val report = dao.collectHeartbeat(endTimestampMs = now + 45.minutesMs)
+        val report = dao.collectHeartbeat(endTimestampMs = now + 45.minutesMs, endUptimeMs = now + 45.minutesMs)
 
         assertThat(report.hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
             "state_MIN.total_secs" to JsonPrimitive(15.minutes.inWholeSeconds),
@@ -93,15 +93,15 @@ class MetricsShiftAggregationsTest {
 
         val now = System.currentTimeMillis()
 
-        stateTracker.state("true", timestamp = now)
-        stateTracker.state("false", timestamp = now + 5.minutesMs)
-        stateTracker.state("true", timestamp = now + 15.minutesMs)
-        stateTracker.state("false", timestamp = now + 20.minutesMs)
-        stateTracker.state("true", timestamp = now + 30.minutesMs)
-        stateTracker.state("false", timestamp = now + 35.minutesMs)
-        stateTracker.state("true", timestamp = now + 45.minutesMs)
+        stateTracker.state("true", timestamp = now, uptime = now)
+        stateTracker.state("false", timestamp = now + 5.minutesMs, uptime = now + 5.minutesMs)
+        stateTracker.state("true", timestamp = now + 15.minutesMs, uptime = now + 15.minutesMs)
+        stateTracker.state("false", timestamp = now + 20.minutesMs, uptime = now + 20.minutesMs)
+        stateTracker.state("true", timestamp = now + 30.minutesMs, uptime = now + 30.minutesMs)
+        stateTracker.state("false", timestamp = now + 35.minutesMs, uptime = now + 35.minutesMs)
+        stateTracker.state("true", timestamp = now + 45.minutesMs, uptime = now + 45.minutesMs)
 
-        val report = dao.collectHeartbeat(endTimestampMs = now + 45.minutesMs)
+        val report = dao.collectHeartbeat(endTimestampMs = now + 45.minutesMs, endUptimeMs = now + 45.minutesMs)
 
         assertThat(report.hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
             "state_true.total_secs" to JsonPrimitive(15.minutes.inWholeSeconds),
@@ -117,36 +117,36 @@ class MetricsShiftAggregationsTest {
 
         val now = System.currentTimeMillis()
 
-        stateTracker.state("true", timestamp = now)
+        stateTracker.state("true", timestamp = now, uptime = now)
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = now + 1.hoursMs)).all {
+        assertThat(dao.collectHeartbeat(endTimestampMs = now + 1.hoursMs, endUptimeMs = now + 1.hoursMs)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_true.total_secs" to JsonPrimitive(1.hours.inWholeSeconds),
             )
         }
 
-        stateTracker.state("true", timestamp = now + 2.hoursMs)
+        stateTracker.state("true", timestamp = now + 2.hoursMs, uptime = now + 2.hoursMs)
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = now + 2.hoursMs)).all {
+        assertThat(dao.collectHeartbeat(endTimestampMs = now + 2.hoursMs, endUptimeMs = now + 2.hoursMs)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_true.total_secs" to JsonPrimitive(1.hours.inWholeSeconds),
             )
         }
 
-        stateTracker.state("true", timestamp = now + 3.hoursMs)
-        stateTracker.state("true", timestamp = now + 4.hoursMs)
+        stateTracker.state("true", timestamp = now + 3.hoursMs, uptime = now + 3.hoursMs)
+        stateTracker.state("true", timestamp = now + 4.hoursMs, uptime = now + 4.hoursMs)
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = now + 6.hoursMs)).all {
+        assertThat(dao.collectHeartbeat(endTimestampMs = now + 6.hoursMs, endUptimeMs = now + 6.hoursMs)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_true.total_secs" to JsonPrimitive(4.hours.inWholeSeconds),
             )
         }
 
-        stateTracker.state("true", timestamp = now + 8.hoursMs)
-        stateTracker.state("false", timestamp = now + 10.hoursMs)
-        stateTracker.state("false", timestamp = now + 12.hoursMs)
+        stateTracker.state("true", timestamp = now + 8.hoursMs, uptime = now + 8.hoursMs)
+        stateTracker.state("false", timestamp = now + 10.hoursMs, uptime = now + 10.hoursMs)
+        stateTracker.state("false", timestamp = now + 12.hoursMs, uptime = now + 12.hoursMs)
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = now + 12.hoursMs)).all {
+        assertThat(dao.collectHeartbeat(endTimestampMs = now + 12.hoursMs, endUptimeMs = now + 12.hoursMs)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_true.total_secs" to JsonPrimitive(4.hours.inWholeSeconds),
                 "state_false.total_secs" to JsonPrimitive(2.hours.inWholeSeconds),
@@ -162,17 +162,17 @@ class MetricsShiftAggregationsTest {
 
         val now = System.currentTimeMillis()
 
-        stateTracker.state("true", timestamp = now)
+        stateTracker.state("true", timestamp = now, uptime = now)
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = now + 1.hoursMs)).all {
+        assertThat(dao.collectHeartbeat(endTimestampMs = now + 1.hoursMs, endUptimeMs = now + 1.hoursMs)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_true.total_secs" to JsonPrimitive(1.hours.inWholeSeconds),
             )
         }
 
-        stateTracker.state("false", timestamp = now + 4.hoursMs)
+        stateTracker.state("false", timestamp = now + 4.hoursMs, uptime = now + 4.hoursMs)
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = now + 8.hoursMs)).all {
+        assertThat(dao.collectHeartbeat(endTimestampMs = now + 8.hoursMs, endUptimeMs = now + 8.hoursMs)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_true.total_secs" to JsonPrimitive(3.hours.inWholeSeconds),
                 "state_false.total_secs" to JsonPrimitive(4.hours.inWholeSeconds),
@@ -182,12 +182,12 @@ class MetricsShiftAggregationsTest {
             )
         }
 
-        stateTracker.state("true", timestamp = now + 10.hoursMs)
-        stateTracker.state("false", timestamp = now + 12.hoursMs)
-        stateTracker.state("true", timestamp = now + 14.hoursMs)
-        stateTracker.state("false", timestamp = now + 16.hoursMs)
+        stateTracker.state("true", timestamp = now + 10.hoursMs, uptime = now + 10.hoursMs)
+        stateTracker.state("false", timestamp = now + 12.hoursMs, uptime = now + 12.hoursMs)
+        stateTracker.state("true", timestamp = now + 14.hoursMs, uptime = now + 14.hoursMs)
+        stateTracker.state("false", timestamp = now + 16.hoursMs, uptime = now + 16.hoursMs)
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = now + 16.hoursMs)).all {
+        assertThat(dao.collectHeartbeat(endTimestampMs = now + 16.hoursMs, endUptimeMs = now + 16.hoursMs)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_true.total_secs" to JsonPrimitive(4.hours.inWholeSeconds),
                 "state_false.total_secs" to JsonPrimitive(4.hours.inWholeSeconds),
@@ -206,36 +206,36 @@ class MetricsShiftAggregationsTest {
 
         val now = System.currentTimeMillis()
 
-        stateTracker.state("1", timestamp = now)
+        stateTracker.state("1", timestamp = now, uptime = now)
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = now + 2.hoursMs)).all {
+        assertThat(dao.collectHeartbeat(endTimestampMs = now + 2.hoursMs, endUptimeMs = now + 2.hoursMs)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_1.total_secs" to JsonPrimitive(2.hours.inWholeSeconds),
             )
         }
 
-        stateTracker.state("1", timestamp = now + 2.hoursMs)
-        stateTracker.state("1", timestamp = now + 4.hoursMs)
+        stateTracker.state("1", timestamp = now + 2.hoursMs, uptime = now + 2.hoursMs)
+        stateTracker.state("1", timestamp = now + 4.hoursMs, uptime = now + 4.hoursMs)
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = now + 4.hoursMs)).all {
+        assertThat(dao.collectHeartbeat(endTimestampMs = now + 4.hoursMs, endUptimeMs = now + 4.hoursMs)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_1.total_secs" to JsonPrimitive(2.hours.inWholeSeconds),
             )
         }
 
-        stateTracker.state("1", timestamp = now + 6.hoursMs)
-        stateTracker.state("1", timestamp = now + 8.hoursMs)
+        stateTracker.state("1", timestamp = now + 6.hoursMs, uptime = now + 6.hoursMs)
+        stateTracker.state("1", timestamp = now + 8.hoursMs, uptime = now + 8.hoursMs)
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = now + 8.hoursMs)).all {
+        assertThat(dao.collectHeartbeat(endTimestampMs = now + 8.hoursMs, endUptimeMs = now + 8.hoursMs)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_1.total_secs" to JsonPrimitive(4.hours.inWholeSeconds),
             )
         }
 
-        stateTracker.state("2", timestamp = now + 10.hoursMs)
-        stateTracker.state("2", timestamp = now + 12.hoursMs)
+        stateTracker.state("2", timestamp = now + 10.hoursMs, uptime = now + 10.hoursMs)
+        stateTracker.state("2", timestamp = now + 12.hoursMs, uptime = now + 12.hoursMs)
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = now + 12.hoursMs)).all {
+        assertThat(dao.collectHeartbeat(endTimestampMs = now + 12.hoursMs, endUptimeMs = now + 12.hoursMs)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_1.total_secs" to JsonPrimitive(2.hours.inWholeSeconds),
                 "state_2.total_secs" to JsonPrimitive(2.hours.inWholeSeconds),
@@ -244,10 +244,10 @@ class MetricsShiftAggregationsTest {
             )
         }
 
-        stateTracker.state("1", timestamp = now + 14.hoursMs)
-        stateTracker.state("2", timestamp = now + 16.hoursMs)
+        stateTracker.state("1", timestamp = now + 14.hoursMs, uptime = now + 14.hoursMs)
+        stateTracker.state("2", timestamp = now + 16.hoursMs, uptime = now + 16.hoursMs)
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = now + 16.hoursMs)).all {
+        assertThat(dao.collectHeartbeat(endTimestampMs = now + 16.hoursMs, endUptimeMs = now + 16.hoursMs)).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
                 "state_1.total_secs" to JsonPrimitive(2.hours.inWholeSeconds),
                 "state_2.total_secs" to JsonPrimitive(2.hours.inWholeSeconds),
@@ -266,20 +266,20 @@ class MetricsShiftAggregationsTest {
 
         val stateTracker = Reporting.report().stringStateTracker("state", aggregations = listOf(TIME_TOTALS))
 
-        stateTracker.state("ON", timestamp = now + 2.hoursMs)
-        stateTracker.state("OFF", timestamp = now + 2.hoursMs)
-        stateTracker.state("ON", timestamp = now + 2.hoursMs)
-        stateTracker.state("ON", timestamp = now + 2.hoursMs)
-        stateTracker.state("ON", timestamp = now + 3.hoursMs)
-        stateTracker.state("ON", timestamp = now + 4.hoursMs)
-        stateTracker.state("OFF", timestamp = now + 4.hoursMs)
-        stateTracker.state("OFF", timestamp = now + 6.hoursMs)
-        stateTracker.state("NONE", timestamp = now + 8.hoursMs)
-        stateTracker.state("ON", timestamp = now + 8.hoursMs)
-        stateTracker.state("ON", timestamp = now + 10.hoursMs)
-        stateTracker.state("ON", timestamp = now + 12.hoursMs)
+        stateTracker.state("ON", timestamp = now + 2.hoursMs, uptime = now + 2.hoursMs)
+        stateTracker.state("OFF", timestamp = now + 2.hoursMs, uptime = now + 2.hoursMs)
+        stateTracker.state("ON", timestamp = now + 2.hoursMs, uptime = now + 2.hoursMs)
+        stateTracker.state("ON", timestamp = now + 2.hoursMs, uptime = now + 2.hoursMs)
+        stateTracker.state("ON", timestamp = now + 3.hoursMs, uptime = now + 3.hoursMs)
+        stateTracker.state("ON", timestamp = now + 4.hoursMs, uptime = now + 4.hoursMs)
+        stateTracker.state("OFF", timestamp = now + 4.hoursMs, uptime = now + 4.hoursMs)
+        stateTracker.state("OFF", timestamp = now + 6.hoursMs, uptime = now + 6.hoursMs)
+        stateTracker.state("NONE", timestamp = now + 8.hoursMs, uptime = now + 8.hoursMs)
+        stateTracker.state("ON", timestamp = now + 8.hoursMs, uptime = now + 8.hoursMs)
+        stateTracker.state("ON", timestamp = now + 10.hoursMs, uptime = now + 10.hoursMs)
+        stateTracker.state("ON", timestamp = now + 12.hoursMs, uptime = now + 12.hoursMs)
 
-        assertThat(dao.collectHeartbeat(endTimestampMs = now + 26.hoursMs)).all {
+        assertThat(dao.collectHeartbeat(endTimestampMs = now + 26.hoursMs, endUptimeMs = now + 26.hoursMs)).all {
             val metrics = arrayOf(
                 "state_ON.total_secs" to JsonPrimitive(20.hours.inWholeSeconds),
                 "state_OFF.total_secs" to JsonPrimitive(4.hours.inWholeSeconds),

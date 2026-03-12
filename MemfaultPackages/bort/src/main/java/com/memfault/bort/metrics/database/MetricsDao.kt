@@ -96,6 +96,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
     open suspend fun insertAllReports(
         metric: MetricValue,
         dbReportBuilder: DbReportBuilder,
+        bootId: String,
     ): Long {
         var inserts = 0L
 
@@ -103,6 +104,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
             insert(
                 metric,
                 dbReportBuilder = dbReportBuilder,
+                bootId = bootId,
             ) != -1L
         ) {
             1L
@@ -112,6 +114,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
 
         inserts += insertAllSessions(
             metric = metric,
+            bootId = bootId,
         ).takeIf { it != -1L } ?: 0L
 
         return inserts
@@ -120,6 +123,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
     @Transaction
     open suspend fun insertAllSessions(
         metric: MetricValue,
+        bootId: String,
     ): Long {
         var inserts = 0L
 
@@ -141,6 +145,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
                         dataType = metric.dataType,
                         carryOver = metric.carryOverValue,
                         aggs = metric.aggregations,
+                        eventUptimeMs = metric.uptimeMs,
                         internal = metric.internal,
                         version = metric.version,
                         stringVal = metric.stringVal,
@@ -159,7 +164,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
     }
 
     @Transaction
-    open suspend fun insertSessionMetric(metric: MetricValue): Long {
+    open suspend fun insertSessionMetric(metric: MetricValue, bootId: String): Long {
         val sessionName = metric.reportName
         if (sessionName == null) {
             return -1
@@ -181,6 +186,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
             dataType = metric.dataType,
             carryOver = metric.carryOverValue,
             aggs = metric.aggregations,
+            eventUptimeMs = metric.uptimeMs,
             internal = metric.internal,
             version = metric.version,
             stringVal = metric.stringVal,
@@ -193,17 +199,21 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
     open suspend fun insert(
         metric: MetricValue,
         dbReportBuilder: DbReportBuilder,
+        bootId: String,
         overrideReportType: String? = null,
     ): Long = insertOrCreateReport(
         reportType = overrideReportType ?: metric.reportType,
         reportName = metric.reportName,
         reportStartTimestampMs = metric.timeMs,
+        reportStartUptimeMs = metric.uptimeMs,
         eventTimestampMs = metric.timeMs,
         eventName = metric.eventName,
         metricType = metric.metricType,
         dataType = metric.dataType,
         carryOver = metric.carryOverValue,
         aggs = metric.aggregations,
+        eventUptimeMs = metric.uptimeMs,
+        bootId = bootId,
         internal = metric.internal,
         version = metric.version,
         stringVal = metric.stringVal,
@@ -216,12 +226,15 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
         reportType: String,
         reportName: String?,
         reportStartTimestampMs: Long,
+        reportStartUptimeMs: Long,
         eventTimestampMs: Long,
         eventName: String,
         metricType: MetricType,
         dataType: DataType,
         carryOver: Boolean,
         aggs: List<AggregationType>,
+        eventUptimeMs: Long,
+        bootId: String,
         internal: Boolean,
         version: Int,
         stringVal: String?,
@@ -234,6 +247,8 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
                 type = reportType,
                 name = reportName,
                 startTimeMs = reportStartTimestampMs,
+                startUptimeMs = reportStartUptimeMs,
+                bootId = bootId,
             ),
             dbReportBuilder = dbReportBuilder,
         )
@@ -245,6 +260,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
             dataType = dataType,
             carryOver = carryOver,
             aggs = aggs,
+            eventUptimeMs = eventUptimeMs,
             internal = internal,
             version = version,
             stringVal = stringVal,
@@ -261,6 +277,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
         dataType: DataType,
         carryOver: Boolean,
         aggs: List<AggregationType>,
+        eventUptimeMs: Long,
         internal: Boolean,
         version: Int,
         stringVal: String?,
@@ -286,6 +303,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
                 stringVal = stringVal,
                 numberVal = numberVal,
                 boolVal = boolVal,
+                uptimeMs = eventUptimeMs,
             ),
         )
     }
@@ -296,12 +314,15 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
         hourlyHeartbeatReportType: String = HOURLY_HEARTBEAT_REPORT_TYPE,
         latestMetricKeys: List<String>,
         dbReportBuilder: DbReportBuilder,
+        bootId: String,
     ): Long {
         val reportId = insertOrGetStartedReport(
             DbReport(
                 type = startReport.reportType,
                 name = startReport.reportName,
                 startTimeMs = startReport.timestampMs,
+                startUptimeMs = startReport.uptimeMs,
+                bootId = bootId,
             ),
             dbReportBuilder = dbReportBuilder,
         )
@@ -326,6 +347,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
                             dataType = metadata.dataType,
                             carryOver = metadata.carryOver,
                             aggs = metadata.aggregations.aggregations,
+                            eventUptimeMs = startReport.uptimeMs,
                             internal = metadata.internal,
                             version = metric.version,
                             stringVal = metric.stringVal,
@@ -353,7 +375,11 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
             return -1
         }
 
-        return updateReportEndTimestamp(report.id, endTimestampMs = finishReport.timestampMs).toLong()
+        return updateReportEndTimestamp(
+            report.id,
+            endTimestampMs = finishReport.timestampMs,
+            endUptimeMs = finishReport.uptimeMs,
+        ).toLong()
     }
 
     /**
@@ -576,10 +602,12 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
         reportType: ReportType,
         dbReports: List<DbReport>,
         endTimestampMs: Long,
+        endUptimeMs: Long,
         calculateDerivedAggregations: CalculateDerivedAggregations,
         // If non-null, include these metrics from the daily heartbeat report type into the produced metric report.
         dailyHeartbeatReportMetrics: List<String>? = null,
         hrt: File?,
+        bootId: String,
     ): MetricReport {
         if (dbReports.isEmpty()) {
             Logger.w("Tried to produceMetricReport but didn't pass any reports")
@@ -594,10 +622,14 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
                 internalMetrics = emptyMap(),
                 hrt = hrt,
                 softwareVersion = null,
+                startUptimeMs = endUptimeMs,
+                endUptimeMs = endUptimeMs,
+                bootId = bootId,
             )
         }
         val startReport = dbReports.minBy { it.startTimeMs }
         val startTimestampMs = startReport.startTimeMs
+        val startUptimeMs = startReport.startUptimeMs
 
         val metrics = mutableMapOf<String, JsonPrimitive>()
         val internalMetrics = mutableMapOf<String, JsonPrimitive>()
@@ -635,6 +667,8 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
             endTimestampMs = endTimestampMs,
             metrics = metrics,
             internalMetrics = internalMetrics,
+            startUptimeMs = startUptimeMs,
+            endUptimeMs = endUptimeMs,
         )
 
         hrt?.useJsonWriter { jsonWriter ->
@@ -659,6 +693,9 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
             internalMetrics = derivedAggregations.asMetrics(internal = true) + internalMetrics,
             hrt = hrt,
             softwareVersion = startReport.softwareVersion,
+            startUptimeMs = startUptimeMs,
+            endUptimeMs = endUptimeMs,
+            bootId = bootId,
         )
     }
 
@@ -759,13 +796,16 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
         hourlyHeartbeatReportType: String = HOURLY_HEARTBEAT_REPORT_TYPE,
         dailyHeartbeatReportType: String? = null,
         endTimestampMs: Long,
+        endUptimeMs: Long,
         hrtFileFactory: HrtFileFactory?,
-        calculateDerivedAggregations: CalculateDerivedAggregations = CalculateDerivedAggregations { _, _, _, _, _ ->
-            emptyList()
-        },
+        calculateDerivedAggregations: CalculateDerivedAggregations =
+            CalculateDerivedAggregations { _, _, _, _, _, _, _ ->
+                emptyList()
+            },
         dailyHeartbeatReportMetricsForSessions: List<String>? = null,
         dbReportBuilder: DbReportBuilder,
         forceEndAllReports: Boolean = false,
+        bootId: String,
     ): CustomReport {
         val hourlyHeartbeatDbReport = singleStartedReport(reportType = hourlyHeartbeatReportType)
         val hourlyHeartbeatReport = if (hourlyHeartbeatDbReport == null) {
@@ -780,17 +820,26 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
                 internalMetrics = emptyMap(),
                 hrt = null,
                 softwareVersion = null,
+                bootId = bootId,
+                startUptimeMs = endUptimeMs,
+                endUptimeMs = endUptimeMs,
             )
         } else {
             // Always end the hourly report.
-            updateReportEndTimestamp(hourlyHeartbeatDbReport.id, endTimestampMs = endTimestampMs)
+            updateReportEndTimestamp(
+                hourlyHeartbeatDbReport.id,
+                endTimestampMs = endTimestampMs,
+                endUptimeMs = endUptimeMs,
+            )
 
             val hourlyReport = produceMetricReport(
                 reportType = Hourly,
                 dbReports = listOf(hourlyHeartbeatDbReport),
                 endTimestampMs = endTimestampMs,
+                endUptimeMs = endUptimeMs,
                 calculateDerivedAggregations = calculateDerivedAggregations,
                 hrt = hrtFileFactory?.create(),
+                bootId = bootId,
             )
 
             // Delete all values, metadata, and reports. If carryOver is enabled for a metric, then carry over its
@@ -854,6 +903,9 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
                     stringVal = value.stringVal,
                     numberVal = value.numberVal,
                     boolVal = value.boolVal,
+                    reportStartUptimeMs = endUptimeMs,
+                    eventUptimeMs = value.uptimeMs,
+                    bootId = bootId,
                     dbReportBuilder = dbReportBuilder,
                 )
             }
@@ -877,8 +929,10 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
                     reportType = Daily,
                     dbReports = hourlyHeartbeats,
                     endTimestampMs = endTimestampMs,
+                    endUptimeMs = endUptimeMs,
                     calculateDerivedAggregations = calculateDerivedAggregations,
                     hrt = null,
+                    bootId = bootId,
                 )
 
                 // Once we're done producing the daily MetricReport, delete all its report and data.
@@ -906,22 +960,28 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
         }
 
         // Cleanup Sessions.
-        expireSessions(endTimestampMs = endTimestampMs, forceExpire = forceEndAllReports)
+        expireSessions(endTimestampMs = endTimestampMs, endUptimeMs = endUptimeMs, forceExpire = forceEndAllReports)
 
         val sessionReports = getEndedReports(reportType = SESSION_REPORT_TYPE)
             .map { dbSession ->
                 val sessionEndTimeMs = dbSession.endTimeMs
+                val sessionEndUptimeMs = dbSession.endUptimeMs
                 checkNotNull(sessionEndTimeMs) {
                     "endTimeMs must not be null, is the query correct?"
+                }
+                checkNotNull(sessionEndUptimeMs) {
+                    "endUptimeTimeMs must not be null, is the query correct?"
                 }
 
                 val sessionReport = produceMetricReport(
                     reportType = Session,
                     dbReports = listOf(dbSession),
                     endTimestampMs = sessionEndTimeMs,
+                    endUptimeMs = sessionEndUptimeMs,
                     calculateDerivedAggregations = calculateDerivedAggregations,
                     dailyHeartbeatReportMetrics = dailyHeartbeatReportMetricsForSessions,
                     hrt = null,
+                    bootId = bootId,
                 )
 
                 // Delete all values, metadata, and reports.
@@ -959,7 +1019,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
         )
     }
 
-    private suspend fun expireSessions(endTimestampMs: Long, forceExpire: Boolean) {
+    private suspend fun expireSessions(endTimestampMs: Long, endUptimeMs: Long, forceExpire: Boolean) {
         val expiredSessionIds = getStartedReports(reportType = SESSION_REPORT_TYPE)
             .filter { session ->
                 forceExpire ||
@@ -968,7 +1028,7 @@ abstract class MetricsDao : MetricReportsDao, MetricMetadataDao, MetricValuesDao
             }
             .map { session -> session.id }
 
-        updateReportEndTimestamps(expiredSessionIds, endTimestampMs)
+        updateReportEndTimestamps(expiredSessionIds, endTimestampMs, endUptimeMs)
     }
 
     @VisibleForTesting suspend fun dump(): DbDump = DbDump(

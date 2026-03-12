@@ -12,6 +12,7 @@ import kotlin.time.Duration.Companion.seconds
 class WifiDisconnectedEventMetricListener @Inject constructor() : StatsdEventMetricListener {
     override fun reportEventMetric(
         eventTimestampMillis: Long,
+        eventElapsedRealtimeMillis: Long,
         atom: Atom,
     ) {
         if (atom.wifi_disconnect_reported != null) {
@@ -19,43 +20,63 @@ class WifiDisconnectedEventMetricListener @Inject constructor() : StatsdEventMet
 
             Reporting.report().counter(
                 name = WIFI_DISCONNECT_REPORTED_COUNT,
-            ).increment(timestamp = eventTimestampMillis)
+            ).increment(timestamp = eventTimestampMillis, uptime = eventElapsedRealtimeMillis)
 
             Reporting.report().event(
                 name = WIFI_DISCONNECT_REPORTED_EVENT,
                 latestInReport = true,
-            ).add(wifiDisconnectReported.toString(), timestamp = eventTimestampMillis)
+            ).add(
+                wifiDisconnectReported.toString(),
+                timestamp = eventTimestampMillis,
+                uptime = eventElapsedRealtimeMillis,
+            )
 
             val connectionDuration = (wifiDisconnectReported.connected_duration_seconds ?: 0)
                 .seconds.inWholeMilliseconds
             val connectionStart = eventTimestampMillis - connectionDuration
+            val connectionStartUptime = eventElapsedRealtimeMillis - connectionDuration
             if (connectionDuration > 0 && connectionStart < eventTimestampMillis) {
                 val session = Reporting.session(
                     WIFI_DISCONNECTED_SESSION_NAME,
                 )
-                session.start(timestampMs = connectionStart)
+                session.start(timestampMs = connectionStart, uptimeMs = connectionStartUptime)
 
                 session.stringProperty(WIFI_BAND_BUCKET_PROPERTY)
-                    .update(value = bucketedWifiBand(wifiDisconnectReported.band), timestamp = eventTimestampMillis)
+                    .update(
+                        value = bucketedWifiBand(wifiDisconnectReported.band),
+                        timestamp = eventTimestampMillis,
+                        uptime = eventElapsedRealtimeMillis,
+                    )
                 session.stringProperty(WIFI_BAND_PROPERTY)
-                    .update(value = shortWifiBand(wifiDisconnectReported.band), timestamp = eventTimestampMillis)
+                    .update(
+                        value = shortWifiBand(wifiDisconnectReported.band),
+                        timestamp = eventTimestampMillis,
+                        uptime = eventElapsedRealtimeMillis,
+                    )
 
                 session.stringProperty(WIFI_FAILURE_CODE_NAME_PROPERTY).update(
                     value = wifiDisconnectReported.failure_code?.name ?: "",
                     timestamp = eventTimestampMillis,
+                    uptime = eventElapsedRealtimeMillis,
                 )
                 session.numberProperty(WIFI_FAILURE_CODE_PROPERTY).update(
                     value = wifiDisconnectReported.failure_code?.value ?: 0,
                     timestamp = eventTimestampMillis,
+                    uptime = eventElapsedRealtimeMillis,
                 )
                 session.numberProperty(WIFI_LAST_RSSI_PROPERTY).update(
                     value = wifiDisconnectReported.last_rssi ?: 0,
                     timestamp = eventTimestampMillis,
+                    uptime = eventElapsedRealtimeMillis,
                 )
                 session.numberProperty(
                     WIFI_LAST_LINK_SPEED_PROPERTY,
-                ).update(value = wifiDisconnectReported.last_link_speed ?: 0, timestamp = eventTimestampMillis)
-                session.finish(eventTimestampMillis)
+                ).update(
+                    value = wifiDisconnectReported.last_link_speed ?: 0,
+                    timestamp = eventTimestampMillis,
+                    uptime = eventElapsedRealtimeMillis,
+                )
+                session.finish(eventTimestampMillis, eventElapsedRealtimeMillis)
             }
         }
     }
