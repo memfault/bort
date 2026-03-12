@@ -29,6 +29,7 @@ data class DerivedAggregation(
             metricType: MetricType,
             dataType: DataType,
             collectionTimeMs: Long,
+            collectionUptimeMs: Long,
             internal: Boolean,
         ): DerivedAggregation = DerivedAggregation(
             metadata = DbMetricMetadata(
@@ -45,6 +46,7 @@ data class DerivedAggregation(
                 version = UNUSED_VERSION,
                 timestampMs = collectionTimeMs,
                 numberVal = metricValue,
+                uptimeMs = collectionUptimeMs,
             ),
         )
 
@@ -66,5 +68,7 @@ fun interface CalculateDerivedAggregations {
         endTimestampMs: Long,
         metrics: Map<String, JsonPrimitive>,
         internalMetrics: Map<String, JsonPrimitive>,
+        startUptimeMs: Long,
+        endUptimeMs: Long,
     ): List<DerivedAggregation>
 }

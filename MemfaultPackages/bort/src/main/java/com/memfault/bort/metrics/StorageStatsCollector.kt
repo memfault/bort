@@ -38,7 +38,8 @@ class StorageStatsCollector
                 "usedBytes=$usedBytes / percentageUsed=$percentageUsed",
         )
         val now = collectionTime.timestamp.toEpochMilli()
-        storageStatsReporter.reportUsage(freeBytes, totalBytes, usedBytes, percentageUsed, now)
+        val uptime = collectionTime.elapsedRealtime.duration.inWholeMilliseconds
+        storageStatsReporter.reportUsage(freeBytes, totalBytes, usedBytes, percentageUsed, now, uptime)
 
         val storageWearInfo = dumpsterClient.getStorageWear()
             ?.let { StorageWearInfo.fromServiceOutput(it) }
@@ -50,17 +51,18 @@ class StorageStatsCollector
                 lifetimeA = storageWearInfo.lifetimeA,
                 lifetimeB = storageWearInfo.lifetimeB,
                 now = now,
+                uptime = uptime,
             )
         }
 
-        updateDiskActivityStorage(diskActivityProvider.getDiskActivity(), now)
+        updateDiskActivityStorage(diskActivityProvider.getDiskActivity(), now, uptime)
     }
 
-    private fun updateDiskActivityStorage(activity: DiskActivity, now: Long) {
+    private fun updateDiskActivityStorage(activity: DiskActivity, now: Long, uptime: Long) {
         val activitySinceLastCollection = activity - diskActivityStorage.state
 
         for (stat in activitySinceLastCollection.stats) {
-            storageStatsReporter.reportWrites(stat.deviceName, stat.sectorsWritten * activity.sectorSize, now)
+            storageStatsReporter.reportWrites(stat.deviceName, stat.sectorsWritten * activity.sectorSize, now, uptime)
         }
 
         diskActivityStorage.state = activity
@@ -74,6 +76,7 @@ interface StorageStatsReporter {
         usedBytes: Long,
         percentageUsed: Double,
         now: Long,
+        uptime: Long,
     )
 
     fun reportFlashWear(
@@ -83,8 +86,9 @@ interface StorageStatsReporter {
         lifetimeA: Int,
         lifetimeB: Int,
         now: Long,
+        uptime: Long,
     )
-    fun reportWrites(deviceName: String, bytesWritten: Long, now: Long)
+    fun reportWrites(deviceName: String, bytesWritten: Long, now: Long, uptime: Long)
 }
 
 @Singleton
@@ -101,12 +105,19 @@ class RealStorageStatsReporter @Inject constructor() : StorageStatsReporter {
     private val percentageUsedMetric =
         Reporting.report().distribution("storage_used_pct", listOf(NumericAgg.LATEST_VALUE))
 
-    override fun reportUsage(freeBytes: Long, totalBytes: Long, usedBytes: Long, percentageUsed: Double, now: Long) {
-        legacyFreeBytesMetric.record(freeBytes, timestamp = now)
-        legacyTotalBytesMetric.record(totalBytes, timestamp = now)
-        legacyUsedBytesMetric.record(usedBytes, timestamp = now)
-        legacyPercentageUsedMetric.record(percentageUsed, timestamp = now)
-        percentageUsedMetric.record(percentageUsed * 100, timestamp = now)
+    override fun reportUsage(
+        freeBytes: Long,
+        totalBytes: Long,
+        usedBytes: Long,
+        percentageUsed: Double,
+        now: Long,
+        uptime: Long,
+    ) {
+        legacyFreeBytesMetric.record(freeBytes, timestamp = now, uptime = uptime)
+        legacyTotalBytesMetric.record(totalBytes, timestamp = now, uptime = uptime)
+        legacyUsedBytesMetric.record(usedBytes, timestamp = now, uptime = uptime)
+        legacyPercentageUsedMetric.record(percentageUsed, timestamp = now, uptime = uptime)
+        percentageUsedMetric.record(percentageUsed * 100, timestamp = now, uptime = uptime)
     }
 
     override fun reportFlashWear(
@@ -116,31 +127,32 @@ class RealStorageStatsReporter @Inject constructor() : StorageStatsReporter {
         lifetimeA: Int,
         lifetimeB: Int,
         now: Long,
+        uptime: Long,
     ) {
         val sourceString = if (source.isNotBlank()) "$source." else ""
 
         Reporting.report().stringProperty("disk_wear.${sourceString}version")
-            .update(version, now)
+            .update(version, now, uptime)
 
         Reporting.report().stringProperty("disk_wear.${sourceString}pre_eol")
-            .update(preEolAsString(eol), now)
+            .update(preEolAsString(eol), now, uptime)
 
         val lifetimeARemaining = lifetimeAsRemainingPct(lifetimeA)
         if (lifetimeARemaining != null) {
             Reporting.report().numberProperty("disk_wear.${sourceString}lifetime_remaining_pct")
-                .update(lifetimeARemaining, now)
+                .update(lifetimeARemaining, now, uptime)
         }
 
         val lifetimeBRemaining = lifetimeAsRemainingPct(lifetimeB)
         if (lifetimeBRemaining != null) {
             Reporting.report().numberProperty("disk_wear.${sourceString}lifetime_b_remaining_pct")
-                .update(lifetimeBRemaining, now)
+                .update(lifetimeBRemaining, now, uptime)
         }
     }
 
-    override fun reportWrites(deviceName: String, bytesWritten: Long, now: Long) {
+    override fun reportWrites(deviceName: String, bytesWritten: Long, now: Long, uptime: Long) {
         Reporting.report().distribution("disk_wear.$deviceName.bytes_written", aggregations = listOf(MEAN))
-            .record(bytesWritten, now)
+            .record(bytesWritten, now, uptime)
     }
 }
 

@@ -13,7 +13,11 @@ import javax.inject.Inject
 
 @ContributesMultibinding(scope = SingletonComponent::class)
 class SlowIoReportedEventMetricListener @Inject constructor() : StatsdEventMetricListener {
-    override fun reportEventMetric(eventTimestampMillis: Long, atom: Atom) {
+    override fun reportEventMetric(
+        eventTimestampMillis: Long,
+        eventElapsedRealtimeMillis: Long,
+        atom: Atom,
+    ) {
         if (atom.slow_io != null) {
             val operationStr = operationAsMetricName(atom.slow_io.operation ?: return)
             val count = atom.slow_io.count ?: return
@@ -26,6 +30,7 @@ class SlowIoReportedEventMetricListener @Inject constructor() : StatsdEventMetri
             ).update(
                 value = count,
                 timestamp = eventTimestampMillis,
+                uptime = eventElapsedRealtimeMillis,
             )
         }
     }

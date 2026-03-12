@@ -4,6 +4,7 @@ import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.battery.BATTERY_CHARGING_METRIC
 import com.memfault.bort.battery.BATTERY_LEVEL_METRIC
+import com.memfault.bort.boot.LinuxBootId
 import com.memfault.bort.connectivity.CONNECTIVITY_TYPE_METRIC
 import com.memfault.bort.dagger.InjectSet
 import com.memfault.bort.metrics.AggregateMetricFilter.filterAndRenameMetrics
@@ -49,6 +50,7 @@ interface CustomMetrics {
 
     suspend fun collectHeartbeat(
         endTimestampMs: Long,
+        endUptimeMs: Long,
         forceEndAllReports: Boolean = false,
     ): CustomReport
 }
@@ -79,6 +81,7 @@ class RealCustomMetrics @Inject constructor(
     @SessionMetrics private val sessionMetricsTokenBucketStore: TokenBucketStore,
     private val deviceInfoProvider: DeviceInfoProvider,
     private val derivedAggregations: InjectSet<CalculateDerivedAggregations>,
+    private val getBootId: LinuxBootId,
 ) : CustomMetrics {
     private val dbReportBuilder = DbReportBuilder { report ->
         report.copy(
@@ -90,23 +93,23 @@ class RealCustomMetrics @Inject constructor(
         if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
             metric.eventName == OPERATIONAL_CRASHES_METRIC_KEY
         ) {
-            db.dao().insertAllReports(metric, dbReportBuilder)
+            db.dao().insertAllReports(metric, dbReportBuilder, getBootId())
         } else if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
             metric.eventName == CONNECTIVITY_TYPE_METRIC
         ) {
-            db.dao().insertAllReports(metric, dbReportBuilder)
+            db.dao().insertAllReports(metric, dbReportBuilder, getBootId())
         } else if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
             metric.eventName in SYNC_METRICS
         ) {
-            db.dao().insertAllReports(metric, dbReportBuilder)
+            db.dao().insertAllReports(metric, dbReportBuilder, getBootId())
         } else if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
             metric.eventName in BATTERY_METRICS
         ) {
-            db.dao().insert(metric, dbReportBuilder, overrideReportType = DAILY_HEARTBEAT_REPORT_TYPE)
+            db.dao().insert(metric, dbReportBuilder, getBootId(), overrideReportType = DAILY_HEARTBEAT_REPORT_TYPE)
         } else if (metric.reportType == SESSION_REPORT_TYPE) {
-            db.dao().insertSessionMetric(metric)
+            db.dao().insertSessionMetric(metric, getBootId())
         } else if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE) {
-            db.dao().insert(metric, dbReportBuilder)
+            db.dao().insert(metric, dbReportBuilder, getBootId())
         } else {
             -1
         }
@@ -121,6 +124,7 @@ class RealCustomMetrics @Inject constructor(
                         hourlyHeartbeatReportType = HOURLY_HEARTBEAT_REPORT_TYPE,
                         latestMetricKeys = listOf(CONNECTIVITY_TYPE_METRIC),
                         dbReportBuilder = dbReportBuilder,
+                        bootId = getBootId(),
                     )
                 } else {
                     -1
@@ -144,6 +148,7 @@ class RealCustomMetrics @Inject constructor(
 
     override suspend fun collectHeartbeat(
         endTimestampMs: Long,
+        endUptimeMs: Long,
         forceEndAllReports: Boolean,
     ): CustomReport = db.dao()
         .collectHeartbeat(
@@ -163,7 +168,15 @@ class RealCustomMetrics @Inject constructor(
             } else {
                 null
             },
-            calculateDerivedAggregations = { reportType, dbReport, endTimestamp, metrics, internalMetrics ->
+            calculateDerivedAggregations = {
+                    reportType,
+                    dbReport,
+                    endTimestamp,
+                    metrics,
+                    internalMetrics,
+                    startUptimeMs,
+                    endUptimeMsNonShadow,
+                ->
                 derivedAggregations.flatMap { aggregation ->
                     aggregation.calculate(
                         reportType = reportType,
@@ -171,12 +184,16 @@ class RealCustomMetrics @Inject constructor(
                         endTimestampMs = endTimestamp,
                         metrics = metrics,
                         internalMetrics = internalMetrics,
+                        startUptimeMs = startUptimeMs,
+                        endUptimeMs = endUptimeMsNonShadow,
                     )
                 }
             },
             dailyHeartbeatReportMetricsForSessions = BATTERY_METRICS.toList(),
             dbReportBuilder = dbReportBuilder,
             forceEndAllReports = forceEndAllReports,
+            endUptimeMs = endUptimeMs,
+            bootId = getBootId(),
         )
         .let { report ->
             report.copy(
@@ -203,6 +220,9 @@ data class MetricReport(
     val internalMetrics: Map<String, JsonPrimitive> = mapOf(),
     val hrt: File?,
     val softwareVersion: String?,
+    val bootId: String,
+    val startUptimeMs: Long,
+    val endUptimeMs: Long,
 )
 
 enum class ReportType {

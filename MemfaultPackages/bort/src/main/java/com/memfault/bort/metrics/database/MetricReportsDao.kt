@@ -46,15 +46,17 @@ interface MetricReportsDao {
         startTimestampMs: Long,
     ): Int
 
-    @Query("UPDATE reports SET endTimeMs = :endTimestampMs WHERE id = :reportId")
+    @Query("UPDATE reports SET endTimeMs = :endTimestampMs, endUptimeMs = :endUptimeMs WHERE id = :reportId")
     suspend fun updateReportEndTimestamp(
         reportId: Long,
         endTimestampMs: Long,
+        endUptimeMs: Long,
     ): Int
 
-    @Query("UPDATE reports SET endTimeMs = :endTimestampMs WHERE id IN (:reportIds)")
+    @Query("UPDATE reports SET endTimeMs = :endTimestampMs, endUptimeMs = :endUptimeMs WHERE id IN (:reportIds)")
     suspend fun updateReportEndTimestamps(
         reportIds: List<Long>,
         endTimestampMs: Long,
+        endUptimeMs: Long,
     ): Int
 }

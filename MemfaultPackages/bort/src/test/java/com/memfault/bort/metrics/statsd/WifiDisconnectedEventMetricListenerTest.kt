@@ -26,6 +26,7 @@ class WifiDisconnectedEventMetricListenerTest {
         val listener = WifiDisconnectedEventMetricListener()
         listener.reportEventMetric(
             eventTimestampMillis = 10000L,
+            eventElapsedRealtimeMillis = 20000L,
             atom = Atom(
                 wifi_disconnect_reported = WifiDisconnectReported(
                     connected_duration_seconds = 5,
@@ -37,12 +38,13 @@ class WifiDisconnectedEventMetricListenerTest {
             ),
         )
 
-        val report = metricsDbTestEnvironment.dao.collectHeartbeat(10000L, false)
+        val report = metricsDbTestEnvironment.dao.collectHeartbeat(10000L, 20000L, false)
         assertThat(report.sessions).hasSize(1)
 
         val wifiSessionReport = report.sessions[0]
         assertThat(wifiSessionReport.startTimestampMs).isEqualTo(5000)
         assertThat(wifiSessionReport.endTimestampMs).isEqualTo(10000)
+        assertThat(wifiSessionReport.endUptimeMs).isEqualTo(20000)
         assertThat(
             wifiSessionReport.reportName,
         ).isEqualTo(WifiDisconnectedEventMetricListener.WIFI_DISCONNECTED_SESSION_NAME)

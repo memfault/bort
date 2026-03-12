@@ -2,6 +2,7 @@ package com.memfault.bort.metrics
 
 import android.app.usage.UsageEvents.Event
 import android.app.usage.UsageStatsManager
+import android.os.SystemClock
 import com.memfault.bort.metrics.UsageEvent.DEVICE_SHUTDOWN
 import com.memfault.bort.metrics.UsageEvent.DEVICE_STARTUP
 import com.memfault.bort.reporting.Reporting
@@ -16,12 +17,14 @@ class UsageStatsCollector @Inject constructor(
         val start = from?.timestamp ?: to.minus(FALLBACK_REPORT_DURATION).timestamp
         val events = usageStatsManager.queryEvents(start.toEpochMilli(), to.timestamp.toEpochMilli())
         val event = Event()
+        // TODO: No good way to obtain this from the event, should we do math on current millis?
+        val uptime = SystemClock.elapsedRealtime()
         while (events.getNextEvent(event)) {
             val eventType = UsageEvent.fromInt(event.eventType)
             if (event.packageName == DEVICE_EVENT_PACKAGE_NAME) {
                 when (eventType) {
-                    DEVICE_SHUTDOWN -> METRIC.add(value = EVENT_SHUTDOWN, timestamp = event.timeStamp)
-                    DEVICE_STARTUP -> METRIC.add(value = EVENT_STARTED, timestamp = event.timeStamp)
+                    DEVICE_SHUTDOWN -> METRIC.add(value = EVENT_SHUTDOWN, timestamp = event.timeStamp, uptime = uptime)
+                    DEVICE_STARTUP -> METRIC.add(value = EVENT_STARTED, timestamp = event.timeStamp, uptime = uptime)
                     else -> Unit
                 }
             }

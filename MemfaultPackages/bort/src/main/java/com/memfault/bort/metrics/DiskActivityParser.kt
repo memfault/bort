@@ -1,7 +1,5 @@
 package com.memfault.bort.metrics
 
-import android.app.Application
-import android.os.StatFs
 import com.memfault.bort.boot.LinuxBootId
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.shared.Logger
@@ -121,7 +119,7 @@ data class DiskActivity(
         val EMPTY = DiskActivity(
             bootId = "",
             stats = emptyList(),
-            sectorSize = RealDiskInfoProvider.DEFAULT_BLOCK_SIZE,
+            sectorSize = RealDiskInfoProvider.SECTOR_SIZE,
         )
     }
 }
@@ -203,20 +201,11 @@ interface DiskInfoProvider {
 
 @Singleton
 @ContributesBinding(SingletonComponent::class, boundType = DiskInfoProvider::class)
-class RealDiskInfoProvider @Inject constructor(
-    private val context: Application,
-) : DiskInfoProvider {
-    override fun getSectorSizeBytes(): Long =
-        try {
-            val stat = StatFs(context.dataDir.path)
-            if (stat.blockSizeLong > 0) {
-                stat.blockSizeLong
-            } else {
-                DEFAULT_BLOCK_SIZE
-            }
-        } catch (e: IllegalArgumentException) {
-            DEFAULT_BLOCK_SIZE
-        }
+class RealDiskInfoProvider @Inject constructor() : DiskInfoProvider {
+    // /proc/diskstats always reports sectors in units of 512 bytes, regardless of the device's
+    // physical or logical sector size. This is a fixed convention in the Linux block layer.
+    // See https://www.kernel.org/doc/Documentation/block/stat.txt
+    override fun getSectorSizeBytes(): Long = SECTOR_SIZE
 
     override fun getBlockDevices(): List<String> {
         val files = File("/sys/block").listFiles()
@@ -231,7 +220,6 @@ class RealDiskInfoProvider @Inject constructor(
     }
 
     companion object {
-        // This is a common sector size, but may not be accurate for all devices
-        const val DEFAULT_BLOCK_SIZE = 512L
+        const val SECTOR_SIZE = 512L
     }
 }

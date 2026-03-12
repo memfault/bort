@@ -9,6 +9,8 @@ import com.memfault.bort.DevMode
 import com.memfault.bort.dropbox.DropBoxFilters
 import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.dropbox.enqueueOneTimeDropBoxQueryTask
+import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.metrics.metricForTraceTag
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.shared.Logger
 import javax.inject.Inject
@@ -21,6 +23,7 @@ class DropBoxEntryAddedReceiver @Inject constructor(
     private val dropBoxFilters: DropBoxFilters,
     private val application: Application,
     private val devMode: DevMode,
+    private val builtinMetricsStore: BuiltinMetricsStore,
 ) : BortEnabledFilteringReceiver(
     setOf(DropBoxManager.ACTION_DROPBOX_ENTRY_ADDED),
 ) {
@@ -60,6 +63,12 @@ class DropBoxEntryAddedReceiver @Inject constructor(
             }
         }
         Logger.v("Using intent for $thisTag")
+
+        // Count dropped entries towards the existing trace tag totals
+        val droppedCount = intent.getIntExtra(DropBoxManager.EXTRA_DROPPED_COUNT, 0)
+        if (droppedCount > 0 && thisTag != null) {
+            builtinMetricsStore.increment(metricForTraceTag(thisTag), droppedCount)
+        }
 
         dropBoxProcessedEntryCursorProvider.handleTimeFromEntryAddedIntent(intent)
 

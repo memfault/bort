@@ -35,10 +35,10 @@ class Logs2MetricsProcessor @AssistedInject constructor(
         packageManagerReport: PackageManagerReport,
     ) {
         rules.forEach { rule ->
-            if (line.tag == null || line.priority == null || line.message == null || line.logTime == null) {
+            if (line.priority == null || line.message == null || line.logTime == null) {
                 return@forEach
             }
-            if (rule.filter.tag != line.tag || rule.filter.priority != line.priority) {
+            if (rule.filter.tag != line.tag.orEmpty() || rule.filter.priority != line.priority) {
                 return@forEach
             }
             val match = rule.regex.matchEntire(line.message) ?: return@forEach
@@ -63,14 +63,22 @@ class Logs2MetricsProcessor @AssistedInject constructor(
             when (rule.type) {
                 CountMatching ->
                     Reporting.report().event(name = key, countInReport = true)
-                        .add(timestamp = line.logTime.toEpochMilli(), value = line.message)
+                        .add(
+                            timestamp = line.logTime.toEpochMilli(),
+                            uptime = line.logTimeAsElapsedRealtime(),
+                            value = line.message,
+                        )
 
                 SumMatching -> {
                     if (match.groupValues.size == 2) {
                         val count = match.groupValues.getOrNull(1)?.toInt()
                         if (count != null) {
                             Reporting.report().counter(name = key, sumInReport = true)
-                                .incrementBy(by = count, timestamp = line.logTime.toEpochMilli())
+                                .incrementBy(
+                                    by = count,
+                                    timestamp = line.logTime.toEpochMilli(),
+                                    uptime = line.logTimeAsElapsedRealtime(),
+                                )
                         }
                     }
                 }
@@ -80,7 +88,11 @@ class Logs2MetricsProcessor @AssistedInject constructor(
                         val value = match.groupValues.getOrNull(1)?.toDoubleOrNull()
                         if (value != null) {
                             Reporting.report().distribution(name = key, aggregations = listOf(MIN, MEAN, MAX))
-                                .record(value = value, timestamp = line.logTime.toEpochMilli())
+                                .record(
+                                    value = value,
+                                    timestamp = line.logTime.toEpochMilli(),
+                                    uptime = line.logTimeAsElapsedRealtime(),
+                                )
                         }
                     }
                 }
@@ -90,7 +102,11 @@ class Logs2MetricsProcessor @AssistedInject constructor(
                         val value = match.groupValues.getOrNull(1)
                         if (value != null) {
                             Reporting.report().stringProperty(name = key)
-                                .update(value = value, timestamp = line.logTime.toEpochMilli())
+                                .update(
+                                    value = value,
+                                    timestamp = line.logTime.toEpochMilli(),
+                                    uptime = line.logTimeAsElapsedRealtime(),
+                                )
                         }
                     }
                 }

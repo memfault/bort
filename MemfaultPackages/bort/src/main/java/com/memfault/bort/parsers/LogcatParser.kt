@@ -1,6 +1,7 @@
 package com.memfault.bort.parsers
 
 import android.annotation.SuppressLint
+import android.os.SystemClock
 import com.memfault.bort.shared.LogcatCommand
 import com.memfault.bort.shared.LogcatFormat
 import com.memfault.bort.shared.LogcatFormatModifier
@@ -28,7 +29,22 @@ data class LogcatLine(
     val tag: String? = null,
     val priority: LogcatPriority? = null,
     val separator: Boolean = false,
-)
+) {
+    /**
+     * This is not exact, it assumes that time did not change between collection and analysis
+     */
+    fun logTimeAsElapsedRealtime(): Long {
+        val now = Instant.ofEpochMilli(System.currentTimeMillis())
+        val elapsedNow = SystemClock.elapsedRealtime()
+
+        if (logTime == null || !now.isAfter(logTime)) {
+            return elapsedNow
+        }
+
+        val difference = now.toEpochMilli() - logTime.toEpochMilli()
+        return elapsedNow - difference
+    }
+}
 
 class LogcatParser(
     val lines: Flow<String>,

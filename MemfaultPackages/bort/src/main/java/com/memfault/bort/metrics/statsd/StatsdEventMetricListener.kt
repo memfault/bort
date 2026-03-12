@@ -11,6 +11,7 @@ import com.memfault.bort.metrics.statsd.proto.Atom
 interface StatsdEventMetricListener {
     fun reportEventMetric(
         eventTimestampMillis: Long,
+        eventElapsedRealtimeMillis: Long,
         atom: Atom,
     )
 

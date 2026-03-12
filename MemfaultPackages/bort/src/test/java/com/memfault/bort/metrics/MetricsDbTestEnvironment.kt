@@ -115,10 +115,12 @@ class MetricsDbTestEnvironment : ExternalResource() {
     ) : CustomMetrics by customMetrics {
         override suspend fun collectHeartbeat(
             endTimestampMs: Long,
+            endUptimeMs: Long,
             forceEndAllReports: Boolean,
         ): CustomReport {
             val report = customMetrics.collectHeartbeat(
                 endTimestampMs = endTimestampMs,
+                endUptimeMs = endUptimeMs,
                 forceEndAllReports = forceEndAllReports,
             )
             if (!excludeEverPresentMetrics) {
@@ -165,6 +167,7 @@ class MetricsDbTestEnvironment : ExternalResource() {
                 ThermalDerivedCalculator(metricsSettings),
                 DropBoxTraceCountDerivedAggregations(),
             ),
+            getBootId = { "0000-0000-0001" },
         )
         dao = TestCustomMetrics(customMetrics)
 

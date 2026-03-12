@@ -22,9 +22,13 @@ class ConnectivityTimeCalculator @Inject constructor() : CalculateDerivedAggrega
         endTimestampMs: Long,
         metrics: Map<String, JsonPrimitive>,
         internalMetrics: Map<String, JsonPrimitive>,
+        startUptimeMs: Long,
+        endUptimeMs: Long,
     ): List<DerivedAggregation> = calculateConnectedTimeMetrics(
         startTimestampMs = startTimestampMs,
         endTimestampMs = endTimestampMs,
+        startUptimeMs = startUptimeMs,
+        endUptimeMs = endUptimeMs,
         heartbeatReportMetrics = metrics + internalMetrics,
     )
 
@@ -32,9 +36,16 @@ class ConnectivityTimeCalculator @Inject constructor() : CalculateDerivedAggrega
     internal fun calculateConnectedTimeMetrics(
         startTimestampMs: Long?,
         endTimestampMs: Long?,
+        startUptimeMs: Long?,
+        endUptimeMs: Long?,
         heartbeatReportMetrics: Map<String, JsonPrimitive>,
     ): List<DerivedAggregation> {
-        if (startTimestampMs == null || endTimestampMs == null || heartbeatReportMetrics.isEmpty()) {
+        if (startTimestampMs == null ||
+            endTimestampMs == null ||
+            heartbeatReportMetrics.isEmpty() ||
+            startUptimeMs == null ||
+            endUptimeMs == null
+        ) {
             return emptyList()
         }
 
@@ -65,11 +76,13 @@ class ConnectivityTimeCalculator @Inject constructor() : CalculateDerivedAggrega
                     metricName = EXPECTED_TIME_METRIC,
                     metricValue = totalSecs.inWholeMilliseconds.toDouble(),
                     collectionTimeMs = endTimestampMs,
+                    collectionUptimeMs = endUptimeMs,
                 ),
                 connectivityTimeDerivedAggregation(
                     metricName = CONNECTED_TIME_METRIC,
                     metricValue = connectedSecs.inWholeMilliseconds.toDouble(),
                     collectionTimeMs = endTimestampMs,
+                    collectionUptimeMs = endUptimeMs,
                 ),
             )
         } else {
@@ -81,12 +94,14 @@ class ConnectivityTimeCalculator @Inject constructor() : CalculateDerivedAggrega
         metricName: String,
         metricValue: Double,
         collectionTimeMs: Long,
+        collectionUptimeMs: Long,
     ) = DerivedAggregation.create(
         metricName = metricName,
         metricValue = metricValue,
         collectionTimeMs = collectionTimeMs,
         metricType = GAUGE,
         dataType = DOUBLE,
+        collectionUptimeMs = collectionUptimeMs,
         internal = false,
     )
 

@@ -92,8 +92,8 @@ class SettingsUpdateRequester @Inject constructor(
             addTag(WORK_TAG)
             setConstraints(httpApiSettings.uploadConstraints)
             // Only add jitter if we have previously fetched settings (i.e. zero delay if we have never fetched
-            // settings)
-            if (everFetchedSettingsPreferenceProvider.getValue()) {
+            // settings). Skip jitter for test requests so they run promptly.
+            if (!testRequest && everFetchedSettingsPreferenceProvider.getValue()) {
                 // Use delay to prevent running the task again immediately after a settings update:
                 val settingsDelay = if (delayAfterSettingsUpdate) updateInterval else ZERO
                 val initialDelay = settingsDelay +

@@ -12,6 +12,7 @@ import javax.inject.Inject
 class UsbContaminantReportedEventMetricListener @Inject constructor() : StatsdEventMetricListener {
     override fun reportEventMetric(
         eventTimestampMillis: Long,
+        eventElapsedRealtimeMillis: Long,
         atom: Atom,
     ) {
         if (atom.usb_contaminant_reported != null) {
@@ -19,7 +20,7 @@ class UsbContaminantReportedEventMetricListener @Inject constructor() : StatsdEv
             Reporting.report().boolStateTracker(
                 name = USB_CONTAMINANT_REPORTED_EVENT_METRIC_NAME,
                 aggregations = listOf(StateAgg.LATEST_VALUE),
-            ).state(contaminantPresent, timestamp = eventTimestampMillis)
+            ).state(contaminantPresent, timestamp = eventTimestampMillis, uptime = eventElapsedRealtimeMillis)
         }
     }
 

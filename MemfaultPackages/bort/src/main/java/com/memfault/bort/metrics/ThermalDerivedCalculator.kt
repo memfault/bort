@@ -25,6 +25,8 @@ class ThermalDerivedCalculator @Inject constructor(
         endTimestampMs: Long,
         metrics: Map<String, JsonPrimitive>,
         internalMetrics: Map<String, JsonPrimitive>,
+        startUptimeMs: Long,
+        endUptimeMs: Long,
     ): List<DerivedAggregation> {
         val result = mutableListOf<DerivedAggregation>()
 
@@ -38,6 +40,7 @@ class ThermalDerivedCalculator @Inject constructor(
                     metricType = MetricType.GAUGE,
                     dataType = DataType.DOUBLE,
                     collectionTimeMs = endTimestampMs,
+                    collectionUptimeMs = endUptimeMs,
                     internal = false,
                 ),
             )
@@ -51,6 +54,7 @@ class ThermalDerivedCalculator @Inject constructor(
                     metricType = MetricType.GAUGE,
                     dataType = DataType.DOUBLE,
                     collectionTimeMs = endTimestampMs,
+                    collectionUptimeMs = endUptimeMs,
                     internal = false,
                 ),
             )
@@ -67,6 +71,7 @@ class ThermalDerivedCalculator @Inject constructor(
                     metricType = MetricType.GAUGE,
                     dataType = DataType.DOUBLE,
                     collectionTimeMs = endTimestampMs,
+                    collectionUptimeMs = endUptimeMs,
                     internal = false,
                 ),
             )
@@ -82,6 +87,7 @@ class ThermalDerivedCalculator @Inject constructor(
                     metricType = MetricType.GAUGE,
                     dataType = DataType.DOUBLE,
                     collectionTimeMs = endTimestampMs,
+                    collectionUptimeMs = endUptimeMs,
                     internal = false,
                 ),
             )
@@ -108,6 +114,7 @@ class ThermalDerivedCalculator @Inject constructor(
                                     metricType = MetricType.GAUGE,
                                     dataType = DataType.DOUBLE,
                                     collectionTimeMs = endTimestampMs,
+                                    collectionUptimeMs = endUptimeMs,
                                     internal = false,
                                 ),
                             )

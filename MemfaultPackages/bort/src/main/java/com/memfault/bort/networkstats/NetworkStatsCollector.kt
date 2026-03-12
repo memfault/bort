@@ -194,13 +194,11 @@ class RealNetworkStatsCollector
         collectionTime: CombinedTime,
         networkStatsResult: NetworkStatsResult,
     ) {
-        val queryEndTime = collectionTime.timestamp
-
         recordTotalUsageMetric(
             inMetric = TOTAL_ETHERNET_IN_METRIC,
             outMetric = TOTAL_ETHERNET_OUT_METRIC,
             usage = networkStatsResult.ethernetUsage,
-            queryEndTime = queryEndTime,
+            queryEndTime = collectionTime,
             legacyInMetric = maybeCollectLegacyMetric { TOTAL_ETHERNET_IN_METRIC_LEGACY },
             legacyOutMetric = maybeCollectLegacyMetric { TOTAL_ETHERNET_OUT_METRIC_LEGACY },
         )
@@ -209,7 +207,7 @@ class RealNetworkStatsCollector
             inMetric = TOTAL_MOBILE_IN_METRIC,
             outMetric = TOTAL_MOBILE_OUT_METRIC,
             usage = networkStatsResult.mobileUsage,
-            queryEndTime = queryEndTime,
+            queryEndTime = collectionTime,
             legacyInMetric = maybeCollectLegacyMetric { TOTAL_MOBILE_IN_METRIC_LEGACY },
             legacyOutMetric = maybeCollectLegacyMetric { TOTAL_MOBILE_OUT_METRIC_LEGACY },
         )
@@ -218,7 +216,7 @@ class RealNetworkStatsCollector
             inMetric = TOTAL_WIFI_IN_METRIC,
             outMetric = TOTAL_WIFI_OUT_METRIC,
             usage = networkStatsResult.wifiUsage,
-            queryEndTime = queryEndTime,
+            queryEndTime = collectionTime,
             legacyInMetric = maybeCollectLegacyMetric { TOTAL_WIFI_IN_METRIC_LEGACY },
             legacyOutMetric = maybeCollectLegacyMetric { TOTAL_WIFI_OUT_METRIC_LEGACY },
         )
@@ -227,7 +225,7 @@ class RealNetworkStatsCollector
             inMetric = TOTAL_BLUETOOTH_IN_METRIC,
             outMetric = TOTAL_BLUETOOTH_OUT_METRIC,
             usage = networkStatsResult.bluetoothUsage,
-            queryEndTime = queryEndTime,
+            queryEndTime = collectionTime,
             legacyInMetric = maybeCollectLegacyMetric { TOTAL_BLUETOOTH_IN_METRIC_LEGACY },
             legacyOutMetric = maybeCollectLegacyMetric { TOTAL_BLUETOOTH_OUT_METRIC_LEGACY },
         )
@@ -237,7 +235,7 @@ class RealNetworkStatsCollector
             outMetric = TOTAL_ALL_OUT_METRIC,
             rxBytes = networkStatsResult.totalUsages.map { it?.rxBytes }.sumOf { it ?: 0L },
             txBytes = networkStatsResult.totalUsages.map { it?.txBytes }.sumOf { it ?: 0L },
-            queryEndTime = queryEndTime,
+            queryEndTime = collectionTime,
             legacyInMetric = maybeCollectLegacyMetric { TOTAL_ALL_IN_METRIC_LEGACY },
             legacyOutMetric = maybeCollectLegacyMetric { TOTAL_ALL_OUT_METRIC_LEGACY },
         )
@@ -248,7 +246,7 @@ class RealNetworkStatsCollector
             wifiUsage = networkStatsResult.perAppWifiUsage,
             bluetoothUsage = networkStatsResult.perAppBluetoothUsage,
             totalUsage = networkStatsResult.totalPerAppUsage,
-            queryEndTime = queryEndTime,
+            queryEndTime = collectionTime,
         )
     }
 
@@ -256,7 +254,7 @@ class RealNetworkStatsCollector
         inMetric: String,
         outMetric: String,
         usage: NetworkStatsSummary?,
-        queryEndTime: Instant,
+        queryEndTime: CombinedTime,
         legacyInMetric: String?,
         legacyOutMetric: String?,
     ) {
@@ -278,7 +276,7 @@ class RealNetworkStatsCollector
         outMetric: String,
         rxBytes: Long,
         txBytes: Long,
-        queryEndTime: Instant,
+        queryEndTime: CombinedTime,
         legacyInMetric: String?,
         legacyOutMetric: String?,
     ) {
@@ -290,7 +288,8 @@ class RealNetworkStatsCollector
                 .distribution(name = metricName, aggregations = listOf(SUM))
                 .record(
                     value = absoluteUsage,
-                    timestamp = queryEndTime.toEpochMilli(),
+                    timestamp = queryEndTime.timestamp.toEpochMilli(),
+                    uptime = queryEndTime.elapsedRealtime.duration.inWholeMilliseconds,
                 )
         }
 
@@ -341,7 +340,7 @@ class RealNetworkStatsCollector
         wifiUsage: Map<String, NetworkStatsUsage>,
         bluetoothUsage: Map<String, NetworkStatsUsage>,
         totalUsage: Map<String, NetworkStatsUsage>,
-        queryEndTime: Instant,
+        queryEndTime: CombinedTime,
     ) {
         fun recordUsage(
             inName: String,
@@ -371,7 +370,8 @@ class RealNetworkStatsCollector
                             )
                             .record(
                                 value = metricValue,
-                                timestamp = queryEndTime.toEpochMilli(),
+                                timestamp = queryEndTime.timestamp.toEpochMilli(),
+                                uptime = queryEndTime.elapsedRealtime.duration.inWholeMilliseconds,
                             )
                     }
                 }
@@ -434,7 +434,8 @@ class RealNetworkStatsCollector
                     .distribution(name = key)
                     .record(
                         value = value,
-                        timestamp = queryEndTime.toEpochMilli(),
+                        timestamp = queryEndTime.timestamp.toEpochMilli(),
+                        uptime = queryEndTime.elapsedRealtime.duration.inWholeMilliseconds,
                     )
             }
 

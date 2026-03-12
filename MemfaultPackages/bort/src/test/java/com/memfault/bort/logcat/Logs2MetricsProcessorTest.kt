@@ -2,6 +2,7 @@ package com.memfault.bort.logcat
 
 import assertk.all
 import assertk.assertThat
+import assertk.assertions.contains
 import assertk.assertions.containsExactlyInAnyOrder
 import assertk.assertions.containsOnly
 import assertk.assertions.doesNotContainKey
@@ -100,6 +101,12 @@ class Logs2MetricsProcessorTest {
                     "([A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}:[A-Fa-f0-9]{2}).*$",
                 metricName = "wifi_bssid",
             ),
+            Logs2MetricsRule(
+                type = CountMatching,
+                filter = LogcatFilterSpec(tag = "", priority = INFO),
+                pattern = "Restart job (.*)",
+                metricName = "restart_job",
+            ),
         )
     }
     private val processor = Logs2MetricsProcessor(rules)
@@ -156,7 +163,12 @@ class Logs2MetricsProcessorTest {
             ),
             packageManagerReport,
         )
-        assertThat(dao.collectHeartbeat(endTimestampMs = heartbeatEndTimestamp.toEpochMilli())).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = heartbeatEndTimestamp.toEpochMilli(),
+                endUptimeMs = heartbeatEndTimestamp.toEpochMilli(),
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).containsOnly(
                     "counter_metric.count" to JsonPrimitive(1),
@@ -192,7 +204,12 @@ class Logs2MetricsProcessorTest {
             ),
             packageManagerReport,
         )
-        assertThat(dao.collectHeartbeat(endTimestampMs = heartbeatEndTimestamp.toEpochMilli())).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = heartbeatEndTimestamp.toEpochMilli(),
+                endUptimeMs = heartbeatEndTimestamp.toEpochMilli(),
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).containsOnly(
                     "logcat_hello1.count" to JsonPrimitive(1),
@@ -226,7 +243,12 @@ class Logs2MetricsProcessorTest {
             ),
             packageManagerReport,
         )
-        assertThat(dao.collectHeartbeat(endTimestampMs = heartbeatEndTimestamp.toEpochMilli())).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = heartbeatEndTimestamp.toEpochMilli(),
+                endUptimeMs = heartbeatEndTimestamp.toEpochMilli(),
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).containsOnly(
                     "batterystats_467.count" to JsonPrimitive(1),
@@ -271,7 +293,12 @@ class Logs2MetricsProcessorTest {
             ),
             packageManagerReport,
         )
-        assertThat(dao.collectHeartbeat(endTimestampMs = heartbeatEndTimestamp.toEpochMilli())).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = heartbeatEndTimestamp.toEpochMilli(),
+                endUptimeMs = heartbeatEndTimestamp.toEpochMilli(),
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).containsOnly(
                     "frames_dropped.sum" to JsonPrimitive(200.0),
@@ -333,7 +360,12 @@ class Logs2MetricsProcessorTest {
             ),
             packageManagerReport,
         )
-        assertThat(dao.collectHeartbeat(endTimestampMs = heartbeatEndTimestamp.toEpochMilli())).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = heartbeatEndTimestamp.toEpochMilli(),
+                endUptimeMs = heartbeatEndTimestamp.toEpochMilli(),
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).containsOnly(
                     "request_size.min" to JsonPrimitive(100.0),
@@ -387,7 +419,12 @@ class Logs2MetricsProcessorTest {
             ),
             packageManagerReport,
         )
-        assertThat(dao.collectHeartbeat(endTimestampMs = heartbeatEndTimestamp.toEpochMilli())).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = heartbeatEndTimestamp.toEpochMilli(),
+                endUptimeMs = heartbeatEndTimestamp.toEpochMilli(),
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).containsOnly(
                     "wifi_bssid.latest" to JsonPrimitive("b0:1f:8c:00:ff:00"),
@@ -427,7 +464,12 @@ class Logs2MetricsProcessorTest {
             ),
             packageManagerReport,
         )
-        assertThat(dao.collectHeartbeat(endTimestampMs = heartbeatEndTimestamp.toEpochMilli())).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = heartbeatEndTimestamp.toEpochMilli(),
+                endUptimeMs = heartbeatEndTimestamp.toEpochMilli(),
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).doesNotContainKey("batterystats_bad_type.count")
             }
@@ -445,7 +487,12 @@ class Logs2MetricsProcessorTest {
             ),
             packageManagerReport,
         )
-        assertThat(dao.collectHeartbeat(endTimestampMs = heartbeatEndTimestamp.toEpochMilli())).all {
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = heartbeatEndTimestamp.toEpochMilli(),
+                endUptimeMs = heartbeatEndTimestamp.toEpochMilli(),
+            ),
+        ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).isEmpty()
                 prop(MetricReport::hrt).isNull()
@@ -465,11 +512,69 @@ class Logs2MetricsProcessorTest {
             packageManagerReport,
         )
         assertThat(
-            dao.collectHeartbeat(endTimestampMs = heartbeatEndTimestamp.toEpochMilli()),
+            dao.collectHeartbeat(
+                endTimestampMs = heartbeatEndTimestamp.toEpochMilli(),
+
+                endUptimeMs = heartbeatEndTimestamp.toEpochMilli(),
+            ),
         ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
                 prop(MetricReport::metrics).isEmpty()
                 prop(MetricReport::hrt).isNull()
+            }
+        }
+    }
+
+    @Test
+    fun matchNullTagAsEmpty() = runTest {
+        processor.process(
+            LogcatLine(
+                logTime = timestamp,
+                message = "Restart job (5)",
+                tag = null,
+                priority = INFO,
+            ),
+            packageManagerReport,
+        )
+        processor.process(
+            LogcatLine(
+                logTime = timestamp.plusMillis(1),
+                message = "Restart job (6)",
+                tag = null,
+                priority = INFO,
+            ),
+            packageManagerReport,
+        )
+        assertThat(
+            dao.collectHeartbeat(
+                endTimestampMs = heartbeatEndTimestamp.toEpochMilli(),
+                endUptimeMs = heartbeatEndTimestamp.toEpochMilli(),
+            ),
+        ).all {
+            prop(CustomReport::hourlyHeartbeatReport).all {
+                prop(MetricReport::metrics).contains(
+                    "restart_job.count" to JsonPrimitive(2),
+                )
+                prop(MetricReport::hrt).isNotNull()
+                    .transform { hrt -> HighResTelemetry.decodeFromStream(hrt) }
+                    .prop(HighResTelemetry::rollups)
+                    .contains(
+                        rollup(
+                            stringKey = "restart_job",
+                            metricType = MetricType.Event,
+                            dataType = DataType.StringType,
+                            data = listOf(
+                                Datum(
+                                    value = JsonPrimitive("Restart job (5)"),
+                                    t = timestamp.toEpochMilli(),
+                                ),
+                                Datum(
+                                    value = JsonPrimitive("Restart job (6)"),
+                                    t = timestamp.plusMillis(1).toEpochMilli(),
+                                ),
+                            ),
+                        ),
+                    )
             }
         }
     }
