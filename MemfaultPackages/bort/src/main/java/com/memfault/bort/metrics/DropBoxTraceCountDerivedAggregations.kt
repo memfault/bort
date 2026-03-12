@@ -24,6 +24,8 @@ class DropBoxTraceCountDerivedAggregations
         endTimestampMs: Long,
         metrics: Map<String, JsonPrimitive>,
         internalMetrics: Map<String, JsonPrimitive>,
+        startUptimeMs: Long,
+        endUptimeMs: Long,
     ): List<DerivedAggregation> = when (reportType) {
         Hourly, Daily -> TAGS_TO_REASONS.map { (tag, reasons) ->
             val sum = reasons.sumOf { reason -> internalMetrics[reason]?.doubleOrNull ?: 0.0 }
@@ -34,6 +36,7 @@ class DropBoxTraceCountDerivedAggregations
                 metricType = MetricType.COUNTER,
                 dataType = DataType.DOUBLE,
                 collectionTimeMs = endTimestampMs,
+                collectionUptimeMs = endUptimeMs,
                 internal = false,
             )
         } + if (metrics.containsKey("${dropBoxTagCountMetric("panic")}.sum")) {
@@ -46,6 +49,7 @@ class DropBoxTraceCountDerivedAggregations
                     metricType = MetricType.COUNTER,
                     dataType = DataType.DOUBLE,
                     collectionTimeMs = endTimestampMs,
+                    collectionUptimeMs = endUptimeMs,
                     internal = false,
                 ),
             )

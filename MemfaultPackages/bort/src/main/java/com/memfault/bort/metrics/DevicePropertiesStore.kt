@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics
 
+import android.os.SystemClock
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.reporting.StateAgg
 
@@ -17,48 +18,56 @@ class DevicePropertiesStore {
         name: String,
         value: String,
         internal: Boolean = false,
-        timestamp: Long = System.currentTimeMillis(),
+    ) {
+        upsert(name, value, internal, System.currentTimeMillis(), SystemClock.elapsedRealtime())
+    }
+    fun upsert(
+        name: String,
+        value: String,
+        internal: Boolean = false,
+        timestamp: Long,
+        uptime: Long,
     ) {
         Reporting.report().stringProperty(name = name, addLatestToReport = true, internal = internal)
-            .update(value, timestamp = timestamp)
+            .update(value, timestamp = timestamp, uptime = uptime)
     }
 
     fun upsert(
         name: String,
-        value: Double,
+        value: Number,
         internal: Boolean = false,
-        timestamp: Long = System.currentTimeMillis(),
+    ) {
+        upsert(name, value, internal, System.currentTimeMillis(), SystemClock.elapsedRealtime())
+    }
+
+    fun upsert(
+        name: String,
+        value: Number,
+        internal: Boolean = false,
+        timestamp: Long,
+        uptime: Long,
     ) {
         Reporting.report().numberProperty(name = name, addLatestToReport = true, internal = internal)
-            .update(value, timestamp = timestamp)
-    }
-
-    fun upsert(
-        name: String,
-        value: Long,
-        internal: Boolean = false,
-        timestamp: Long = System.currentTimeMillis(),
-    ) {
-        upsert(name = name, value = value.toDouble(), internal = internal, timestamp = timestamp)
-    }
-
-    fun upsert(
-        name: String,
-        value: Int,
-        internal: Boolean = false,
-        timestamp: Long = System.currentTimeMillis(),
-    ) {
-        upsert(name = name, value = value.toDouble(), internal = internal, timestamp = timestamp)
+            .update(value.toDouble(), timestamp = timestamp, uptime = uptime)
     }
 
     fun upsert(
         name: String,
         value: Boolean,
         internal: Boolean = false,
-        timestamp: Long = System.currentTimeMillis(),
+    ) {
+        upsert(name, value, internal, System.currentTimeMillis(), SystemClock.elapsedRealtime())
+    }
+
+    fun upsert(
+        name: String,
+        value: Boolean,
+        internal: Boolean = false,
+        timestamp: Long,
+        uptime: Long,
     ) {
         Reporting.report()
             .boolStateTracker(name = name, aggregations = listOf(StateAgg.LATEST_VALUE), internal = internal)
-            .state(value, timestamp = timestamp)
+            .state(value, timestamp = timestamp, uptime = uptime)
     }
 }

@@ -16,10 +16,7 @@ import javax.inject.Inject
 @OptIn(ExperimentalStdlibApi::class)
 @ContributesMultibinding(scope = SingletonComponent::class)
 class BluetoothDeviceTxPowerLevelReportedEventMetricListener @Inject constructor() : StatsdEventMetricListener {
-    override fun reportEventMetric(
-        eventTimestampMillis: Long,
-        atom: Atom,
-    ) {
+    override fun reportEventMetric(eventTimestampMillis: Long, eventElapsedRealtimeMillis: Long, atom: Atom) {
         if (atom.bluetooth_device_tx_power_level_reported != null) {
             val txPowerEvent = atom.bluetooth_device_tx_power_level_reported
 
@@ -30,7 +27,7 @@ class BluetoothDeviceTxPowerLevelReportedEventMetricListener @Inject constructor
                 Reporting.report().distribution(
                     name = BLUETOOTH_DEVICE_TX_POWER_LEVEL_DISTRIBUTION,
                     aggregations = listOf(MEAN, MIN, MAX),
-                ).record(txPowerLevel.toDouble(), timestamp = eventTimestampMillis)
+                ).record(txPowerLevel.toDouble(), timestamp = eventTimestampMillis, uptime = eventElapsedRealtimeMillis)
 
                 val obfuscatedId = txPowerEvent.obfuscated_id?.toByteArray()?.toHexString().orEmpty()
                 Reporting.report().event(

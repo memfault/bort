@@ -11,6 +11,7 @@ import javax.inject.Inject
 class LmkEventMetricListener @Inject constructor() : StatsdEventMetricListener {
     override fun reportEventMetric(
         eventTimestampMillis: Long,
+        eventElapsedRealtimeMillis: Long,
         atom: Atom,
     ) {
         if (atom.lmk_kill_kill_occurred != null) {
@@ -31,6 +32,7 @@ class LmkEventMetricListener @Inject constructor() : StatsdEventMetricListener {
                     "maxTrashing=${lmkEvent.max_thrashing} " +
                     "reason=\"${humanReadableLmkReason(lmkEvent.reason ?: LmkKillOccurred.Reason.UNKNOWN)}\"",
                 eventTimestampMillis,
+                uptime = eventElapsedRealtimeMillis,
             )
         }
     }

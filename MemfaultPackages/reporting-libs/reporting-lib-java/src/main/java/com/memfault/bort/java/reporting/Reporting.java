@@ -2,11 +2,13 @@ package com.memfault.bort.java.reporting;
 
 import android.annotation.SuppressLint;
 import com.memfault.bort.reporting.FinishReport;
+import com.memfault.bort.reporting.MetricValue;
 import com.memfault.bort.reporting.RemoteMetricsService;
 import com.memfault.bort.reporting.StartReport;
 import java.util.concurrent.CompletableFuture;
 
 import static com.memfault.bort.java.reporting.Metric.timestamp;
+import static com.memfault.bort.java.reporting.Metric.uptime;
 import static com.memfault.bort.reporting.MetricValue.MetricJsonFields.REPORTING_CLIENT_VERSION;
 import static com.memfault.bort.reporting.RemoteMetricsService.HEARTBEAT_REPORT;
 import static com.memfault.bort.reporting.RemoteMetricsService.SESSION_REPORT;
@@ -57,7 +59,7 @@ public class Reporting {
    * </p>
    */
   public static CompletableFuture<Boolean> startSession(String name) {
-    return startSession(name, timestamp());
+    return startSession(name, timestamp(), uptime());
   }
 
   /**
@@ -66,11 +68,28 @@ public class Reporting {
    * Session names must match {@link RemoteMetricsService.SESSION_NAME_REGEX}, not be a
    * {@link RemoteMetricsService.RESERVED_REPORT_NAMES}, and not be null.
    * </p>
+   *
+   * @deprecated Consider using the startSession variant which takes an uptime, otherwise
+   *     the current uptime will be used.
    */
   public static CompletableFuture<Boolean> startSession(String name, long timestampMs) {
+    return startSession(name, timestampMs, MetricValue.INVALID_UPTIME);
+  }
+
+  /**
+   * Start a session.
+   * <p>
+   * Session names must match {@link RemoteMetricsService.SESSION_NAME_REGEX}, not be a
+   * {@link RemoteMetricsService.RESERVED_REPORT_NAMES}, and not be null.
+   * </p>
+   * the current uptime will be used.
+   */
+  public static CompletableFuture<Boolean> startSession(String name, long timestampMs,
+      long uptimeMs) {
     return remoteMetricsService.startReport(
         new StartReport(
             timestampMs,
+            uptimeMs,
             REPORTING_CLIENT_VERSION,
             SESSION_REPORT,
             name
@@ -82,16 +101,28 @@ public class Reporting {
    * Finish a session.
    */
   public static CompletableFuture<Boolean> finishSession(String name) {
-    return finishSession(name, timestamp());
+    return finishSession(name, timestamp(), uptime());
+  }
+
+  /**
+   * Finish a session.
+   *
+   * @deprecated Consider using the finishSession variant that takes an uptime.
+   */
+  public static CompletableFuture<Boolean> finishSession(String name, long timestampMs) {
+    return finishSession(name, timestampMs, MetricValue.INVALID_UPTIME);
   }
 
   /**
    * Finish a session.
    */
-  public static CompletableFuture<Boolean> finishSession(String name, long timestampMs) {
+  public static CompletableFuture<Boolean> finishSession(String name,
+      long timestampMs,
+      long uptimeMs) {
     return remoteMetricsService.finishReport(
         new FinishReport(
             timestampMs,
+            uptimeMs,
             REPORTING_CLIENT_VERSION,
             SESSION_REPORT,
             /* startNextReport */ false,

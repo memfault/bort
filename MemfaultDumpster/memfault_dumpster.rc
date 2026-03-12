@@ -7,4 +7,5 @@ on post-fs-data
     wait /data/system/MemfaultDumpster/
 
 service memfault_dumpster /system_ext/bin/MemfaultDumpster
+    user root
     class core

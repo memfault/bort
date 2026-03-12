@@ -111,12 +111,14 @@ class StorageStatsCollectorTest {
 
         storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
 
-        val now = FakeCombinedTimeProvider.now.timestamp.toEpochMilli()
-        verify { storageStatsReporter.reportUsage(1024, 4096, 3072, 0.75, now) }
-        verify { storageStatsReporter.reportFlashWear("source", "version", 1, 2, 3, now) }
-        verify { storageStatsReporter.reportWrites("device1", 2048 * sectorSize, now) }
-        verify { storageStatsReporter.reportWrites("device2", 1024 * sectorSize, now) }
-        verify { storageStatsReporter.reportWrites("device3", 512 * sectorSize, now) }
+        val combined = FakeCombinedTimeProvider.now
+        val now = combined.timestamp.toEpochMilli()
+        val elapsed = combined.elapsedRealtime.duration.inWholeMilliseconds
+        verify { storageStatsReporter.reportUsage(1024, 4096, 3072, 0.75, now, uptime = elapsed) }
+        verify { storageStatsReporter.reportFlashWear("source", "version", 1, 2, 3, now, uptime = elapsed) }
+        verify { storageStatsReporter.reportWrites("device1", 2048 * sectorSize, now, uptime = elapsed) }
+        verify { storageStatsReporter.reportWrites("device2", 1024 * sectorSize, now, uptime = elapsed) }
+        verify { storageStatsReporter.reportWrites("device3", 512 * sectorSize, now, uptime = elapsed) }
         confirmVerified(storageStatsReporter)
     }
 

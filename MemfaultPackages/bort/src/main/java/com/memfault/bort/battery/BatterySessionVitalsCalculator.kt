@@ -28,6 +28,8 @@ class BatterySessionVitalsCalculator @Inject constructor() : CalculateDerivedAgg
         endTimestampMs: Long,
         metrics: Map<String, JsonPrimitive>,
         internalMetrics: Map<String, JsonPrimitive>,
+        startUptimeMs: Long,
+        endUptimeMs: Long,
     ): List<DerivedAggregation> {
         val batteryDrop = internalMetrics["${BATTERY_LEVEL_METRIC}_drop"]?.doubleOrNull
 
@@ -49,6 +51,7 @@ class BatterySessionVitalsCalculator @Inject constructor() : CalculateDerivedAgg
                 metricType = MetricType.GAUGE,
                 dataType = DataType.DOUBLE,
                 collectionTimeMs = endTimestampMs,
+                collectionUptimeMs = endUptimeMs,
                 internal = false,
             ),
             DerivedAggregation.create(
@@ -57,6 +60,7 @@ class BatterySessionVitalsCalculator @Inject constructor() : CalculateDerivedAgg
                 metricType = MetricType.GAUGE,
                 dataType = DataType.DOUBLE,
                 collectionTimeMs = endTimestampMs,
+                collectionUptimeMs = endUptimeMs,
                 internal = false,
             ),
         )

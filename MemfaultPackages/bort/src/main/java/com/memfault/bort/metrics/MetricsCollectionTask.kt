@@ -245,6 +245,7 @@ class MetricsCollectionTask @Inject constructor(
         val actualCollectionTime = combinedTimeProvider.now()
         val heartbeatReport = customMetrics.collectHeartbeat(
             endTimestampMs = actualCollectionTime.timestamp.toEpochMilli(),
+            endUptimeMs = actualCollectionTime.elapsedRealtime.duration.inWholeMilliseconds,
             forceEndAllReports = softwareVersionChanged,
         )
 

@@ -63,7 +63,7 @@ class ThermalDerivedCalculatorTest {
             "thermal_battery_bat-1_c.mean" to JsonPrimitive(4.0),
             "thermal_battery_bat-1_c.max" to JsonPrimitive(7.5),
         )
-        assertThat(calculator(legacyMetrics = false).calculate(Hourly, 0, 0, metrics, emptyMap()))
+        assertThat(calculator(legacyMetrics = false).calculate(Hourly, 0, 0, metrics, emptyMap(), 0, 0))
             .containsExactly(
                 derivedMetric("thermal_cpu_c", 2.25),
                 derivedMetric("thermal_cpu_c_max", 6.0),
@@ -91,7 +91,7 @@ class ThermalDerivedCalculatorTest {
             "thermal_battery_bat-1_c.mean" to JsonPrimitive(4.0),
             "thermal_battery_bat-1_c.max" to JsonPrimitive(7.5),
         )
-        assertThat(calculator(legacyMetrics = true).calculate(Hourly, 0, 0, metrics, emptyMap()))
+        assertThat(calculator(legacyMetrics = true).calculate(Hourly, 0, 0, metrics, emptyMap(), 0, 0))
             .containsExactlyInAnyOrder(
                 derivedMetric("thermal_cpu_c", 2.25),
                 derivedMetric("thermal_cpu_c_max", 6.0),
@@ -117,7 +117,7 @@ class ThermalDerivedCalculatorTest {
             "thermal_gpu_GPU0_c.mean" to JsonPrimitive(3.0),
             "thermal_gpu_GPU0_c.max" to JsonPrimitive(10.5),
         )
-        assertThat(calculator(legacyMetrics = false).calculate(Hourly, 0, 0, metrics, emptyMap()))
+        assertThat(calculator(legacyMetrics = false).calculate(Hourly, 0, 0, metrics, emptyMap(), 0, 0))
             .isEmpty()
     }
 
@@ -127,6 +127,7 @@ class ThermalDerivedCalculatorTest {
         metricType = MetricType.GAUGE,
         dataType = DataType.DOUBLE,
         collectionTimeMs = 0,
+        collectionUptimeMs = 0,
         internal = false,
     )
 }

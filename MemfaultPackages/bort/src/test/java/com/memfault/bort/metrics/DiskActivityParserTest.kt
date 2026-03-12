@@ -269,6 +269,13 @@ inputs
         )
     }
 
+    @Test fun `sector size is always 512 bytes (Linux block layer convention for procfs diskstats)`() {
+        // /proc/diskstats always uses 512-byte sectors regardless of device hardware.
+        // A previous bug used StatFs.blockSizeLong (4096) here, inflating bytes_written by 8x.
+        val provider = RealDiskInfoProvider()
+        assertThat(provider.getSectorSizeBytes()).isEqualTo(512L)
+    }
+
     companion object {
         const val realWorldOutput = """1       0 ram0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
    1       1 ram1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0

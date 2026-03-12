@@ -15,7 +15,7 @@ import com.memfault.bort.reporting.StateAgg.TIME_TOTALS
 import com.memfault.bort.scopes.Scope
 import com.memfault.bort.scopes.Scoped
 import com.memfault.bort.scopes.coroutineScope
-import com.memfault.bort.time.AbsoluteTimeProvider
+import com.memfault.bort.time.CombinedTimeProvider
 import com.squareup.anvil.annotations.ContributesBinding
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
@@ -54,7 +54,7 @@ interface BatterySessionVitals {
 class RealBatterySessionVitals
 @Inject constructor(
     private val application: Application,
-    private val absoluteTimeProvider: AbsoluteTimeProvider,
+    private val combinedTimeProvider: CombinedTimeProvider,
     private val batteryManager: BatteryManager,
     @Default private val defaultCoroutineContext: CoroutineContext,
 ) : BatterySessionVitals, Scoped {
@@ -91,11 +91,14 @@ class RealBatterySessionVitals
                 .flowOn(defaultCoroutineContext)
                 .collect { intent ->
                     if (intent.action == ACTION_BATTERY_CHANGED) {
-                        val now = absoluteTimeProvider().timestamp.toEpochMilli()
+                        val combinedTime = combinedTimeProvider.now()
+                        val timestampMs = combinedTime.timestamp.toEpochMilli()
+                        val uptimeMs = combinedTime.elapsedRealtime.duration.inWholeMilliseconds
                         record(
                             isCharging = intent.isPlugged,
                             level = intent.batteryPercentage,
-                            timestampMs = now,
+                            timestampMs = timestampMs,
+                            uptimeMs = uptimeMs,
                             cycleCount = intent.cycleCount,
                         )
                     }
@@ -106,13 +109,14 @@ class RealBatterySessionVitals
     override fun onExitScope() = Unit
 
     override fun onChargingChanged(isCharging: Boolean) {
-        val now = absoluteTimeProvider().timestamp.toEpochMilli()
+        val now = combinedTimeProvider.now()
         val level = batteryManager.getLongProperty(BATTERY_PROPERTY_CAPACITY).toDouble()
 
         record(
             isCharging = isCharging,
             level = level,
-            timestampMs = now,
+            timestampMs = now.timestamp.toEpochMilli(),
+            uptimeMs = now.elapsedRealtime.duration.inWholeMilliseconds,
         )
     }
 
@@ -140,10 +144,11 @@ class RealBatterySessionVitals
         isCharging: Boolean,
         level: Double,
         timestampMs: Long,
+        uptimeMs: Long,
         cycleCount: Int? = null,
     ) {
-        chargingMetric.state(isCharging, timestamp = timestampMs)
-        levelMetric.record(level, timestamp = timestampMs)
-        cycleCount?.let { chargeCycleMetric.record(it.toLong(), timestamp = timestampMs) }
+        chargingMetric.state(isCharging, timestampMs, uptimeMs)
+        levelMetric.record(level, timestampMs, uptimeMs)
+        cycleCount?.let { chargeCycleMetric.record(it.toLong(), timestampMs, uptimeMs) }
     }
 }

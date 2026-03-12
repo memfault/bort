@@ -15,10 +15,7 @@ import javax.inject.Inject
  */
 @ContributesMultibinding(scope = SingletonComponent::class)
 class BleScanResultReceivedEventMetricListener @Inject constructor() : StatsdEventMetricListener {
-    override fun reportEventMetric(
-        eventTimestampMillis: Long,
-        atom: Atom,
-    ) {
+    override fun reportEventMetric(eventTimestampMillis: Long, eventElapsedRealtimeMillis: Long, atom: Atom) {
         if (atom.ble_scan_result_received != null) {
             val bleScanEvent = atom.ble_scan_result_received
 
@@ -28,7 +25,7 @@ class BleScanResultReceivedEventMetricListener @Inject constructor() : StatsdEve
                 Reporting.report().distribution(
                     name = BLE_SCAN_RESULT_COUNT_DISTRIBUTION,
                     aggregations = listOf(COUNT, MEAN, MAX),
-                ).record(numResults.toDouble(), timestamp = eventTimestampMillis)
+                ).record(numResults.toDouble(), timestamp = eventTimestampMillis, uptime = eventElapsedRealtimeMillis)
             }
 
             // Track event with details
@@ -38,7 +35,8 @@ class BleScanResultReceivedEventMetricListener @Inject constructor() : StatsdEve
                 latestInReport = true,
             ).add(
                 value = "numResults=$numResults attribution=$attributionInfo",
-                eventTimestampMillis,
+                timestamp = eventTimestampMillis,
+                uptime = eventElapsedRealtimeMillis,
             )
         }
     }

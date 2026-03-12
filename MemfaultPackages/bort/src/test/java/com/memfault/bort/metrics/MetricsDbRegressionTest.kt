@@ -57,17 +57,20 @@ class MetricsDbRegressionTest {
         )
     }
 
+    private val bootId = "0000-0000-0000-0001"
+
     private suspend fun MetricsDao.insert(metricValue: MetricValue): Long =
-        insert(metric = metricValue, dbReportBuilder = dbReportBuilder)
+        insert(metric = metricValue, dbReportBuilder = dbReportBuilder, bootId = bootId)
 
     private suspend fun MetricsDao.collectHeartbeat(
         hourlyHeartbeatReportType: String = HOURLY_HEARTBEAT_REPORT_TYPE,
         dailyHeartbeatReportType: String? = null,
         endTimestampMs: Long,
         hrtFileFactory: HrtFileFactory?,
-        calculateDerivedAggregations: CalculateDerivedAggregations = CalculateDerivedAggregations { _, _, _, _, _ ->
-            emptyList()
-        },
+        calculateDerivedAggregations: CalculateDerivedAggregations =
+            CalculateDerivedAggregations { _, _, _, _, _, _, _ ->
+                emptyList()
+            },
         dailyHeartbeatReportMetricsForSessions: List<String>? = null,
     ): CustomReport = collectHeartbeat(
         hourlyHeartbeatReportType = hourlyHeartbeatReportType,
@@ -76,6 +79,8 @@ class MetricsDbRegressionTest {
         hrtFileFactory = hrtFileFactory,
         calculateDerivedAggregations = calculateDerivedAggregations,
         dailyHeartbeatReportMetricsForSessions = dailyHeartbeatReportMetricsForSessions,
+        endUptimeMs = endTimestampMs,
+        bootId = bootId,
         dbReportBuilder = dbReportBuilder,
     )
 
@@ -111,6 +116,7 @@ class MetricsDbRegressionTest {
                 }
                 """,
             ),
+            bootId = bootId,
             dbReportBuilder = dbReportBuilder,
         )
 
@@ -720,6 +726,7 @@ class MetricsDbRegressionTest {
         version: Int,
         reportType: String,
         timestamp: Long,
+        uptime: Long,
         eventName: String,
         internal: Boolean,
         aggregations: List<AggregationType>,
@@ -739,6 +746,7 @@ class MetricsDbRegressionTest {
         dataType,
         carryOver,
         timestamp,
+        uptime,
         stringVal,
         numberVal,
         booleanVal,
@@ -753,6 +761,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 2345,
+                uptime = 2345,
                 eventName = "cpu_load",
                 internal = false,
                 aggregations = listOf(MIN, MAX, SUM, MEAN, COUNT, NumericAgg.LATEST_VALUE),
@@ -769,6 +778,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 3000,
+                uptime = 3000,
                 eventName = "cpu_load",
                 internal = false, aggregations = listOf(MIN, MAX, SUM, MEAN, COUNT, NumericAgg.LATEST_VALUE),
                 stringVal = null,
@@ -803,6 +813,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 2345,
+                uptime = 2345,
                 eventName = "screen",
                 internal = false,
                 aggregations = listOf(TIME_TOTALS),
@@ -819,6 +830,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 3345,
+                uptime = 3345,
                 eventName = "screen",
                 internal = false,
                 aggregations = listOf(TIME_TOTALS),
@@ -835,6 +847,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 4345,
+                uptime = 4345,
                 eventName = "screen",
                 internal = false,
                 aggregations = listOf(TIME_TOTALS),
@@ -851,6 +864,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 6345,
+                uptime = 6345,
                 eventName = "screen",
                 internal = false,
                 aggregations = listOf(TIME_TOTALS),
@@ -884,6 +898,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 1634074357043 + 1.hours.inWholeMilliseconds,
+                uptime = 1634074357043 + 1.hours.inWholeMilliseconds,
                 eventName = "screen",
                 internal = false,
                 aggregations = listOf(TIME_PER_HOUR),
@@ -900,6 +915,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 1634074357043 + 3.hours.inWholeMilliseconds,
+                uptime = 1634074357043 + 3.hours.inWholeMilliseconds,
                 eventName = "screen",
                 internal = false,
                 aggregations = listOf(TIME_PER_HOUR),
@@ -916,6 +932,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 1634074357043 + 1.hours.inWholeMilliseconds,
+                uptime = 1634074357043 + 1.hours.inWholeMilliseconds,
                 eventName = "gps",
                 internal = false,
                 aggregations = listOf(TIME_PER_HOUR),
@@ -932,6 +949,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "heartbeat",
                 timestamp = 1634074357043 + 3.hours.inWholeMilliseconds,
+                uptime = 1634074357043 + 3.hours.inWholeMilliseconds,
                 eventName = "gps",
                 internal = false,
                 aggregations = listOf(TIME_PER_HOUR),
@@ -975,6 +993,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "a",
                 timestamp = 67890,
+                uptime = 67890,
                 eventName = "metric_a",
                 internal = false,
                 aggregations = listOf(SUM),
@@ -991,6 +1010,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "b",
                 timestamp = 67890,
+                uptime = 67890,
                 eventName = "metric_b",
                 internal = false,
                 aggregations = listOf(SUM),
@@ -1019,6 +1039,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "a",
                 timestamp = 67890,
+                uptime = 67890,
                 eventName = "metric_a",
                 internal = false,
                 aggregations = listOf(StateAgg.LATEST_VALUE),
@@ -1035,6 +1056,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "a",
                 timestamp = 67890,
+                uptime = 67890,
                 eventName = "metric_b",
                 internal = false,
                 aggregations = listOf(StateAgg.LATEST_VALUE),
@@ -1066,6 +1088,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "rolling_report",
                 timestamp = 67890,
+                uptime = 67890,
                 eventName = "metric_a",
                 internal = false,
                 aggregations = listOf(StateAgg.LATEST_VALUE),
@@ -1084,6 +1107,8 @@ class MetricsDbRegressionTest {
             prop(MetricReport::reportType).isEqualTo("rolling_report")
             prop(MetricReport::startTimestampMs).isEqualTo(67890)
             prop(MetricReport::endTimestampMs).isEqualTo(98765)
+            prop(MetricReport::startUptimeMs).isEqualTo(67890)
+            prop(MetricReport::endUptimeMs).isEqualTo(98765)
             prop(MetricReport::metrics).isEqualTo(
                 mapOf("metric_a.latest" to JsonPrimitive(1.0)),
             )
@@ -1094,6 +1119,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "rolling_report",
                 timestamp = 100000,
+                uptime = 100000,
                 eventName = "metric_b",
                 internal = false,
                 aggregations = listOf(StateAgg.LATEST_VALUE),
@@ -1112,6 +1138,8 @@ class MetricsDbRegressionTest {
             prop(MetricReport::reportType).isEqualTo("rolling_report")
             prop(MetricReport::startTimestampMs).isEqualTo(98765)
             prop(MetricReport::endTimestampMs).isEqualTo(100000)
+            prop(MetricReport::startUptimeMs).isEqualTo(98765)
+            prop(MetricReport::endUptimeMs).isEqualTo(100000)
             prop(MetricReport::metrics).isEqualTo(
                 mapOf(
                     "metric_a.latest" to JsonPrimitive(1.0),
@@ -1125,6 +1153,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "rolling_report",
                 timestamp = 500000,
+                uptime = 500000,
                 eventName = "metric_b",
                 internal = false,
                 aggregations = listOf(StateAgg.LATEST_VALUE),
@@ -1143,6 +1172,8 @@ class MetricsDbRegressionTest {
             prop(MetricReport::reportType).isEqualTo("rolling_report")
             prop(MetricReport::startTimestampMs).isEqualTo(100000)
             prop(MetricReport::endTimestampMs).isEqualTo(600000)
+            prop(MetricReport::startUptimeMs).isEqualTo(100000)
+            prop(MetricReport::endUptimeMs).isEqualTo(600000)
             prop(MetricReport::metrics).isEqualTo(
                 mapOf(
                     "metric_a.latest" to JsonPrimitive(1.0),
@@ -1157,6 +1188,8 @@ class MetricsDbRegressionTest {
             prop(MetricReport::reportType).isEqualTo("rolling_report")
             prop(MetricReport::startTimestampMs).isEqualTo(600000)
             prop(MetricReport::endTimestampMs).isEqualTo(700000)
+            prop(MetricReport::startUptimeMs).isEqualTo(600000)
+            prop(MetricReport::endUptimeMs).isEqualTo(700000)
             prop(MetricReport::metrics).isEqualTo(
                 mapOf(
                     "metric_a.latest" to JsonPrimitive(1.0),
@@ -1170,6 +1203,7 @@ class MetricsDbRegressionTest {
                 version = 1,
                 reportType = "rolling_report",
                 timestamp = 800000,
+                uptime = 800000,
                 eventName = "metric_b",
                 internal = false,
                 aggregations = listOf(StateAgg.LATEST_VALUE),
@@ -1188,6 +1222,8 @@ class MetricsDbRegressionTest {
             prop(MetricReport::reportType).isEqualTo("rolling_report")
             prop(MetricReport::startTimestampMs).isEqualTo(700000)
             prop(MetricReport::endTimestampMs).isEqualTo(900000)
+            prop(MetricReport::startUptimeMs).isEqualTo(700000)
+            prop(MetricReport::endUptimeMs).isEqualTo(900000)
             prop(MetricReport::metrics).isEqualTo(
                 mapOf(
                     "metric_a.latest" to JsonPrimitive(1.0),

@@ -113,9 +113,11 @@ class StatsdMetricCollector @Inject constructor(
     ) {
         val timeBetweenEventAndCollection = (collectionTimeNanos - eventElapsedRealtimeNanos).nanoseconds
         val eventTimestampMillis = now.minus(timeBetweenEventAndCollection).timestamp.toEpochMilli()
+        val eventElapsedRealtimeMillis = eventElapsedRealtimeNanos.nanoseconds.inWholeMilliseconds
         eventMetricListeners.forEach { listener ->
             listener.reportEventMetric(
                 eventTimestampMillis = eventTimestampMillis,
+                eventElapsedRealtimeMillis = eventElapsedRealtimeMillis,
                 atom = atom,
             )
         }

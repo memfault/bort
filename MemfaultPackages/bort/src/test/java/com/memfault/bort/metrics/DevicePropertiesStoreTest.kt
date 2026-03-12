@@ -96,11 +96,13 @@ class DevicePropertiesStoreTest {
             value = METRIC_VALUE_STRING,
             internal = true,
             timestamp = heartbeatTimestamp,
+            uptime = heartbeatTimestamp,
         )
 
         assertThat(
             metricsDbTestEnvironment.dao.collectHeartbeat(
                 endTimestampMs = heartbeatTimestamp + 1,
+                endUptimeMs = heartbeatTimestamp + 1,
             ),
         ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
@@ -136,11 +138,13 @@ class DevicePropertiesStoreTest {
             value = METRIC_VALUE_BOOL,
             internal = false,
             timestamp = heartbeatTimestamp,
+            uptime = heartbeatTimestamp,
         )
 
         assertThat(
             metricsDbTestEnvironment.dao.collectHeartbeat(
                 endTimestampMs = heartbeatTimestamp + 1,
+                endUptimeMs = heartbeatTimestamp + 1,
             ),
         ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
@@ -176,11 +180,13 @@ class DevicePropertiesStoreTest {
             value = METRIC_VALUE_STRING,
             internal = false,
             heartbeatTimestamp,
+            heartbeatTimestamp,
         )
 
         assertThat(
             metricsDbTestEnvironment.dao.collectHeartbeat(
                 endTimestampMs = heartbeatTimestamp,
+                endUptimeMs = heartbeatTimestamp,
             ),
         ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
@@ -216,11 +222,13 @@ class DevicePropertiesStoreTest {
             value = METRIC_VALUE_LONG,
             internal = true,
             timestamp = heartbeatTimestamp,
+            uptime = heartbeatTimestamp,
         )
 
         assertThat(
             metricsDbTestEnvironment.dao.collectHeartbeat(
                 endTimestampMs = heartbeatTimestamp + 1,
+                endUptimeMs = heartbeatTimestamp + 1,
             ),
         ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {
@@ -256,14 +264,34 @@ class DevicePropertiesStoreTest {
             value = METRIC_VALUE_DOUBLE,
             internal = false,
             heartbeatTimestamp,
+            heartbeatTimestamp,
         )
-        propertiesStore.upsert(name = METRIC_NAME_LONG, value = METRIC_VALUE_LONG, internal = true, heartbeatTimestamp)
-        propertiesStore.upsert(name = METRIC_NAME_INT, value = METRIC_VALUE_INT, internal = true, heartbeatTimestamp)
-        propertiesStore.upsert(name = METRIC_NAME_BOOL, value = METRIC_VALUE_BOOL, internal = false, heartbeatTimestamp)
+        propertiesStore.upsert(
+            name = METRIC_NAME_LONG,
+            value = METRIC_VALUE_LONG,
+            internal = true,
+            heartbeatTimestamp,
+            heartbeatTimestamp,
+        )
+        propertiesStore.upsert(
+            name = METRIC_NAME_INT,
+            value = METRIC_VALUE_INT,
+            internal = true,
+            heartbeatTimestamp,
+            heartbeatTimestamp,
+        )
+        propertiesStore.upsert(
+            name = METRIC_NAME_BOOL,
+            value = METRIC_VALUE_BOOL,
+            internal = false,
+            heartbeatTimestamp,
+            heartbeatTimestamp,
+        )
         propertiesStore.upsert(
             name = METRIC_NAME_STRING,
             value = "initial_val",
             internal = false,
+            heartbeatTimestamp,
             heartbeatTimestamp,
         )
         propertiesStore.upsert(
@@ -271,11 +299,13 @@ class DevicePropertiesStoreTest {
             value = METRIC_VALUE_STRING,
             internal = false,
             heartbeatTimestamp + 1,
+            heartbeatTimestamp + 1,
         )
 
         assertThat(
             metricsDbTestEnvironment.dao.collectHeartbeat(
                 endTimestampMs = heartbeatTimestamp + 1,
+                endUptimeMs = heartbeatTimestamp + 1,
             ),
         ).all {
             prop(CustomReport::hourlyHeartbeatReport).all {

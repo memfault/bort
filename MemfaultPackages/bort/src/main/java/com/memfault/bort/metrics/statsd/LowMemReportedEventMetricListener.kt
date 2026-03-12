@@ -8,12 +8,16 @@ import javax.inject.Inject
 
 @ContributesMultibinding(scope = SingletonComponent::class)
 class LowMemReportedEventMetricListener @Inject constructor() : StatsdEventMetricListener {
-    override fun reportEventMetric(eventTimestampMillis: Long, atom: Atom) {
+    override fun reportEventMetric(
+        eventTimestampMillis: Long,
+        eventElapsedRealtimeMillis: Long,
+        atom: Atom,
+    ) {
         if (atom.low_mem_reported != null) {
             Reporting.report().counter(
                 name = LOW_MEM_REPORTED_EVENT,
                 sumInReport = true,
-            ).increment(timestamp = eventTimestampMillis)
+            ).increment(timestamp = eventTimestampMillis, uptime = eventElapsedRealtimeMillis)
         }
     }
 

@@ -8,6 +8,7 @@
 
 service memfault_dumpstatez /system/bin/dumpstate -S -d -z -q \
           -o /data/user_de/0/com.android.shell/files/bugreports/bugreport
+    user root
     setenv MEMFAULT_UPLOADER_CAPTURED 1
     socket dumpstate stream 0660 root root
     class main
@@ -29,6 +30,7 @@ on post-fs-data
     wait /data/misc/MemfaultBugReports/
 
 service memfault_dumpstate_runner /system_ext/bin/MemfaultDumpstateRunner
+    user root
     class core
     disabled
     oneshot

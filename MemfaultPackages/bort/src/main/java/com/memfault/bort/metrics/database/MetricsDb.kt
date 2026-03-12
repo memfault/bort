@@ -3,6 +3,7 @@ package com.memfault.bort.metrics.database
 import android.app.Application
 import androidx.annotation.VisibleForTesting
 import androidx.room.AutoMigration
+import androidx.room.ColumnInfo
 import androidx.room.Database
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -16,6 +17,7 @@ import com.memfault.bort.BortJson
 import com.memfault.bort.reporting.AggregationType
 import com.memfault.bort.reporting.DataType
 import com.memfault.bort.reporting.MetricType
+import com.memfault.bort.reporting.MetricValue
 import com.memfault.bort.reporting.NumericAgg
 import com.memfault.bort.reporting.StateAgg
 import kotlinx.serialization.Serializable
@@ -42,12 +44,13 @@ val PREVIOUS_METRICS_DB_NAMES = listOf(
         DbMetricMetadata::class,
         DbMetricValue::class,
     ],
-    version = 2,
+    version = 3,
     // See room.schemaLocation in build.gradle for configuration of export location.
     exportSchema = true,
     // When we bump the version, enable auto-generated migrations by uncommenting:
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
+        AutoMigration(from = 2, to = 3),
     ],
 )
 @TypeConverters(MetricsConverters::class)
@@ -74,6 +77,10 @@ data class DbReport(
     val endTimeMs: Long? = null,
     val name: String? = null,
     val softwareVersion: String? = null,
+    @ColumnInfo(defaultValue = MetricValue.INVALID_UPTIME.toString())
+    val startUptimeMs: Long,
+    val endUptimeMs: Long? = null,
+    val bootId: String?,
 )
 
 @Entity(
@@ -125,6 +132,8 @@ data class DbMetricValue(
     val metadataId: Long,
     val version: Int,
     val timestampMs: Long,
+    @ColumnInfo(defaultValue = MetricValue.INVALID_UPTIME.toString())
+    val uptimeMs: Long,
     val stringVal: String? = null,
     val numberVal: Double? = null,
     val boolVal: Boolean? = null,

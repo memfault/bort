@@ -83,19 +83,16 @@ class AppVersionsCollectorTest {
                 name = "version.$ABC_ID",
                 value = ABC_VERSION,
                 internal = false,
-                timestamp = any(),
             )
             store.upsert(
                 name = "version.$BCD_ID",
                 value = BCD_VERSION,
                 internal = false,
-                timestamp = any(),
             )
             store.upsert(
                 name = "version.$BCE_ID",
                 value = BCE_VERSION,
                 internal = false,
-                timestamp = any(),
             )
         }
     }
@@ -119,7 +116,7 @@ class AppVersionsCollectorTest {
             ),
         )
         collector.collect()?.let { appVersions -> collector.record(appVersions, store) }
-        coVerify(exactly = 3) { store.upsert(any(), any<String>(), false, timestamp = any()) }
+        coVerify(exactly = 3) { store.upsert(any(), any<String>(), false) }
     }
 
     companion object {

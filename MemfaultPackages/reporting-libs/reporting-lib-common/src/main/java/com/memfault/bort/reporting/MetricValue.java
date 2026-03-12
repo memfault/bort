@@ -1,5 +1,6 @@
 package com.memfault.bort.reporting;
 
+import android.os.SystemClock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -12,6 +13,8 @@ import org.json.JSONObject;
  * Immutable copy of {@link com.memfault.bort.java.reporting.Metric} for serialization.
  */
 public final class MetricValue {
+  public static final long INVALID_UPTIME = -1;
+
   public final String eventName;
   public final String reportType;
   public final List<AggregationType> aggregations;
@@ -20,6 +23,7 @@ public final class MetricValue {
   public final DataType dataType;
   public final Boolean carryOverValue;
   public final long timeMs;
+  public final long uptimeMs;
   /** Nullable. */
   public final String stringVal;
   /** Nullable. */
@@ -40,6 +44,8 @@ public final class MetricValue {
       Boolean carryOverValue,
       long timeMs,
       /* Nullable. */
+      Long uptimeMs,
+      /* Nullable. */
       String stringVal,
       /* Nullable. */
       Double numberVal,
@@ -57,11 +63,36 @@ public final class MetricValue {
     this.dataType = dataType;
     this.carryOverValue = carryOverValue;
     this.timeMs = timeMs;
+    this.uptimeMs = uptimeMs;
     this.stringVal = stringVal;
     this.numberVal = numberVal;
     this.boolVal = boolVal;
     this.version = version;
     this.reportName = reportName;
+  }
+
+  @Deprecated
+  public MetricValue(
+      String eventName,
+      String reportType,
+      List<? extends AggregationType> aggregations,
+      Boolean internal,
+      MetricType metricType,
+      DataType dataType,
+      Boolean carryOverValue,
+      long timeMs,
+      /* Nullable. */
+      String stringVal,
+      /* Nullable. */
+      Double numberVal,
+      /* Nullable. */
+      Boolean boolVal,
+      int version,
+      /* Nullable. */
+      String reportName
+  ) {
+    this(eventName, reportType, aggregations, internal, metricType, dataType, carryOverValue,
+        timeMs, INVALID_UPTIME, stringVal, numberVal, boolVal, version, reportName);
   }
 
   private static boolean hasBool(JSONObject object, String field) {
@@ -222,6 +253,7 @@ public final class MetricValue {
         dataType,
         /* carryOver */ false,
         object.getLong(MetricJsonFields.TIMESTAMP_MS),
+        object.optLong(MetricJsonFields.UPTIME_MS, INVALID_UPTIME),
         stringVal,
         doubleVal,
         boolVal,
@@ -273,6 +305,7 @@ public final class MetricValue {
         dataType,
         object.getBoolean(MetricJsonFields.CARRY_OVER),
         object.getLong(MetricJsonFields.TIMESTAMP_MS),
+        object.optLong(MetricJsonFields.UPTIME_MS, INVALID_UPTIME),
         stringVal,
         doubleVal,
         boolVal,
@@ -286,6 +319,7 @@ public final class MetricValue {
     JSONObject json = new JSONObject();
     json.put(MetricJsonFields.VERSION, version);
     json.put(MetricJsonFields.TIMESTAMP_MS, timeMs);
+    json.put(MetricJsonFields.UPTIME_MS, uptimeMs);
     json.put(MetricJsonFields.REPORT_TYPE, reportType);
     json.put(MetricJsonFields.EVENT_NAME, eventName);
 
@@ -327,6 +361,7 @@ public final class MetricValue {
     }
     MetricValue that = (MetricValue) o;
     return timeMs == that.timeMs
+        && uptimeMs == that.uptimeMs
         && eventName.equals(that.eventName)
         && reportType.equals(that.reportType)
         && aggregations.equals(that.aggregations)
@@ -344,7 +379,7 @@ public final class MetricValue {
   @Override
   public int hashCode() {
     return Objects.hash(eventName, reportType, aggregations, internal, metricType, dataType,
-        carryOverValue, timeMs, stringVal, numberVal, boolVal, version, reportName);
+        carryOverValue, timeMs, uptimeMs, stringVal, numberVal, boolVal, version, reportName);
   }
 
   @Override
@@ -358,6 +393,7 @@ public final class MetricValue {
         + ", dataType=" + dataType
         + ", carryOverValue=" + carryOverValue
         + ", timeMs=" + timeMs
+        + ", uptimeMs=" + uptimeMs
         + ", stringVal='" + stringVal + '\''
         + ", numberVal=" + numberVal
         + ", boolVal=" + boolVal
@@ -368,9 +404,9 @@ public final class MetricValue {
 
   public static class MetricJsonFields {
     public static final int REPORTING_CLIENT_VERSION = 2;
-
     static final String VERSION = "version";
     static final String TIMESTAMP_MS = "timestampMs";
+    static final String UPTIME_MS = "uptimeMs";
     static final String REPORT_TYPE = "reportType";
     static final String START_NEXT_REPORT = "startNextReport";
     static final String EVENT_NAME = "eventName";
