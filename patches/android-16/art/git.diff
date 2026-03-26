@@ -1,5 +1,5 @@
 diff --git a/runtime/native_stack_dump.cc b/runtime/native_stack_dump.cc
-index 6d3cc73a17..10c06637bf 100644
+index 6d3cc73..c5c6820 100644
 --- a/runtime/native_stack_dump.cc
 +++ b/runtime/native_stack_dump.cc
 @@ -27,6 +27,14 @@
@@ -168,11 +168,50 @@ index 6d3cc73a17..10c06637bf 100644
  static constexpr bool kUseAddr2line = !kIsTargetBuild;
  
  std::string FindAddr2line() {
-@@ -429,6 +574,8 @@ void DumpNativeStack(std::ostream& os,
+@@ -299,22 +444,6 @@ static bool RunCommand(const std::string& cmd) {
+   }
+ }
+ 
+-// Remove method parameters by finding matching top-level parenthesis and removing them.
+-// Since functions can be defined inside functions, this can remove multiple substrings.
+-std::string StripParameters(std::string name) {
+-  size_t end = name.size();
+-  int nesting = 0;
+-  for (ssize_t i = name.size() - 1; i > 0; i--) {
+-    if (name[i] == ')' && nesting++ == 0) {
+-      end = i + 1;
+-    }
+-    if (name[i] == '(' && --nesting == 0) {
+-      name = name.erase(i, end - i);
+-    }
+-  }
+-  return name;
+-}
+-
+ void DumpNativeStack(std::ostream& os,
+                      pid_t tid,
+                      const char* prefix,
+@@ -429,6 +558,24 @@ void DumpNativeStack(std::ostream& os,
    }
  }
  
 +#endif // MEMFAULT_DUMP_NATIVE_STACK
++
++// Remove method parameters by finding matching top-level parenthesis and removing them.
++// Since functions can be defined inside functions, this can remove multiple substrings.
++std::string StripParameters(std::string name) {
++  size_t end = name.size();
++  int nesting = 0;
++  for (ssize_t i = name.size() - 1; i > 0; i--) {
++    if (name[i] == ')' && nesting++ == 0) {
++      end = i + 1;
++    }
++    if (name[i] == '(' && --nesting == 0) {
++      name = name.erase(i, end - i);
++    }
++  }
++  return name;
++}
 +
  #elif defined(__APPLE__)
  

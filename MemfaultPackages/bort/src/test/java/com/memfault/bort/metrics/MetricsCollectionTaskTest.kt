@@ -9,6 +9,7 @@ import com.memfault.bort.FakeCombinedTimeProvider
 import com.memfault.bort.InstallationIdProvider
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.TaskResult.SUCCESS
+import com.memfault.bort.battery.BatterySessionVitals
 import com.memfault.bort.chronicler.ClientRateLimitCollector
 import com.memfault.bort.clientserver.MarDevice
 import com.memfault.bort.clientserver.MarFileWithManifest
@@ -234,6 +235,9 @@ class MetricsCollectionTaskTest {
     private val statsDMetricCollector: StatsdMetricCollector = mockk {
         every { collect() } just Runs
     }
+    private val batterySessionVitals: BatterySessionVitals = mockk {
+        every { onReportCollected() } just Runs
+    }
 
     private val task = MetricsCollectionTask(
         enqueueUpload = enqueueUpload,
@@ -260,6 +264,7 @@ class MetricsCollectionTaskTest {
         everCollectedMetricsPreferenceProvider = everCollectedMetricsPreferenceProvider,
         usageStatsCollector = usageStatsCollector,
         statsDMetricCollector = statsDMetricCollector,
+        batterySessionVitals = batterySessionVitals,
     )
 
     @Test

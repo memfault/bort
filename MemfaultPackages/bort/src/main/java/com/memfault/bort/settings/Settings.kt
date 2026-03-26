@@ -81,6 +81,8 @@ interface MetricsSettings {
     val thermalMetricsEnabled: Boolean
     val thermalCollectLegacyMetrics: Boolean
     val thermalCollectStatus: Boolean
+    val sysfsThermalEnabled: Boolean
+    val sysfsThermalAllowlist: List<String>
     val cpuInterestingProcesses: Set<String>
     val cpuProcessReportingThreshold: Int
     val cpuProcessLimitTopN: Int
@@ -279,6 +281,8 @@ fun SettingsProvider.selectSettingsToMap(): Map<String, Any> = mapOf(
         "collectionInterval" to metricsSettings.collectionInterval,
         "thermalMetricsEnabled" to metricsSettings.thermalMetricsEnabled,
         "thermalCollectStatus" to metricsSettings.thermalCollectStatus,
+        "sysfsThermalEnabled" to metricsSettings.sysfsThermalEnabled,
+        "sysfsThermalAllowlist" to metricsSettings.sysfsThermalAllowlist,
     ),
     "BatteryStats Settings" to mapOf(
         "dataSourceEnabled" to batteryStatsSettings.dataSourceEnabled,

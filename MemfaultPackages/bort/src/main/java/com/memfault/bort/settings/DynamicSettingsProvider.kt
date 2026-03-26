@@ -218,6 +218,10 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.metricsThermalCollectLegacyMetrics
         override val thermalCollectStatus: Boolean
             get() = settings.metricsThermalCollectStatus
+        override val sysfsThermalEnabled: Boolean
+            get() = settings.metricsSysfsThermalEnabled
+        override val sysfsThermalAllowlist: List<String>
+            get() = settings.metricsSysfsThermalAllowlist
         override val cpuInterestingProcesses: Set<String>
             get() = settings.metricsCpuInterestingProcesses
         override val cpuProcessReportingThreshold: Int

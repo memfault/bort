@@ -1,5 +1,8 @@
 package com.memfault.bort.metrics
 
+import android.app.Application
+import android.content.Intent
+import android.os.BatteryManager
 import assertk.all
 import assertk.assertThat
 import assertk.assertions.contains
@@ -15,8 +18,15 @@ import assertk.assertions.isNull
 import assertk.assertions.prop
 import assertk.assertions.single
 import com.google.testing.junit.testparameterinjector.TestParameter
+import com.memfault.bort.BortAlwaysEnabledProvider
+import com.memfault.bort.battery.BATTERY_CHARGING_METRIC
 import com.memfault.bort.battery.BATTERY_DISCHARGE_DURATION_METRIC
+import com.memfault.bort.battery.BATTERY_LEVEL_METRIC
 import com.memfault.bort.battery.BATTERY_SOC_DROP_METRIC
+import com.memfault.bort.battery.LastBatteryCycleCountState
+import com.memfault.bort.battery.LastBatteryCycleCountStateProvider
+import com.memfault.bort.battery.LastBatteryVitalsState
+import com.memfault.bort.battery.LastBatteryVitalsStateProvider
 import com.memfault.bort.battery.RealBatterySessionVitals
 import com.memfault.bort.connectivity.CONNECTIVITY_TYPE_METRIC
 import com.memfault.bort.connectivity.ConnectivityState
@@ -47,6 +57,7 @@ import com.memfault.bort.time.BoxedDuration
 import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.RealTokenBucketFactory
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
@@ -63,6 +74,14 @@ import kotlin.time.Duration.Companion.seconds
 
 private val ALL_STATE_AGGREGATIONS = listOf(StateAgg.LATEST_VALUE, TIME_TOTALS, TIME_PER_HOUR)
 private val ALL_NUMERIC_AGGREGATIONS = listOf(NumericAgg.LATEST_VALUE, SUM, COUNT, MIN, MEAN, MAX)
+
+private class FakeLastBatteryVitalsStateProvider : LastBatteryVitalsStateProvider {
+    override var state = LastBatteryVitalsState()
+}
+
+private class FakeLastBatteryCycleCountStateProvider : LastBatteryCycleCountStateProvider {
+    override var state = LastBatteryCycleCountState()
+}
 
 private val Int.hoursMs: Long
     get() = hours.inWholeMilliseconds
@@ -988,6 +1007,9 @@ class MetricsIntegrationTest {
             application = mockk(),
             combinedTimeProvider = combinedTimeProvider,
             batteryManager = mockk(),
+            lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
+            lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
+            bortEnabledProvider = BortAlwaysEnabledProvider(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1122,6 +1144,9 @@ class MetricsIntegrationTest {
             application = mockk(),
             combinedTimeProvider = combinedTimeProvider,
             batteryManager = mockk(),
+            lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
+            lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
+            bortEnabledProvider = BortAlwaysEnabledProvider(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1252,6 +1277,9 @@ class MetricsIntegrationTest {
             application = mockk(),
             combinedTimeProvider = combinedTimeProvider,
             batteryManager = mockk(),
+            lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
+            lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
+            bortEnabledProvider = BortAlwaysEnabledProvider(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1295,6 +1323,9 @@ class MetricsIntegrationTest {
             application = mockk(),
             combinedTimeProvider = combinedTimeProvider,
             batteryManager = mockk(),
+            lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
+            lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
+            bortEnabledProvider = BortAlwaysEnabledProvider(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1342,6 +1373,9 @@ class MetricsIntegrationTest {
             application = mockk(),
             combinedTimeProvider = combinedTimeProvider,
             batteryManager = mockk(),
+            lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
+            lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
+            bortEnabledProvider = BortAlwaysEnabledProvider(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1459,6 +1493,9 @@ class MetricsIntegrationTest {
             application = mockk(),
             combinedTimeProvider = combinedTimeProvider,
             batteryManager = mockk(),
+            lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
+            lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
+            bortEnabledProvider = BortAlwaysEnabledProvider(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1608,6 +1645,165 @@ class MetricsIntegrationTest {
                 "internal_metric" to JsonPrimitive("test value"),
             )
         }
+    }
+
+    @Test
+    fun `battery vitals deduplication - repeated identical values write only one DB row`() = runTest {
+        val now = System.currentTimeMillis()
+        val batterySessionVitals = RealBatterySessionVitals(
+            application = mockk(),
+            combinedTimeProvider = combinedTimeProvider,
+            batteryManager = mockk(),
+            lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
+            lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
+            bortEnabledProvider = BortAlwaysEnabledProvider(),
+            defaultCoroutineContext = testScheduler,
+        )
+
+        // First call always records
+        batterySessionVitals.record(isCharging = false, level = 80.0, timestampMs = now, uptimeMs = now)
+        // Repeated identical values - should be deduplicated
+        batterySessionVitals.record(isCharging = false, level = 80.0, timestampMs = now + 1000, uptimeMs = now + 1000)
+        batterySessionVitals.record(isCharging = false, level = 80.0, timestampMs = now + 2000, uptimeMs = now + 2000)
+        // Changed level - should record
+        batterySessionVitals.record(isCharging = false, level = 70.0, timestampMs = now + 3000, uptimeMs = now + 3000)
+        // Same again - deduplicated
+        batterySessionVitals.record(isCharging = false, level = 70.0, timestampMs = now + 4000, uptimeMs = now + 4000)
+
+        val dump = db.dao().dump()
+        val levelMetadataId = dump.metadata.first { it.eventName == BATTERY_LEVEL_METRIC }.id
+        val chargingMetadataId = dump.metadata.first { it.eventName == BATTERY_CHARGING_METRIC }.id
+
+        assertThat(dump.values.filter { it.metadataId == levelMetadataId }.map { it.numberVal })
+            .containsOnly(80.0, 70.0)
+        assertThat(dump.values.filter { it.metadataId == chargingMetadataId })
+            .hasSize(2)
+    }
+
+    @Test
+    fun `battery cycle count deduplication - repeated identical values write only one DB row`() = runTest {
+        val now = System.currentTimeMillis()
+        val batterySessionVitals = RealBatterySessionVitals(
+            application = mockk(),
+            combinedTimeProvider = combinedTimeProvider,
+            batteryManager = mockk(),
+            lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
+            lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
+            bortEnabledProvider = BortAlwaysEnabledProvider(),
+            defaultCoroutineContext = testScheduler,
+        )
+
+        batterySessionVitals.record(
+            isCharging = false,
+            level = 80.0,
+            timestampMs = now,
+            uptimeMs = now,
+            cycleCount = 100,
+        )
+        batterySessionVitals.record(
+            isCharging = false,
+            level = 80.0,
+            timestampMs = now + 1000,
+            uptimeMs = now + 1000,
+            cycleCount = 100,
+        )
+        batterySessionVitals.record(
+            isCharging = false,
+            level = 80.0,
+            timestampMs = now + 2000,
+            uptimeMs = now + 2000,
+            cycleCount = 101,
+        )
+        batterySessionVitals.record(
+            isCharging = false,
+            level = 80.0,
+            timestampMs = now + 3000,
+            uptimeMs = now + 3000,
+            cycleCount = 101,
+        )
+
+        val dump = db.dao().dump()
+        val cycleMetadataId = dump.metadata.first { it.eventName == "battery.charge_cycle_count" }.id
+
+        assertThat(dump.values.filter { it.metadataId == cycleMetadataId }.map { it.numberVal })
+            .containsOnly(100.0, 101.0)
+    }
+
+    @Test
+    fun `battery vitals deduplication resets after report collection`() = runTest {
+        val now = System.currentTimeMillis()
+        val application = mockk<Application>()
+        every { application.registerReceiver(isNull(), any()) } returns null
+        val batterySessionVitals = RealBatterySessionVitals(
+            application = application,
+            combinedTimeProvider = combinedTimeProvider,
+            batteryManager = mockk(),
+            lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
+            lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
+            bortEnabledProvider = BortAlwaysEnabledProvider(),
+            defaultCoroutineContext = testScheduler,
+        )
+
+        // First report: record battery at 80%
+        batterySessionVitals.record(isCharging = false, level = 80.0, timestampMs = now, uptimeMs = now)
+        // Duplicate - should be skipped
+        batterySessionVitals.record(isCharging = false, level = 80.0, timestampMs = now + 1000, uptimeMs = now + 1000)
+
+        // Report boundary: collect heartbeat, then reset dedup state
+        dao.collectHeartbeat(endTimestampMs = now + 2000, endUptimeMs = now + 2000)
+        batterySessionVitals.onReportCollected()
+
+        // Second report: same battery level - must write an initial sample for VALUE_DROP to work
+        batterySessionVitals.record(isCharging = false, level = 80.0, timestampMs = now + 3000, uptimeMs = now + 4000)
+        // This duplicate should still be skipped within the same report
+        batterySessionVitals.record(isCharging = false, level = 80.0, timestampMs = now + 4000, uptimeMs = now + 4000)
+
+        val dump = db.dao().dump()
+        val levelMetadataId = dump.metadata.first { it.eventName == BATTERY_LEVEL_METRIC }.id
+
+        // Exactly 2 rows: one from report 1, one from report 2 (not the duplicates)
+        val levelValues = dump.values.filter { it.metadataId == levelMetadataId }
+        assertThat(levelValues).hasSize(2)
+        assertThat(levelValues.map { it.numberVal }).containsOnly(80.0)
+    }
+
+    @Test
+    fun `cycle count is re-seeded from sticky broadcast after report collection`() = runTest {
+        val now = System.currentTimeMillis()
+        val stickyIntent = Intent(Intent.ACTION_BATTERY_CHANGED).apply {
+            putExtra(BatteryManager.EXTRA_LEVEL, 75)
+            putExtra(BatteryManager.EXTRA_SCALE, 100)
+            putExtra(BatteryManager.EXTRA_PLUGGED, 0)
+            putExtra("android.os.extra.CYCLE_COUNT", 42)
+        }
+        val application = mockk<Application>()
+        every { application.registerReceiver(isNull(), any()) } returns stickyIntent
+        val batterySessionVitals = RealBatterySessionVitals(
+            application = application,
+            combinedTimeProvider = combinedTimeProvider,
+            batteryManager = mockk(),
+            lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
+            lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
+            bortEnabledProvider = BortAlwaysEnabledProvider(),
+            defaultCoroutineContext = testScheduler,
+        )
+
+        batterySessionVitals.record(
+            isCharging = false,
+            level = 75.0,
+            timestampMs = now,
+            uptimeMs = now,
+            cycleCount = 42,
+        )
+
+        dao.collectHeartbeat(endTimestampMs = now + 2000, endUptimeMs = now + 2000)
+        batterySessionVitals.onReportCollected()
+
+        val dump = db.dao().dump()
+        val cycleMetadataId = dump.metadata.first { it.eventName == "battery.charge_cycle_count" }.id
+        val cycleValues = dump.values.filter { it.metadataId == cycleMetadataId }
+        assertThat(cycleValues).hasSize(1)
+        assertThat(cycleValues.map { it.numberVal }).containsOnly(42.0)
     }
 
     @Test(timeout = 10_000)

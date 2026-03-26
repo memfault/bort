@@ -237,6 +237,11 @@ class DumpsterClient @Inject constructor(
             return runBasicCommand(IDumpster.CMD_ID_STORAGE_WEAR)
         }
 
+    suspend fun getSysfsThermalZones(): String? =
+        withService<String?>(minimumVersion = IDumpster.VERSION_SYSFS_THERMAL_ZONES) {
+            return runBasicCommand(IDumpster.CMD_ID_SYSFS_THERMAL_ZONES)
+        }
+
     /**
      * Gets the available version of the MemfaultDumpster service, or null if the service is not available.
      */
