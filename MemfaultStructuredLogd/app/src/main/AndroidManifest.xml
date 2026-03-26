@@ -5,6 +5,7 @@
           android:sharedUserId="android.uid.system">
     <application
             android:allowBackup="false"
+            android:hardwareAccelerated="false"
             android:label="structuredlogd"
             android:name=".MemfaultStructuredLogdApp"
             android:persistent="true"

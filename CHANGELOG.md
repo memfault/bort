@@ -6,6 +6,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project currently does not attempt to adhere to Semantic Versioning, but
 breaking changes are avoided unless absolutely necessary.
 
+## v5.8.0 - March 26, 2026
+
+### :rocket: New Features
+
+- Added Bluetooth disconnect metrics: `bluetooth.disconnect` and
+  `bluetooth.disconnect_reason` event metrics, plus a `bluetooth.disconnects`
+  counter. These are collected via statsd.
+- Added thermal zone temperature metrics collected from `/sys/class/thermal` via
+  Dumpster. Metric names follow the pattern `sysfs_thermal_<zone>_c` (current),
+  `sysfs_thermal_<zone>_c_max`, and `sysfs_thermal_<zone>_c_min`. This feature
+  is gated behind a new SDK setting.
+
+### :construction: Fixes
+
+- Fixed battery metrics being written every few seconds even when unchanged,
+  which could produce excessive metric storage (~500 MB/day on some devices).
+  Battery level, charging state, and cycle count are now deduplicated and only
+  recorded when the value changes. Also fixed charge detection to correctly
+  identify USB and wireless chargers.
+- Fixed reboot reason detection on Android 7.1: `ro.boot.bootreason` is now used
+  as a fallback when `sys.boot.reason` is not set.
+- Fixed disk wear SELinux contexts: the sysfs node used to read eMMC lifetime
+  data is now explicitly relabeled, allowing access on BSPs with tighter sysfs
+  rules.
+- Fixed OTA activity to include a default category in its intent filter, so it
+  can be launched via action intent without specifying a package name.
+- Fixed AOSP 16 test build: ART patches no longer remove a method that is
+  required by the test build.
+- Fixed Android 7.1 build failure caused by the dex preopt optimizer being
+  unable to handle Kotlin bytecode. Dex preopt is now disabled for SDK 25.
+- Fixed a spurious WTF log produced by the MemfaultStructuredLogd app at
+  startup. Hardware acceleration is now disabled since the app has no UI and no
+  graphics data directory.
+- Added missing `property_contexts` entries for Android 7 SELinux policy,
+  covering Bort version/config properties and the legacy property-based
+  enable/disable mechanism.
+
 ## v5.7.0 - March 10, 2026
 
 ### :rocket: New Features

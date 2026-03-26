@@ -8,3 +8,7 @@
 /data/system/MemfaultDumpster(/.*)?   u:object_r:memfault_dumpster_data_file:s0
 
 /data/misc/MemfaultBugReports(/.*)?   u:object_r:memfault_bugreport_data_file:s0
+
+/sys/class/thermal(/.*)?                                u:object_r:sysfs_thermal:s0
+/sys/devices/virtual/thermal(/.*)?                      u:object_r:sysfs_thermal:s0
+

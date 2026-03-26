@@ -32,3 +32,10 @@ if_sdk_version_gteq(30, `
 if_sdk_version_gteq(28, `
 	allow priv_app sysfs:dir r_dir_perms;
 ', `')
+
+allow dumpstate sysfs_mmc:dir r_dir_perms;
+allow dumpstate sysfs_mmc:file r_file_perms;
+
+allow dumpstate sysfs_thermal:dir r_dir_perms;
+allow dumpstate sysfs_thermal:file r_file_perms;
+

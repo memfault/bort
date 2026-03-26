@@ -341,6 +341,12 @@ data class FetchedSettings(
     @SerialName("metrics.thermal_collect_status")
     val metricsThermalCollectStatus: Boolean = true,
 
+    @SerialName("metrics.sysfs_thermal_enabled")
+    val metricsSysfsThermalEnabled: Boolean = false,
+
+    @SerialName("metrics.sysfs_thermal_allowlist")
+    val metricsSysfsThermalAllowlist: List<String> = listOf(),
+
     @SerialName("network.collect_legacy_metrics")
     val networkCollectLegacyMetrics: Boolean = false,
 
