@@ -37,6 +37,7 @@ data class AndroidBootReason(
             }
 
         internal const val SYS_BOOT_REASON_KEY = "sys.boot.reason"
+        internal const val FALLBACK_BOOT_REASON_KEY = "ro.boot.bootreason"
 
         private const val FALLBACK_SYS_BOOT_REASON_VALUE = "reboot,permissiondenied"
     }
@@ -81,7 +82,13 @@ class RebootEventUploader @Inject constructor(
     }
 
     suspend fun handleUntrackedBootCount(bootCount: Int) {
-        val androidSysBootReason = dumpsterClient.getprop()?.get(AndroidBootReason.SYS_BOOT_REASON_KEY)
+        val props = dumpsterClient.getprop()
+        val sysBootReason = props?.get(AndroidBootReason.SYS_BOOT_REASON_KEY)
+        val androidSysBootReason = if (sysBootReason.isNullOrEmpty()) {
+            props?.get(AndroidBootReason.FALLBACK_BOOT_REASON_KEY)
+        } else {
+            sysBootReason
+        }
 
         createAndUploadCurrentRebootEvent(bootCount, androidSysBootReason)
     }

@@ -3,6 +3,7 @@ package com.memfault.bort.battery
 import android.app.Application
 import android.content.Intent
 import android.content.Intent.ACTION_BATTERY_CHANGED
+import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY
 import androidx.annotation.VisibleForTesting
@@ -15,6 +16,7 @@ import com.memfault.bort.reporting.StateAgg.TIME_TOTALS
 import com.memfault.bort.scopes.Scope
 import com.memfault.bort.scopes.Scoped
 import com.memfault.bort.scopes.coroutineScope
+import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.time.CombinedTimeProvider
 import com.squareup.anvil.annotations.ContributesBinding
 import com.squareup.anvil.annotations.ContributesMultibinding
@@ -22,14 +24,24 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import javax.inject.Singleton
 import kotlin.coroutines.CoroutineContext
 
 // Note that these 2 metrics are removed from reports before they're uploaded.
 const val BATTERY_CHARGING_METRIC = "temp.battery.charging"
 const val BATTERY_LEVEL_METRIC = "temp.battery.level"
 
+// BatteryManager constant that is not public
+const val BATTERY_PLUGGED_NONE = 0
+
 interface BatterySessionVitals {
     fun onChargingChanged(isCharging: Boolean)
+
+    /**
+     * Called after each hourly report is collected. Resets deduplication state so that the first battery event in
+     * the new report is always written, ensuring VALUE_DROP has an initial sample.
+     */
+    fun onReportCollected()
 }
 
 /**
@@ -49,6 +61,7 @@ interface BatterySessionVitals {
  * battery drop accurately, and we won't calculate the discharge time properly. Since this is a rare situation
  * where the device is asleep, it really shouldn't count as a proper "session", and we warn about that in the docs.
  */
+@Singleton
 @ContributesMultibinding(SingletonComponent::class, boundType = Scoped::class)
 @ContributesBinding(SingletonComponent::class, boundType = BatterySessionVitals::class)
 class RealBatterySessionVitals
@@ -56,6 +69,9 @@ class RealBatterySessionVitals
     private val application: Application,
     private val combinedTimeProvider: CombinedTimeProvider,
     private val batteryManager: BatteryManager,
+    private val lastBatteryVitalsStateProvider: LastBatteryVitalsStateProvider,
+    private val lastBatteryCycleCountStateProvider: LastBatteryCycleCountStateProvider,
+    private val bortEnabledProvider: BortEnabledProvider,
     @Default private val defaultCoroutineContext: CoroutineContext,
 ) : BatterySessionVitals, Scoped {
 
@@ -120,6 +136,24 @@ class RealBatterySessionVitals
         )
     }
 
+    override fun onReportCollected() {
+        lastBatteryVitalsStateProvider.state = LastBatteryVitalsState()
+        lastBatteryCycleCountStateProvider.state = LastBatteryCycleCountState()
+        // Re-sample from the sticky broadcast to seed the new period. Without this, metrics that
+        // don't change (e.g. cycle count as LATEST_VALUE) won't appear if no battery event fires
+        // before the next collection.
+        application.registerReceiver(null, IntentFilter(ACTION_BATTERY_CHANGED))?.let { intent ->
+            val now = combinedTimeProvider.now()
+            record(
+                isCharging = intent.isPlugged,
+                level = intent.batteryPercentage,
+                timestampMs = now.timestamp.toEpochMilli(),
+                uptimeMs = now.elapsedRealtime.duration.inWholeMilliseconds,
+                cycleCount = intent.cycleCount,
+            )
+        }
+    }
+
     private val Intent.batteryPercentage: Double
         get() {
             val level: Int = getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
@@ -128,7 +162,8 @@ class RealBatterySessionVitals
         }
 
     private val Intent.isPlugged: Boolean
-        get() = getIntExtra(BatteryManager.EXTRA_PLUGGED, -1) == 1
+        get() = getIntExtra(BatteryManager.EXTRA_PLUGGED, BATTERY_PLUGGED_NONE) !=
+            BATTERY_PLUGGED_NONE
 
     private val Intent.cycleCount: Int?
         // Use the string because the constant was only added in API 34.
@@ -147,8 +182,21 @@ class RealBatterySessionVitals
         uptimeMs: Long,
         cycleCount: Int? = null,
     ) {
-        chargingMetric.state(isCharging, timestampMs, uptimeMs)
-        levelMetric.record(level, timestampMs, uptimeMs)
-        cycleCount?.let { chargeCycleMetric.record(it.toLong(), timestampMs, uptimeMs) }
+        val previousVitalsState = lastBatteryVitalsStateProvider.state
+        val newVitalsState = LastBatteryVitalsState(isCharging = isCharging, level = level)
+        if (newVitalsState != previousVitalsState) {
+            lastBatteryVitalsStateProvider.state = newVitalsState
+            chargingMetric.state(isCharging, timestamp = timestampMs, uptime = uptimeMs)
+            levelMetric.record(level, timestamp = timestampMs, uptime = uptimeMs)
+        }
+        val previousCycleState = lastBatteryCycleCountStateProvider.state
+        if (cycleCount != null && cycleCount != previousCycleState.cycleCount) {
+            chargeCycleMetric.record(cycleCount.toLong(), timestamp = timestampMs, uptime = uptimeMs)
+            // Only update dedup state when bort is enabled, so a failed recording while disabled
+            // doesn't suppress retries after enable.
+            if (bortEnabledProvider.isEnabled()) {
+                lastBatteryCycleCountStateProvider.state = LastBatteryCycleCountState(cycleCount)
+            }
+        }
     }
 }

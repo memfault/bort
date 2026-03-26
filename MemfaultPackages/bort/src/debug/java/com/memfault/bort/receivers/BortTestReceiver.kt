@@ -12,6 +12,8 @@ import com.memfault.bort.RealDevMode
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.TestDeviceInfoProvider
 import com.memfault.bort.TestOverrideSettings
+import com.memfault.bort.battery.LastBatteryCycleCountState
+import com.memfault.bort.battery.LastBatteryCycleCountStateProvider
 import com.memfault.bort.clientserver.MarBatchingTask.Companion.enqueueOneTimeBatchMarFiles
 import com.memfault.bort.clientserver.MarMetadata
 import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsHistoryParseError
@@ -85,6 +87,8 @@ class BortTestReceiver : FilteringReceiver(
         "com.memfault.intent.action.TEST_DROPBOX_GET_ENTRIES",
     ),
 ) {
+    @Inject lateinit var lastBatteryCycleCountStateProvider: LastBatteryCycleCountStateProvider
+
     @Inject lateinit var settingsProvider: SettingsProvider
 
     @Inject lateinit var fileUploadHoldingArea: FileUploadHoldingArea
@@ -234,6 +238,9 @@ class BortTestReceiver : FilteringReceiver(
                 resetDropboxCursor()
                 devMode.setEnabled(true, context)
                 statsdManagerProxy.overrideInjectedReports = { listOf() }
+                // Reset battery cycle count dedup state so the first broadcast in the test window
+                // always records the current cycle count, regardless of previous run state.
+                lastBatteryCycleCountStateProvider.state = LastBatteryCycleCountState()
             }
 
             "com.memfault.intent.action.TEST_TEARDOWN" -> {

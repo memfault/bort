@@ -52,6 +52,8 @@ class ThermalMetricsCollectorTest {
         override val thermalCollectLegacyMetrics: Boolean get() = TODO("not used")
         override val thermalCollectStatus: Boolean
             get() = TODO("Not yet implemented")
+        override val sysfsThermalEnabled: Boolean get() = TODO("not used")
+        override val sysfsThermalAllowlist: List<String> get() = TODO("not used")
         override val cpuInterestingProcesses: Set<String> get() = TODO("not used")
         override val cpuProcessReportingThreshold: Int get() = TODO("not used")
         override val cpuProcessLimitTopN: Int get() = TODO("not used")

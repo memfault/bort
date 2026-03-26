@@ -61,6 +61,10 @@ LOCAL_PACKAGE_NAME := MemfaultBort
 LOCAL_CERTIFICATE := PRESIGNED
 LOCAL_PRIVILEGED_MODULE := true
 LOCAL_REQUIRED_MODULES := com.memfault.bort.xml CheckMemfaultBortSignature
+# Android 7.1 (SDK 25) fails to compile with dex preopt enabled
+ifeq ($(PLATFORM_SDK_VERSION),25)
+LOCAL_DEX_PREOPT := false
+endif
 
 # The priv-app folder
 TARGET_OUT_DATA_APPS_PRIVILEGED := $(TARGET_OUT_DATA)/priv-app
@@ -134,6 +138,10 @@ LOCAL_PACKAGE_NAME := MemfaultUsageReporter
 LOCAL_CERTIFICATE := platform
 LOCAL_PRIVILEGED_MODULE := true
 LOCAL_REQUIRED_MODULES := com.memfault.usagereporter.xml
+# Android 7.1 (SDK 25) fails to compile with dex preopt enabled
+ifeq ($(PLATFORM_SDK_VERSION),25)
+LOCAL_DEX_PREOPT := false
+endif
 
 # The priv-app folder
 TARGET_OUT_DATA_APPS_PRIVILEGED := $(TARGET_OUT_DATA)/priv-app

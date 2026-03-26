@@ -142,6 +142,35 @@ namespace {
     return 0;
   }
 
+  int readSysfsThermalZones(std::string& output) {
+    std::stringstream buffer;
+    DIR* dir = opendir("/sys/class/thermal");
+    if (!dir) {
+        // /sys/class/thermal may not exist or may be unreadable on some devices/SELinux configs.
+        // Treat as "no data" rather than an error to avoid noisy logs in steady state.
+        output = "";
+        return 0;
+    }
+    dirent* entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        std::string name = entry->d_name;
+        if (name.find("thermal_zone") != 0) {
+            continue;
+        }
+        std::string base = "/sys/class/thermal/" + name + "/";
+        std::string zoneType, zoneTemp;
+        if (!android::base::ReadFileToString(base + "type", &zoneType)) continue;
+        if (!android::base::ReadFileToString(base + "temp", &zoneTemp)) continue;
+        if (!zoneType.empty() && zoneType.back() == '\n') zoneType.pop_back();
+        if (!zoneTemp.empty() && zoneTemp.back() == '\n') zoneTemp.pop_back();
+        if (zoneType.empty() || zoneTemp.empty()) continue;
+        buffer << zoneType << "\t" << zoneTemp << "\n";
+    }
+    closedir(dir);
+    output = buffer.str();
+    return 0;
+  }
+
   int readStorageWear(std::string& output) {
     memfault::jedec_storage_info info;
 
@@ -221,9 +250,13 @@ namespace {
                     return readStorageWear(output);
                   };
                 }
+                case IDumpster::CMD_ID_SYSFS_THERMAL_ZONES: {
+                  return [](std::string& output) {
+                    return readSysfsThermalZones(output);
+                  };
+                }
 
-
-                default: return nullptr; 
+                default: return nullptr;
             }
         }
 

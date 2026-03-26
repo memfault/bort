@@ -1,14 +1,15 @@
 diff --git a/file.te b/file.te
-index 87cec82..c827707 100644
+index 87cec82..a4e0c61 100644
 --- a/file.te
 +++ b/file.te
-@@ -260,3 +260,6 @@ allow postinstall_file self:filesystem associate;
+@@ -260,3 +260,7 @@ allow postinstall_file self:filesystem associate;
  # Should be:
  #   type apk_data_file, file_type, data_file_type;
  neverallow fs_type file_type:filesystem associate;
 +
 +type memfault_dumpster_data_file, file_type, data_file_type;
 +type memfault_bugreport_data_file, file_type, data_file_type, mlstrustedobject;
++type sysfs_mmc, fs_type, sysfs_type;
 diff --git a/file_contexts b/file_contexts
 index 085a57b..e4b9885 100644
 --- a/file_contexts
@@ -28,6 +29,16 @@ index 085a57b..e4b9885 100644
 +
 +/data/misc/MemfaultBugReports(/.*)?   u:object_r:memfault_bugreport_data_file:s0
 +
+diff --git a/genfs_contexts b/genfs_contexts
+index 31794a1..71c323b 100644
+--- a/genfs_contexts
++++ b/genfs_contexts
+@@ -42,3 +42,5 @@ genfscon pstore / u:object_r:pstorefs:s0
+ genfscon functionfs / u:object_r:functionfs:s0
+ genfscon usbfs / u:object_r:usbfs:s0
+ genfscon binfmt_misc / u:object_r:binfmt_miscfs:s0
++
++genfscon sysfs /devices/platform/soc/7824900.sdhci/mmc_host/mmc u:object_r:sysfs_mmc:s0
 diff --git a/keys.conf b/keys.conf
 index 7a307b5..2722d5d 100644
 --- a/keys.conf
@@ -69,10 +80,10 @@ index 87efe0e..1348b30 100644
  </policy>
 diff --git a/memfault_dumpstate_runner.te b/memfault_dumpstate_runner.te
 new file mode 100644
-index 0000000..5fb5589
+index 0000000..a55b2e7
 --- /dev/null
 +++ b/memfault_dumpstate_runner.te
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,19 @@
 +# Allow to set system properties "ctl.start" / "ctl.stop":
 +set_prop(dumpstate, ctl_default_prop)
 +set_prop(dumpstate, ctl_bugreport_prop)
@@ -85,6 +96,13 @@ index 0000000..5fb5589
 +
 +get_prop(dumpstate, dumpstate_prop)
 +set_prop(system_app, dumpstate_prop)
++
++allow dumpstate sysfs_mmc:dir r_dir_perms;
++allow dumpstate sysfs_mmc:file r_file_perms;
++
++allow dumpstate sysfs_thermal:dir r_dir_perms;
++allow dumpstate sysfs_thermal:file r_file_perms;
++
 diff --git a/memfault_dumpster.te b/memfault_dumpster.te
 new file mode 100644
 index 0000000..cda7ca8
@@ -166,6 +184,19 @@ index af7013f..9f71489 100644
  allow property_type tmpfs:filesystem associate;
 +
 +type memfault_prop, property_type;
+diff --git a/property_contexts b/property_contexts
+index 4368a98..f5f4b7e 100644
+--- a/property_contexts
++++ b/property_contexts
+@@ -95,3 +95,8 @@ config.                 u:object_r:config_prop:s0
+ ro.config.              u:object_r:config_prop:s0
+ dalvik.                 u:object_r:dalvik_prop:s0
+ ro.dalvik.              u:object_r:dalvik_prop:s0
++
++# Memfault Properties
++vendor.memfault.         u:object_r:memfault_prop:s0
++persist.system.memfault. u:object_r:system_prop:s0
++
 diff --git a/seapp_contexts b/seapp_contexts
 index 5d5ad75..dc35fff 100644
 --- a/seapp_contexts

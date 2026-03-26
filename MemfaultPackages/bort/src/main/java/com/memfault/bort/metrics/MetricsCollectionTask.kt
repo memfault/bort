@@ -9,6 +9,7 @@ import com.memfault.bort.InstallationIdProvider
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.Task
 import com.memfault.bort.TaskResult
+import com.memfault.bort.battery.BatterySessionVitals
 import com.memfault.bort.chronicler.ClientRateLimitCollector
 import com.memfault.bort.clientserver.MarMetadata.CustomDataRecordingMarMetadata
 import com.memfault.bort.clientserver.MarMetadata.HeartbeatMarMetadata
@@ -150,6 +151,7 @@ class MetricsCollectionTask @Inject constructor(
     private val everCollectedMetricsPreferenceProvider: EverCollectedMetricsPreferenceProvider,
     private val usageStatsCollector: UsageStatsCollector,
     private val statsDMetricCollector: StatsdMetricCollector,
+    private val batterySessionVitals: BatterySessionVitals,
 ) : Task<Unit> {
     override fun getMaxAttempts(input: Unit) = 1
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -248,6 +250,7 @@ class MetricsCollectionTask @Inject constructor(
             endUptimeMs = actualCollectionTime.elapsedRealtime.duration.inWholeMilliseconds,
             forceEndAllReports = softwareVersionChanged,
         )
+        batterySessionVitals.onReportCollected()
 
         val collectHeartbeatDuration = startMark.elapsedNow() - collectorsDuration
         val collectionDurationMetric = inMemoryDuration(
