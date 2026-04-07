@@ -249,6 +249,13 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.batteryStatsComponentMetrics
     }
 
+    override val locationSettings = object : LocationSettings {
+        override val dataSourceEnabled: Boolean
+            get() = settings.metricsLocationEnabled
+        override val commandTimeout: Duration
+            get() = settings.metricsLocationCommandTimeout.duration
+    }
+
     override val logcatSettings = object : LogcatSettings {
         override val dataSourceEnabled
             get() = settings.logcatDataSourceEnabled

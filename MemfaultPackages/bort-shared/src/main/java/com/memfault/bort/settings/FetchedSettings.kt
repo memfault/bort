@@ -14,6 +14,7 @@ import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 @Serializable
 data class FetchedSettings(
@@ -346,6 +347,13 @@ data class FetchedSettings(
 
     @SerialName("metrics.sysfs_thermal_allowlist")
     val metricsSysfsThermalAllowlist: List<String> = listOf(),
+
+    @SerialName("metrics.location_enabled")
+    val metricsLocationEnabled: Boolean = true,
+
+    @SerialName("metrics.location_command_timeout_ms")
+    @Serializable(with = DurationAsMillisecondsLong::class)
+    val metricsLocationCommandTimeout: BoxedDuration = 15.seconds.boxed(),
 
     @SerialName("network.collect_legacy_metrics")
     val networkCollectLegacyMetrics: Boolean = false,
