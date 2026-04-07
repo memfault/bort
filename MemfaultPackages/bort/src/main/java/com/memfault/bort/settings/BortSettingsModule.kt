@@ -104,6 +104,9 @@ abstract class BortSettingsModule {
         fun batteryStatsSettings(settings: SettingsProvider) = settings.batteryStatsSettings
 
         @Provides
+        fun locationSettings(settings: SettingsProvider) = settings.locationSettings
+
+        @Provides
         fun dropboxSettings(settings: SettingsProvider) = settings.dropBoxSettings
 
         @Provides

@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project currently does not attempt to adhere to Semantic Versioning, but
 breaking changes are avoided unless absolutely necessary.
 
+## v5.9.0 - April 7, 2026
+
+### :rocket: New Features
+
+- Added GNSS/location metrics collected from `dumpsys location`. Reports 14
+  diagnostic metrics covering fix reliability, time-to-first-fix, position
+  accuracy, signal strength (C/N0), L5 dual-frequency performance, and power
+  consumption. Gated behind the new `metrics.location_enabled` SDK setting
+  (enabled by default).
+
 ## v5.8.0 - March 26, 2026
 
 ### :rocket: New Features
