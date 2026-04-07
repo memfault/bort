@@ -63,6 +63,11 @@ interface BatteryStatsSettings {
     val componentMetrics: List<String>
 }
 
+interface LocationSettings {
+    val dataSourceEnabled: Boolean
+    val commandTimeout: Duration
+}
+
 interface MetricsSettings {
     val dataSourceEnabled: Boolean
     val dailyHeartbeatEnabled: Boolean
@@ -225,6 +230,7 @@ interface SettingsProvider {
     val dropBoxSettings: DropBoxSettings
     val metricsSettings: MetricsSettings
     val batteryStatsSettings: BatteryStatsSettings
+    val locationSettings: LocationSettings
     val logcatSettings: LogcatSettings
     val fileUploadHoldingAreaSettings: FileUploadHoldingAreaSettings
     val networkUsageSettings: NetworkUsageSettings

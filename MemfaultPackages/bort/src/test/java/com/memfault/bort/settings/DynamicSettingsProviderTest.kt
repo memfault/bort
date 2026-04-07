@@ -332,6 +332,8 @@ private val EXPECTED_SETTINGS = EXPECTED_SETTINGS_DEFAULT.copy(
     metricsCpuProcessReportingThreshold = 70,
     metricsCpuProcessLimitTopN = 20,
     logcat2MetricsConfig = JsonObject(mapOf("rules" to JsonArray(emptyList()))),
+    metricsLocationEnabled = false,
+    metricsLocationCommandTimeout = 30.seconds.boxed(),
 )
 
 internal val SETTINGS_FIXTURE = """
@@ -453,6 +455,8 @@ internal val SETTINGS_FIXTURE = """
                 "metrics.cpu_process_limit_top_n": 20,
                 "metrics.polling_interval_ms": 61000,
                 "metrics.reporter_collection_interval_ms": 600000,
+                "metrics.location_enabled": false,
+                "metrics.location_command_timeout_ms": 30000,
                 "ota.update_check_interval_ms": 43200000,
                 "package_manager.command_timeout_ms" : 60000,
                 "reboot_events.data_source_enabled": true,
