@@ -1,6 +1,7 @@
 package com.memfault.bort.metrics
 
 import android.os.RemoteException
+import com.memfault.bort.android.DeviceFeatures
 import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.BaseLinuxBootRelativeTime
@@ -12,12 +13,13 @@ class BatteryStatsCollector @Inject constructor(
     private val batterystatsSummaryCollector: BatterystatsSummaryCollector,
     private val settings: BatteryStatsSettings,
     private val metrics: BuiltinMetricsStore,
+    private val deviceFeatures: DeviceFeatures,
 ) {
     suspend fun collect(
         collectionTime: CombinedTime,
         lastHeartbeatUptime: BaseLinuxBootRelativeTime,
     ): BatteryStatsResult {
-        if (!settings.dataSourceEnabled) return BatteryStatsResult.EMPTY
+        if (!settings.dataSourceEnabled || !deviceFeatures.hasBattery) return BatteryStatsResult.EMPTY
 
         val historyResult = try {
             batteryStatsHistoryCollector.collect(

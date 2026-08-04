@@ -35,33 +35,46 @@ class CpuMetricsParser @Inject constructor(
     internal fun parseCpuUsage(
         procStatOutput: String,
         procPidStatOutput: String?,
+        hasCmdline: Boolean = true,
         packageManagerReport: PackageManagerReport,
     ): CpuUsage? {
         val usage = parseProcStatOutput(procStatOutput) ?: return null
         return usage.copy(
-            perProcessUsage =
-            procPidStatOutput?.let { parseProcPidStatOutput(it, packageManagerReport) } ?: emptyMap(),
+            perProcessUsage = procPidStatOutput?.let {
+                if (hasCmdline) {
+                    parseProcPidStatOutput(it)
+                } else {
+                    parseProcPidStatOutputLegacy(it, packageManagerReport)
+                }
+            } ?: emptyMap(),
         )
     }
 
-    /**
-     * Parses the contents of procPidStatOutput into a map of process names to ProcessUsage objects.
-     *
-     * Each line has the process uid followed by the contents of /proc/<pid>/stat, separated by a space.
-     */
-    private fun parseProcPidStatOutput(
+    private fun parseProcPidStatOutput(procPidStatOutput: String): Map<String, ProcessUsage> =
+        PROC_PID_STAT_REGEX.findAll(procPidStatOutput).mapNotNull { matchResult ->
+            val (uidStr, cmdline, pidStr, comm, _, utimeStr, stimeStr) = matchResult.destructured
+            val name = cmdline.substringAfterLast('/').ifEmpty { comm }
+            ProcessUsage(
+                processName = sanitizeProcessName(name),
+                uid = uidStr.toInt(),
+                pid = pidStr.toIntOrNull() ?: return@mapNotNull null,
+                utime = utimeStr.toLongOrNull() ?: return@mapNotNull null,
+                stime = stimeStr.toLongOrNull() ?: return@mapNotNull null,
+            )
+        }.associateBy { it.processName }
+
+    private fun parseProcPidStatOutputLegacy(
         procPidStatOutput: String,
         packageManagerReport: PackageManagerReport,
     ): Map<String, ProcessUsage> =
-        PROC_PID_STAT_REGEX.findAll(procPidStatOutput).mapNotNull { matchResult ->
-            val (uidStr, pid, comm, _, utimeStr, stimeStr) = matchResult.destructured
+        PROC_PID_STAT_LEGACY_REGEX.findAll(procPidStatOutput).mapNotNull { matchResult ->
+            val (uidStr, pidStr, comm, _, utimeStr, stimeStr) = matchResult.destructured
             val uid = uidStr.toInt()
-            // prefer the package name from the package manager report, but fall back to the comm name
             val processName = packageManagerReport.findByUid(uid).firstOrNull()?.id ?: comm
             ProcessUsage(
                 processName = sanitizeProcessName(processName),
                 uid = uid,
-                pid = pid.toIntOrNull() ?: return@mapNotNull null,
+                pid = pidStr.toIntOrNull() ?: return@mapNotNull null,
                 utime = utimeStr.toLongOrNull() ?: return@mapNotNull null,
                 stime = stimeStr.toLongOrNull() ?: return@mapNotNull null,
             )
@@ -106,13 +119,16 @@ class CpuMetricsParser @Inject constructor(
         private val POS_SOFTIRQ = 6
 
         private val PROC_PID_STAT_REGEX =
+            """(\d+)\t(\S*)[ \t]+(\d+)[ \t]+\((.*?)\)[ \t]+(\S+)(?:[ \t]+\S+){10}[ \t]+(\d+)[ \t]+(\d+)""".toRegex()
+
+        private val PROC_PID_STAT_LEGACY_REGEX =
             """(\d+)\s+(\d+)\s+\((.*?)\)\s+(\S+)(?:\s+\S+){10}\s+(\d+)\s+(\d+)""".toRegex()
     }
 }
 
 @Serializable
 data class ProcessUsage(
-    // Either a package name inferred by uid or the comm name from /proc/<pid>/stat
+    // Process name from /proc/<pid>/cmdline, falling back to comm from /proc/<pid>/stat
     val processName: String,
 
     // Parsed via /proc/<pid>/status in MemfaultDumpster

@@ -4,6 +4,7 @@ import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
+import com.memfault.bort.android.FakeDeviceFeatures
 import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.settings.BatteryStatsSettings
 import com.memfault.bort.shared.BatteryStatsCommand
@@ -68,6 +69,7 @@ class BatteryStatsHistoryCollectorTest {
             settings,
             { 1.hours },
             bortErrors,
+            FakeDeviceFeatures(),
             ioCoroutineContext = testScheduler,
         )
     }

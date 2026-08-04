@@ -26,7 +26,7 @@ PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
 PLACEHOLDER_BORT_OTA_APP_ID = "vnd.myandroid.bort.otaappid"
 PLACEHOLDER_FEATURE_NAME = "vnd.myandroid.bortfeaturename"
 PLACEHOLDER_SYSTEM = "__SYSTEM_PATH__"
-RELEASES = range(7, 16 + 1)
+RELEASES = range(7, 17 + 1)
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 GRADLE_PROPERTIES = os.path.join(SCRIPT_DIR, "MemfaultPackages", "gradle.properties")
 PYTHON_MIN_VERSION = (3, 6, 0)
@@ -49,6 +49,11 @@ BORT_OTA_APK_PATH = (
 SYSTEM_PLAT_CIL_PATH = "/system/etc/selinux/plat_sepolicy.cil"
 SYSTEM_EXT_CIL_PATH = "/system_ext/etc/selinux/system_ext_sepolicy.cil"
 CIL_PATHS = [SYSTEM_PLAT_CIL_PATH, SYSTEM_EXT_CIL_PATH]
+SYSFS_SECONTEXTS = {
+    "/sys/devices/platform/soc/7824900.sdhci/mmc_host/mmc": "sysfs_mmc",
+    "/sys/class/thermal": "sysfs_thermal",
+    "/sys/devices/virtual/thermal": "sysfs_thermal",
+}
 LOG_ENTRY_SEPARATOR = "============================================================"
 
 
@@ -804,17 +809,17 @@ class ValidateConnectedDevice(Command):
 
     def __init__(
         self,
-        bort_app_id,
-        bort_ota_app_id=None,
-        device=None,
-        vendor_feature_name=None,
-        ignore_enabled=False,
+        bort_app_id: str,
+        bort_ota_app_id: Optional[str] = None,
+        device: Optional[str] = None,
+        vendor_feature_name: Optional[str] = None,
+        ignore_enabled: bool = False,
     ):
         self._bort_app_id = bort_app_id
         self._bort_ota_app_id = bort_ota_app_id
-        self._device = device
+        self._device: Optional[str] = device
         self._vendor_feature_name = vendor_feature_name or bort_app_id
-        self._errors = []
+        self._errors: List[str] = []
         self._ignore_enabled = ignore_enabled
         sdk_version = self._query_sdk_version()
         if not sdk_version:
@@ -860,6 +865,36 @@ class ValidateConnectedDevice(Command):
     def _query_build_type(self) -> Optional[str]:
         return self._getprop("ro.build.type")
 
+    def _check_sysfs_secontexts(self) -> List[str]:
+        errors: List[str] = []
+        for path, label in SYSFS_SECONTEXTS.items():
+            description = f"Verifying {path} has {label} SELinux context"
+            logging.info("\n%s", description)
+
+            output, _ = _get_adb_shell_cmd_output_and_errors(
+                description=description,
+                cmd=("ls", "-lZd", path),
+                device=self._device,
+            )
+
+            if not output:
+                logging.info("\tSysfs path not found, skipping check")
+                continue
+
+            expected = f"u:object_r:{label}:s0"
+            if not re.search(rf"\b{expected}\b", output):
+                errors.append(
+                    _format_error(
+                        description,
+                        f"Expected {expected} context, got: {output}",
+                        "Please recheck selinux integration - see https://mflt.io/android-sepolicy.",
+                    )
+                )
+            else:
+                logging.info("\tTest passed")
+
+        return errors
+
     def _check_sepolicy_cil(self):
         cmd_results = [
             _get_shell_cmd_output_and_errors(
@@ -881,7 +916,7 @@ class ValidateConnectedDevice(Command):
         return (
             []
             if found_dumpster_service
-            else [errors for (_, errors) in cmd_results]
+            else [error for (_, errors) in cmd_results for error in errors]
             + [
                 f"Expected a selinux rule (allow priv_app memfault_dumpster_service:service_manager find)"
                 f" in one of {','.join(CIL_PATHS)}, please recheck integration - see https://mflt.io/android-sepolicy."
@@ -1012,6 +1047,8 @@ class ValidateConnectedDevice(Command):
                 device=self._device,
             )
         )
+
+        self._errors.extend(self._check_sysfs_secontexts())
 
         if sdk_version >= 28:
             self._errors.extend(self._check_sepolicy_cil())

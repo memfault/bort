@@ -6,6 +6,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project currently does not attempt to adhere to Semantic Versioning, but
 breaking changes are avoided unless absolutely necessary.
 
+## v5.10.0 - August 4, 2026
+
+### :rocket: New Features
+
+- Added support for [Android 17](https://github.com/memfault/bort/tree/master).
+- Added cellular metrics collected from `TelephonyManager`: `cellular_mcc`,
+  `cellular_mnc`, `cellular_rat` and `cellular_sim_state` as properties, and
+  `cellular_signal_level`, `cellular_signal_dbm`, `cellular_rsrp_dbm` and
+  `cellular_rsrq_db` as gauges. RSRP and RSRQ are only reported on LTE/NR. Gated
+  behind the new `metrics.collect_cellular` SDK setting (enabled by default).
+- Metrics for hardware the device doesn't have are no longer collected.
+  Cellular, wifi, bluetooth, GPS, screen, camera and battery metrics are now
+  gated on the device actually having that hardware, instead of only on the
+  server-pushed data source settings.
+- Added the `bort.db_synchronous_mode` setting, which maps to SQLite's
+  `PRAGMA synchronous` (`OFF`/`NORMAL`/`FULL`) for all Bort-owned databases.
+  Defaults to `NORMAL`, which matches the previous behavior. Configurable from
+  the Memfault dashboard as "Local Storage Write Durability".
+- Thermal metrics now report a single max per package type (`thermal_cpu_c_max`,
+  `thermal_gpu_c_max`, `thermal_npu_c_max`, `thermal_skin_c_max`, and the
+  matching `thermal_status_*_max`) instead of one metric per sensor.
+  Instantaneous per-sensor temperatures are no longer reported. Battery thermal
+  metrics are unchanged.
+- The bort-cli validation now checks that the MMC and thermal SELinux contexts
+  are correctly integrated when the device exposes an MMC node.
+
+### :construction: Fixes
+
+- Fixed bluetooth network usage being reported using mobile usage values in the
+  connectivity rollup.
+- Fixed CPU usage spikes reported for processes that restart, and improved
+  process name resolution by reading `/proc/<pid>/cmdline` instead of resolving
+  through UID to package lookups. This removes cases where usage from other
+  processes sharing a UID was attributed to Bort.
+- Fixed debug builds pointing at the internal test server instead of the
+  configured device/files base URLs.
+
 ## v5.9.0 - April 7, 2026
 
 ### :rocket: New Features
@@ -1664,7 +1701,7 @@ documentation.
   in future SDK releases. See <https://mflt.io/memfault-caliper> for details.
 - Reboot events were added in an earlier version of the SDK but didn't make it
   into the changelog. Let's call that a 3.0 feature too! See
-  <https://mflt.io/android-reboot-reasons> to learn more.
+  <https://mflt.io/android-reboot-events> to learn more.
 
 ## v2.9.1 - December 3, 2020
 

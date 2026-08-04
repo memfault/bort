@@ -44,9 +44,9 @@ class TestSettingsProvider @Inject constructor(
     override val httpApiSettings = object : HttpApiSettings by settings.httpApiSettings {
         // Specifically for Bort Lite tests, where the apk is targeting prod:
         override val deviceBaseUrl: String
-            get() = "http://app.memfault.test:8000"
+            get() = if (override()) "http://app.memfault.test:8000" else settings.httpApiSettings.deviceBaseUrl
         override val filesBaseUrl: String
-            get() = "http://app.memfault.test:8000"
+            get() = if (override()) "http://app.memfault.test:8000" else settings.httpApiSettings.filesBaseUrl
     }
 
     // TODO: review this, the backend will override settings through dynamic settings update

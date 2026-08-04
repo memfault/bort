@@ -83,6 +83,7 @@ interface MetricsSettings {
     val operationalCrashesComponentGroups: JsonObject
     val pollingInterval: Duration
     val collectMemory: Boolean
+    val collectCellular: Boolean
     val thermalMetricsEnabled: Boolean
     val thermalCollectLegacyMetrics: Boolean
     val thermalCollectStatus: Boolean
@@ -227,7 +228,7 @@ interface SettingsProvider {
     val sdkVersionInfo: SdkVersionInfo
     val deviceInfoSettings: DeviceInfoSettings
     val bugReportSettings: BugReportSettings
-    val dropBoxSettings: DropBoxSettings
+    val dropBoxSettings: DropBoxSettings // gitleaks:allow
     val metricsSettings: MetricsSettings
     val batteryStatsSettings: BatteryStatsSettings
     val locationSettings: LocationSettings
@@ -244,6 +245,7 @@ interface SettingsProvider {
     val storageSettings: StorageSettings
     val fleetSamplingSettings: FleetSamplingSettings
     val chroniclerSettings: ChroniclerSettings
+    val dbSynchronousMode: DbSynchronousMode
 
     fun invalidate()
 }
@@ -253,6 +255,7 @@ fun SettingsProvider.selectSettingsToMap(): Map<String, Any> = mapOf(
         "minLogcatLevel" to minLogcatLevel,
         "minStructuredLogLevel" to minStructuredLogLevel,
         "isRuntimeEnableRequired" to isRuntimeEnableRequired,
+        "dbSynchronousMode" to dbSynchronousMode,
     ),
     "Http Api Settings" to mapOf(
         "deviceBaseUrl" to httpApiSettings.deviceBaseUrl,

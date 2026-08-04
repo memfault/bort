@@ -1,5 +1,6 @@
 package com.memfault.bort.parsers
 
+import com.memfault.bort.android.DeviceFeatures
 import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsHistoryParseError
 import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.metrics.BatteryStatsAgg
@@ -107,6 +108,7 @@ import kotlin.time.Duration.Companion.hours
 class BatteryStatsHistoryParser(
     private val file: File,
     private val bortErrors: BortErrors,
+    private val deviceFeatures: DeviceFeatures,
 ) {
     private val hsp = mutableMapOf<Int, HspEntry>()
     private var used = false
@@ -123,377 +125,478 @@ class BatteryStatsHistoryParser(
     private var currentTopApp: String? = null
     private var currentForeground: String? = null
     private var reportedErrorMetric = false
-    private val metrics = listOf(
+    private val metrics = buildList {
         // TODO use bools for some of these instead of StringType?
-        BatteryMetric(
-            key = WAKELOCK,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "wake_lock_on_ratio", TimeByNominalNonNullStateMatcher),
-            ),
-        ),
-        BatteryMetric(
-            key = CPU_RUNNING,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "cpu_running_ratio", states = listOf(BOOL_VALUE_TRUE)),
-                CountByNominalAggregator(metricName = "cpu_resume_count_per_hour", state = BOOL_VALUE_TRUE),
-                CountByNominalAggregator(metricName = "cpu_suspend_count_per_hour", state = BOOL_VALUE_FALSE),
-            ),
-        ),
-        BatteryMetric(
-            key = BATTERY_LEVEL,
-            type = Gauge,
-            dataType = DoubleType,
-            aggregations = listOf(BatteryLevelAggregator()),
-        ),
-        BatteryMetric(
-            key = BATTERY_TEMP,
-            type = Gauge,
-            dataType = DoubleType,
-            aggregations = listOf(MaximumValueAggregator(metricName = "max_battery_temp")),
-        ),
-        BatteryMetric(
-            key = BATTERY_VOLTAGE,
-            type = Gauge,
-            dataType = DoubleType,
-            aggregations = listOf(
-                MinimumValueAggregator(
-                    metricName = "min_battery_voltage",
-                    scale = 0.001,
+        add(
+            BatteryMetric(
+                key = WAKELOCK,
+                type = Property,
+                dataType = StringType,
+                aggregations = listOf(
+                    TimeByNominalAggregator(metricName = "wake_lock_on_ratio", TimeByNominalNonNullStateMatcher),
                 ),
             ),
-        ),
-        BatteryMetric(key = BATTERY_COULOMB, type = Gauge, dataType = DoubleType),
-        BatteryMetric(
-            key = BATTERY_HEALTH,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(
-                    metricName = "battery_health_not_good_ratio",
-                    states = enumNames(
-                        listOf(
-                            BatteryHealth.Cold,
-                            BatteryHealth.Failure,
-                            BatteryHealth.OverVoltage,
-                            BatteryHealth.Dead,
-                            BatteryHealth.Overheat,
+        )
+        add(
+            BatteryMetric(
+                key = CPU_RUNNING,
+                type = Property,
+                dataType = StringType,
+                aggregations = listOf(
+                    TimeByNominalAggregator(metricName = "cpu_running_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                    CountByNominalAggregator(metricName = "cpu_resume_count_per_hour", state = BOOL_VALUE_TRUE),
+                    CountByNominalAggregator(metricName = "cpu_suspend_count_per_hour", state = BOOL_VALUE_FALSE),
+                ),
+            ),
+        )
+        add(
+            BatteryMetric(
+                key = BATTERY_LEVEL,
+                type = Gauge,
+                dataType = DoubleType,
+                aggregations = listOf(BatteryLevelAggregator()),
+            ),
+        )
+        add(
+            BatteryMetric(
+                key = BATTERY_TEMP,
+                type = Gauge,
+                dataType = DoubleType,
+                aggregations = listOf(MaximumValueAggregator(metricName = "max_battery_temp")),
+            ),
+        )
+        add(
+            BatteryMetric(
+                key = BATTERY_VOLTAGE,
+                type = Gauge,
+                dataType = DoubleType,
+                aggregations = listOf(
+                    MinimumValueAggregator(
+                        metricName = "min_battery_voltage",
+                        scale = 0.001,
+                    ),
+                ),
+            ),
+        )
+        add(BatteryMetric(key = BATTERY_COULOMB, type = Gauge, dataType = DoubleType))
+        add(
+            BatteryMetric(
+                key = BATTERY_HEALTH,
+                type = Property,
+                dataType = StringType,
+                aggregations = listOf(
+                    TimeByNominalAggregator(
+                        metricName = "battery_health_not_good_ratio",
+                        states = enumNames(
+                            listOf(
+                                BatteryHealth.Cold,
+                                BatteryHealth.Failure,
+                                BatteryHealth.OverVoltage,
+                                BatteryHealth.Dead,
+                                BatteryHealth.Overheat,
+                            ),
                         ),
                     ),
                 ),
             ),
-        ),
-        BatteryMetric(
-            key = BATTERY_STATUS,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(
-                    metricName = CHARGE_DURATION_METRIC,
-                    states = enumNames(listOf(BatteryStatus.Charging)),
-                    useRawElapsedMs = true,
-                ),
-                TimeByNominalAggregator(
-                    metricName = DISCHARGE_DURATION_METRIC,
-                    states = enumNames(listOf(BatteryStatus.Discharging)),
-                    useRawElapsedMs = true,
-                ),
-            ),
-        ),
-        BatteryMetric(key = BATTERY_PLUG, type = Property, dataType = StringType),
-        BatteryMetric(key = BATTERY_PLUGGED, type = Property, dataType = StringType),
-        BatteryMetric(key = CHARGING, type = Property, dataType = StringType),
-        BatteryMetric(
-            key = AUDIO,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "audio_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = CAMERA,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "camera_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = VIDEO,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "video_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(key = SENSOR, type = Property, dataType = StringType),
-        BatteryMetric(
-            key = GPS_ON,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "gps_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(key = GPS_SIGNAL_STRENGTH, type = Property, dataType = StringType),
-        BatteryMetric(
-            key = SCREEN_ON,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "screen_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = SCREEN_BRIGHTNESS,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(
-                    metricName = "screen_brightness_light_or_bright_ratio",
-                    states = enumNames(listOf(ScreenBrightness.Light, ScreenBrightness.Bright)),
+        )
+        add(
+            BatteryMetric(
+                key = BATTERY_STATUS,
+                type = Property,
+                dataType = StringType,
+                aggregations = listOf(
+                    TimeByNominalAggregator(
+                        metricName = CHARGE_DURATION_METRIC,
+                        states = enumNames(listOf(BatteryStatus.Charging)),
+                        useRawElapsedMs = true,
+                    ),
+                    TimeByNominalAggregator(
+                        metricName = DISCHARGE_DURATION_METRIC,
+                        states = enumNames(listOf(BatteryStatus.Discharging)),
+                        useRawElapsedMs = true,
+                    ),
                 ),
             ),
-        ),
-        BatteryMetric(
-            key = WIFI_ON,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "wifi_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = WIFI_FULL_LOCK,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "wifi_full_lock_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = WIFI_SCAN,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "wifi_scan_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(key = WIFI_MULTICAST, type = Property, dataType = StringType),
-        BatteryMetric(
-            key = WIFI_RADIO,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "wifi_radio_active_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = WIFI_RUNNING,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "wifi_running_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = WIFI_SIGNAL_STRENGTH,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(
-                    metricName = "wifi_signal_strength_poor_or_very_poor_ratio",
-                    states = enumNames(listOf(WifiSignalStrength.Poor, WifiSignalStrength.VeryPoor)),
+        )
+        add(BatteryMetric(key = BATTERY_PLUG, type = Property, dataType = StringType))
+        add(BatteryMetric(key = BATTERY_PLUGGED, type = Property, dataType = StringType))
+        add(BatteryMetric(key = CHARGING, type = Property, dataType = StringType))
+        add(
+            BatteryMetric(
+                key = AUDIO,
+                type = Property,
+                dataType = StringType,
+                aggregations = listOf(
+                    TimeByNominalAggregator(metricName = "audio_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
                 ),
             ),
-        ),
-        BatteryMetric(key = WIFI_SUPPLICANT, type = Property, dataType = StringType),
-        BatteryMetric(key = POWER_SAVE, type = Property, dataType = StringType),
-        BatteryMetric(
-            key = DOZE,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "doze_full_ratio", states = enumNames(listOf(DozeState.Full))),
-                TimeByNominalAggregator(
-                    metricName = "doze_ratio",
-                    states = enumNames(listOf(DozeState.Full, DozeState.Light)),
+        )
+        if (deviceFeatures.hasCamera) {
+            add(
+                BatteryMetric(
+                    key = CAMERA,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(metricName = "camera_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                    ),
+                ),
+            )
+        }
+        add(
+            BatteryMetric(
+                key = VIDEO,
+                type = Property,
+                dataType = StringType,
+                aggregations = listOf(
+                    TimeByNominalAggregator(metricName = "video_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
                 ),
             ),
-        ),
-        BatteryMetric(key = USER, type = Property, dataType = StringType),
-        BatteryMetric(key = USER_FOREGROUND, type = Property, dataType = StringType),
-        BatteryMetric(key = JOB, type = Property, dataType = StringType),
-        BatteryMetric(
-            key = PACKAGE_INSTALL,
-            type = Event,
-            dataType = StringType,
-            aggregations = listOf(
-                CountEventAggregator(metricName = "package_install_count"),
-            ),
-        ),
-        BatteryMetric(key = PACKAGE_UNINSTALL, type = Event, dataType = StringType),
-        BatteryMetric(key = DEVICE_ACTIVE, type = Property, dataType = StringType),
-        BatteryMetric(
-            key = BLUETOOTH_LE_SCANNING,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "bluetooth_scan_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = PHONE_RADIO,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "phone_radio_active_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = PHONE_CONNECTION,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                LatestValueAggregator(metricName = "phone_connection_latest"),
-            ),
-        ),
-        BatteryMetric(
-            key = PHONE_IN_CALL,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "phone_in_call_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = PHONE_SCANNING,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "phone_scanning_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = PHONE_SIGNAL_STRENGTH,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(
-                    metricName = "phone_signal_strength_none_ratio",
-                    states = enumNames(listOf(PhoneSignalStrength.NoSignal)),
+        )
+        add(BatteryMetric(key = SENSOR, type = Property, dataType = StringType))
+        if (deviceFeatures.hasGps) {
+            add(
+                BatteryMetric(
+                    key = GPS_ON,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(metricName = "gps_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                    ),
                 ),
-                TimeByNominalAggregator(
-                    metricName = "phone_signal_strength_poor_ratio",
-                    states = enumNames(listOf(PhoneSignalStrength.Poor)),
+            )
+            add(BatteryMetric(key = GPS_SIGNAL_STRENGTH, type = Property, dataType = StringType))
+        }
+        if (deviceFeatures.hasScreen) {
+            add(
+                BatteryMetric(
+                    key = SCREEN_ON,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(metricName = "screen_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                    ),
+                ),
+            )
+            add(
+                BatteryMetric(
+                    key = SCREEN_BRIGHTNESS,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(
+                            metricName = "screen_brightness_light_or_bright_ratio",
+                            states = enumNames(listOf(ScreenBrightness.Light, ScreenBrightness.Bright)),
+                        ),
+                    ),
+                ),
+            )
+        }
+        if (deviceFeatures.hasWifi) {
+            add(
+                BatteryMetric(
+                    key = WIFI_ON,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(metricName = "wifi_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                    ),
+                ),
+            )
+            add(
+                BatteryMetric(
+                    key = WIFI_FULL_LOCK,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(metricName = "wifi_full_lock_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                    ),
+                ),
+            )
+            add(
+                BatteryMetric(
+                    key = WIFI_SCAN,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(metricName = "wifi_scan_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                    ),
+                ),
+            )
+            add(BatteryMetric(key = WIFI_MULTICAST, type = Property, dataType = StringType))
+            add(
+                BatteryMetric(
+                    key = WIFI_RADIO,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(
+                            metricName = "wifi_radio_active_ratio",
+                            states = listOf(BOOL_VALUE_TRUE),
+                        ),
+                    ),
+                ),
+            )
+            add(
+                BatteryMetric(
+                    key = WIFI_RUNNING,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(metricName = "wifi_running_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                    ),
+                ),
+            )
+            add(
+                BatteryMetric(
+                    key = WIFI_SIGNAL_STRENGTH,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(
+                            metricName = "wifi_signal_strength_poor_or_very_poor_ratio",
+                            states = enumNames(listOf(WifiSignalStrength.Poor, WifiSignalStrength.VeryPoor)),
+                        ),
+                    ),
+                ),
+            )
+            add(BatteryMetric(key = WIFI_SUPPLICANT, type = Property, dataType = StringType))
+        }
+        add(BatteryMetric(key = POWER_SAVE, type = Property, dataType = StringType))
+        add(
+            BatteryMetric(
+                key = DOZE,
+                type = Property,
+                dataType = StringType,
+                aggregations = listOf(
+                    TimeByNominalAggregator(
+                        metricName = "doze_full_ratio",
+                        states = enumNames(listOf(DozeState.Full)),
+                    ),
+                    TimeByNominalAggregator(
+                        metricName = "doze_ratio",
+                        states = enumNames(listOf(DozeState.Full, DozeState.Light)),
+                    ),
                 ),
             ),
-        ),
-        BatteryMetric(
-            key = PHONE_STATE,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(
-                    metricName = "phone_state_in_ratio",
-                    states = enumNames(listOf(PhoneState.In)),
-                ),
-                TimeByNominalAggregator(
-                    metricName = "phone_state_out_ratio",
-                    states = enumNames(listOf(PhoneState.Out)),
-                ),
-                TimeByNominalAggregator(
-                    metricName = "phone_state_em_ratio",
-                    states = enumNames(listOf(PhoneState.Emergency)),
+        )
+        add(BatteryMetric(key = USER, type = Property, dataType = StringType))
+        add(BatteryMetric(key = USER_FOREGROUND, type = Property, dataType = StringType))
+        add(BatteryMetric(key = JOB, type = Property, dataType = StringType))
+        add(
+            BatteryMetric(
+                key = PACKAGE_INSTALL,
+                type = Event,
+                dataType = StringType,
+                aggregations = listOf(
+                    CountEventAggregator(metricName = "package_install_count"),
                 ),
             ),
-        ),
-        BatteryMetric(key = TOP_APP, type = Property, dataType = StringType),
-        BatteryMetric(key = FOREGROUND, type = Property, dataType = StringType),
-        BatteryMetric(
-            key = LONGWAKE,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "long_wake_lock_on_ratio", TimeByNominalNonNullStateMatcher),
+        )
+        add(BatteryMetric(key = PACKAGE_UNINSTALL, type = Event, dataType = StringType))
+        add(BatteryMetric(key = DEVICE_ACTIVE, type = Property, dataType = StringType))
+        if (deviceFeatures.hasBluetooth) {
+            add(
+                BatteryMetric(
+                    key = BLUETOOTH_LE_SCANNING,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(metricName = "bluetooth_scan_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                    ),
+                ),
+            )
+        }
+        if (deviceFeatures.hasTelephony) {
+            add(
+                BatteryMetric(
+                    key = PHONE_RADIO,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(
+                            metricName = "phone_radio_active_ratio",
+                            states = listOf(BOOL_VALUE_TRUE),
+                        ),
+                    ),
+                ),
+            )
+            add(
+                BatteryMetric(
+                    key = PHONE_CONNECTION,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        LatestValueAggregator(metricName = "phone_connection_latest"),
+                    ),
+                ),
+            )
+            add(
+                BatteryMetric(
+                    key = PHONE_IN_CALL,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(metricName = "phone_in_call_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                    ),
+                ),
+            )
+            add(
+                BatteryMetric(
+                    key = PHONE_SCANNING,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(metricName = "phone_scanning_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                    ),
+                ),
+            )
+            add(
+                BatteryMetric(
+                    key = PHONE_SIGNAL_STRENGTH,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(
+                            metricName = "phone_signal_strength_none_ratio",
+                            states = enumNames(listOf(PhoneSignalStrength.NoSignal)),
+                        ),
+                        TimeByNominalAggregator(
+                            metricName = "phone_signal_strength_poor_ratio",
+                            states = enumNames(listOf(PhoneSignalStrength.Poor)),
+                        ),
+                    ),
+                ),
+            )
+            add(
+                BatteryMetric(
+                    key = PHONE_STATE,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(
+                            metricName = "phone_state_in_ratio",
+                            states = enumNames(listOf(PhoneState.In)),
+                        ),
+                        TimeByNominalAggregator(
+                            metricName = "phone_state_out_ratio",
+                            states = enumNames(listOf(PhoneState.Out)),
+                        ),
+                        TimeByNominalAggregator(
+                            metricName = "phone_state_em_ratio",
+                            states = enumNames(listOf(PhoneState.Emergency)),
+                        ),
+                    ),
+                ),
+            )
+        }
+        add(BatteryMetric(key = TOP_APP, type = Property, dataType = StringType))
+        add(BatteryMetric(key = FOREGROUND, type = Property, dataType = StringType))
+        add(
+            BatteryMetric(
+                key = LONGWAKE,
+                type = Property,
+                dataType = StringType,
+                aggregations = listOf(
+                    TimeByNominalAggregator(metricName = "long_wake_lock_on_ratio", TimeByNominalNonNullStateMatcher),
+                ),
             ),
-        ),
-        BatteryMetric(key = ALARM, type = Property, dataType = StringType),
-        BatteryMetric(key = START, type = Event, dataType = StringType),
-        BatteryMetric(key = SCREEN_DOZE, type = Property, dataType = BooleanType),
-        BatteryMetric(
-            key = FLASHLIGHT,
-            type = Property,
-            dataType = BooleanType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "flashlight_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = BLUETOOTH,
-            type = Property,
-            dataType = BooleanType,
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "bluetooth_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = USB_DATA,
-            type = Property,
-            dataType = BooleanType,
+        )
+        add(BatteryMetric(key = ALARM, type = Property, dataType = StringType))
+        add(BatteryMetric(key = START, type = Event, dataType = StringType))
+        if (deviceFeatures.hasScreen) {
+            add(BatteryMetric(key = SCREEN_DOZE, type = Property, dataType = BooleanType))
+        }
+        if (deviceFeatures.hasCamera) {
+            add(
+                BatteryMetric(
+                    key = FLASHLIGHT,
+                    type = Property,
+                    dataType = BooleanType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(metricName = "flashlight_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                    ),
+                ),
+            )
+        }
+        if (deviceFeatures.hasBluetooth) {
+            add(
+                BatteryMetric(
+                    key = BLUETOOTH,
+                    type = Property,
+                    dataType = BooleanType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(metricName = "bluetooth_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
+                    ),
+                ),
+            )
+        }
+        add(
+            BatteryMetric(
+                key = USB_DATA,
+                type = Property,
+                dataType = BooleanType,
 
-            aggregations = listOf(
-                TimeByNominalAggregator(metricName = "usb_data_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
-            ),
-        ),
-        BatteryMetric(
-            key = CELLULAR_HIGH_TX_POWER,
-            type = Property,
-            dataType = BooleanType,
-            aggregations = listOf(
-                TimeByNominalAggregator(
-                    metricName = "cellular_high_tx_power_on_ratio",
-                    states = listOf(BOOL_VALUE_TRUE),
+                aggregations = listOf(
+                    TimeByNominalAggregator(metricName = "usb_data_on_ratio", states = listOf(BOOL_VALUE_TRUE)),
                 ),
             ),
-        ),
-        BatteryMetric(
-            key = NR_STATE,
-            type = Property,
-            dataType = StringType,
-            aggregations = listOf(
-                TimeByNominalAggregator(
-                    metricName = "nr_state_none_ratio",
-                    states = enumNames(listOf(NrState.None)),
+        )
+        if (deviceFeatures.hasTelephony) {
+            add(
+                BatteryMetric(
+                    key = CELLULAR_HIGH_TX_POWER,
+                    type = Property,
+                    dataType = BooleanType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(
+                            metricName = "cellular_high_tx_power_on_ratio",
+                            states = listOf(BOOL_VALUE_TRUE),
+                        ),
+                    ),
                 ),
-                TimeByNominalAggregator(
-                    metricName = "nr_state_restricted_ratio",
-                    states = enumNames(listOf(NrState.Restricted)),
+            )
+            add(
+                BatteryMetric(
+                    key = NR_STATE,
+                    type = Property,
+                    dataType = StringType,
+                    aggregations = listOf(
+                        TimeByNominalAggregator(
+                            metricName = "nr_state_none_ratio",
+                            states = enumNames(listOf(NrState.None)),
+                        ),
+                        TimeByNominalAggregator(
+                            metricName = "nr_state_restricted_ratio",
+                            states = enumNames(listOf(NrState.Restricted)),
+                        ),
+                        TimeByNominalAggregator(
+                            metricName = "nr_state_not_restricted_ratio",
+                            states = enumNames(listOf(NrState.NotRestricted)),
+                        ),
+                        TimeByNominalAggregator(
+                            metricName = "nr_state_connected_ratio",
+                            states = enumNames(listOf(NrState.Connected)),
+                        ),
+                    ),
                 ),
-                TimeByNominalAggregator(
-                    metricName = "nr_state_not_restricted_ratio",
-                    states = enumNames(listOf(NrState.NotRestricted)),
-                ),
-                TimeByNominalAggregator(
-                    metricName = "nr_state_connected_ratio",
-                    states = enumNames(listOf(NrState.Connected)),
-                ),
-            ),
-        ),
-        BatteryMetric(
-            key = SCREEN_WAKE,
-            type = Event,
-            dataType = StringType,
+            )
+        }
+        if (deviceFeatures.hasScreen) {
+            add(
+                BatteryMetric(
+                    key = SCREEN_WAKE,
+                    type = Event,
+                    dataType = StringType,
 
-            aggregations = listOf(
-                CountEventAggregator(metricName = "screen_wake_count"),
-            ),
-        ),
-    )
+                    aggregations = listOf(
+                        CountEventAggregator(metricName = "screen_wake_count"),
+                    ),
+                ),
+            )
+        }
+    }
     private val metricsMap = metrics.associateBy { it.key }
 
     private inner class BatteryMetric(

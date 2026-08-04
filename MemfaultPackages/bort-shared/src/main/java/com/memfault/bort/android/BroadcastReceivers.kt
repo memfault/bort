@@ -8,6 +8,8 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
+fun Context.stickyIntent(action: String): Intent? = registerReceiver(null, IntentFilter(action))
+
 fun Context.registerForIntents(
     vararg actions: String,
     sticky: Boolean = false,

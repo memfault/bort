@@ -18,6 +18,7 @@ import android.provider.Settings.Global
 import androidx.annotation.RequiresPermission
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.Default
+import com.memfault.bort.android.DeviceFeatures
 import com.memfault.bort.android.NetworkCallbackEvent.OnAvailable
 import com.memfault.bort.android.NetworkCallbackEvent.OnCapabilitiesChanged
 import com.memfault.bort.android.NetworkCallbackEvent.OnLinkPropertiesChanged
@@ -75,8 +76,12 @@ class ConnectivityMetrics
     private val wifiInfoProvider: WifiFingerprintingInfoProvider,
     private val lastConnectedNetworkStorage: LastConnectedNetworkStorage,
     private val readBootId: LinuxBootId,
+    private val deviceFeatures: DeviceFeatures,
 ) : Scoped {
     private val currentBootId: String by lazy { readBootId() }
+
+    private val supportsRoamingMetric: Boolean
+        get() = Build.VERSION.SDK_INT >= 28 && deviceFeatures.hasTelephony
     private val connectivityMetric = Reporting.report()
         .stateTracker<ConnectivityState>(
             name = CONNECTIVITY_TYPE_METRIC,
@@ -269,7 +274,7 @@ class ConnectivityMetrics
         captivePortalMetric.state(false)
 
         meteredMetric.state(false)
-        if (Build.VERSION.SDK_INT >= 28) {
+        if (supportsRoamingMetric) {
             roamingMetric.state(false)
         }
         if (Build.VERSION.SDK_INT >= 30) {
@@ -372,17 +377,7 @@ class ConnectivityMetrics
     }
 
     private suspend fun recordNetworkCapabilities(networkCapabilities: NetworkCapabilities) {
-        // Dumb API hides getTransport() so we have to test each one individually
-        // (or use reflection..).
-        val state = when {
-            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> WIFI
-            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> CELLULAR
-            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) -> BLUETOOTH
-            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> ETHERNET
-            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> VPN
-            networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_USB) -> USB
-            else -> UNKNOWN
-        }
+        val state = classifyConnectivityState(networkCapabilities, deviceFeatures)
         connectivityMetric.state(state)
 
         val connectedWifiInfo = wifiInfoProvider.getWifiFingerprintingInfo()
@@ -413,7 +408,7 @@ class ConnectivityMetrics
             unmeteredTemporarilyMetric.state(isUnmeteredTemporarily)
         }
 
-        if (Build.VERSION.SDK_INT >= 28) {
+        if (supportsRoamingMetric) {
             val isRoaming = !networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING)
             roamingMetric.state(isRoaming)
         }
@@ -422,6 +417,7 @@ class ConnectivityMetrics
     }
 
     private fun reportWifiInfo(wifiInfo: WifiInfo?, connectedWifiInfo: WifiFingerprintingInfo? = null) {
+        if (!deviceFeatures.hasWifi) return
         wifiInfo?.frequency?.let { frequency ->
             wifiFrequencyMetric.record(frequency.toLong())
 
@@ -543,6 +539,25 @@ private fun NetworkCapabilities.toWifiInfo(wifiManager: WifiManager?): WifiInfo?
 @VisibleForTesting
 internal fun bssidToOui(bssid: String): String =
     bssid.substring(0, 8)
+
+@VisibleForTesting
+internal fun classifyConnectivityState(
+    networkCapabilities: NetworkCapabilities,
+    deviceFeatures: DeviceFeatures,
+): ConnectivityState =
+    // Dumb API hides getTransport() so we have to test each one individually
+    // (or use reflection..).
+    when {
+        networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) && deviceFeatures.hasWifi -> WIFI
+        networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) &&
+            deviceFeatures.hasTelephony -> CELLULAR
+        networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_BLUETOOTH) &&
+            deviceFeatures.hasBluetooth -> BLUETOOTH
+        networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> ETHERNET
+        networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) -> VPN
+        networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_USB) -> USB
+        else -> UNKNOWN
+    }
 
 enum class ConnectivityState {
     WIFI,

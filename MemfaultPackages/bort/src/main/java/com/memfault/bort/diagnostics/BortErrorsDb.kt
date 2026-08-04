@@ -9,9 +9,11 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import com.memfault.bort.BortJson
+import com.memfault.bort.db.synchronousModeOnOpenCallback
 import com.memfault.bort.diagnostics.BortErrorType.UnknownError
 import com.memfault.bort.diagnostics.MapWrapper.Companion.fromJson
 import com.memfault.bort.diagnostics.MapWrapper.Companion.toJson
+import com.memfault.bort.settings.DbSynchronousMode
 import com.memfault.bort.shared.Logger
 import kotlinx.serialization.Serializable
 
@@ -35,13 +37,15 @@ abstract class BortErrorsDb : RoomDatabase() {
     abstract fun dao(): BortErrorsDao
 
     companion object {
-        fun create(application: Application): BortErrorsDb = Room.databaseBuilder(
-            application,
-            BortErrorsDb::class.java,
-            BORT_ERRORS_DB_NAME,
-        )
-            .fallbackToDestructiveMigration()
-            .build()
+        fun create(application: Application, dbSynchronousMode: () -> DbSynchronousMode): BortErrorsDb =
+            Room.databaseBuilder(
+                application,
+                BortErrorsDb::class.java,
+                BORT_ERRORS_DB_NAME,
+            )
+                .fallbackToDestructiveMigration()
+                .addCallback(synchronousModeOnOpenCallback(dbSynchronousMode))
+                .build()
     }
 }
 

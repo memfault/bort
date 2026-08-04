@@ -44,6 +44,9 @@ data class FetchedSettings(
     @Serializable(with = DurationAsMillisecondsLong::class)
     val bortSettingsUpdateInterval: BoxedDuration,
 
+    @SerialName("bort.db_synchronous_mode")
+    val bortDbSynchronousMode: DbSynchronousMode = DbSynchronousMode.NORMAL,
+
     @SerialName("bug_report.collection_interval_ms")
     @Serializable(with = DurationAsMillisecondsLong::class)
     val bugReportCollectionInterval: BoxedDuration,
@@ -316,6 +319,9 @@ data class FetchedSettings(
 
     @SerialName("metrics.collect_memory")
     val metricsCollectMemory: Boolean = true,
+
+    @SerialName("metrics.collect_cellular")
+    val metricsCollectCellular: Boolean = true,
 
     @SerialName("metrics.data_source_enabled")
     val metricsDataSourceEnabled: Boolean,

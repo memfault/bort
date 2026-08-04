@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.android.DeviceFeatures
 import com.memfault.bort.reporting.NumericAgg.MAX
 import com.memfault.bort.reporting.NumericAgg.MEAN
 import com.memfault.bort.reporting.NumericAgg.MIN
@@ -21,6 +22,7 @@ class ThermalMetricsCollector @Inject constructor(
     private val thermalMetricReporter: ThermalMetricReporter,
     private val metricsSettings: MetricsSettings,
     private val settingsFlow: SettingsFlow,
+    private val deviceFeatures: DeviceFeatures,
 ) : MetricCollector {
     override fun onChanged(): Flow<Unit> = settingsFlow.settings
         .map { settings ->
@@ -37,20 +39,22 @@ class ThermalMetricsCollector @Inject constructor(
             metrics.forEach {
                 Logger.d("thermal metric: $it")
             }
-            TemperatureType.entries.filter { it.collectMetric }.forEach { type ->
-                metrics.filter { it.type == type }
-                    // Sort by name, so that we have stable indexes.
-                    .sortedBy { it.name }
-                    .forEach { metric ->
-                        val name = sanitise(metric.name)
-                        thermalMetricReporter.reportMetric(
-                            tempName = "thermal_${type.tag}_${name}_c",
-                            tempValue = metric.value,
-                            statusName = "thermal_status_${type.tag}_$name",
-                            statusValue = metric.status,
-                        )
-                    }
-            }
+            TemperatureType.entries
+                .filter { it.collectMetric && (it != TemperatureType.BATTERY || deviceFeatures.hasBattery) }
+                .forEach { type ->
+                    metrics.filter { it.type == type }
+                        // Sort by name, so that we have stable indexes.
+                        .sortedBy { it.name }
+                        .forEach { metric ->
+                            val name = sanitise(metric.name)
+                            thermalMetricReporter.reportMetric(
+                                tempName = "thermal_${type.tag}_${name}_c",
+                                tempValue = metric.value,
+                                statusName = "thermal_status_${type.tag}_$name",
+                                statusValue = metric.status,
+                            )
+                        }
+                }
         } catch (e: Exception) {
             Logger.w("Error collecting thermal", e)
         }

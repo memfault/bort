@@ -7,9 +7,11 @@ object AmMetadataHeader {
 
     fun notMetadataLine(s: String): Boolean = s.isBlank() ||
         !s.contains(": ") ||
-        s.contains("Exception: ") ||
-        s.contains("Error: ") ||
-        s.contains("Failure: ")
+        // Java exception class names always have dots. Metadata keys like "Crash-Exception" (Android 17) do not.
+        (
+            s.substringBefore(": ").contains(".") &&
+                (s.contains("Exception: ") || s.contains("Error: ") || s.contains("Failure: "))
+            )
 }
 
 private val PACKAGE_REGEX = "^Package: ([^ ]+).*".toRegex()
