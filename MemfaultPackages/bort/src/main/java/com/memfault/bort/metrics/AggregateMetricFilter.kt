@@ -161,16 +161,13 @@ object AggregateMetricFilter {
             }
         }
 
-        // Device Vitals: thermal
-        if (metric.key.startsWith("thermal_") && metric.key.endsWith(".mean")) {
-            return metric.key.removeSuffix(".mean") to metric.value
-        }
-        if (metric.key.startsWith("thermal_") && metric.key.endsWith(".max")) {
-            return metric.key.removeSuffix(".max") + "_max" to metric.value
-        }
-        // We have the .min aggregation only for legacy metric names (ThermalDerivedCalculator) - it's not used for
-        // vitals. This won't remove temp.cpu_0 etc if legacy metrics are enabled.
-        if (metric.key.startsWith("thermal_") && metric.key.endsWith(".min")) {
+        // Device Vitals: thermal — per-sensor metrics arrive with aggregation suffixes (.mean/.max/.min);
+        // drop them all here. Derived cross-type aggregations (thermal_cpu_c_max, thermal_gpu_c_max, etc.)
+        // are added by ThermalDerivedCalculator without suffixes and pass through as untouched below.
+        // Legacy temp.* metrics don't start with "thermal_" and are also unaffected.
+        if (metric.key.startsWith("thermal_") &&
+            (metric.key.endsWith(".mean") || metric.key.endsWith(".max") || metric.key.endsWith(".min"))
+        ) {
             return null
         }
 

@@ -38,14 +38,21 @@ open class CpuMetricsCollector @Inject constructor(
             return
         }
 
-        val procPidStat = dumpsterClient.getProcPidStat()
+        val procPidStatV2 = dumpsterClient.getProcPidStatV2()
+        val procPidStat = procPidStatV2 ?: dumpsterClient.getProcPidStat()
+        val procPidStatHasCmdline = procPidStatV2 != null
         if (procPidStat == null) {
             Logger.i("couldn't get procPidStat")
             // We can still report the overall CPU usage, so we continue
         }
 
         val packageManagerReport = packageManagerClient.getPackageManagerReport()
-        val cpuMetrics = cpuMetricsParser.parseCpuUsage(procStat, procPidStat, packageManagerReport) ?: return
+        val cpuMetrics = cpuMetricsParser.parseCpuUsage(
+            procStat,
+            procPidStat,
+            procPidStatHasCmdline,
+            packageManagerReport,
+        ) ?: return
         val previous = cpuUsageStorage.state
         cpuUsageStorage.state = cpuMetrics
         val sinceLast = cpuMetrics.diffFromPrevious(previous)
@@ -97,6 +104,9 @@ fun CpuUsage.diffFromPrevious(previous: CpuUsage): CpuUsage = if (this.totalTick
 } else {
     val perProcessUsageInPeriod = perProcessUsage.mapNotNull { (key, currentUsage) ->
         val previousUsage = previous.perProcessUsage[key] ?: return@mapNotNull null
+        // If the PID changed, this is a new process instance: subtracting the previous process's
+        // accumulated ticks would attribute its entire history to this collection window.
+        if (currentUsage.pid != previousUsage.pid) return@mapNotNull null
         key to currentUsage.copy(
             stime = currentUsage.stime - previousUsage.stime,
             utime = currentUsage.utime - previousUsage.utime,

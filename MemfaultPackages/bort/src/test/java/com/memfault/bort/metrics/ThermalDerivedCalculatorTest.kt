@@ -3,7 +3,6 @@ package com.memfault.bort.metrics
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.containsExactlyInAnyOrder
-import assertk.assertions.isEmpty
 import com.memfault.bort.metrics.custom.ReportType.Hourly
 import com.memfault.bort.metrics.database.DerivedAggregation
 import com.memfault.bort.reporting.DataType
@@ -32,6 +31,7 @@ class ThermalDerivedCalculatorTest {
             override val operationalCrashesComponentGroups: JsonObject get() = TODO("not used")
             override val pollingInterval: Duration get() = TODO("Not used")
             override val collectMemory: Boolean get() = TODO("Not used")
+            override val collectCellular: Boolean get() = TODO("Not used")
             override val thermalMetricsEnabled: Boolean get() = TODO("Not used")
             override val thermalCollectLegacyMetrics: Boolean get() = legacyMetrics
             override val thermalCollectStatus: Boolean get() = TODO("Not used")
@@ -58,19 +58,38 @@ class ThermalDerivedCalculatorTest {
             "thermal_gpu_GPU0_c.min" to JsonPrimitive(2.0),
             "thermal_gpu_GPU0_c.mean" to JsonPrimitive(3.0),
             "thermal_gpu_GPU0_c.max" to JsonPrimitive(10.5),
+            "thermal_gpu_GPU1_c.min" to JsonPrimitive(1.0),
+            "thermal_gpu_GPU1_c.mean" to JsonPrimitive(2.0),
+            "thermal_gpu_GPU1_c.max" to JsonPrimitive(8.0),
+            "thermal_npu_nsp0_c.min" to JsonPrimitive(1.0),
+            "thermal_npu_nsp0_c.mean" to JsonPrimitive(2.0),
+            "thermal_npu_nsp0_c.max" to JsonPrimitive(7.0),
+            "thermal_skin_skin_c.min" to JsonPrimitive(1.0),
+            "thermal_skin_skin_c.mean" to JsonPrimitive(2.0),
+            "thermal_skin_skin_c.max" to JsonPrimitive(40.0),
             "thermal_battery_bat-0_c.min" to JsonPrimitive(2.5),
             "thermal_battery_bat-0_c.mean" to JsonPrimitive(3.5),
             "thermal_battery_bat-0_c.max" to JsonPrimitive(7.0),
             "thermal_battery_bat-1_c.min" to JsonPrimitive(3.0),
             "thermal_battery_bat-1_c.mean" to JsonPrimitive(4.0),
             "thermal_battery_bat-1_c.max" to JsonPrimitive(7.5),
+            "thermal_status_cpu_CPU0.max" to JsonPrimitive(1.0),
+            "thermal_status_cpu_CPU1.max" to JsonPrimitive(2.0),
+            "thermal_status_gpu_GPU0.max" to JsonPrimitive(1.0),
+            "thermal_status_gpu_GPU1.max" to JsonPrimitive(3.0),
+            "thermal_status_npu_nsp0.max" to JsonPrimitive(1.0),
         )
         assertThat(calculator(legacyMetrics = false).calculate(Hourly, 0, 0, metrics, emptyMap(), 0, 0))
-            .containsExactly(
-                derivedMetric("thermal_cpu_c", 2.25),
+            .containsExactlyInAnyOrder(
                 derivedMetric("thermal_cpu_c_max", 6.0),
+                derivedMetric("thermal_gpu_c_max", 10.5),
+                derivedMetric("thermal_npu_c_max", 7.0),
+                derivedMetric("thermal_skin_c_max", 40.0),
                 derivedMetric("thermal_battery_c", 3.75),
                 derivedMetric("thermal_battery_c_max", 7.5),
+                derivedMetric("thermal_status_cpu_max", 2.0),
+                derivedMetric("thermal_status_gpu_max", 3.0),
+                derivedMetric("thermal_status_npu_max", 1.0),
             )
     }
 
@@ -95,8 +114,8 @@ class ThermalDerivedCalculatorTest {
         )
         assertThat(calculator(legacyMetrics = true).calculate(Hourly, 0, 0, metrics, emptyMap(), 0, 0))
             .containsExactlyInAnyOrder(
-                derivedMetric("thermal_cpu_c", 2.25),
                 derivedMetric("thermal_cpu_c_max", 6.0),
+                derivedMetric("thermal_gpu_c_max", 10.5),
                 derivedMetric("thermal_battery_c", 3.75),
                 derivedMetric("thermal_battery_c_max", 7.5),
                 // Legacy metrics
@@ -113,14 +132,14 @@ class ThermalDerivedCalculatorTest {
     }
 
     @Test
-    fun missingMetricsNoOutput() {
+    fun `single sensor produces its type max`() {
         val metrics = mapOf(
             "thermal_gpu_GPU0_c.min" to JsonPrimitive(2.0),
             "thermal_gpu_GPU0_c.mean" to JsonPrimitive(3.0),
             "thermal_gpu_GPU0_c.max" to JsonPrimitive(10.5),
         )
         assertThat(calculator(legacyMetrics = false).calculate(Hourly, 0, 0, metrics, emptyMap(), 0, 0))
-            .isEmpty()
+            .containsExactly(derivedMetric("thermal_gpu_c_max", 10.5))
     }
 
     private fun derivedMetric(name: String, value: Double) = DerivedAggregation.create(

@@ -11,10 +11,10 @@ index 87cec82..a4e0c61 100644
 +type memfault_bugreport_data_file, file_type, data_file_type, mlstrustedobject;
 +type sysfs_mmc, fs_type, sysfs_type;
 diff --git a/file_contexts b/file_contexts
-index 085a57b..e4b9885 100644
+index 085a57b..aa6f876 100644
 --- a/file_contexts
 +++ b/file_contexts
-@@ -402,3 +402,14 @@
+@@ -402,3 +402,17 @@
  /mnt/user(/.*)?             u:object_r:mnt_user_file:s0
  /mnt/runtime(/.*)?          u:object_r:storage_file:s0
  /storage(/.*)?              u:object_r:storage_file:s0
@@ -29,6 +29,9 @@ index 085a57b..e4b9885 100644
 +
 +/data/misc/MemfaultBugReports(/.*)?   u:object_r:memfault_bugreport_data_file:s0
 +
++# Add context to thermal ssyfs nodes
++/sys/class/thermal(/.*)?                                u:object_r:sysfs_thermal:s0
++/sys/devices/virtual/thermal(/.*)?                      u:object_r:sysfs_thermal:s0
 diff --git a/genfs_contexts b/genfs_contexts
 index 31794a1..71c323b 100644
 --- a/genfs_contexts

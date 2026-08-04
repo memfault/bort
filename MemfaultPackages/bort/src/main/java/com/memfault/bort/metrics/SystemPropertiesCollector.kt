@@ -6,6 +6,7 @@ import android.os.Build
 import android.telephony.TelephonyManager
 import com.memfault.bort.AndroidSdkVersion
 import com.memfault.bort.DumpsterClient
+import com.memfault.bort.android.DeviceFeatures
 import com.memfault.bort.metrics.SystemPropertiesCollector.TypedSyspropVal.BoolVal
 import com.memfault.bort.metrics.SystemPropertiesCollector.TypedSyspropVal.DoubleVal
 import com.memfault.bort.metrics.SystemPropertiesCollector.TypedSyspropVal.LongVal
@@ -28,6 +29,7 @@ class SystemPropertiesCollector @Inject constructor(
     private val dumpsterClient: DumpsterClient,
     private val application: Application,
     @AndroidSdkVersion private val androidSdkVersion: Int,
+    private val deviceFeatures: DeviceFeatures,
 ) {
     suspend fun collect(): DeviceSystemProperties? {
         val systemProperties = dumpsterClient.getprop() ?: return null
@@ -61,7 +63,7 @@ class SystemPropertiesCollector @Inject constructor(
             systemPropertyTypes = deviceSystemProperties.propertyTypes,
             devicePropertiesStore = devicePropertiesStore,
         )
-        if (androidSdkVersion >= Build.VERSION_CODES.O && settings.recordImei) {
+        if (androidSdkVersion >= Build.VERSION_CODES.O && settings.recordImei && deviceFeatures.hasTelephony) {
             try {
                 application.getSystemService(TelephonyManager::class.java)?.let { telephony ->
                     telephony.imei?.let { imei ->

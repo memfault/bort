@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Build
 import android.telephony.TelephonyManager
 import com.memfault.bort.DumpsterClient
+import com.memfault.bort.android.FakeDeviceFeatures
 import com.memfault.bort.settings.MetricsSettings
 import com.memfault.bort.settings.RateLimitingSettings
 import com.memfault.bort.time.boxed
@@ -41,6 +42,7 @@ class SystemPropertiesCollectorTest {
             override val operationalCrashesComponentGroups: JsonObject = JsonObject(emptyMap())
             override val pollingInterval: Duration = 15.minutes
             override val collectMemory: Boolean = true
+            override val collectCellular: Boolean get() = TODO("not used")
             override val thermalMetricsEnabled: Boolean get() = TODO("not used")
             override val thermalCollectLegacyMetrics: Boolean get() = TODO("not used")
             override val thermalCollectStatus: Boolean get() = TODO("not used")
@@ -98,6 +100,7 @@ class SystemPropertiesCollectorTest {
             dumpsterClient = dumpsterClient,
             application = application,
             androidSdkVersion = Build.VERSION_CODES.O,
+            deviceFeatures = FakeDeviceFeatures(),
         )
         collector.collect()?.let { collector.record(it, store) }
         coVerify(exactly = 1) {

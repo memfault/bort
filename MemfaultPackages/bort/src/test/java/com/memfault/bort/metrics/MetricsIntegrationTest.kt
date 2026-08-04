@@ -19,6 +19,7 @@ import assertk.assertions.prop
 import assertk.assertions.single
 import com.google.testing.junit.testparameterinjector.TestParameter
 import com.memfault.bort.BortAlwaysEnabledProvider
+import com.memfault.bort.android.FakeDeviceFeatures
 import com.memfault.bort.battery.BATTERY_CHARGING_METRIC
 import com.memfault.bort.battery.BATTERY_DISCHARGE_DURATION_METRIC
 import com.memfault.bort.battery.BATTERY_LEVEL_METRIC
@@ -1010,6 +1011,7 @@ class MetricsIntegrationTest {
             lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
             lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
             bortEnabledProvider = BortAlwaysEnabledProvider(),
+            deviceFeatures = FakeDeviceFeatures(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1147,6 +1149,7 @@ class MetricsIntegrationTest {
             lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
             lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
             bortEnabledProvider = BortAlwaysEnabledProvider(),
+            deviceFeatures = FakeDeviceFeatures(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1280,6 +1283,7 @@ class MetricsIntegrationTest {
             lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
             lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
             bortEnabledProvider = BortAlwaysEnabledProvider(),
+            deviceFeatures = FakeDeviceFeatures(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1326,6 +1330,7 @@ class MetricsIntegrationTest {
             lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
             lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
             bortEnabledProvider = BortAlwaysEnabledProvider(),
+            deviceFeatures = FakeDeviceFeatures(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1376,6 +1381,7 @@ class MetricsIntegrationTest {
             lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
             lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
             bortEnabledProvider = BortAlwaysEnabledProvider(),
+            deviceFeatures = FakeDeviceFeatures(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1496,6 +1502,7 @@ class MetricsIntegrationTest {
             lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
             lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
             bortEnabledProvider = BortAlwaysEnabledProvider(),
+            deviceFeatures = FakeDeviceFeatures(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1571,20 +1578,11 @@ class MetricsIntegrationTest {
             dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis(), endUptimeMs = System.currentTimeMillis()),
         ).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
-                // Per-sensor
-                "thermal_cpu_CPU1_c" to JsonPrimitive(4.25),
-                "thermal_cpu_CPU1_c_max" to JsonPrimitive(5.0),
-                "thermal_cpu_xxx_c" to JsonPrimitive(5.0),
-                "thermal_cpu_xxx_c_max" to JsonPrimitive(9.0),
-                "thermal_battery_bat0_c" to JsonPrimitive(2.5),
-                "thermal_battery_bat0_c_max" to JsonPrimitive(4.5),
-                // CPU averages
-                "thermal_cpu_c" to JsonPrimitive(4.625),
+                // Single max per package type — per-sensor metrics are dropped
                 "thermal_cpu_c_max" to JsonPrimitive(9.0),
-                // Battery averages
+                // Battery averages (battery is not in scope for per-type aggregation)
                 "thermal_battery_c" to JsonPrimitive(2.5),
                 "thermal_battery_c_max" to JsonPrimitive(4.5),
-                // Note that .min aggregations have been removed
             )
         }
     }
@@ -1608,20 +1606,12 @@ class MetricsIntegrationTest {
             dao.collectHeartbeat(endTimestampMs = System.currentTimeMillis(), endUptimeMs = System.currentTimeMillis()),
         ).all {
             prop(CustomReport::hourlyHeartbeatReport).prop(MetricReport::metrics).containsOnly(
-                // Per-sensor
-                "thermal_cpu_CPU1_c" to JsonPrimitive(4.25),
-                "thermal_cpu_CPU1_c_max" to JsonPrimitive(5.0),
-                "thermal_cpu_xxx_c" to JsonPrimitive(5.0),
-                "thermal_cpu_xxx_c_max" to JsonPrimitive(9.0),
-                "thermal_battery_bat0_c" to JsonPrimitive(2.5),
-                "thermal_battery_bat0_c_max" to JsonPrimitive(4.5),
-                // CPU averages
-                "thermal_cpu_c" to JsonPrimitive(4.625),
+                // Single max per package type — per-sensor metrics are dropped
                 "thermal_cpu_c_max" to JsonPrimitive(9.0),
                 // Battery averages
                 "thermal_battery_c" to JsonPrimitive(2.5),
                 "thermal_battery_c_max" to JsonPrimitive(4.5),
-                // Note that .min aggregations have been removed for new metrics, but are still here for legacy metrics
+                // Legacy metrics still emitted (temp.* names don't start with thermal_)
                 "temp.cpu_0.min" to JsonPrimitive(3.5),
                 "temp.cpu_0.mean" to JsonPrimitive(4.25),
                 "temp.cpu_0.max" to JsonPrimitive(5.0),
@@ -1657,6 +1647,7 @@ class MetricsIntegrationTest {
             lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
             lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
             bortEnabledProvider = BortAlwaysEnabledProvider(),
+            deviceFeatures = FakeDeviceFeatures(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1690,6 +1681,7 @@ class MetricsIntegrationTest {
             lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
             lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
             bortEnabledProvider = BortAlwaysEnabledProvider(),
+            deviceFeatures = FakeDeviceFeatures(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1741,6 +1733,7 @@ class MetricsIntegrationTest {
             lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
             lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
             bortEnabledProvider = BortAlwaysEnabledProvider(),
+            deviceFeatures = FakeDeviceFeatures(),
             defaultCoroutineContext = testScheduler,
         )
 
@@ -1785,6 +1778,7 @@ class MetricsIntegrationTest {
             lastBatteryVitalsStateProvider = FakeLastBatteryVitalsStateProvider(),
             lastBatteryCycleCountStateProvider = FakeLastBatteryCycleCountStateProvider(),
             bortEnabledProvider = BortAlwaysEnabledProvider(),
+            deviceFeatures = FakeDeviceFeatures(),
             defaultCoroutineContext = testScheduler,
         )
 

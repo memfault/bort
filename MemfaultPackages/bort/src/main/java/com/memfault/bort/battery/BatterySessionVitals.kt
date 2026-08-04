@@ -3,12 +3,13 @@ package com.memfault.bort.battery
 import android.app.Application
 import android.content.Intent
 import android.content.Intent.ACTION_BATTERY_CHANGED
-import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.Default
+import com.memfault.bort.android.DeviceFeatures
 import com.memfault.bort.android.registerForIntents
+import com.memfault.bort.android.stickyIntent
 import com.memfault.bort.reporting.NumericAgg.LATEST_VALUE
 import com.memfault.bort.reporting.NumericAgg.VALUE_DROP
 import com.memfault.bort.reporting.Reporting
@@ -72,6 +73,7 @@ class RealBatterySessionVitals
     private val lastBatteryVitalsStateProvider: LastBatteryVitalsStateProvider,
     private val lastBatteryCycleCountStateProvider: LastBatteryCycleCountStateProvider,
     private val bortEnabledProvider: BortEnabledProvider,
+    private val deviceFeatures: DeviceFeatures,
     @Default private val defaultCoroutineContext: CoroutineContext,
 ) : BatterySessionVitals, Scoped {
 
@@ -102,6 +104,7 @@ class RealBatterySessionVitals
         )
 
     override fun onEnterScope(scope: Scope) {
+        if (!deviceFeatures.hasBattery) return
         scope.coroutineScope(defaultCoroutineContext).launch {
             application.registerForIntents(ACTION_BATTERY_CHANGED)
                 .flowOn(defaultCoroutineContext)
@@ -137,12 +140,13 @@ class RealBatterySessionVitals
     }
 
     override fun onReportCollected() {
+        if (!deviceFeatures.hasBattery) return
         lastBatteryVitalsStateProvider.state = LastBatteryVitalsState()
         lastBatteryCycleCountStateProvider.state = LastBatteryCycleCountState()
         // Re-sample from the sticky broadcast to seed the new period. Without this, metrics that
         // don't change (e.g. cycle count as LATEST_VALUE) won't appear if no battery event fires
         // before the next collection.
-        application.registerReceiver(null, IntentFilter(ACTION_BATTERY_CHANGED))?.let { intent ->
+        application.stickyIntent(ACTION_BATTERY_CHANGED)?.let { intent ->
             val now = combinedTimeProvider.now()
             record(
                 isCharging = intent.isPlugged,
@@ -182,6 +186,7 @@ class RealBatterySessionVitals
         uptimeMs: Long,
         cycleCount: Int? = null,
     ) {
+        if (!deviceFeatures.hasBattery) return
         val previousVitalsState = lastBatteryVitalsStateProvider.state
         val newVitalsState = LastBatteryVitalsState(isCharging = isCharging, level = level)
         if (newVitalsState != previousVitalsState) {

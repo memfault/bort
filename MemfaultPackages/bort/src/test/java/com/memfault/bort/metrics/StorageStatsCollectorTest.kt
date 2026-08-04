@@ -46,6 +46,15 @@ class StorageStatsCollectorTest {
             }
     }
 
+    private var prevUidIoStats = UidIoStats.EMPTY
+    private val uidIoStatsStorage = object : UidIoStatsStorage {
+        override var state: UidIoStats
+            get() = prevUidIoStats
+            set(value) {
+                prevUidIoStats = value
+            }
+    }
+
     private val diskSpaceProvider = object : DiskSpaceProvider {
         override fun getFreeBytes(): Long = 1024
         override fun getTotalBytes(): Long = 4096
@@ -54,6 +63,7 @@ class StorageStatsCollectorTest {
     private val storageStatsReporter = mockk<StorageStatsReporter>(relaxed = true)
 
     private var nextDiskActivity = DiskActivity.EMPTY
+    private var nextUidIoStats = UidIoStats.EMPTY
     private val storageStatsCollector = StorageStatsCollector(
         ioCoroutineContext = coroutineContext,
         dumpsterClient = dumpsterClient,
@@ -62,6 +72,10 @@ class StorageStatsCollectorTest {
             override fun getDiskActivity(): DiskActivity = nextDiskActivity
         },
         diskActivityStorage = diskActivityStorage,
+        uidIoStatsProvider = object : UidIoStatsProvider {
+            override fun getUidIoStats(): UidIoStats = nextUidIoStats
+        },
+        uidIoStatsStorage = uidIoStatsStorage,
         storageStatsReporter = storageStatsReporter,
     )
     private val sectorSize = 512L
@@ -108,6 +122,8 @@ class StorageStatsCollectorTest {
             ),
             sectorSize = sectorSize,
         )
+        uidIoStatsStorage.state = UidIoStats(bootId = "boot123", writtenBytes = 1000)
+        nextUidIoStats = UidIoStats(bootId = "boot123", writtenBytes = 4096)
 
         storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
 
@@ -119,7 +135,59 @@ class StorageStatsCollectorTest {
         verify { storageStatsReporter.reportWrites("device1", 2048 * sectorSize, now, uptime = elapsed) }
         verify { storageStatsReporter.reportWrites("device2", 1024 * sectorSize, now, uptime = elapsed) }
         verify { storageStatsReporter.reportWrites("device3", 512 * sectorSize, now, uptime = elapsed) }
+        verify { storageStatsReporter.reportBortWrites(3096, now, uptime = elapsed) }
         confirmVerified(storageStatsReporter)
+    }
+
+    @Test fun `bort write bytes are accumulated as a delta within the same boot`() = runTest(coroutineContext) {
+        val combined = FakeCombinedTimeProvider.now
+        val now = combined.timestamp.toEpochMilli()
+        val elapsed = combined.elapsedRealtime.duration.inWholeMilliseconds
+
+        uidIoStatsStorage.state = UidIoStats(bootId = "boot-A", writtenBytes = 10_000)
+        nextUidIoStats = UidIoStats(bootId = "boot-A", writtenBytes = 15_500)
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify { storageStatsReporter.reportBortWrites(5_500, now, uptime = elapsed) }
+    }
+
+    @Test fun `bort write bytes use full current value after a reboot`() = runTest(coroutineContext) {
+        val combined = FakeCombinedTimeProvider.now
+        val now = combined.timestamp.toEpochMilli()
+        val elapsed = combined.elapsedRealtime.duration.inWholeMilliseconds
+
+        uidIoStatsStorage.state = UidIoStats(bootId = "boot-old", writtenBytes = 999_000)
+        nextUidIoStats = UidIoStats(bootId = "boot-new", writtenBytes = 2_048)
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify { storageStatsReporter.reportBortWrites(2_048, now, uptime = elapsed) }
+    }
+
+    @Test fun `bort write bytes clamp to zero when current is less than previous`() = runTest(coroutineContext) {
+        val combined = FakeCombinedTimeProvider.now
+        val now = combined.timestamp.toEpochMilli()
+        val elapsed = combined.elapsedRealtime.duration.inWholeMilliseconds
+
+        uidIoStatsStorage.state = UidIoStats(bootId = "boot-A", writtenBytes = 5_000)
+        nextUidIoStats = UidIoStats(bootId = "boot-A", writtenBytes = 4_000)
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify { storageStatsReporter.reportBortWrites(0, now, uptime = elapsed) }
+    }
+
+    @Test fun `bort write bytes are not reported and storage is not updated when EMPTY is returned`() = runTest(
+        coroutineContext,
+    ) {
+        uidIoStatsStorage.state = UidIoStats(bootId = "boot-A", writtenBytes = 5_000)
+        nextUidIoStats = UidIoStats.EMPTY
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify(exactly = 0) { storageStatsReporter.reportBortWrites(any(), any(), any()) }
+        assertThat(uidIoStatsStorage.state).isEqualTo(UidIoStats(bootId = "boot-A", writtenBytes = 5_000))
     }
 
     @Test fun `lifetime percentage is calculated correctly`() {

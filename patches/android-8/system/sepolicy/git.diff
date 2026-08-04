@@ -97,3 +97,11 @@ index e97b864db..ea86d172b 100644
  type window_service, system_api_service, system_server_service, service_manager_type;
 +
 +type memfault_structured_service, app_api_service, service_manager_type;
+diff --git a/private/memfault_bort_proc.te b/private/memfault_bort_proc.te
+new file mode 100644
+index 0000000000..1b19cfab
+--- /dev/null
++++ b/private/memfault_bort_proc.te
+@@ -0,0 +1,2 @@
++# Allow Bort (priv_app) to read /proc/uid_io/stats
++allow priv_app proc_uid_io_stats:file r_file_perms;

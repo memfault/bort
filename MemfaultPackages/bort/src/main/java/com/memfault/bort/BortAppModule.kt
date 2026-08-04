@@ -558,11 +558,13 @@ abstract class BortAppModule {
 
         @Singleton
         @Provides
-        fun metricsDb(application: Application) = MetricsDb.create(application)
+        fun metricsDb(application: Application, settingsProvider: SettingsProvider) =
+            MetricsDb.create(application) { settingsProvider.dbSynchronousMode }
 
         @Singleton
         @Provides
-        fun bortErrorsDb(application: Application) = BortErrorsDb.create(application)
+        fun bortErrorsDb(application: Application, settingsProvider: SettingsProvider) =
+            BortErrorsDb.create(application) { settingsProvider.dbSynchronousMode }
 
         @Provides
         fun projectKeySyspropName() = ProjectKeySyspropName { BuildConfig.PROJECT_KEY_SYSPROP }

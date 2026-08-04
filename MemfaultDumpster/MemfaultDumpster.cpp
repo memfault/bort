@@ -82,6 +82,19 @@ namespace {
     return procPid;
   }
 
+  std::string readCmdline(int pid) {
+    std::string cmdline;
+    if (!android::base::ReadFileToString("/proc/" + std::to_string(pid) + "/cmdline", &cmdline)) {
+      return "";
+    }
+    // cmdline args are separated by null bytes, take only the process name (first arg)
+    auto nullPos = cmdline.find('\0');
+    if (nullPos != std::string::npos) {
+      cmdline = cmdline.substr(0, nullPos);
+    }
+    return cmdline;
+  }
+
   int readUid(int pid) {
     std::string status;
     if (!android::base::ReadFileToString("/proc/" + std::to_string(pid) + "/status", &status)) {
@@ -134,9 +147,28 @@ namespace {
         continue;
       }
       std::string procPid = readProcPid(pid);
-      if (!procPid.empty()) {
-        buffer << uid << " " << procPid << std::endl;
+      if (procPid.empty()) {
+        continue;
       }
+      buffer << uid << " " << procPid << std::endl;
+    }
+    output = buffer.str();
+    return 0;
+  }
+
+  int readProcPidStatsV2(std::string& output) {
+    std::stringstream buffer;
+    for (int pid : allPids()) {
+      int uid = readUid(pid);
+      if (uid == -1) {
+        continue;
+      }
+      std::string procPid = readProcPid(pid);
+      if (procPid.empty()) {
+        continue;
+      }
+      std::string cmdline = readCmdline(pid);
+      buffer << uid << "\t" << cmdline << " " << procPid << std::endl;
     }
     output = buffer.str();
     return 0;
@@ -241,8 +273,13 @@ namespace {
                   "cat", "/proc/stat"
                 });
                 case IDumpster::CMD_ID_PROC_PID_STAT: {
-                  return [](std::string& output) { 
+                  return [](std::string& output) {
                     return readProcPidStats(output);
+                  };
+                }
+                case IDumpster::CMD_ID_PROC_PID_STAT_V2: {
+                  return [](std::string& output) {
+                    return readProcPidStatsV2(output);
                   };
                 }
                 case IDumpster::CMD_ID_STORAGE_WEAR: {

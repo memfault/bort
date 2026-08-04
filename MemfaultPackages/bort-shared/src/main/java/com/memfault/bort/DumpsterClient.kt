@@ -232,6 +232,11 @@ class DumpsterClient @Inject constructor(
             return runBasicCommand(IDumpster.CMD_ID_PROC_PID_STAT)
         }
 
+    suspend fun getProcPidStatV2(): String? =
+        withService<String?>(minimumVersion = IDumpster.VERSION_PROC_PID_STAT_V2) {
+            return runBasicCommand(IDumpster.CMD_ID_PROC_PID_STAT_V2)
+        }
+
     suspend fun getStorageWear(): String? =
         withService<String?>(minimumVersion = IDumpster.VERSION_STORAGE_WEAR) {
             return runBasicCommand(IDumpster.CMD_ID_STORAGE_WEAR)

@@ -56,6 +56,9 @@ open class DynamicSettingsProvider @Inject constructor(
 
     override val isRuntimeEnableRequired: Boolean = BuildConfig.RUNTIME_ENABLE_REQUIRED
 
+    override val dbSynchronousMode: DbSynchronousMode
+        get() = settings.bortDbSynchronousMode
+
     override val httpApiSettings = object : HttpApiSettings {
         override val uploadNetworkConstraint: NetworkConstraint
             get() = if (settings.httpApiUploadNetworkConstraintAllowMeteredConnection) {
@@ -212,6 +215,8 @@ open class DynamicSettingsProvider @Inject constructor(
             get() = settings.metricsPollingInterval.duration
         override val collectMemory: Boolean
             get() = settings.metricsCollectMemory
+        override val collectCellular: Boolean
+            get() = settings.metricsCollectCellular
         override val thermalMetricsEnabled: Boolean
             get() = settings.metricsThermalMetricsEnabled
         override val thermalCollectLegacyMetrics: Boolean

@@ -6,13 +6,11 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
 import com.memfault.bort.metrics.CpuUsage.Companion.percentUsage
 import com.memfault.bort.metrics.CpuUsage.Companion.totalTicks
-import com.memfault.bort.parsers.Package
 import com.memfault.bort.parsers.PackageManagerReport
 import org.junit.Test
 
 class CpuMetricsParserTest {
     private val parser = CpuMetricsParser { "boot-id-1" }
-    private var packageManagerReport = PackageManagerReport()
 
     private val samsungOutput = """
             cpu  8830083 2521748 9745235 125386365 353146 2190102 484077 4443 0 0
@@ -35,7 +33,7 @@ class CpuMetricsParserTest {
 
     @Test
     fun testSamsungOutput() {
-        val metrics = parser.parseCpuUsage(samsungOutput, null, packageManagerReport)
+        val metrics = parser.parseCpuUsage(samsungOutput, null, packageManagerReport = PackageManagerReport())
         assertThat(metrics).isEqualTo(
             CpuUsage(
                 ticksUser = 8830083,
@@ -66,7 +64,7 @@ procs_running 1
 procs_blocked 0
 softirq 69386 3 7798 81 253 27825 0 570 12988 0 19868
         """.trimIndent()
-        val metrics = parser.parseCpuUsage(output, null, packageManagerReport)
+        val metrics = parser.parseCpuUsage(output, null, packageManagerReport = PackageManagerReport())
         assertThat(metrics).isEqualTo(
             CpuUsage(
                 ticksUser = 798,
@@ -88,7 +86,7 @@ softirq 69386 3 7798 81 253 27825 0 570 12988 0 19868
         val output = """
 cpu3 605663 212935 618025 17371080 27420 60263 2624 224 0 0
         """.trimIndent()
-        val metrics = parser.parseCpuUsage(output, null, packageManagerReport)
+        val metrics = parser.parseCpuUsage(output, null, packageManagerReport = PackageManagerReport())
         assertThat(metrics).isNull()
     }
 
@@ -97,7 +95,7 @@ cpu3 605663 212935 618025 17371080 27420 60263 2624 224 0 0
         val output = """
 cpu  8830083 2521748 9745235 125386365 353146
         """.trimIndent()
-        val metrics = parser.parseCpuUsage(output, null, packageManagerReport)
+        val metrics = parser.parseCpuUsage(output, null, packageManagerReport = PackageManagerReport())
         assertThat(metrics).isNull()
     }
 
@@ -106,38 +104,24 @@ cpu  8830083 2521748 9745235 125386365 353146
         val output = """
 cpu  8830083 2521748 9745235 125386365.6 353146 2190102 484077 4443 0 0
         """.trimIndent()
-        val metrics = parser.parseCpuUsage(output, null, packageManagerReport)
+        val metrics = parser.parseCpuUsage(output, null, packageManagerReport = PackageManagerReport())
         assertThat(metrics).isNull()
     }
 
     @Test
     fun testProcPidStat() {
-        // output with system ui and bort
-        val procPidStats = """
-            1004 1384975 (bort) S 6100 6100 6100 0 -1 4194560 14140843 0 199203 0 99492 12235 0 0 20 0 33 0 33901634 3475324928 48574 18446744073709551615 109746831666496 109746832295648 140730914628256 0 0 0 0 69634 1082134264 0 0 0 17 14 0 0 0 0 0 109746832308256 109746832308368 109747862519808 140730914634223 140730914634662 140730914634662 140730914639839 0
-            1001 1384979 (systemui) S 6100 6100 6100 0 -1 4194560 14140843 0 199203 0 99492 12235 0 0 20 0 33 0 33901634 3475324928 48574 18446744073709551615 109746831666496 109746832295648 140730914628256 0 0 0 0 69634 1082134264 0 0 0 17 14 0 0 0 0 0 109746832308256 109746832308368 109747862519808 140730914634223 140730914634662 140730914634662 140730914639839 0
-            10050 1384980 (MemfaultDumpster) S 6100 6100 6100 0 -1 4194560 14140843 0 199203 0 99492 12235 0 0 20 0 33 0 33901634 3475324928 48574 18446744073709551615 109746831666496 109746832295648 140730914628256 0 0 0 0 69634 1082134264 0 0 0 17 14 0 0 0 0 0 109746832308256 109746832308368 109747862519808 140730914634223 140730914634662 140730914634662 140730914639839 0
-            10051 1384981 (Web Content) S 6100 6100 6100 0 -1 4194560 14140843 0 199203 0 99492 12235 0 0 20 0 33 0 33901634 3475324928 48574 18446744073709551615 109746831666496 109746832295648 140730914628256 0 0 0 0 69634 1082134264 0 0 0 17 14 0 0 0 0 0 109746832308256 109746832308368 109747862519808 140730914634223 140730914634662 140730914634662 140730914639839 0
-        """.trimIndent()
+        // cmdline is tab-separated from uid, empty cmdline (kernel thread) falls back to comm
+        val stat = "S 6100 6100 6100 0 -1 4194560 14140843 0 199203 0 99492 12235 0 0 20 0 33 0 " +
+            "33901634 3475324928 48574 18446744073709551615 109746831666496 109746832295648 " +
+            "140730914628256 0 0 0 0 69634 1082134264 0 0 0 17 14 0 0 0 0 0 " +
+            "109746832308256 109746832308368 109747862519808 " +
+            "140730914634223 140730914634662 140730914634662 140730914639839 0"
+        val procPidStats = "1004\tcom.memfault.bort 1384975 (bort) $stat\n" +
+            "1001\tcom.android.systemui 1384979 (systemui) $stat\n" +
+            "10050\tMemfaultDumpster 1384980 (MemfaultDumpster) $stat\n" +
+            "10051\t 1384981 (Web Content) $stat\n"
 
-        packageManagerReport = PackageManagerReport(
-            packages = listOf(
-                Package(
-                    id = "com.memfault.bort",
-                    userId = 1004,
-                    versionCode = 1,
-                    versionName = "1.0",
-                ),
-                Package(
-                    id = "com.android.systemui",
-                    userId = 1001,
-                    versionCode = 1,
-                    versionName = "1.0",
-                ),
-            ),
-        )
-
-        val metrics = parser.parseCpuUsage(samsungOutput, procPidStats, packageManagerReport)
+        val metrics = parser.parseCpuUsage(samsungOutput, procPidStats, packageManagerReport = PackageManagerReport())
         assertThat(metrics).isEqualTo(
             CpuUsage(
                 ticksUser = 8830083,
@@ -183,15 +167,53 @@ cpu  8830083 2521748 9745235 125386365.6 353146 2190102 484077 4443 0 0
     }
 
     @Test
-    fun testProcPidStatUnexpectedOutput() {
-        // output with system ui and bort
+    fun testProcPidStatLegacy() {
+        // Legacy v1 format: uid pid (comm) state
         val procPidStats = """
-            1004 1384975 (bort) S 6100 
-            1001 1384979 (systemui) S parsing 6100 6100 0 
-            invalid (MemfaultDumpster) S 6100 6100 6100
+            1004 1384975 (bort) S 6100 6100 6100 0 -1 4194560 14140843 0 199203 0 99492 12235 0 0 20 0 33 0 33901634 3475324928 48574 18446744073709551615 109746831666496 109746832295648 140730914628256 0 0 0 0 69634 1082134264 0 0 0 17 14 0 0 0 0 0 109746832308256 109746832308368 109747862519808 140730914634223 140730914634662 140730914634662 140730914639839 0
+            10050 1384980 (MemfaultDumpster) S 6100 6100 6100 0 -1 4194560 14140843 0 199203 0 99492 12235 0 0 20 0 33 0 33901634 3475324928 48574 18446744073709551615 109746831666496 109746832295648 140730914628256 0 0 0 0 69634 1082134264 0 0 0 17 14 0 0 0 0 0 109746832308256 109746832308368 109747862519808 140730914634223 140730914634662 140730914634662 140730914639839 0
         """.trimIndent()
 
-        val metrics = parser.parseCpuUsage(samsungOutput, procPidStats, packageManagerReport)
+        val metrics = parser.parseCpuUsage(
+            samsungOutput,
+            procPidStats,
+            hasCmdline = false,
+            packageManagerReport = PackageManagerReport(),
+        )
+        assertThat(metrics!!.perProcessUsage).isEqualTo(
+            mapOf(
+                "bort" to ProcessUsage(processName = "bort", uid = 1004, pid = 1384975, utime = 99492, stime = 12235),
+                "MemfaultDumpster" to ProcessUsage(
+                    processName = "MemfaultDumpster",
+                    uid = 10050,
+                    pid = 1384980,
+                    utime = 99492,
+                    stime = 12235,
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun testProcPidStatCmdlineBasenameStripped() {
+        val stat = "S 6100 6100 6100 0 -1 4194560 14140843 0 199203 0 99492 12235 0 0 20 0 33 0 " +
+            "33901634 3475324928 48574 18446744073709551615 109746831666496 109746832295648 " +
+            "140730914628256 0 0 0 0 69634 1082134264 0 0 0 17 14 0 0 0 0 0 " +
+            "109746832308256 109746832308368 109747862519808 " +
+            "140730914634223 140730914634662 140730914634662 140730914639839 0"
+        val procPidStats = "1041\t/system/bin/audioserver 1384975 (audioserver) $stat\n"
+
+        val metrics = parser.parseCpuUsage(samsungOutput, procPidStats, packageManagerReport = PackageManagerReport())
+        assertThat(metrics!!.perProcessUsage.keys).isEqualTo(setOf("audioserver"))
+    }
+
+    @Test
+    fun testProcPidStatUnexpectedOutput() {
+        val procPidStats = "1004\tcom.memfault.bort 1384975 (bort) S 6100\n" +
+            "1001\tcom.android.systemui 1384979 (systemui) S parsing 6100 6100 0\n" +
+            "invalid (MemfaultDumpster) S 6100 6100 6100\n"
+
+        val metrics = parser.parseCpuUsage(samsungOutput, procPidStats, packageManagerReport = PackageManagerReport())
         assertThat(metrics).isEqualTo(
             CpuUsage(
                 ticksUser = 8830083,
@@ -209,12 +231,14 @@ cpu  8830083 2521748 9745235 125386365.6 353146 2190102 484077 4443 0 0
 
     @Test
     fun testProcPidStatDisallowedCharacters() {
-        // output with system ui and bort
-        val procPidStats = """
-            10051 1384981 (Web Content\1) S 6100 6100 6100 0 -1 4194560 14140843 0 199203 0 99492 12235 0 0 20 0 33 0 33901634 3475324928 48574 18446744073709551615 109746831666496 109746832295648 140730914628256 0 0 0 0 69634 1082134264 0 0 0 17 14 0 0 0 0 0 109746832308256 109746832308368 109747862519808 140730914634223 140730914634662 140730914634662 140730914639839 0
-        """.trimIndent()
+        val procPidStats = "10051\tWeb_Content_1 1384981 (Web Content\\1) " +
+            "S 6100 6100 6100 0 -1 4194560 14140843 0 199203 0 99492 12235 0 0 20 0 33 0 " +
+            "33901634 3475324928 48574 18446744073709551615 109746831666496 109746832295648 " +
+            "140730914628256 0 0 0 0 69634 1082134264 0 0 0 17 14 0 0 0 0 0 " +
+            "109746832308256 109746832308368 109747862519808 " +
+            "140730914634223 140730914634662 140730914634662 140730914639839 0\n"
 
-        val metrics = parser.parseCpuUsage(samsungOutput, procPidStats, packageManagerReport)
+        val metrics = parser.parseCpuUsage(samsungOutput, procPidStats, packageManagerReport = PackageManagerReport())
         assertThat(metrics).isEqualTo(
             CpuUsage(
                 ticksUser = 8830083,
@@ -225,8 +249,8 @@ cpu  8830083 2521748 9745235 125386365.6 353146 2190102 484077 4443 0 0
                 ticksIrq = 2190102,
                 ticksSoftIrq = 484077,
                 perProcessUsage = mapOf(
-                    "Web Content_1" to ProcessUsage(
-                        processName = "Web Content_1",
+                    "Web_Content_1" to ProcessUsage(
+                        processName = "Web_Content_1",
                         uid = 10051,
                         pid = 1384981,
                         utime = 99492,
