@@ -5,9 +5,11 @@ import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.containsExactlyInAnyOrder
 import assertk.assertions.containsOnly
+import assertk.assertions.doesNotContain
 import assertk.assertions.doesNotContainKey
 import assertk.assertions.isEqualTo
 import assertk.assertions.isTrue
+import com.memfault.bort.android.FakeDeviceFeatures
 import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsHistoryParseError
 import com.memfault.bort.diagnostics.BortErrors
 import com.memfault.bort.metrics.HighResTelemetry.DataType.BooleanType
@@ -73,6 +75,7 @@ class BatteryStatsHistoryParserTest {
         .apply { writeText(content) }
 
     private val bortErrors: BortErrors = mockk(relaxed = true)
+    private val deviceFeatures = FakeDeviceFeatures()
 
     private val BATTERYSTATS_FILE = """
         9,hsp,1,0,"Abort:Pending Wakeup Sources: 200f000.qcom,spmi:qcom,pm660@0:qpnp,fg battery qcom-step-chg "
@@ -248,7 +251,7 @@ class BatteryStatsHistoryParserTest {
 
     @Test
     fun testParser() = runTest {
-        val parser = BatteryStatsHistoryParser(createFile(content = BATTERYSTATS_FILE), bortErrors)
+        val parser = BatteryStatsHistoryParser(createFile(content = BATTERYSTATS_FILE), bortErrors, deviceFeatures)
         val result = parser.parseToCustomMetrics()
         assertThat(result.batteryStatsHrt).containsExactlyInAnyOrder(*EXPECTED_HRT.toTypedArray())
         coVerify {
@@ -257,6 +260,34 @@ class BatteryStatsHistoryParserTest {
                 mapOf("error" to "parseEvent: NumberFormatException", "line" to "Bl=x"),
             )
         }
+    }
+
+    @Test
+    fun testParserOmitsHardwareTheDeviceDoesNotHave() = runTest {
+        val noHardwareDeviceFeatures = FakeDeviceFeatures(
+            hasTelephony = false,
+            hasWifi = false,
+            hasBluetooth = false,
+            hasGps = false,
+            hasScreen = false,
+            hasCamera = false,
+        )
+        val parser = BatteryStatsHistoryParser(
+            createFile(content = BATTERYSTATS_FILE),
+            bortErrors,
+            noHardwareDeviceFeatures,
+        )
+        val result = parser.parseToCustomMetrics()
+        val reportedKeys = result.batteryStatsHrt.map { it.metadata.stringKey }
+        assertThat(reportedKeys).all {
+            doesNotContain(GPS_ON)
+            doesNotContain(SCREEN_ON)
+            doesNotContain(SCREEN_BRIGHTNESS)
+            doesNotContain(WIFI_ON)
+            doesNotContain(WIFI_SCAN)
+        }
+        assertThat(reportedKeys).contains(CPU_RUNNING)
+        assertThat(reportedKeys).contains(BATTERY_LEVEL)
     }
 
     // Copied from test_batterystats_history_aggregator.py, so that we match the aggregate output of the backend.
@@ -320,7 +351,7 @@ class BatteryStatsHistoryParserTest {
 
     @Test
     fun testAggregatesMatchBackend() = runTest {
-        val parser = BatteryStatsHistoryParser(createFile(content = AGGREGATE_FILE), bortErrors)
+        val parser = BatteryStatsHistoryParser(createFile(content = AGGREGATE_FILE), bortErrors, deviceFeatures)
         val result = parser.parseToCustomMetrics()
         assertThat(result.aggregatedMetrics)
             .containsOnly(*EXPECTED_AGGREGATES.entries.map { it.key to it.value }.toTypedArray())
@@ -339,7 +370,7 @@ class BatteryStatsHistoryParserTest {
 
     @Test
     fun testSocAggregates() = runTest {
-        val parser = BatteryStatsHistoryParser(createFile(content = SOC_FILE), bortErrors)
+        val parser = BatteryStatsHistoryParser(createFile(content = SOC_FILE), bortErrors, deviceFeatures)
         val result = parser.parseToCustomMetrics()
 
         assertThat(result.aggregatedMetrics).all {
@@ -359,7 +390,7 @@ class BatteryStatsHistoryParserTest {
 
     @Test
     fun testNoSocAggregates() = runTest {
-        val parser = BatteryStatsHistoryParser(createFile(content = SOC_FILE_NO_DISCHARGE), bortErrors)
+        val parser = BatteryStatsHistoryParser(createFile(content = SOC_FILE_NO_DISCHARGE), bortErrors, deviceFeatures)
         val result = parser.parseToCustomMetrics()
         assertThat(result.aggregatedMetrics).all {
             doesNotContainKey("battery_discharge_duration_ms")
@@ -377,7 +408,8 @@ class BatteryStatsHistoryParserTest {
 
     @Test
     fun testDischargeNoDrop() = runTest {
-        val parser = BatteryStatsHistoryParser(createFile(content = SOC_FILE_DISCHARGE_NO_DROP), bortErrors)
+        val parser =
+            BatteryStatsHistoryParser(createFile(content = SOC_FILE_DISCHARGE_NO_DROP), bortErrors, deviceFeatures)
         val result = parser.parseToCustomMetrics()
         assertThat(result.aggregatedMetrics).all {
             contains("battery_discharge_duration_ms", JsonPrimitive(50000.0))
@@ -397,7 +429,8 @@ class BatteryStatsHistoryParserTest {
 
     @Test
     fun handlesEmptyEvents() = runTest {
-        val parser = BatteryStatsHistoryParser(createFile(content = TRAILING_COMMAS_EMPTY_EVENTS), bortErrors)
+        val parser =
+            BatteryStatsHistoryParser(createFile(content = TRAILING_COMMAS_EMPTY_EVENTS), bortErrors, deviceFeatures)
         val result = parser.parseToCustomMetrics()
         assertThat(result.batteryStatsHrt.size).isEqualTo(1)
         val batteryLevelHrt = result.batteryStatsHrt.first()
@@ -430,6 +463,7 @@ class BatteryStatsHistoryParserTest {
                 """.trimIndent(),
             ),
             bortErrors,
+            deviceFeatures,
         )
         val result = parser.parseToCustomMetrics()
         assertThat(result.aggregatedMetrics).all {
@@ -459,6 +493,7 @@ class BatteryStatsHistoryParserTest {
                 """.trimIndent(),
             ),
             bortErrors,
+            deviceFeatures,
         )
         val result = parser.parseToCustomMetrics()
         assertThat(result.aggregatedMetrics).all {
@@ -487,6 +522,7 @@ class BatteryStatsHistoryParserTest {
                 """.trimIndent(),
             ),
             bortErrors,
+            deviceFeatures,
         ).parseToCustomMetrics()
 
         assertThat(result1.aggregatedMetrics).all {
@@ -513,6 +549,7 @@ class BatteryStatsHistoryParserTest {
                 """.trimIndent(),
             ),
             bortErrors,
+            deviceFeatures,
         ).parseToCustomMetrics()
 
         assertThat(result2.aggregatedMetrics).all {
@@ -548,6 +585,7 @@ class BatteryStatsHistoryParserTest {
                 """.trimIndent(),
             ),
             bortErrors,
+            deviceFeatures,
         )
         val result = parser.parseToCustomMetrics()
         assertThat(result.aggregatedMetrics).all {
@@ -568,6 +606,7 @@ class BatteryStatsHistoryParserTest {
                 """.trimIndent(),
             ),
             bortErrors,
+            deviceFeatures,
         )
         val result = parser.parseToCustomMetrics()
         assertThat(result.aggregatedMetrics).all {
@@ -589,6 +628,7 @@ class BatteryStatsHistoryParserTest {
                 """.trimIndent(),
             ),
             bortErrors,
+            deviceFeatures,
         )
         val result = parser.parseToCustomMetrics()
         assertThat(result.aggregatedMetrics).all {
@@ -651,6 +691,7 @@ class BatteryStatsHistoryParserTest {
                 """.trimIndent(),
             ),
             bortErrors,
+            deviceFeatures,
         ).parseToCustomMetrics()
 
         assertThat(result1.batteryStatsHrt).all {
@@ -680,6 +721,7 @@ class BatteryStatsHistoryParserTest {
                 """.trimIndent(),
             ),
             bortErrors,
+            deviceFeatures,
         ).parseToCustomMetrics()
 
         assertThat(result1.batteryStatsHrt).all {
@@ -709,6 +751,7 @@ class BatteryStatsHistoryParserTest {
                 """.trimIndent(),
             ),
             bortErrors,
+            deviceFeatures,
         ).parseToCustomMetrics()
 
         assertThat(result1.batteryStatsHrt).all {
@@ -738,6 +781,7 @@ class BatteryStatsHistoryParserTest {
                 """.trimIndent(),
             ),
             bortErrors,
+            deviceFeatures,
         ).parseToCustomMetrics()
 
         assertThat(result1.batteryStatsHrt).all {
@@ -767,6 +811,7 @@ class BatteryStatsHistoryParserTest {
                 """.trimIndent(),
             ),
             bortErrors,
+            deviceFeatures,
         ).parseToCustomMetrics()
 
         assertThat(result1.batteryStatsHrt).all {
@@ -796,6 +841,7 @@ class BatteryStatsHistoryParserTest {
                 """.trimIndent(),
             ),
             bortErrors,
+            deviceFeatures,
         ).parseToCustomMetrics()
 
         assertThat(result1.batteryStatsHrt).all {

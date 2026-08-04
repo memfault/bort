@@ -54,6 +54,7 @@ class AppVersionsCollectorTest {
             override val pollingInterval: Duration
                 get() = 15.minutes
             override val collectMemory: Boolean = true
+            override val collectCellular: Boolean get() = TODO("not used")
             override val thermalMetricsEnabled: Boolean get() = TODO("not used")
             override val thermalCollectLegacyMetrics: Boolean get() = TODO("not used")
             override val thermalCollectStatus: Boolean get() = TODO("not used")

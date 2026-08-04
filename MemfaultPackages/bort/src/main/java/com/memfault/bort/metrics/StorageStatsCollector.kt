@@ -25,6 +25,8 @@ class StorageStatsCollector
     private val diskSpaceProvider: DiskSpaceProvider,
     private val diskActivityProvider: DiskActivityProvider,
     private val diskActivityStorage: DiskActivityStorage,
+    private val uidIoStatsProvider: UidIoStatsProvider,
+    private val uidIoStatsStorage: UidIoStatsStorage,
     private val storageStatsReporter: StorageStatsReporter,
 ) {
     suspend fun collectStorageStats(collectionTime: CombinedTime) = withContext(ioCoroutineContext) {
@@ -56,6 +58,7 @@ class StorageStatsCollector
         }
 
         updateDiskActivityStorage(diskActivityProvider.getDiskActivity(), now, uptime)
+        updateUidIoStatsStorage(uidIoStatsProvider.getUidIoStats(), now, uptime)
     }
 
     private fun updateDiskActivityStorage(activity: DiskActivity, now: Long, uptime: Long) {
@@ -66,6 +69,18 @@ class StorageStatsCollector
         }
 
         diskActivityStorage.state = activity
+    }
+
+    private fun updateUidIoStatsStorage(current: UidIoStats, now: Long, uptime: Long) {
+        if (current == UidIoStats.EMPTY) return
+        val previous = uidIoStatsStorage.state
+        val writtenBytesSinceLastCollection = if (current.bootId == previous.bootId) {
+            maxOf(0, current.writtenBytes - previous.writtenBytes)
+        } else {
+            current.writtenBytes
+        }
+        storageStatsReporter.reportBortWrites(writtenBytesSinceLastCollection, now, uptime)
+        uidIoStatsStorage.state = current
     }
 }
 
@@ -89,6 +104,7 @@ interface StorageStatsReporter {
         uptime: Long,
     )
     fun reportWrites(deviceName: String, bytesWritten: Long, now: Long, uptime: Long)
+    fun reportBortWrites(bytesWritten: Long, now: Long, uptime: Long)
 }
 
 @Singleton
@@ -152,6 +168,11 @@ class RealStorageStatsReporter @Inject constructor() : StorageStatsReporter {
 
     override fun reportWrites(deviceName: String, bytesWritten: Long, now: Long, uptime: Long) {
         Reporting.report().distribution("disk_wear.$deviceName.bytes_written", aggregations = listOf(MEAN))
+            .record(bytesWritten, now, uptime)
+    }
+
+    override fun reportBortWrites(bytesWritten: Long, now: Long, uptime: Long) {
+        Reporting.report().distribution("bort.bytes_written", aggregations = listOf(MEAN), internal = true)
             .record(bytesWritten, now, uptime)
     }
 }

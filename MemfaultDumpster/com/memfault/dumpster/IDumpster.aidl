@@ -15,11 +15,12 @@ interface IDumpster {
     const int VERSION_STORAGE_WEAR = 9;
     const int VERSION_SYSFS_THERMAL_ZONES = 10;
     const int VERSION_CYCLE_COUNT_REMOVED = 6;
+    const int VERSION_PROC_PID_STAT_V2 = 11;
 
     /**
      * Current version of the service.
      */
-    const int VERSION = 10;
+    const int VERSION = 11;
 
     /**
     * Gets the version of the MemfaultDumpster service.
@@ -37,6 +38,7 @@ interface IDumpster {
     const int CMD_ID_PROC_PID_STAT = 9;
     const int CMD_ID_STORAGE_WEAR = 10;
     const int CMD_ID_SYSFS_THERMAL_ZONES = 11;
+    const int CMD_ID_PROC_PID_STAT_V2 = 12;
 
     /**
      * Runs a basic command and calls the listener with the string output.

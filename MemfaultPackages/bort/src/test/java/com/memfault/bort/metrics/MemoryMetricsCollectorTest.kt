@@ -50,6 +50,7 @@ class MemoryMetricsCollectorTest {
         override val operationalCrashesComponentGroups: JsonObject get() = TODO("not used")
         override val pollingInterval: Duration get() = TODO("not used")
         override val collectMemory: Boolean get() = collectMemoryValue
+        override val collectCellular: Boolean get() = TODO("Not used")
         override val thermalMetricsEnabled: Boolean get() = TODO("Not used")
         override val thermalCollectLegacyMetrics: Boolean get() = TODO("Not used")
         override val thermalCollectStatus: Boolean get() = TODO("not used")

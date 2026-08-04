@@ -2,6 +2,7 @@ package com.memfault.bort.networkstats
 
 import android.os.Process
 import com.memfault.bort.PackageManagerClient
+import com.memfault.bort.android.DeviceFeatures
 import com.memfault.bort.metrics.SignificantAppsProvider
 import com.memfault.bort.networkstats.NetworkStatsConnectivity.BLUETOOTH
 import com.memfault.bort.networkstats.NetworkStatsConnectivity.ETHERNET
@@ -91,6 +92,7 @@ class RealNetworkStatsCollector
     private val packageManagerClient: PackageManagerClient,
     private val networkUsageSettings: NetworkUsageSettings,
     private val significantAppsProvider: SignificantAppsProvider,
+    private val deviceFeatures: DeviceFeatures,
 ) : NetworkStatsCollector {
 
     override suspend fun collect(
@@ -132,14 +134,9 @@ class RealNetworkStatsCollector
         val ethernetUsage =
             networkStatsQueries.getTotalUsage(start = queryStartTime, end = queryEndTime, connectivity = ETHERNET)
 
-        val mobileUsage =
-            networkStatsQueries.getTotalUsage(start = queryStartTime, end = queryEndTime, connectivity = MOBILE)
-
-        val wifiUsage =
-            networkStatsQueries.getTotalUsage(start = queryStartTime, end = queryEndTime, connectivity = WIFI)
-
-        val bluetoothUsage =
-            networkStatsQueries.getTotalUsage(start = queryStartTime, end = queryEndTime, connectivity = BLUETOOTH)
+        val mobileUsage = totalUsageIfSupported(deviceFeatures.hasTelephony, MOBILE, queryStartTime, queryEndTime)
+        val wifiUsage = totalUsageIfSupported(deviceFeatures.hasWifi, WIFI, queryStartTime, queryEndTime)
+        val bluetoothUsage = totalUsageIfSupported(deviceFeatures.hasBluetooth, BLUETOOTH, queryStartTime, queryEndTime)
 
         val packageManagerReport = packageManagerClient.getPackageManagerReport()
 
@@ -150,25 +147,26 @@ class RealNetworkStatsCollector
             queryEndTime = queryEndTime,
         )
 
-        val perAppMobileUsage = queryPerAppUsageMetric(
-            packageManagerReport = packageManagerReport,
-            connectivity = MOBILE,
-            queryStartTime = queryStartTime,
-            queryEndTime = queryEndTime,
+        val perAppMobileUsage = perAppUsageIfSupported(
+            deviceFeatures.hasTelephony,
+            MOBILE,
+            packageManagerReport,
+            queryStartTime,
+            queryEndTime,
         )
-
-        val perAppWifiUsage = queryPerAppUsageMetric(
-            packageManagerReport = packageManagerReport,
-            connectivity = WIFI,
-            queryStartTime = queryStartTime,
-            queryEndTime = queryEndTime,
+        val perAppWifiUsage = perAppUsageIfSupported(
+            deviceFeatures.hasWifi,
+            WIFI,
+            packageManagerReport,
+            queryStartTime,
+            queryEndTime,
         )
-
-        val perAppBluetoothUsage = queryPerAppUsageMetric(
-            packageManagerReport = packageManagerReport,
-            connectivity = BLUETOOTH,
-            queryStartTime = queryStartTime,
-            queryEndTime = queryEndTime,
+        val perAppBluetoothUsage = perAppUsageIfSupported(
+            deviceFeatures.hasBluetooth,
+            BLUETOOTH,
+            packageManagerReport,
+            queryStartTime,
+            queryEndTime,
         )
 
         return NetworkStatsResult(
@@ -189,6 +187,34 @@ class RealNetworkStatsCollector
         } else {
             null
         }
+
+    private suspend fun totalUsageIfSupported(
+        hasFeature: Boolean,
+        connectivity: NetworkStatsConnectivity,
+        queryStartTime: Instant,
+        queryEndTime: Instant,
+    ): NetworkStatsSummary? = if (hasFeature) {
+        networkStatsQueries.getTotalUsage(start = queryStartTime, end = queryEndTime, connectivity = connectivity)
+    } else {
+        null
+    }
+
+    private suspend fun perAppUsageIfSupported(
+        hasFeature: Boolean,
+        connectivity: NetworkStatsConnectivity,
+        packageManagerReport: PackageManagerReport,
+        queryStartTime: Instant,
+        queryEndTime: Instant,
+    ): Map<String, NetworkStatsUsage> = if (hasFeature) {
+        queryPerAppUsageMetric(
+            packageManagerReport = packageManagerReport,
+            connectivity = connectivity,
+            queryStartTime = queryStartTime,
+            queryEndTime = queryEndTime,
+        )
+    } else {
+        emptyMap()
+    }
 
     override suspend fun record(
         collectionTime: CombinedTime,
@@ -481,7 +507,7 @@ class RealNetworkStatsCollector
         rollupUsage(ETHERNET, ethernetUsage)
         rollupUsage(WIFI, wifiUsage)
         rollupUsage(MOBILE, mobileUsage)
-        rollupUsage(BLUETOOTH, mobileUsage)
+        rollupUsage(BLUETOOTH, bluetoothUsage)
     }
 
     private fun PackageManagerReport.uidToName(uid: Int): String =

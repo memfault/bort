@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.android.DeviceFeatures
 import com.memfault.bort.boot.LinuxBootId
 import com.memfault.bort.process.ProcessExecutor
 import com.memfault.bort.reporting.NumericAgg.LATEST_VALUE
@@ -53,6 +54,7 @@ class LocationMetricsCollector @Inject constructor(
     private val settingsFlow: SettingsFlow,
     private val gnssMetricsStorage: GnssMetricsStorage,
     private val readBootId: LinuxBootId,
+    private val deviceFeatures: DeviceFeatures,
 ) : MetricCollector {
     private val report = Reporting.report()
 
@@ -62,7 +64,7 @@ class LocationMetricsCollector @Inject constructor(
         .map { }
 
     override suspend fun collect() {
-        if (!locationSettings.dataSourceEnabled) return
+        if (!locationSettings.dataSourceEnabled || !deviceFeatures.hasGps) return
         val metrics = try {
             collectLocationDumpsys()
         } catch (e: Exception) {

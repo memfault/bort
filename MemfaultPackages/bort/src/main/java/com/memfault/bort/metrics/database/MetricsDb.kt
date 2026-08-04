@@ -14,12 +14,14 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import com.memfault.bort.BortJson
+import com.memfault.bort.db.synchronousModeOnOpenCallback
 import com.memfault.bort.reporting.AggregationType
 import com.memfault.bort.reporting.DataType
 import com.memfault.bort.reporting.MetricType
 import com.memfault.bort.reporting.MetricValue
 import com.memfault.bort.reporting.NumericAgg
 import com.memfault.bort.reporting.StateAgg
+import com.memfault.bort.settings.DbSynchronousMode
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonNull
@@ -58,13 +60,15 @@ abstract class MetricsDb : RoomDatabase() {
     abstract fun dao(): MetricsDao
 
     companion object {
-        fun create(application: Application): MetricsDb = Room.databaseBuilder(
-            application,
-            MetricsDb::class.java,
-            CURRENT_METRICS_DB_NAME,
-        )
-            .fallbackToDestructiveMigration()
-            .build()
+        fun create(application: Application, dbSynchronousMode: () -> DbSynchronousMode): MetricsDb =
+            Room.databaseBuilder(
+                application,
+                MetricsDb::class.java,
+                CURRENT_METRICS_DB_NAME,
+            )
+                .fallbackToDestructiveMigration()
+                .addCallback(synchronousModeOnOpenCallback(dbSynchronousMode))
+                .build()
     }
 }
 

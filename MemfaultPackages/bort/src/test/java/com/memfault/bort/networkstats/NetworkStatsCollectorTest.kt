@@ -5,9 +5,11 @@ import assertk.assertThat
 import assertk.assertions.containsExactlyInAnyOrder
 import assertk.assertions.containsOnly
 import assertk.assertions.isEmpty
+import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.prop
 import com.memfault.bort.PackageManagerClient
+import com.memfault.bort.android.FakeDeviceFeatures
 import com.memfault.bort.makeFakeSharedPreferences
 import com.memfault.bort.metrics.HighResTelemetry
 import com.memfault.bort.metrics.HighResTelemetry.DataType
@@ -81,6 +83,7 @@ class NetworkStatsCollectorTest {
         packageManagerClient = packageManagerClient,
         networkUsageSettings = fakeNetworkUsageSettings,
         significantAppsProvider = significantAppsProvider,
+        deviceFeatures = FakeDeviceFeatures(),
     )
 
     private fun time(timeMs: Long) = CombinedTime(
@@ -282,6 +285,71 @@ class NetworkStatsCollectorTest {
                     )
             }
         }
+    }
+
+    @Test fun `per app usage is not mixed up between connectivity types`() = runTest {
+        // Regression test for a bug where bluetooth per-app usage was rolled up using the mobile
+        // usage map, so bluetooth metrics silently mirrored mobile metrics. Each connectivity type
+        // is given a distinct byte count here so that a mix-up between them causes an assertion failure.
+        coEvery {
+            networkStatsQueries.getTotalUsage(start = any(), end = any(), connectivity = any())
+        } coAnswers { null }
+
+        coEvery {
+            networkStatsQueries.getUsageByApp(start = any(), end = any(), connectivity = any())
+        } coAnswers { call ->
+            val connectivity = call.invocation.args[2] as NetworkStatsConnectivity
+            val multiplier = when (connectivity) {
+                NetworkStatsConnectivity.ETHERNET -> 1L
+                NetworkStatsConnectivity.WIFI -> 2L
+                NetworkStatsConnectivity.MOBILE -> 3L
+                NetworkStatsConnectivity.BLUETOOTH -> 4L
+            }
+            mapOf(
+                10_000 to listOf(
+                    fakeNetworkStatsSummary.copy(
+                        rxBytes = 1_000_000 * multiplier,
+                        txBytes = 2_000_000 * multiplier,
+                        connectivity = connectivity,
+                    ),
+                ),
+            )
+        }
+
+        coEvery {
+            packageManagerClient.getPackageManagerReport()
+        } coAnswers {
+            PackageManagerReport(
+                listOf(Package(id = "com.memfault.bort", userId = 10_000)),
+            )
+        }
+
+        collector.collectAndRecord(time(2.hours.inWholeMilliseconds), time(1.hours.inWholeMilliseconds))
+
+        val heartbeat = dao.collectHeartbeat(
+            endTimestampMs = 2.hours.inWholeMilliseconds,
+            endUptimeMs = 2.hours.inWholeMilliseconds,
+        )
+        val hrt = HighResTelemetry.decodeFromStream(checkNotNull(heartbeat.hourlyHeartbeatReport.hrt))
+        val rollupValues = hrt.rollups.associate { it.metadata.stringKey to it.data.single().value }
+
+        assertThat(rollupValues["connectivity_comp_com.memfault.bort_eth_recv_bytes"])
+            .isEqualTo(JsonPrimitive(1_000_000.0))
+        assertThat(rollupValues["connectivity_comp_com.memfault.bort_wifi_recv_bytes"])
+            .isEqualTo(JsonPrimitive(2_000_000.0))
+        assertThat(rollupValues["connectivity_comp_com.memfault.bort_mobile_recv_bytes"])
+            .isEqualTo(JsonPrimitive(3_000_000.0))
+        assertThat(rollupValues["connectivity_comp_com.memfault.bort_bt_recv_bytes"])
+            .isEqualTo(JsonPrimitive(4_000_000.0))
+
+        assertThat(rollupValues["connectivity_comp_com.memfault.bort_eth_sent_bytes"])
+            .isEqualTo(JsonPrimitive(2_000_000.0))
+        assertThat(rollupValues["connectivity_comp_com.memfault.bort_wifi_sent_bytes"])
+            .isEqualTo(JsonPrimitive(4_000_000.0))
+        assertThat(rollupValues["connectivity_comp_com.memfault.bort_mobile_sent_bytes"])
+            .isEqualTo(JsonPrimitive(6_000_000.0))
+        assertThat(rollupValues["connectivity_comp_com.memfault.bort_bt_sent_bytes"])
+            .isEqualTo(JsonPrimitive(8_000_000.0))
     }
 
     @Test fun `always record total, ignore app usage below threshold`() = runTest {

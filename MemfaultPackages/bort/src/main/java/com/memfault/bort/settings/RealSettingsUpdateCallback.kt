@@ -5,12 +5,16 @@ package com.memfault.bort.settings
 import android.app.Application
 import android.content.ComponentName
 import android.content.Intent
+import android.database.sqlite.SQLiteException
 import android.os.RemoteException
 import com.github.michaelbull.result.onFailure
 import com.memfault.bort.BortJson
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.ReporterServiceConnector
+import com.memfault.bort.db.reapplySynchronousMode
+import com.memfault.bort.diagnostics.BortErrorsDb
 import com.memfault.bort.dropbox.DropBoxTagEnabler
+import com.memfault.bort.metrics.database.MetricsDb
 import com.memfault.bort.receivers.DropBoxEntryAddedReceiver
 import com.memfault.bort.reporting.CustomEvent
 import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
@@ -20,6 +24,8 @@ import com.memfault.bort.shared.Logger
 import com.memfault.bort.shared.OTA_RECEIVER_CLASS
 import com.memfault.bort.shared.SetReporterSettingsRequest
 import com.memfault.bort.time.boxed
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.ZERO
 
@@ -32,6 +38,8 @@ class SettingsUpdateCallback @Inject constructor(
     private val periodicWorkManager: PeriodicWorkManager,
     private val dropBoxEntryAddedReceiver: DropBoxEntryAddedReceiver,
     private val dropBoxTagEnabler: DropBoxTagEnabler,
+    private val metricsDb: MetricsDb,
+    private val bortErrorsDb: BortErrorsDb,
 ) {
     suspend fun onSettingsUpdated(
         settingsProvider: SettingsProvider,
@@ -44,6 +52,19 @@ class SettingsUpdateCallback @Inject constructor(
         )
 
         dumpsterClient.setStructuredLogEnabled(settingsProvider.structuredLogSettings.dataSourceEnabled)
+
+        // Reconfigure the DB connections in place, so a backend settings push takes effect
+        // immediately without requiring an app/process restart (this may open a DB that wasn't
+        // already open). Runs on Dispatchers.IO since this performs blocking SQLite I/O. Failures
+        // are non-fatal to the rest of this update.
+        withContext(Dispatchers.IO) {
+            try {
+                metricsDb.reapplySynchronousMode(settingsProvider.dbSynchronousMode)
+                bortErrorsDb.reapplySynchronousMode(settingsProvider.dbSynchronousMode)
+            } catch (e: SQLiteException) {
+                Logger.w("could not reapply db synchronous mode", e)
+            }
+        }
 
         Logger.test("logcat.collection_mode=${settingsProvider.logcatSettings.collectionMode}")
         continuousLoggingController.configureContinuousLogging()

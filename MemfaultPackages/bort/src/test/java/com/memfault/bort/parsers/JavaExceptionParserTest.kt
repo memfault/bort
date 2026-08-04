@@ -51,6 +51,27 @@ class JavaExceptionParserTest {
         )
     }
 
+    // Android 17 added "Crash-Exception: <className>" to WTF dropbox entries.
+    @Test
+    fun wtfAndroid17CrashExceptionHeader() {
+        assertThat(
+            JavaExceptionParser(WTF_ANDROID_17_FIXTURE.lineSequence()).parse(),
+        ).isEqualTo(
+            JavaException(
+                packageName = "com.memfault.bort_e2e_helper",
+                signatureLines = listOf(
+                    "android.util.Log\$TerribleFailure",
+                    "android.util.Log.wtf",
+                    "com.memfault.bort_e2e_helper.receivers.E2ETestReceiver.onReceive",
+                    "java.lang.Exception",
+                    "com.memfault.bort_e2e_helper.receivers.E2ETestReceiver.onReceive",
+                ),
+                exceptionClass = "android.util.Log\$TerribleFailure",
+                exceptionMessage = "WTF Message test-uuid",
+            ),
+        )
+    }
+
     @Test
     fun truncatedWtf() {
         assertThat(
@@ -95,6 +116,22 @@ Caused by: java.lang.Exception: 63bd07f1-1869-4a5c-953e-4a01e7318cf6
 	at android.app.ActivityThread.handleReceiver(ActivityThread.java:3187)
 	... 2 more
 
+""".trimIndent()
+
+// Android 17 adds "Crash-Exception: <rootCauseClass>" to WTF entries (b/481975725).
+private val WTF_ANDROID_17_FIXTURE = """
+Process: com.memfault.bort_e2e_helper
+Package: com.memfault.bort_e2e_helper v5090000 (5.9.0+0--DEV)
+Foreground: Yes
+Build: generic/aosp_cf_x86_phone/vsoc_x86:17/PPRL.2026.002/test-keys
+Crash-Handler: com.android.internal.os.RuntimeInit${'$'}UncaughtHandler
+Crash-Exception: java.lang.Exception
+
+android.util.Log${'$'}TerribleFailure: WTF Message test-uuid
+    at android.util.Log.wtf(Log.java:339)
+    at com.memfault.bort_e2e_helper.receivers.E2ETestReceiver.onReceive(E2ETestReceiver.kt:76)
+Caused by: java.lang.Exception: Underlying Exception
+    at com.memfault.bort_e2e_helper.receivers.E2ETestReceiver.onReceive(E2ETestReceiver.kt:71)
 """.trimIndent()
 
 private val WTF_FIXTURE = """

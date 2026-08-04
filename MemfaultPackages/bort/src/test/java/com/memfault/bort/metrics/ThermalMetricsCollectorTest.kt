@@ -2,6 +2,7 @@ package com.memfault.bort.metrics
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import com.memfault.bort.android.FakeDeviceFeatures
 import com.memfault.bort.metrics.TemperatureType.BATTERY
 import com.memfault.bort.metrics.TemperatureType.BCL_CURRENT
 import com.memfault.bort.metrics.TemperatureType.BCL_PERCENTAGE
@@ -48,6 +49,7 @@ class ThermalMetricsCollectorTest {
         override val operationalCrashesComponentGroups: JsonObject get() = TODO("not used")
         override val pollingInterval: Duration get() = TODO("not used")
         override val collectMemory: Boolean get() = TODO("Not used")
+        override val collectCellular: Boolean get() = TODO("Not used")
         override val thermalMetricsEnabled: Boolean get() = collectionEnabled
         override val thermalCollectLegacyMetrics: Boolean get() = TODO("not used")
         override val thermalCollectStatus: Boolean
@@ -65,11 +67,13 @@ class ThermalMetricsCollectorTest {
     private val settingsFlow = object : SettingsFlow {
         override val settings: Flow<SettingsProvider> = emptyFlow()
     }
+    private val deviceFeatures = FakeDeviceFeatures()
     private val collector = ThermalMetricsCollector(
         collectThermalDumpsys = collectThermalDumpsys,
         thermalMetricReporter = thermalMetricReporter,
         metricsSettings = metricsSettings,
         settingsFlow = settingsFlow,
+        deviceFeatures = deviceFeatures,
     )
 
     @Test
@@ -177,6 +181,31 @@ class ThermalMetricsCollectorTest {
                 tempName = "thermal_npu_nsp1_c",
                 tempValue = 34.7,
                 statusName = "thermal_status_npu_nsp1",
+                statusValue = NONE,
+            )
+        }
+        confirmVerified(thermalMetricReporter)
+    }
+
+    @Test
+    fun noBatteryOmitsBatteryZone() = runTest {
+        val noBatteryCollector = ThermalMetricsCollector(
+            collectThermalDumpsys = collectThermalDumpsys,
+            thermalMetricReporter = thermalMetricReporter,
+            metricsSettings = metricsSettings,
+            settingsFlow = settingsFlow,
+            deviceFeatures = FakeDeviceFeatures(hasBattery = false),
+        )
+        input = listOf(
+            ThermalMetric(value = 29.0, type = BATTERY, name = "battery", status = NONE),
+            ThermalMetric(value = 33.136, type = SKIN, name = "skin", status = NONE),
+        )
+        noBatteryCollector.collect()
+        verify {
+            thermalMetricReporter.reportMetric(
+                tempName = "thermal_skin_skin_c",
+                tempValue = 33.136,
+                statusName = "thermal_status_skin_skin",
                 statusValue = NONE,
             )
         }

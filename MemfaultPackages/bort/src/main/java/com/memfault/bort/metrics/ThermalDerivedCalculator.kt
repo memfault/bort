@@ -30,68 +30,34 @@ class ThermalDerivedCalculator @Inject constructor(
     ): List<DerivedAggregation> {
         val result = mutableListOf<DerivedAggregation>()
 
-        // Create aggregations across all CPUs
-        val cpuMean = metrics.filter { it.key.matches(CPU_MEAN_REGEX) }.mapNotNull { it.value.doubleOrNull }.average()
-        if (!cpuMean.isNaN()) {
-            result.add(
-                DerivedAggregation.create(
-                    metricName = "thermal_cpu_c",
-                    metricValue = cpuMean,
-                    metricType = MetricType.GAUGE,
-                    dataType = DataType.DOUBLE,
-                    collectionTimeMs = endTimestampMs,
-                    collectionUptimeMs = endUptimeMs,
-                    internal = false,
-                ),
-            )
+        fun maxOf(regex: Regex): Double? =
+            metrics.filter { it.key.matches(regex) }.mapNotNull { it.value.doubleOrNull }.maxOrNull()
+                ?.takeUnless { it.isNaN() }
+
+        // Single max temp per package type
+        maxOf(CPU_MAX_REGEX)?.let { result.add(derived("thermal_cpu_c_max", it, endTimestampMs, endUptimeMs)) }
+        maxOf(GPU_MAX_REGEX)?.let { result.add(derived("thermal_gpu_c_max", it, endTimestampMs, endUptimeMs)) }
+        maxOf(NPU_MAX_REGEX)?.let { result.add(derived("thermal_npu_c_max", it, endTimestampMs, endUptimeMs)) }
+        maxOf(SKIN_MAX_REGEX)?.let { result.add(derived("thermal_skin_c_max", it, endTimestampMs, endUptimeMs)) }
+
+        // Single max throttling status per package type
+        maxOf(CPU_STATUS_MAX_REGEX)?.let {
+            result.add(derived("thermal_status_cpu_max", it, endTimestampMs, endUptimeMs))
         }
-        val cpuMax = metrics.filter { it.key.matches(CPU_MAX_REGEX) }.mapNotNull { it.value.doubleOrNull }.maxOrNull()
-        if (cpuMax != null && !cpuMax.isNaN()) {
-            result.add(
-                DerivedAggregation.create(
-                    metricName = "thermal_cpu_c_max",
-                    metricValue = cpuMax,
-                    metricType = MetricType.GAUGE,
-                    dataType = DataType.DOUBLE,
-                    collectionTimeMs = endTimestampMs,
-                    collectionUptimeMs = endUptimeMs,
-                    internal = false,
-                ),
-            )
+        maxOf(GPU_STATUS_MAX_REGEX)?.let {
+            result.add(derived("thermal_status_gpu_max", it, endTimestampMs, endUptimeMs))
+        }
+        maxOf(NPU_STATUS_MAX_REGEX)?.let {
+            result.add(derived("thermal_status_npu_max", it, endTimestampMs, endUptimeMs))
         }
 
         // Create aggregations across all batteries
         val batteryMean = metrics.filter { it.key.matches(BATTERY_MEAN_REGEX) }.mapNotNull { it.value.doubleOrNull }
             .average()
         if (!batteryMean.isNaN()) {
-            result.add(
-                DerivedAggregation.create(
-                    metricName = "thermal_battery_c",
-                    metricValue = batteryMean,
-                    metricType = MetricType.GAUGE,
-                    dataType = DataType.DOUBLE,
-                    collectionTimeMs = endTimestampMs,
-                    collectionUptimeMs = endUptimeMs,
-                    internal = false,
-                ),
-            )
+            result.add(derived("thermal_battery_c", batteryMean, endTimestampMs, endUptimeMs))
         }
-        val batteryMax = metrics.filter { metric -> metric.key.matches(BATTERY_MAX_REGEX) }
-            .mapNotNull { it.value.doubleOrNull }
-            .maxOrNull()
-        if (batteryMax != null && !batteryMax.isNaN()) {
-            result.add(
-                DerivedAggregation.create(
-                    metricName = "thermal_battery_c_max",
-                    metricValue = batteryMax,
-                    metricType = MetricType.GAUGE,
-                    dataType = DataType.DOUBLE,
-                    collectionTimeMs = endTimestampMs,
-                    collectionUptimeMs = endUptimeMs,
-                    internal = false,
-                ),
-            )
-        }
+        maxOf(BATTERY_MAX_REGEX)?.let { result.add(derived("thermal_battery_c_max", it, endTimestampMs, endUptimeMs)) }
 
         if (metricsSettings.thermalCollectLegacyMetrics) {
             val legacyMetricSensorTypes = listOf("cpu", "gpu", "skin", "usb", "amp")
@@ -100,7 +66,7 @@ class ThermalDerivedCalculator @Inject constructor(
             legacyMetricSensorTypes.forEach { sensorType ->
                 aggregations.forEach { aggregation ->
                     metrics.toList()
-                        .filter { (key, _) -> key.matches(Regex("thermal_${sensorType}_.*_c.$aggregation")) }
+                        .filter { (key, _) -> key.matches(Regex("thermal_${sensorType}_.*_c\\.$aggregation$")) }
                         .sortedBy { (key, _) -> key }
                         .forEachIndexed { index, (_, metric) ->
                             val value = metric.doubleOrNull
@@ -126,10 +92,26 @@ class ThermalDerivedCalculator @Inject constructor(
         return result
     }
 
+    private fun derived(name: String, value: Double, endTimestampMs: Long, endUptimeMs: Long) =
+        DerivedAggregation.create(
+            metricName = name,
+            metricValue = value,
+            metricType = MetricType.GAUGE,
+            dataType = DataType.DOUBLE,
+            collectionTimeMs = endTimestampMs,
+            collectionUptimeMs = endUptimeMs,
+            internal = false,
+        )
+
     companion object {
-        private val CPU_MEAN_REGEX = Regex("thermal_cpu_.*.mean")
-        private val CPU_MAX_REGEX = Regex("thermal_cpu_.*.max")
-        private val BATTERY_MEAN_REGEX = Regex("thermal_battery_.*.mean")
-        private val BATTERY_MAX_REGEX = Regex("thermal_battery_.*.max")
+        private val CPU_MAX_REGEX = Regex("thermal_cpu_.*\\.max$")
+        private val GPU_MAX_REGEX = Regex("thermal_gpu_.*\\.max$")
+        private val NPU_MAX_REGEX = Regex("thermal_npu_.*\\.max$")
+        private val SKIN_MAX_REGEX = Regex("thermal_skin_.*\\.max$")
+        private val BATTERY_MEAN_REGEX = Regex("thermal_battery_.*\\.mean$")
+        private val BATTERY_MAX_REGEX = Regex("thermal_battery_.*\\.max$")
+        private val CPU_STATUS_MAX_REGEX = Regex("thermal_status_cpu_.*\\.max$")
+        private val GPU_STATUS_MAX_REGEX = Regex("thermal_status_gpu_.*\\.max$")
+        private val NPU_STATUS_MAX_REGEX = Regex("thermal_status_npu_.*\\.max$")
     }
 }

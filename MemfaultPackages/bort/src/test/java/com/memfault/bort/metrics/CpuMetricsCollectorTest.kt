@@ -11,6 +11,7 @@ import io.mockk.confirmVerified
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import io.mockk.verifyOrder
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -18,6 +19,7 @@ class CpuMetricsCollectorTest {
     private val dumpsterClient: DumpsterClient = mockk {
         coEvery { getProcStat() } answers { "" }
         coEvery { getProcPidStat() } answers { null }
+        coEvery { getProcPidStatV2() } answers { null }
     }
     private var prevUsage: CpuUsage = CpuUsage.EMPTY
     private val cpuUsageStorage = object : CpuUsageStorage {
@@ -29,7 +31,7 @@ class CpuMetricsCollectorTest {
     }
     private var usage: CpuUsage? = null
     private val cpuMetricsParser: CpuMetricsParser = mockk {
-        every { parseCpuUsage("", any(), any()) } answers { usage }
+        every { parseCpuUsage("", any(), any(), any()) } answers { usage }
     }
     private val reporter: CpuMetricReporter = mockk(relaxed = true)
     private val packageManagerClient = mockk<PackageManagerClient>(relaxed = true)
@@ -239,6 +241,51 @@ class CpuMetricsCollectorTest {
     }
 
     @Test
+    fun perProcessUsagePidChangedIsSkipped() = runTest {
+        prevUsage = CpuUsage(
+            ticksUser = 1,
+            ticksNice = 2,
+            ticksSystem = 3,
+            ticksIdle = 4,
+            ticksIoWait = 5,
+            ticksIrq = 6,
+            ticksSoftIrq = 7,
+            perProcessUsage = mapOf(
+                "com.example.app" to ProcessUsage(
+                    processName = "com.example.app",
+                    uid = 1004,
+                    pid = 200,
+                    utime = 50,
+                    stime = 10,
+                ),
+            ),
+            bootId = "1",
+        )
+        usage = CpuUsage(
+            ticksUser = 2,
+            ticksNice = 2,
+            ticksSystem = 4,
+            ticksIdle = 19,
+            ticksIoWait = 7,
+            ticksIrq = 7,
+            ticksSoftIrq = 7,
+            perProcessUsage = mapOf(
+                "com.example.app" to ProcessUsage(
+                    processName = "com.example.app",
+                    uid = 1004,
+                    pid = 100,
+                    utime = 5000,
+                    stime = 2000,
+                ),
+            ),
+            bootId = "1",
+        )
+        collector.collect()
+        verify { reporter.reportUsage(25.0) }
+        confirmVerified(reporter)
+    }
+
+    @Test
     fun perProcessUsageTopN() = runTest {
         val prevPerProcess = (1..10) // 10 processes
             .map { it.toString() to ProcessUsage("com.app.$it", 1000 + it, 10000 + it, 0, 0) }
@@ -297,5 +344,24 @@ class CpuMetricsCollectorTest {
         verify { reporter.reportProcessUsage("com.android.veryinteresting", 5.0, createMetric = true) }
 
         confirmVerified(reporter)
+    }
+
+    @Test
+    fun usesV2WhenAvailable() = runTest {
+        coEvery { dumpsterClient.getProcPidStatV2() } returns "v2-output"
+        usage = CpuUsage.EMPTY.copy(bootId = "")
+        collector.collect()
+        verify { cpuMetricsParser.parseCpuUsage("", "v2-output", hasCmdline = true, packageManagerReport = any()) }
+    }
+
+    @Test
+    fun fallsBackToLegacyWhenV2Unavailable() = runTest {
+        coEvery { dumpsterClient.getProcPidStatV2() } returns null
+        coEvery { dumpsterClient.getProcPidStat() } returns "v1-output"
+        usage = CpuUsage.EMPTY.copy(bootId = "")
+        collector.collect()
+        verifyOrder {
+            cpuMetricsParser.parseCpuUsage("", "v1-output", hasCmdline = false, packageManagerReport = any())
+        }
     }
 }
