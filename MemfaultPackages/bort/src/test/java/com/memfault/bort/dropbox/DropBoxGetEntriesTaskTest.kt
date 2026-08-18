@@ -6,8 +6,10 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import com.memfault.bort.TaskResult
 import com.memfault.bort.metrics.CrashHandler
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.settings.RateLimitingSettings
+import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.time.boxed
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -23,6 +25,10 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 class DropBoxGetEntriesTaskTest {
+    private var samplingConfig = SamplingConfig()
+    private val currentSamplingConfig: CurrentSamplingConfig = mockk {
+        coEvery { get() } answers { samplingConfig }
+    }
     private var mockEntryProcessor: EntryProcessor = mockk()
     private lateinit var task: DropBoxGetEntriesTask
     private lateinit var lastProcessedEntryProvider: FakeLastProcessedEntryProvider
@@ -89,6 +95,7 @@ class DropBoxGetEntriesTaskTest {
             dropBoxFilters = dropBoxFilters,
             processingMutex = DropboxProcessingMutex(),
             crashHandler = crashHandler,
+            currentSamplingConfig = currentSamplingConfig,
         )
         retryDelay = suspend { }
     }
@@ -226,6 +233,7 @@ class DropBoxGetEntriesTaskTest {
             dropBoxFilters = dropBoxFilters,
             processingMutex = DropboxProcessingMutex(),
             crashHandler = crashHandler,
+            currentSamplingConfig = currentSamplingConfig,
         )
         runAndAssertNoop()
     }
@@ -243,6 +251,7 @@ class DropBoxGetEntriesTaskTest {
             dropBoxFilters = dropBoxFilters,
             processingMutex = DropboxProcessingMutex(),
             crashHandler = crashHandler,
+            currentSamplingConfig = currentSamplingConfig,
         )
         runAndAssertNoop()
     }

@@ -7,11 +7,13 @@ class ContinuousLoggingController @Inject constructor(
     private val logcatSettings: LogcatSettings,
     private val bortEnabledProvider: BortEnabledProvider,
     private val dumpsterClient: DumpsterClient,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) {
     suspend fun configureContinuousLogging() {
         if (bortEnabledProvider.isEnabled() &&
             logcatSettings.dataSourceEnabled &&
-            logcatSettings.collectionMode == LogcatCollectionMode.CONTINUOUS
+            logcatSettings.collectionMode == LogcatCollectionMode.CONTINUOUS &&
+            currentSamplingConfig.get().shouldCollect(CollectedData.LOGCAT_CAPTURE) == CollectionDecision.FULL
         ) {
             dumpsterClient.startContinuousLogging(
                 filterSpecs = logcatSettings.filterSpecs,

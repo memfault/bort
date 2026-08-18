@@ -37,7 +37,11 @@ import com.memfault.bort.reporting.MetricType.COUNTER
 import com.memfault.bort.reporting.MetricType.EVENT
 import com.memfault.bort.reporting.MetricType.GAUGE
 import com.memfault.bort.reporting.MetricType.PROPERTY
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.Resolution
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.storage.AppStorageStatsCollector
 import com.memfault.bort.storage.DatabaseSizeCollector
@@ -152,6 +156,7 @@ class MetricsCollectionTask @Inject constructor(
     private val usageStatsCollector: UsageStatsCollector,
     private val statsDMetricCollector: StatsdMetricCollector,
     private val batterySessionVitals: BatterySessionVitals,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) : Task<Unit> {
     override fun getMaxAttempts(input: Unit) = 1
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -163,23 +168,32 @@ class MetricsCollectionTask @Inject constructor(
     ) {
         val startMark = TimeSource.Monotonic.markNow()
 
+        val propertiesOnly = currentSamplingConfig.get()
+            .shouldCollect(CollectedData.METRICS) != CollectionDecision.FULL
+
         val deviceSoftwareVersion = deviceInfoProvider.getDeviceInfo().softwareVersion
         val heartbeat = customMetrics.startedHeartbeatOrNull()
         val heartbeatSoftwareVersion = heartbeat?.softwareVersion
         val softwareVersionChanged = customMetrics.softwareVersionChanged(deviceSoftwareVersion)
 
-        val batteryStatsResult = batteryStatsCollector.collect(
-            collectionTime = initialCollectionTime,
-            lastHeartbeatUptime = lastHeartbeatUptime,
-        )
+        val batteryStatsResult = if (propertiesOnly) {
+            BatteryStatsResult.EMPTY
+        } else {
+            batteryStatsCollector.collect(
+                collectionTime = initialCollectionTime,
+                lastHeartbeatUptime = lastHeartbeatUptime,
+            )
+        }
         Logger.test("Metrics: software version = $heartbeatSoftwareVersion -> $deviceSoftwareVersion")
 
         // These write to Custom Metrics - do before finishing the heartbeat report.
-        storageStatsCollector.collectStorageStats(initialCollectionTime)
-        networkStatsCollector.collectAndRecord(
-            collectionTime = initialCollectionTime,
-            lastHeartbeatUptime = lastHeartbeatUptime,
-        )
+        if (!propertiesOnly) {
+            storageStatsCollector.collectStorageStats(initialCollectionTime)
+            networkStatsCollector.collectAndRecord(
+                collectionTime = initialCollectionTime,
+                lastHeartbeatUptime = lastHeartbeatUptime,
+            )
+        }
 
         // If the device's software version changed, then we're finishing a heartbeat after an OTA, and don't
         // want to write metrics that would've changed as a result of that OTA, so don't update the sysprops
@@ -194,10 +208,12 @@ class MetricsCollectionTask @Inject constructor(
         val appVersions = appVersionsCollector.collect()
         val neverCollectedMetrics = !everCollectedMetricsPreferenceProvider.getValue()
 
-        usageStatsCollector.collectUsageStats(
-            from = heartbeat?.startTimeMs?.toAbsoluteTime(),
-            to = initialCollectionTime.timestamp.toAbsoluteTime(),
-        )
+        if (!propertiesOnly) {
+            usageStatsCollector.collectUsageStats(
+                from = heartbeat?.startTimeMs?.toAbsoluteTime(),
+                to = initialCollectionTime.timestamp.toAbsoluteTime(),
+            )
+        }
 
         // Write these metrics if the software version didn't change, or if the software version hasn't been persisted
         // yet (meaning we haven't written these metrics at the start already).
@@ -216,9 +232,10 @@ class MetricsCollectionTask @Inject constructor(
             internal = true,
         )
 
-        statsDMetricCollector.collect()
-
-        crashHandler.process()
+        if (!propertiesOnly) {
+            statsDMetricCollector.collect()
+            crashHandler.process()
+        }
 
         updateBuiltinProperties(
             packageManagerClient,
@@ -228,8 +245,10 @@ class MetricsCollectionTask @Inject constructor(
         )
 
         val inMemoryMetrics = buildList {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) add(appStorageStatsCollector.get())
-            add(databaseSizeCollector)
+            if (!propertiesOnly) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) add(appStorageStatsCollector.get())
+                add(databaseSizeCollector)
+            }
         }.flatMap { collector -> collector.collect(initialCollectionTime) }
             .toMutableList()
 
@@ -279,10 +298,12 @@ class MetricsCollectionTask @Inject constructor(
             val heartbeatReportMetrics = hourlyHeartbeatReport.metrics
             val heartbeatReportInternalMetrics = hourlyHeartbeatReport.internalMetrics
 
-            clientRateLimitCollector.collect(
-                collectionTime = actualCollectionTime,
-                internalHeartbeatReportMetrics = heartbeatReportInternalMetrics,
-            )
+            if (!propertiesOnly) {
+                clientRateLimitCollector.collect(
+                    collectionTime = actualCollectionTime,
+                    internalHeartbeatReportMetrics = heartbeatReportInternalMetrics,
+                )
+            }
 
             uploadHeartbeat(
                 batteryStatsFile = batteryStatsResult.batteryStatsFileToUpload,
@@ -296,6 +317,7 @@ class MetricsCollectionTask @Inject constructor(
                     inMemoryInternalHeartbeats,
                 reportType = HOURLY_HEARTBEAT_REPORT_TYPE.lowercase(),
                 reportName = null,
+                overrideMonitoringResolution = if (propertiesOnly) Resolution.OFF else null,
                 overrideSoftwareVersion = hourlyHeartbeatReport.softwareVersion,
             )
 

@@ -3,8 +3,12 @@ package com.memfault.bort.dropbox
 import android.os.DropBoxManager
 import com.memfault.bort.IO
 import com.memfault.bort.logcat.LogcatProcessor
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.LogcatCollectionMode.CONTINUOUS
 import com.memfault.bort.settings.LogcatSettings
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.shared.LogcatCommand
 import com.memfault.bort.shared.LogcatFormat
 import com.memfault.bort.shared.LogcatFormatModifier
@@ -24,6 +28,7 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
     @ContinuousLogFile private val tokenBucketStore: TokenBucketStore,
     private val logcatProcessor: LogcatProcessor,
     @IO private val ioDispatcher: CoroutineContext,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) : EntryProcessor() {
     override val tags: List<String> = listOf(DROPBOX_ENTRY_TAG)
 
@@ -46,6 +51,14 @@ class ContinuousLogcatEntryProcessor @Inject constructor(
             val stream = entry.inputStream ?: return@withContext
             stream.use {
                 if (!logcatSettings.dataSourceEnabled) {
+                    return@withContext
+                }
+
+                // Processing also detects SELinux violations and holds a buffer to attach to a trace, so it runs
+                // even when the logs themselves are never uploaded.
+                if (currentSamplingConfig.get().shouldCollect(CollectedData.LOGCAT_CAPTURE) !=
+                    CollectionDecision.FULL
+                ) {
                     return@withContext
                 }
 

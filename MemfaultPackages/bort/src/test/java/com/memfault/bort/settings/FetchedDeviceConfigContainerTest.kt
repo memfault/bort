@@ -5,6 +5,7 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import com.memfault.bort.BortJson
+import com.memfault.bort.settings.FetchedDeviceConfigContainer.Companion.asSamplingConfig
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Test
@@ -422,11 +423,27 @@ class FetchedDeviceConfigContainerTest {
         assertThat(result.revision).isEqualTo(3344)
         assertThat(result.memfault!!.bort.sdkSettings.batteryStatsDataSourceEnabled).isTrue()
         assertThat(result.memfault!!.sampling.debuggingResolution).isEqualTo("normal")
+        // Not present in the fixture, since older backends do not send it.
+        assertThat(result.memfault!!.sampling.sessionsResolution)
+            .isEqualTo(SamplingConfig.DEFAULT_SESSIONS.value)
         assertThat(result.others.size).isEqualTo(0)
 
         val reEncoded = BortJson.encodeToString(DecodedDeviceConfig.serializer(), result)
         val reDecoded = BortJson.decodeFromString(DecodedDeviceConfig.serializer(), reEncoded)
         assertThat(reDecoded).isEqualTo(result)
+    }
+
+    @Test
+    fun deserializeSessionsResolution() {
+        val withSessions = response.replace(
+            """"monitoring.resolution": "normal"""",
+            """"monitoring.resolution": "normal",
+                        "sessions.resolution": "off"""",
+        )
+        val result = BortJson.decodeFromString(DecodedDeviceConfig.serializer(), withSessions)
+        val samplingConfig = result.memfault!!.sampling.asSamplingConfig(result.revision)
+        assertThat(samplingConfig.sessionsResolution).isEqualTo(Resolution.OFF)
+        assertThat(samplingConfig.monitoringResolution).isEqualTo(Resolution.NORMAL)
     }
 
     @Test

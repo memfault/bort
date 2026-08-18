@@ -5,7 +5,11 @@ import com.memfault.bort.clientserver.MarMetadata
 import com.memfault.bort.dropbox.allowedByRateLimit
 import com.memfault.bort.parsers.LogcatLine
 import com.memfault.bort.parsers.PackageManagerReport
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.BaseAbsoluteTime
@@ -50,6 +54,7 @@ class SelinuxViolationLogcatDetector @AssistedInject constructor(
     private val enqueueUpload: EnqueueUpload,
     private val handleEventOfInterest: HandleEventOfInterest,
     private val settingsProvider: SettingsProvider,
+    private val currentSamplingConfig: CurrentSamplingConfig,
     @SelinuxViolations private val tokenBucketStore: TokenBucketStore,
 ) : LogcatLineProcessor {
     override suspend fun process(
@@ -59,6 +64,9 @@ class SelinuxViolationLogcatDetector @AssistedInject constructor(
         // Avoid processing if the data source is disabled. Potentially could perform this check inside the
         // [parse] or [record] functions too, but doing it here avoids having to mock out the method in tests.
         if (!settingsProvider.selinuxViolationSettings.dataSourceEnabled) return
+        if (currentSamplingConfig.get().shouldCollect(CollectedData.DEBUGGING_ARTIFACT) != CollectionDecision.FULL) {
+            return
+        }
 
         val violationOrNull = parse(line, packageManagerReport)
         violationOrNull?.let { record(it) }

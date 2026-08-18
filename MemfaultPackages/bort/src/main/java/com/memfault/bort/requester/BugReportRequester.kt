@@ -14,7 +14,11 @@ import com.memfault.bort.bugreport.StartBugReportUseCase
 import com.memfault.bort.diagnostics.BortJobReporter
 import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.BugReportSettings
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.shared.BugReportOptions
 import com.memfault.bort.shared.BugReportRequest
 import com.memfault.bort.shared.Logger
@@ -46,6 +50,7 @@ private fun Data.toBugReportOptions(): BugReportRequest = BugReportRequest(
 class BugReportRequester @Inject constructor(
     private val application: Application,
     private val bugReportSettings: BugReportSettings,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         val requestInterval = bugReportSettings.requestInterval
@@ -90,7 +95,10 @@ class BugReportRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override suspend fun enabled(settings: SettingsProvider): Boolean = settings.bugReportSettings.dataSourceEnabled
+    override suspend fun enabled(settings: SettingsProvider): Boolean = settings.bugReportSettings.dataSourceEnabled &&
+        currentSamplingConfig.get().shouldCollect(CollectedData.DEBUGGING_ARTIFACT) == CollectionDecision.FULL
+
+    override val dependsOnSamplingConfig: Boolean = true
 
     override suspend fun diagnostics(): BortWorkInfo = WorkManager.getInstance(application)
         .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)

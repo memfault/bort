@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project currently does not attempt to adhere to Semantic Versioning, but
 breaking changes are avoided unless absolutely necessary.
 
+## v5.10.1 - August 17, 2026
+
+### :rocket: New Features
+
+- [Fleet Sampling's Visibility levels](https://mflt.io/android-fleet-sampling)
+  now govern generation and collection, not just upload, of device data.
+  Previously, data was always written to `.mar` files regardless of the
+  configured visibility level.
+
 ## v5.10.0 - August 4, 2026
 
 ### :rocket: New Features

@@ -4,6 +4,7 @@ import com.memfault.bort.BortJson
 import com.memfault.bort.settings.SamplingConfig.Companion.DEFAULT_DEBUGGING
 import com.memfault.bort.settings.SamplingConfig.Companion.DEFAULT_LOGGING
 import com.memfault.bort.settings.SamplingConfig.Companion.DEFAULT_MONITORING
+import com.memfault.bort.settings.SamplingConfig.Companion.DEFAULT_SESSIONS
 import com.memfault.bort.time.NullableInstantAsIso8601String
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
@@ -116,6 +117,8 @@ data class FetchedDeviceConfigContainer(
         val loggingResolution: String = DEFAULT_LOGGING.value,
         @SerialName("monitoring.resolution")
         val monitoringResolution: String = DEFAULT_MONITORING.value,
+        @SerialName("sessions.resolution")
+        val sessionsResolution: String = DEFAULT_SESSIONS.value,
     )
 
     companion object {
@@ -125,6 +128,7 @@ data class FetchedDeviceConfigContainer(
                 debuggingResolution = Resolution.fromString(debuggingResolution),
                 loggingResolution = Resolution.fromString(loggingResolution),
                 monitoringResolution = Resolution.fromString(monitoringResolution),
+                sessionsResolution = Resolution.fromString(sessionsResolution),
             )
     }
 }

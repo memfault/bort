@@ -79,7 +79,9 @@ open class Bort : Application(), Configuration.Provider {
 
         appUpgrade.handleUpgrade(this)
         dropBoxTagEnabler.enableTagsIfRequired()
-        dropBoxEntryAddedReceiver.initialize()
+        runBlocking {
+            dropBoxEntryAddedReceiver.initialize()
+        }
 
         if (bortEnabledProvider.isEnabled()) {
             Logger.test("Bort app running with Bort enabled")

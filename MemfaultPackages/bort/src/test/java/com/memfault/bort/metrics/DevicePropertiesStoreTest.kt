@@ -15,6 +15,9 @@ import com.memfault.bort.metrics.HighResTelemetry.DataType.StringType
 import com.memfault.bort.metrics.HighResTelemetry.Rollup
 import com.memfault.bort.metrics.custom.CustomReport
 import com.memfault.bort.metrics.custom.MetricReport
+import com.memfault.bort.reporting.Reporting
+import com.memfault.bort.settings.Resolution
+import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.shared.BortSharedJson
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
@@ -369,6 +372,56 @@ class DevicePropertiesStoreTest {
                             ),
                         )
                     }
+            }
+        }
+    }
+
+    @Test
+    fun propertiesAreStoredWhenMonitoringIsOff() = runTest {
+        metricsDbTestEnvironment.samplingConfigValue = SamplingConfig(monitoringResolution = Resolution.OFF)
+        val heartbeatTimestamp = System.currentTimeMillis()
+
+        propertiesStore.upsert(
+            name = METRIC_NAME_STRING,
+            value = METRIC_VALUE_STRING,
+            internal = false,
+            timestamp = heartbeatTimestamp,
+            uptime = heartbeatTimestamp,
+        )
+        Reporting.report().counter(name = "a_counter").increment()
+
+        assertThat(
+            metricsDbTestEnvironment.dao.collectHeartbeat(
+                endTimestampMs = heartbeatTimestamp + 1,
+                endUptimeMs = heartbeatTimestamp + 1,
+            ),
+        ).all {
+            prop(CustomReport::hourlyHeartbeatReport).all {
+                prop(MetricReport::metrics).containsOnly(
+                    METRIC_NAME_STRING.latest() to METRIC_JSON_STRING,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun nonPropertyMetricsAreNotStoredWhenMonitoringIsOff() = runTest {
+        metricsDbTestEnvironment.samplingConfigValue = SamplingConfig(monitoringResolution = Resolution.OFF)
+        val heartbeatTimestamp = System.currentTimeMillis()
+
+        // Counters and distributions are never device attributes, whatever they are named.
+        Reporting.report().successOrFailure("sync_memfault").success()
+        Reporting.report().counter(name = "a_counter").increment()
+        Reporting.report().distribution(name = "a_distribution").record(1)
+
+        assertThat(
+            metricsDbTestEnvironment.dao.collectHeartbeat(
+                endTimestampMs = heartbeatTimestamp + 1,
+                endUptimeMs = heartbeatTimestamp + 1,
+            ),
+        ).all {
+            prop(CustomReport::hourlyHeartbeatReport).all {
+                prop(MetricReport::metrics).isEmpty()
             }
         }
     }
