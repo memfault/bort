@@ -15,6 +15,8 @@ import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.parsers.EXAMPLE_TOMBSTONE
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.parsers.PackageManagerReport
+import com.memfault.bort.settings.Resolution
+import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.time.BaseBootRelativeTime
 import com.memfault.bort.uploader.EnqueueUpload
@@ -39,6 +41,7 @@ class TombstoneEntryProcessorTest {
     lateinit var mockPackageNameAllowList: PackageNameAllowList
     lateinit var crashHandler: CrashHandler
     private var allowedByRateLimit = true
+    private var samplingConfig = SamplingConfig()
 
     @Before
     fun setUp() {
@@ -76,6 +79,7 @@ class TombstoneEntryProcessorTest {
             packageNameAllowList = mockPackageNameAllowList,
             combinedTimeProvider = FakeCombinedTimeProvider,
             crashHandler = crashHandler,
+            currentSamplingConfig = mockk { coEvery { get() } answers { samplingConfig } },
         )
     }
 
@@ -112,6 +116,23 @@ class TombstoneEntryProcessorTest {
         coVerify(exactly = 1) {
             mockHandleEventOfInterest.handleEventOfInterest(any<BaseBootRelativeTime>())
         }
+    }
+
+    @Test
+    fun parsesCrashButDoesNotEnqueueWhenDebuggingIsBelowNormal() = runTest {
+        coEvery {
+            mockPackageManagerClient.getPackageManagerReport()
+        } returns PackageManagerReport(listOf(PACKAGE_FIXTURE))
+        samplingConfig = SamplingConfig(
+            debuggingResolution = Resolution.OFF,
+            monitoringResolution = Resolution.NORMAL,
+        )
+
+        processor.process(mockEntry(text = EXAMPLE_TOMBSTONE, tag_ = "data_app_native_crash"))
+
+        coVerify(exactly = 1) { crashHandler.onCrash(any(), any()) }
+        assertThat(marMetadataSlot.isCaptured).isFalse()
+        coVerify(exactly = 0) { mockHandleEventOfInterest.handleEventOfInterest(any<BaseBootRelativeTime>()) }
     }
 
     @Test

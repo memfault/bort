@@ -7,6 +7,8 @@ import com.memfault.bort.FakeDeviceInfoProvider
 import com.memfault.bort.LogcatCollectionId
 import com.memfault.bort.clientserver.MarMetadata
 import com.memfault.bort.metrics.BuiltinMetricsStore
+import com.memfault.bort.settings.CurrentSamplingConfig
+import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.test.util.TestTemporaryFileFactory
 import com.memfault.bort.time.CombinedTime
 import com.memfault.bort.uploader.EnqueueUpload
@@ -31,6 +33,10 @@ import java.util.UUID
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
 class CustomEventEntryProcessorTest {
+    private var samplingConfig = SamplingConfig()
+    private val currentSamplingConfig: CurrentSamplingConfig = mockk {
+        coEvery { get() } answers { samplingConfig }
+    }
     lateinit var processor: StructuredLogEntryProcessor
     lateinit var mockEnqueueUpload: EnqueueUpload
     lateinit var marMetadataSlot: CapturingSlot<MarMetadata>
@@ -60,6 +66,7 @@ class CustomEventEntryProcessorTest {
             },
             combinedTimeProvider = FakeCombinedTimeProvider,
             structuredLogDataSourceEnabledConfig = { dataSourceEnabled },
+            currentSamplingConfig = currentSamplingConfig,
         )
     }
 

@@ -26,14 +26,17 @@ import com.memfault.bort.reporting.FinishReport
 import com.memfault.bort.reporting.MetricValue
 import com.memfault.bort.reporting.RemoteMetricsService
 import com.memfault.bort.reporting.StartReport
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.DailyHeartbeatEnabled
 import com.memfault.bort.settings.HighResMetricsEnabled
 import com.memfault.bort.settings.MetricsSettings
 import com.memfault.bort.settings.RateLimitingSettings
+import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.test.util.TemporaryFolderTemporaryFileFactory
 import com.memfault.bort.tokenbucket.RealTokenBucketFactory
 import com.memfault.bort.tokenbucket.RealTokenBucketStorage
 import com.memfault.bort.tokenbucket.RealTokenBucketStore
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
@@ -73,6 +76,11 @@ class MetricsDbTestEnvironment : ExternalResource() {
     )
     private val deviceInfoProvider = object : DeviceInfoProvider {
         override suspend fun getDeviceInfo(): DeviceInfo = deviceInfo
+    }
+
+    var samplingConfigValue = SamplingConfig()
+    private val currentSamplingConfig: CurrentSamplingConfig = mockk {
+        coEvery { get() } answers { samplingConfigValue }
     }
 
     var highResMetricsEnabledValue = false
@@ -171,6 +179,7 @@ class MetricsDbTestEnvironment : ExternalResource() {
                 DropBoxTraceCountDerivedAggregations(),
             ),
             getBootId = { "0000-0000-0001" },
+            currentSamplingConfig = currentSamplingConfig,
         )
         dao = TestCustomMetrics(customMetrics)
 

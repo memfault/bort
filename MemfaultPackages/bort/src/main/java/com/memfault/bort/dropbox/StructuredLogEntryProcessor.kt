@@ -4,7 +4,11 @@ import android.os.DropBoxManager
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.clientserver.MarMetadata.StructuredLogMarMetadata
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.StructuredLogEnabled
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.tokenbucket.StructuredLog
@@ -24,6 +28,7 @@ class StructuredLogEntryProcessor @Inject constructor(
     private val enqueueUpload: EnqueueUpload,
     private val combinedTimeProvider: CombinedTimeProvider,
     private val structuredLogDataSourceEnabledConfig: StructuredLogEnabled,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) : EntryProcessor() {
     override val tags: List<String> = listOf(DROPBOX_ENTRY_TAG)
 
@@ -32,6 +37,10 @@ class StructuredLogEntryProcessor @Inject constructor(
 
     override suspend fun process(entry: DropBoxManager.Entry) {
         if (!structuredLogDataSourceEnabledConfig()) {
+            return
+        }
+
+        if (currentSamplingConfig.get().shouldCollect(CollectedData.DEBUGGING_ARTIFACT) != CollectionDecision.FULL) {
             return
         }
 

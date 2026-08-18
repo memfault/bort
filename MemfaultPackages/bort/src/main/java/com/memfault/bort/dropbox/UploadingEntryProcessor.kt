@@ -11,6 +11,10 @@ import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.CrashFreeHoursMetricLogger.Companion.dropBoxTagCounter
 import com.memfault.bort.metrics.CrashHandler
 import com.memfault.bort.metrics.metricForTraceTag
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
+import com.memfault.bort.settings.CurrentSamplingConfig
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.time.BootRelativeTimeProvider
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.time.toAbsoluteTime
@@ -50,6 +54,7 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
     private val handleEventOfInterest: HandleEventOfInterest,
     private val combinedTimeProvider: CombinedTimeProvider,
     private val crashHandler: CrashHandler,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) : EntryProcessor() {
     override val tags: List<String>
         get() = delegate.tags
@@ -83,6 +88,11 @@ class UploadingEntryProcessor<T : UploadingEntryProcessorDelegate> @Inject const
                 info.crashTag?.let { crashTag ->
                     dropBoxTagCounter(crashTag).increment()
                 }
+            }
+
+            // At a lower debugging resolution the entry is still parsed above, to derive the crash metrics.
+            if (currentSamplingConfig.get().shouldCollect(CollectedData.CRASH_ARTIFACT) != CollectionDecision.FULL) {
+                return
             }
 
             if (!info.allowedByRateLimit) {

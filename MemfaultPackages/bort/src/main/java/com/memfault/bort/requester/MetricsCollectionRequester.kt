@@ -92,6 +92,10 @@ class MetricsCollectionRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
+    /**
+     * Not gated on the sampling config, because device properties are collected at every visibility level. When
+     * metrics are not collected this runs in properties-only mode, see [MetricsCollectionTask].
+     */
     override suspend fun enabled(settings: SettingsProvider): Boolean = settings.metricsSettings.dataSourceEnabled
 
     override suspend fun diagnostics(): BortWorkInfo = WorkManager.getInstance(application)

@@ -10,9 +10,12 @@ import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.dropbox.enqueueOneTimeDropBoxQueryTask
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.metricForTraceTag
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.DropBoxSettings
+import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.settings.SettingsProvider
 import io.mockk.Runs
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -33,6 +36,10 @@ class DropBoxEntryAddedReceiverTest {
     private val application = mockk<Application>()
     private val devMode = mockk<DevMode>()
     private val builtinMetricsStore = mockk<BuiltinMetricsStore>(relaxed = true)
+    private var samplingConfig = SamplingConfig()
+    private val currentSamplingConfig = mockk<CurrentSamplingConfig> {
+        coEvery { get() } answers { samplingConfig }
+    }
 
     private val receiver = DropBoxEntryAddedReceiver(
         settingsProvider = settingsProvider,
@@ -41,6 +48,7 @@ class DropBoxEntryAddedReceiverTest {
         application = application,
         devMode = devMode,
         builtinMetricsStore = builtinMetricsStore,
+        currentSamplingConfig = currentSamplingConfig,
     )
 
     @Before

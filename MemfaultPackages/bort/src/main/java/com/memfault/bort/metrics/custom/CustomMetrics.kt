@@ -21,10 +21,15 @@ import com.memfault.bort.metrics.database.HrtFileFactory
 import com.memfault.bort.metrics.database.MetricsDb
 import com.memfault.bort.metrics.database.SESSION_REPORT_TYPE
 import com.memfault.bort.reporting.FinishReport
+import com.memfault.bort.reporting.MetricType
 import com.memfault.bort.reporting.MetricValue
 import com.memfault.bort.reporting.StartReport
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.DailyHeartbeatEnabled
 import com.memfault.bort.settings.HighResMetricsEnabled
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.tokenbucket.SessionMetrics
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.squareup.anvil.annotations.ContributesBinding
@@ -43,6 +48,10 @@ suspend fun CustomMetrics.softwareVersionChanged(deviceSoftwareVersion: String):
 }
 
 interface CustomMetrics {
+    /**
+     * Returns the inserted row ID, [NOT_COLLECTED] if the current visibility level does not collect this metric, or
+     * [NOT_INSERTED] if it was not written for any other reason.
+     */
     suspend fun add(metric: MetricValue): Long
     suspend fun start(start: StartReport): Long
     suspend fun finish(finish: FinishReport): Long
@@ -53,6 +62,12 @@ interface CustomMetrics {
         endUptimeMs: Long,
         forceEndAllReports: Boolean = false,
     ): CustomReport
+
+    companion object {
+        const val NOT_COLLECTED = -2L
+
+        const val NOT_INSERTED = -1L
+    }
 }
 
 private val SYNC_METRICS = setOf(
@@ -61,6 +76,8 @@ private val SYNC_METRICS = setOf(
     "sync_failure",
     "sync_successful",
 )
+
+internal fun MetricValue.isDeviceAttribute(): Boolean = metricType == MetricType.PROPERTY
 
 val BATTERY_METRICS = setOf(
     BATTERY_CHARGING_METRIC,
@@ -82,6 +99,7 @@ class RealCustomMetrics @Inject constructor(
     private val deviceInfoProvider: DeviceInfoProvider,
     private val derivedAggregations: InjectSet<CalculateDerivedAggregations>,
     private val getBootId: LinuxBootId,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) : CustomMetrics {
     private val dbReportBuilder = DbReportBuilder { report ->
         report.copy(
@@ -89,8 +107,22 @@ class RealCustomMetrics @Inject constructor(
         )
     }
 
-    override suspend fun add(metric: MetricValue): Long =
-        if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
+    private suspend fun shouldCollect(
+        reportType: String,
+        isDeviceAttribute: Boolean = false,
+    ): Boolean {
+        val data = when {
+            reportType == SESSION_REPORT_TYPE -> CollectedData.SESSION
+            isDeviceAttribute -> CollectedData.DEVICE_PROPERTIES
+            else -> CollectedData.METRICS
+        }
+        return currentSamplingConfig.get().shouldCollect(data) == CollectionDecision.FULL
+    }
+
+    override suspend fun add(metric: MetricValue): Long {
+        if (!shouldCollect(metric.reportType, metric.isDeviceAttribute())) return CustomMetrics.NOT_COLLECTED
+
+        return if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
             metric.eventName == OPERATIONAL_CRASHES_METRIC_KEY
         ) {
             db.dao().insertAllReports(metric, dbReportBuilder, getBootId())
@@ -111,13 +143,15 @@ class RealCustomMetrics @Inject constructor(
         } else if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE) {
             db.dao().insert(metric, dbReportBuilder, getBootId())
         } else {
-            -1
+            CustomMetrics.NOT_INSERTED
         }
+    }
 
     override suspend fun start(start: StartReport): Long =
         when (start.reportType) {
             SESSION_REPORT_TYPE -> {
-                val allowedByRateLimit = sessionMetricsTokenBucketStore.takeSimple(tag = "session")
+                val allowedByRateLimit = shouldCollect(start.reportType) &&
+                    sessionMetricsTokenBucketStore.takeSimple(tag = "session")
                 if (allowedByRateLimit) {
                     db.dao().startWithLatestMetricValues(
                         startReport = start,
@@ -158,7 +192,10 @@ class RealCustomMetrics @Inject constructor(
                 null
             },
             endTimestampMs = endTimestampMs,
-            hrtFileFactory = if (highResMetricsEnabled()) {
+            hrtFileFactory = if (highResMetricsEnabled() &&
+                currentSamplingConfig.get().shouldCollect(CollectedData.HIGH_RES_TELEMETRY) ==
+                CollectionDecision.FULL
+            ) {
                 HrtFileFactory {
                     temporaryFileFactory.createTemporaryFile(suffix = "hrt").useFile { file, preventDeletion ->
                         preventDeletion()

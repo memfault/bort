@@ -8,6 +8,7 @@ import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import com.memfault.bort.parsers.Package
 import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.settings.RateLimitingSettings
+import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.settings.SelinuxViolationSettings
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.time.CombinedTimeProvider
@@ -40,12 +41,14 @@ class SelinuxViolationLogcatDetectorTest {
         }
     }
     private val tokenBucketStore: TokenBucketStore = mockk()
+    private val samplingConfig = SamplingConfig()
 
     private val detector = SelinuxViolationLogcatDetector(
         combinedTimeProvider = combinedTimeProvider,
         enqueueUpload = enqueueUpload,
         handleEventOfInterest = handleEventOfInterest,
         settingsProvider = settingsProvider,
+        currentSamplingConfig = mockk { coEvery { get() } returns samplingConfig },
         tokenBucketStore = tokenBucketStore,
     )
 

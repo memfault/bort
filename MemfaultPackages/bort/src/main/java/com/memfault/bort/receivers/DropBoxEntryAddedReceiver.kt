@@ -11,7 +11,11 @@ import com.memfault.bort.dropbox.ProcessedEntryCursorProvider
 import com.memfault.bort.dropbox.enqueueOneTimeDropBoxQueryTask
 import com.memfault.bort.metrics.BuiltinMetricsStore
 import com.memfault.bort.metrics.metricForTraceTag
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.shared.Logger
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,15 +28,17 @@ class DropBoxEntryAddedReceiver @Inject constructor(
     private val application: Application,
     private val devMode: DevMode,
     private val builtinMetricsStore: BuiltinMetricsStore,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) : BortEnabledFilteringReceiver(
     setOf(DropBoxManager.ACTION_DROPBOX_ENTRY_ADDED),
 ) {
     private var registered = false
 
-    fun initialize() {
+    suspend fun initialize() {
         val enabled = bortEnabledProvider.isEnabled() &&
             settingsProvider.dropBoxSettings.dataSourceEnabled &&
-            settingsProvider.dropBoxSettings.processImmediately
+            settingsProvider.dropBoxSettings.processImmediately &&
+            currentSamplingConfig.get().shouldCollect(CollectedData.CRASH_ARTIFACT) != CollectionDecision.NONE
         if (registered && !enabled) {
             application.unregisterReceiver(this)
             registered = false

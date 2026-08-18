@@ -10,7 +10,11 @@ import com.memfault.bort.TaskResult
 import com.memfault.bort.TaskResult.SUCCESS
 import com.memfault.bort.dropbox.DropboxRequester
 import com.memfault.bort.periodicWorkRequest
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
@@ -26,6 +30,7 @@ class MetricsPollingRequester @Inject constructor(
     private val application: Application,
     private val logcatCollectionRequester: LogcatCollectionRequester,
     private val dropboxRequester: DropboxRequester,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(
         justBooted: Boolean,
@@ -59,8 +64,13 @@ class MetricsPollingRequester @Inject constructor(
         if (dropboxPollingRunningRegularly || periodicLogcatRunningRegularly) {
             return false
         }
+        if (currentSamplingConfig.get().shouldCollect(CollectedData.METRICS) != CollectionDecision.FULL) {
+            return false
+        }
         return settings.metricsSettings.pollingInterval.isPositive()
     }
+
+    override val dependsOnSamplingConfig: Boolean = true
 
     override suspend fun diagnostics(): BortWorkInfo = WorkManager.getInstance(application)
         .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)

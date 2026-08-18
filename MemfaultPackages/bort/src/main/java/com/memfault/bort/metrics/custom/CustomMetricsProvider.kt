@@ -67,7 +67,9 @@ class CustomMetricsProvider : ContentProvider() {
                     val metricValue = MetricValue.fromJson(metricJson)
                     Logger.test("CustomMetricsProvider received: $metricValue")
                     runBlocking {
-                        if (entryPoint.customMetrics().add(metricValue) != -1L) {
+                        // NOT_COLLECTED is success: the metric was accepted, and the level dropping it is not a
+                        // failure the calling app can act on.
+                        if (entryPoint.customMetrics().add(metricValue) != CustomMetrics.NOT_INSERTED) {
                             // Return the URI if successful.
                             URI_ADD_CUSTOM_METRIC
                         } else {

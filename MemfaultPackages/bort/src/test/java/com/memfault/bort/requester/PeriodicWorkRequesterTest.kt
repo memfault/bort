@@ -13,6 +13,7 @@ import com.memfault.bort.settings.ReadonlyFetchedSettingsProvider
 import com.memfault.bort.settings.SETTINGS_FIXTURE
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.toSettings
+import com.memfault.bort.uploader.BortEnabledTestProvider
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -70,12 +71,14 @@ internal class PeriodicWorkRequesterTest {
         devMode,
         projectKeyProvider,
     )
+    private val bortEnabledProvider = BortEnabledTestProvider()
     private val manager = PeriodicWorkManager(
         periodicWorkRequesters = requesters,
         dumpsterCapabilities = dumpsterCapabilities,
         devMode = devMode,
         projectKeyProvider = projectKeyProvider,
         settingsProvider = settingsProvider,
+        bortEnabledProvider = bortEnabledProvider,
     )
 
     @Test

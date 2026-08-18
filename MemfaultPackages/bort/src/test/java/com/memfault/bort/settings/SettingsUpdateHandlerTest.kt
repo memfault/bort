@@ -55,6 +55,9 @@ class SettingsUpdateHandlerTest {
         everFetchedSettingsPreferenceProvider = everFetchedSettingsPreferenceProvider,
         currentSamplingConfig = currentSamplingConfig,
         marFileHoldingArea = marHoldingArea,
+        periodicWorkManager = mockk(relaxed = true),
+        continuousLoggingController = mockk(relaxed = true),
+        dropBoxEntryAddedReceiver = mockk(relaxed = true),
     )
 
     @Test
