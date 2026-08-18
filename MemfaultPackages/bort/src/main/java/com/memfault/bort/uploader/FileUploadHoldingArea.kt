@@ -9,14 +9,16 @@ import com.memfault.bort.clientserver.MarMetadata.LogcatMarMetadata
 import com.memfault.bort.fileExt.deleteSilently
 import com.memfault.bort.getJson
 import com.memfault.bort.putJson
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
 import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.FileUploadHoldingAreaSettings
 import com.memfault.bort.settings.LogcatCollectionInterval
 import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.settings.Resolution
-import com.memfault.bort.settings.Resolution.NORMAL
 import com.memfault.bort.settings.Resolution.NOT_APPLICABLE
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.time.BaseAbsoluteTime
 import com.memfault.bort.time.BaseBootRelativeTime
 import com.memfault.bort.time.BoxedDuration
@@ -236,7 +238,9 @@ class FileUploadHoldingArea @Inject constructor(
     private fun removeEntry(entry: PendingFileUploadEntry) = runBlocking {
         // Only keep logs that didn't overlap an event, if (1) we are configured to store them, or, (2) we are in a
         // logging resolution which would upload them immediately.
-        if (logcatSettings.storeUnsampled || currentSamplingConfig.get().loggingResolution == NORMAL) {
+        if (logcatSettings.storeUnsampled ||
+            currentSamplingConfig.get().shouldCollect(CollectedData.CONTINUOUS_LOGS) == CollectionDecision.FULL
+        ) {
             enqueueUpload.enqueueLogcatUpload(
                 entry = entry,
                 // Did not overlap with an event of interest: only has a logging aspect.

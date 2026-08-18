@@ -12,11 +12,14 @@ import com.memfault.bort.clientserver.MarMetadata.ClientChroniclerMarMetadata
 import com.memfault.bort.diagnostics.BortErrorType.BatteryStatsHistoryParseError
 import com.memfault.bort.diagnostics.BortErrorType.BortRateLimit
 import com.memfault.bort.settings.BatchMarUploads
+import com.memfault.bort.settings.CurrentSamplingConfig
+import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.CombinedTimeProvider
 import com.memfault.bort.uploader.EnqueueUpload
 import io.mockk.Called
 import io.mockk.clearMocks
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -32,6 +35,10 @@ import kotlin.time.Duration.Companion.days
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [26])
 class BortErrorsTest {
+    private var samplingConfig = SamplingConfig()
+    private val currentSamplingConfig: CurrentSamplingConfig = mockk {
+        coEvery { get() } answers { samplingConfig }
+    }
     private var batchMars = true
     private val batchMarUploads = BatchMarUploads { batchMars }
     private val enqueueUpload: EnqueueUpload = mockk(relaxed = true)
@@ -83,7 +90,14 @@ class BortErrorsTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         db = Room.inMemoryDatabaseBuilder(context, BortErrorsDb::class.java)
             .fallbackToDestructiveMigration().allowMainThreadQueries().build()
-        bortErrors = BortErrors(db, batchMarUploads, enqueueUpload, combinedTimeProvider, absoluteTimeProvider)
+        bortErrors = BortErrors(
+            db,
+            batchMarUploads,
+            enqueueUpload,
+            combinedTimeProvider,
+            absoluteTimeProvider,
+            currentSamplingConfig,
+        )
     }
 
     @After

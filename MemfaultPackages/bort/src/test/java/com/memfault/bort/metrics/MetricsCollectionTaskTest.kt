@@ -22,8 +22,11 @@ import com.memfault.bort.metrics.custom.MetricReport
 import com.memfault.bort.metrics.statsd.StatsdMetricCollector
 import com.memfault.bort.networkstats.NetworkStatsCollector
 import com.memfault.bort.parsers.PackageManagerReport
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.Resolution.NORMAL
 import com.memfault.bort.settings.Resolution.NOT_APPLICABLE
+import com.memfault.bort.settings.Resolution.OFF
+import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.storage.AppStorageStatsCollector
 import com.memfault.bort.storage.DatabaseSizeCollector
 import com.memfault.bort.time.BaseLinuxBootRelativeTime
@@ -48,6 +51,10 @@ import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
 class MetricsCollectionTaskTest {
+    private var samplingConfig = SamplingConfig()
+    private val currentSamplingConfig: CurrentSamplingConfig = mockk {
+        coEvery { get() } answers { samplingConfig }
+    }
 
     @get:Rule
     val folder = TemporaryFolder()
@@ -265,6 +272,7 @@ class MetricsCollectionTaskTest {
         usageStatsCollector = usageStatsCollector,
         statsDMetricCollector = statsDMetricCollector,
         batterySessionVitals = batterySessionVitals,
+        currentSamplingConfig = currentSamplingConfig,
     )
 
     @Test
@@ -285,5 +293,66 @@ class MetricsCollectionTaskTest {
                 overrideSoftwareVersion = "1.0.0",
             )
         }
+    }
+
+    @Test
+    fun `collects metrics when monitoring is active`() = runTest {
+        samplingConfig = SamplingConfig(monitoringResolution = NORMAL)
+
+        assertThat(task.doWork(Unit)).isEqualTo(SUCCESS)
+
+        coVerify(exactly = 1) { batteryStatsCollector.collect(any(), any()) }
+        coVerify(exactly = 1) { storageStatsCollector.collectStorageStats(any()) }
+        coVerify(exactly = 1) { networkStatsCollector.collectAndRecord(any(), any()) }
+        coVerify(exactly = 1) { usageStatsCollector.collectUsageStats(any(), any()) }
+        coVerify(exactly = 1) { clientRateLimitCollector.collect(any(), any()) }
+        coVerify(exactly = 1) { statsDMetricCollector.collect() }
+        coVerify(exactly = 1) { databaseSizeCollector.collect(any()) }
+    }
+
+    @Test
+    fun `properties-only heartbeat skips every metrics collector`() = runTest {
+        samplingConfig = SamplingConfig(monitoringResolution = OFF)
+
+        assertThat(task.doWork(Unit)).isEqualTo(SUCCESS)
+
+        coVerify(exactly = 0) { batteryStatsCollector.collect(any(), any()) }
+        coVerify(exactly = 0) { storageStatsCollector.collectStorageStats(any()) }
+        coVerify(exactly = 0) { networkStatsCollector.collectAndRecord(any(), any()) }
+        coVerify(exactly = 0) { usageStatsCollector.collectUsageStats(any(), any()) }
+        coVerify(exactly = 0) { clientRateLimitCollector.collect(any(), any()) }
+        coVerify(exactly = 0) { statsDMetricCollector.collect() }
+        coVerify(exactly = 0) { databaseSizeCollector.collect(any()) }
+    }
+
+    @Test
+    fun `properties-only heartbeat is still uploaded, carrying attributes`() = runTest {
+        samplingConfig = SamplingConfig(monitoringResolution = OFF)
+
+        assertThat(task.doWork(Unit)).isEqualTo(SUCCESS)
+
+        // Overridden to OFF so that shouldUpload() passes when monitoring is OFF.
+        coVerify(exactly = 1) {
+            enqueueUpload.enqueue(
+                file = null,
+                metadata = withArg { metadata ->
+                    assertThat((metadata as HeartbeatMarMetadata).reportType).isEqualTo("heartbeat")
+                },
+                collectionTime = any(),
+                overrideMonitoringResolution = OFF,
+                overrideDebuggingResolution = null,
+                overrideSoftwareVersion = any(),
+            )
+        }
+    }
+
+    @Test
+    fun `system properties and app versions are still collected in properties-only mode`() = runTest {
+        samplingConfig = SamplingConfig(monitoringResolution = OFF)
+
+        assertThat(task.doWork(Unit)).isEqualTo(SUCCESS)
+
+        coVerify(exactly = 1) { systemPropertiesCollector.collect() }
+        coVerify(exactly = 1) { appVersionsCollector.collect() }
     }
 }

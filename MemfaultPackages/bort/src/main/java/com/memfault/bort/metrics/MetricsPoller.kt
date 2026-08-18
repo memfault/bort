@@ -7,7 +7,11 @@ import com.memfault.bort.scopes.Scope
 import com.memfault.bort.scopes.Scoped
 import com.memfault.bort.scopes.coroutineScope
 import com.memfault.bort.settings.BortEnabledProvider
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.MetricsPollingIntervalFlow
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesMultibinding
 import dagger.hilt.components.SingletonComponent
@@ -37,6 +41,7 @@ class MetricsPoller @Inject constructor(
     private val bortEnabledProvider: BortEnabledProvider,
     private val metricsPollingInterval: MetricsPollingIntervalFlow,
     private val collectors: InjectSet<MetricCollector>,
+    private val currentSamplingConfig: CurrentSamplingConfig,
     @IO private val ioDispatcher: CoroutineContext,
 ) : Scoped {
     override fun onEnterScope(scope: Scope) {
@@ -48,8 +53,10 @@ class MetricsPoller @Inject constructor(
         combine(
             bortEnabledProvider.isEnabledFlow(),
             metricsPollingInterval(),
-        ) { enabled, interval ->
-            PollerSettings(enabled, interval)
+            currentSamplingConfig.asFlow()
+                .map { it.shouldCollect(CollectedData.METRICS) == CollectionDecision.FULL },
+        ) { enabled, interval, metricsCollected ->
+            PollerSettings(enabled = enabled && metricsCollected, interval = interval)
         }
             .distinctUntilChanged()
             .flatMapLatest { settings ->

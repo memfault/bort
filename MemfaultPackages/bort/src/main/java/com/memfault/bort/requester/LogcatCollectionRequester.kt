@@ -9,9 +9,13 @@ import com.memfault.bort.logcat.LogcatCollectionTask
 import com.memfault.bort.logcat.NextLogcatCidProvider
 import com.memfault.bort.logcat.NextLogcatStartTimeProvider
 import com.memfault.bort.periodicWorkRequest
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.LogcatCollectionMode
 import com.memfault.bort.settings.LogcatSettings
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.toAbsoluteTime
@@ -62,6 +66,7 @@ class LogcatCollectionRequester @Inject constructor(
     private val logcatSettings: LogcatSettings,
     private val nextLogcatCidProvider: NextLogcatCidProvider,
     private val nextLogcatStartTimeProvider: NextLogcatStartTimeProvider,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(
         justBooted: Boolean,
@@ -88,7 +93,10 @@ class LogcatCollectionRequester @Inject constructor(
     }
 
     override suspend fun enabled(settings: SettingsProvider): Boolean = settings.logcatSettings.dataSourceEnabled &&
-        settings.logcatSettings.collectionMode == LogcatCollectionMode.PERIODIC
+        settings.logcatSettings.collectionMode == LogcatCollectionMode.PERIODIC &&
+        currentSamplingConfig.get().shouldCollect(CollectedData.LOGCAT_CAPTURE) == CollectionDecision.FULL
+
+    override val dependsOnSamplingConfig: Boolean = true
 
     override suspend fun diagnostics(): BortWorkInfo = WorkManager.getInstance(application)
         .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)

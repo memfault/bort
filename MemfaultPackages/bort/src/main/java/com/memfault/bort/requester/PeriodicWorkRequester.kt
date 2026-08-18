@@ -21,6 +21,7 @@ import androidx.work.WorkInfo.Companion.STOP_REASON_USER
 import com.memfault.bort.DevMode
 import com.memfault.bort.DumpsterCapabilities
 import com.memfault.bort.dagger.InjectSet
+import com.memfault.bort.settings.BortEnabledProvider
 import com.memfault.bort.settings.DynamicSettingsProvider
 import com.memfault.bort.settings.FetchedSettingsUpdate
 import com.memfault.bort.settings.ProjectKeyProvider
@@ -44,6 +45,12 @@ abstract class PeriodicWorkRequester {
     /** Is the task enabled, based on the supplied settings? */
     protected abstract suspend fun enabled(settings: SettingsProvider): Boolean
 
+    /**
+     * Only these tasks are re-evaluated when the sampling config changes, so that unrelated tasks (the heartbeat,
+     * the device-config poll) are not cancelled and re-enqueued as a side effect.
+     */
+    protected open val dependsOnSamplingConfig: Boolean = false
+
     /** Did task scheduling parameters change? (Excluding anything covered by [enabled]) */
     protected abstract suspend fun parametersChanged(
         old: SettingsProvider,
@@ -64,6 +71,7 @@ abstract class PeriodicWorkRequester {
         private val devMode: DevMode,
         private val projectKeyProvider: ProjectKeyProvider,
         private val settingsProvider: SettingsProvider,
+        private val bortEnabledProvider: BortEnabledProvider,
     ) {
         suspend fun maybeRestartTasksAfterSettingsChange(input: FetchedSettingsUpdate) {
             val old = DynamicSettingsProvider(
@@ -96,12 +104,26 @@ abstract class PeriodicWorkRequester {
             Logger.test("Periodic tasks were restarted")
         }
 
+        suspend fun restartTasksAfterSamplingConfigChange() {
+            val bortEnabled = bortEnabledProvider.isEnabled()
+            periodicWorkRequesters
+                .filter { it.dependsOnSamplingConfig }
+                .forEach {
+                    if (bortEnabled && it.enabled(settingsProvider)) {
+                        it.startPeriodic(justBooted = false, settingsChanged = true)
+                    } else {
+                        it.cancelPeriodic()
+                    }
+                }
+            Logger.test("Periodic tasks were restarted after sampling config change")
+        }
+
         suspend fun scheduleTasksAfterBootOrEnable(
             bortEnabled: Boolean,
             justBooted: Boolean,
         ) {
             periodicWorkRequesters.forEach {
-                val enabled = it.enabled(settingsProvider) && bortEnabled
+                val enabled = bortEnabled && it.enabled(settingsProvider)
                 if (enabled) {
                     it.startPeriodic(justBooted = justBooted, settingsChanged = false)
                 } else {

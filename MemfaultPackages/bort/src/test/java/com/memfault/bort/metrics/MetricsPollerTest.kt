@@ -1,6 +1,9 @@
 package com.memfault.bort.metrics
 
+import com.memfault.bort.settings.CurrentSamplingConfig
+import com.memfault.bort.settings.SamplingConfig
 import com.memfault.bort.uploader.BortEnabledTestProvider
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -18,10 +21,16 @@ class MetricsPollerTest {
     private val collector: MetricCollector = mockk {
         every { onChanged() } answers { flowOf(Unit) }
     }
+    private var samplingConfig = SamplingConfig()
+    private val currentSamplingConfig: CurrentSamplingConfig = mockk {
+        coEvery { get() } answers { samplingConfig }
+        every { asFlow() } answers { flowOf(samplingConfig) }
+    }
     private val metricsPoller = MetricsPoller(
         bortEnabledProvider = bortEnabledProvider,
         metricsPollingInterval = { pollingIntervalFlow },
         collectors = setOf(collector),
+        currentSamplingConfig = currentSamplingConfig,
         ioDispatcher = Dispatchers.IO, // not actually used in this test
     )
 

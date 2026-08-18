@@ -17,8 +17,12 @@ import com.memfault.bort.periodicWorkRequest
 import com.memfault.bort.requester.BortWorkInfo
 import com.memfault.bort.requester.PeriodicWorkRequester
 import com.memfault.bort.requester.asBortWorkInfo
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
+import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.DropBoxSettings
 import com.memfault.bort.settings.SettingsProvider
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.shared.Logger
 import com.squareup.anvil.annotations.ContributesBinding
 import com.squareup.anvil.annotations.ContributesMultibinding
@@ -55,6 +59,7 @@ class DropBoxGetEntriesTask @Inject constructor(
     private val processingMutex: DropboxProcessingMutex,
     private val dropBoxManager: Lazy<DropBoxManager>,
     private val crashHandler: CrashHandler,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) : Task<Unit> {
     override fun getMaxAttempts(input: Unit) = 1
     override fun convertAndValidateInputData(inputData: Data): Unit = Unit
@@ -62,6 +67,9 @@ class DropBoxGetEntriesTask @Inject constructor(
 
     suspend fun doWork(): TaskResult {
         if (!settings.dataSourceEnabled or entryProcessors.map.isEmpty()) return TaskResult.SUCCESS
+        if (currentSamplingConfig.get().shouldCollect(CollectedData.CRASH_ARTIFACT) == CollectionDecision.NONE) {
+            return TaskResult.SUCCESS
+        }
 
         // Use this periodic task to poke the crash-free-hours processor.
         crashHandler.process()
@@ -146,6 +154,7 @@ fun enqueueOneTimeDropBoxQueryTask(context: Context) {
 class DropboxRequester @Inject constructor(
     private val dropBoxSettings: DropBoxSettings,
     private val application: Application,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) : PeriodicWorkRequester() {
     override suspend fun startPeriodic(justBooted: Boolean, settingsChanged: Boolean) {
         periodicWorkRequest<DropBoxGetEntriesTask>(
@@ -168,7 +177,10 @@ class DropboxRequester @Inject constructor(
             .cancelUniqueWork(WORK_UNIQUE_NAME_PERIODIC)
     }
 
-    override suspend fun enabled(settings: SettingsProvider): Boolean = dropBoxSettings.dataSourceEnabled
+    override suspend fun enabled(settings: SettingsProvider): Boolean = dropBoxSettings.dataSourceEnabled &&
+        currentSamplingConfig.get().shouldCollect(CollectedData.CRASH_ARTIFACT) != CollectionDecision.NONE
+
+    override val dependsOnSamplingConfig: Boolean = true
 
     override suspend fun diagnostics(): BortWorkInfo = WorkManager.getInstance(application)
         .getWorkInfosForUniqueWorkFlow(WORK_UNIQUE_NAME_PERIODIC)

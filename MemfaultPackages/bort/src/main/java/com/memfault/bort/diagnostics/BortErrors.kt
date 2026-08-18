@@ -5,6 +5,10 @@ import com.memfault.bort.chronicler.ClientChroniclerEntry
 import com.memfault.bort.clientserver.MarMetadata.ClientChroniclerMarMetadata
 import com.memfault.bort.diagnostics.BortErrors.Companion.CLEANUP_AGE
 import com.memfault.bort.settings.BatchMarUploads
+import com.memfault.bort.settings.CollectedData
+import com.memfault.bort.settings.CollectionDecision
+import com.memfault.bort.settings.CurrentSamplingConfig
+import com.memfault.bort.settings.shouldCollect
 import com.memfault.bort.time.AbsoluteTime
 import com.memfault.bort.time.AbsoluteTimeProvider
 import com.memfault.bort.time.CombinedTimeProvider
@@ -31,6 +35,7 @@ class BortErrors @Inject constructor(
     private val enqueueUpload: EnqueueUpload,
     private val combinedTimeProvider: CombinedTimeProvider,
     private val absoluteTimeProvider: AbsoluteTimeProvider,
+    private val currentSamplingConfig: CurrentSamplingConfig,
 ) {
     suspend fun add(
         type: BortErrorType,
@@ -51,15 +56,20 @@ class BortErrors @Inject constructor(
         type: BortErrorType,
         eventData: Map<String, String>,
     ) {
+        // Here rather than on upload, which doesn't run at a level that withholds errors.
+        cleanup()
+
         val bortError = BortError(timestamp = timestamp, type = type, eventData = eventData)
         batchMarUploads().let { batchingUploads ->
+            var uploaded = false
             if (!batchingUploads) {
-                // If not batching, then cleanup would otherwise never be called - so do it here.
-                cleanup()
                 // If Dev Mode, then upload each error immediately (the MarBatchingTask will never run, to batch them).
-                enqueueErrorsForUpload(listOf(bortError))
+                uploaded = errorUploadsCollected()
+                if (uploaded) {
+                    enqueueErrorsForUpload(listOf(bortError))
+                }
             }
-            bortErrorsDb.dao().insert(error = bortError, uploaded = !batchingUploads)
+            bortErrorsDb.dao().insert(error = bortError, uploaded = uploaded)
         }
     }
 
@@ -67,6 +77,9 @@ class BortErrors @Inject constructor(
         .getAllBortErrorsForDiagnostics()
 
     suspend fun enqueueBortErrorsForUpload() {
+        if (!errorUploadsCollected()) {
+            return
+        }
         val errorsToUpload = bortErrorsDb.dao()
             .getErrorsForUpload()
             .filter { it.type.upload }
@@ -77,7 +90,14 @@ class BortErrors @Inject constructor(
         cleanup()
     }
 
+    /** Errors are left unuploaded rather than dropped: they are stored for the diagnostics provider either way. */
+    private suspend fun errorUploadsCollected(): Boolean =
+        currentSamplingConfig.get().shouldCollect(CollectedData.DEBUGGING_ARTIFACT) == CollectionDecision.FULL
+
     private suspend fun enqueueErrorsForUpload(errors: List<BortError>) {
+        if (!errorUploadsCollected()) {
+            return
+        }
         enqueueUpload.enqueue(
             file = null,
             metadata = ClientChroniclerMarMetadata(entries = errors.map { it.toChroniclerEntry() }),
