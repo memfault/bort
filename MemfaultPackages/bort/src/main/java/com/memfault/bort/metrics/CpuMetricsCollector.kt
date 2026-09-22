@@ -1,7 +1,9 @@
 package com.memfault.bort.metrics
 
 import android.content.SharedPreferences
+import com.memfault.bort.CpuUsagePrefs
 import com.memfault.bort.DumpsterClient
+import com.memfault.bort.PREFERENCE_CPU_USAGE
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.boot.LinuxBootId
 import com.memfault.bort.metrics.CpuUsage.Companion.percentUsage
@@ -87,13 +89,13 @@ interface CpuUsageStorage {
 @Singleton
 @ContributesBinding(SingletonComponent::class, boundType = CpuUsageStorage::class)
 class RealCpuUsageStorage @Inject constructor(
-    sharedPreferences: SharedPreferences,
+    @CpuUsagePrefs sharedPreferences: SharedPreferences,
     readBootId: LinuxBootId,
 ) : CpuUsageStorage, SerializedCachedPreferenceKeyProvider<CpuUsage>(
     sharedPreferences,
     CpuUsage.EMPTY.copy(bootId = readBootId()),
     CpuUsage.serializer(),
-    "CPU_USAGE",
+    PREFERENCE_CPU_USAGE,
 )
 
 fun CpuUsage.diffFromPrevious(previous: CpuUsage): CpuUsage = if (this.totalTicks() < previous.totalTicks() ||

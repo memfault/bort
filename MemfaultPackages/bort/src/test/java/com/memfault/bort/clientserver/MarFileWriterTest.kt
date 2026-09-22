@@ -33,6 +33,7 @@ import java.io.RandomAccessFile
 import java.time.Instant
 import java.util.UUID
 import java.util.zip.ZipInputStream
+import kotlin.random.Random
 import kotlin.time.Duration
 
 internal class MarFileWriterTest {
@@ -137,6 +138,37 @@ internal class MarFileWriterTest {
     }
 
     @Test
+    fun mergeMarFiles_oneWithCorruptEntryData() {
+        // Opens as a valid zip - the central directory is intact - but the entry data doesn't inflate.
+        val corruptMarFile = createMarFile("mar1.mar", heartbeat(timeMs = 123456789), INCOMPRESSIBLE_CONTENT)
+            .also { marFile ->
+                RandomAccessFile(marFile, "rw").use { raf ->
+                    raf.seek(CORRUPTION_OFFSET)
+                    raf.write(ByteArray(CORRUPTION_LENGTH))
+                }
+            }
+
+        val manifest = logcat(timeMs = 987654321)
+        val marFile = createMarFile("mar2.mar", manifest, FILE_CONTENT_2)
+
+        val batchedMarFile = File.createTempFile("marfile", "batched.mar")
+        writeBatchedMarFile(batchedMarFile, listOf(corruptMarFile, marFile), compressionLevel = 4)
+
+        assertThat(corruptMarFile).doesNotExist()
+        assertThat(marFile).doesNotExist()
+
+        // The file after the corrupt one is still batched.
+        val entries = mutableMapOf<String, String>()
+        ZipInputStream(FileInputStream(batchedMarFile)).use { zipIn ->
+            generateSequence { zipIn.nextEntry }.forEach { entry ->
+                entries[entry.name] = zipIn.readBytes().decodeToString()
+            }
+        }
+        val filename = checkNotNull(manifest.filename())
+        assertThat(entries.entries.single { it.key.endsWith(filename) }.value).isEqualTo(FILE_CONTENT_2)
+    }
+
+    @Test
     fun mergeToMultipleFiles() {
         val settings: HttpApiSettings = object : FakeHttpApiSettings() {
             override val projectKey: String get() = "key"
@@ -231,6 +263,12 @@ internal class MarFileWriterTest {
     }
 
     companion object {
+        /** Enough of it, and compressible enough, that [CORRUPTION_OFFSET] lands in the entry data. */
+        private val INCOMPRESSIBLE_CONTENT = Random(seed = 0).let { random ->
+            String(CharArray(50_000) { 'a' + random.nextInt(26) })
+        }
+        private const val CORRUPTION_OFFSET = 1_000L
+        private const val CORRUPTION_LENGTH = 4_000
         const val FILE_CONTENT = "hi this is the input file"
         private const val FILE_CONTENT_2 = "and this is the second input file with some slightly different content"
         private const val FILE_CONTENT_3 = "blah blah blah blah blah blah blah blah blah blah blah blah blah blah " +

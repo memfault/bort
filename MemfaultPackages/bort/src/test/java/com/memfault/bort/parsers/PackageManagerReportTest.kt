@@ -39,4 +39,21 @@ class PackageManagerReportTest {
         assertThat(ProcessUid.entries.map { it.uid }.toSet()).hasSize(ProcessUid.entries.size)
         assertThat(ProcessUid.entries.map { it.processName }.toSet()).hasSize(ProcessUid.entries.size)
     }
+
+    @Test
+    fun uidToName() {
+        val report = PackageManagerReport(
+            listOf(
+                Package(id = "com.memfault.smartfridge", userId = 10045),
+                Package(id = "com.memfault.smartfridge.secondary", userId = 1010046),
+            ),
+        )
+
+        assertThat(report.uidToName(10045)).isEqualTo("com.memfault.smartfridge")
+        assertThat(report.uidToName(1010046)).isEqualTo("com.memfault.smartfridge.secondary")
+        assertThat(report.uidToName(10099)).isEqualTo("unknown")
+        assertThat(report.uidToName(1010099)).isEqualTo("unknown")
+        assertThat(report.uidToName(ProcessUid.PROCESS_SYSTEM.uid)).isEqualTo("system")
+        assertThat(report.uidToName(1234)).isEqualTo("android")
+    }
 }

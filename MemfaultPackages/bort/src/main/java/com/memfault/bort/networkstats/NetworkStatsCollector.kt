@@ -1,6 +1,5 @@
 package com.memfault.bort.networkstats
 
-import android.os.Process
 import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.android.DeviceFeatures
 import com.memfault.bort.metrics.SignificantAppsProvider
@@ -9,7 +8,6 @@ import com.memfault.bort.networkstats.NetworkStatsConnectivity.ETHERNET
 import com.memfault.bort.networkstats.NetworkStatsConnectivity.MOBILE
 import com.memfault.bort.networkstats.NetworkStatsConnectivity.WIFI
 import com.memfault.bort.parsers.PackageManagerReport
-import com.memfault.bort.parsers.PackageManagerReport.Companion.PROCESS_UID_COMPONENT_MAP
 import com.memfault.bort.reporting.NumericAgg.SUM
 import com.memfault.bort.reporting.Reporting
 import com.memfault.bort.settings.NetworkUsageSettings
@@ -509,15 +507,6 @@ class RealNetworkStatsCollector
         rollupUsage(MOBILE, mobileUsage)
         rollupUsage(BLUETOOTH, bluetoothUsage)
     }
-
-    private fun PackageManagerReport.uidToName(uid: Int): String =
-        PROCESS_UID_COMPONENT_MAP[uid]
-            ?: if (uid in Process.FIRST_APPLICATION_UID..Process.LAST_APPLICATION_UID) {
-                packages.lastOrNull { it.userId == uid }?.id ?: "unknown"
-            } else {
-                // Every remaining system UID's usage is assigned to "android"
-                "android"
-            }
 
     companion object {
         private fun appInMetricName(

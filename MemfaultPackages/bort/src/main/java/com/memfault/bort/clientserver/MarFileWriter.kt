@@ -161,15 +161,24 @@ class MarFileWriter @Inject constructor(
                     zipOut.setLevel(compressionLevel)
 
                     inputFiles.forEach { inFile ->
-                        openZipFile(inFile)?.use { zipIn ->
-                            for (entry in zipIn.entries()) {
-                                // The name includes the full directory structure: this includes the mar filename, so
-                                // replace with the new mar filename.
-                                val name = entry.name.replace(inFile.name, marFile.name)
-                                zipOut.addZipEntry(name, zipIn.getInputStream(entry))
+                        try {
+                            openZipFile(inFile)?.use { zipIn ->
+                                for (entry in zipIn.entries()) {
+                                    // The name includes the full directory structure: this includes the mar filename,
+                                    // so replace with the new mar filename.
+                                    val name = entry.name.replace(inFile.name, marFile.name)
+                                    zipOut.addZipEntry(name, zipIn.getInputStream(entry))
+                                }
                             }
+                        } catch (e: Exception) {
+                            // Drop any file we can't read: it would otherwise fail this batch, and every batch
+                            // after it, leaving the device unable to upload anything at all.
+                            Logger.e("Dropping mar file which could not be batched: $inFile", e)
+                            Reporting.report().event("mar.batching.file_dropped", countInReport = true, internal = true)
+                                .add(inFile.name)
+                        } finally {
+                            inFile.delete()
                         }
-                        inFile.delete()
                     }
                 }
             }

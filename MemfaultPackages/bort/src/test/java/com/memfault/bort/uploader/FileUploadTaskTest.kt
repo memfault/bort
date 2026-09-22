@@ -7,6 +7,8 @@ import androidx.work.workDataOf
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
+import assertk.assertions.isTrue
+import com.memfault.bort.BortJson
 import com.memfault.bort.FileUploadToken
 import com.memfault.bort.FileUploader
 import com.memfault.bort.MarFileUploadPayload
@@ -182,6 +184,57 @@ class FileUploadTaskTest {
                 file,
                 ofType(Payload.MarPayload::class),
                 shouldCompress = true,
+            )
+        }
+    }
+
+    @Test
+    fun shouldCompressSurvivesWorkerInputData() {
+        val input = FileUploadTaskInput(file, fileUploadPayload(), shouldCompress = false)
+
+        assertThat(FileUploadTaskInput.fromData(input.toWorkerInputData()).shouldCompress).isFalse()
+    }
+
+    @Test
+    fun shouldCompressDefaultsToTrueWhenMissingFromWorkerInputData() {
+        // Tasks enqueued by a previous Bort version don't have the key at all.
+        val inputData = workDataOf(
+            "PATH" to file.path,
+            "METADATA" to BortJson.encodeToString(Payload.serializer(), fileUploadPayload()),
+        )
+
+        assertThat(FileUploadTaskInput.fromData(inputData).shouldCompress).isTrue()
+    }
+
+    @Test
+    fun uploadsUncompressedWhenShouldCompressIsFalse() = runTest {
+        val mockUploader = spyk(fakeFileUploader())
+        val task = FileUploadTask(
+            delegate = mockUploader,
+            bortEnabledProvider = BortEnabledTestProvider(),
+            getUploadCompressionEnabled = { true },
+            maxUploadAttempts = { 1 },
+            metrics = mockk(relaxed = true),
+            ioCoroutineContext = coroutineContext,
+        )
+        val worker = mockTaskRunnerWorker<FileUploadTask>(
+            context,
+            mockWorkerFactory(fileUpload = task),
+            FileUploadTaskInput(
+                file,
+                fileUploadPayload(),
+                shouldCompress = false,
+            ).toWorkerInputData(),
+        )
+
+        val result = worker.doWork()
+
+        assertThat(result).isEqualTo(Result.success())
+        coVerify {
+            mockUploader.upload(
+                file,
+                ofType(Payload.MarPayload::class),
+                shouldCompress = false,
             )
         }
     }

@@ -15,6 +15,8 @@ internal class AggregateMetricFilterTest {
             "sysprop.ro.build.type.latest" to JsonPrimitive("user"),
             "version.com.x.y.z.latest" to JsonPrimitive("v1"),
             "disk_wear.vda.bytes_written.mean" to JsonPrimitive(12345L),
+            "storage_com.x.y_write_bytes.sum" to JsonPrimitive(2048L),
+            "storage_com.x.y_logical_write_bytes.sum" to JsonPrimitive(4096L),
         )
         val output = mapOf(
             "random_metric" to JsonPrimitive(4.32),
@@ -22,6 +24,8 @@ internal class AggregateMetricFilterTest {
             "version.com.x.y.z" to JsonPrimitive("v1"),
             "operational_crashes" to JsonPrimitive(0.0),
             "disk_wear.vda.bytes_written" to JsonPrimitive(12345L),
+            "storage_com.x.y_write_bytes" to JsonPrimitive(2048L),
+            "storage_com.x.y_logical_write_bytes" to JsonPrimitive(4096L),
         )
         assertThat(filterAndRenameMetrics(input, internal = false, reportType = Hourly)).isEqualTo(output)
     }

@@ -20,6 +20,19 @@ LOG_FILE = "validate-sdk-integration.log"
 
 logging.basicConfig(format="%(message)s", level=logging.INFO)
 
+
+class _ColorFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:  # pyright: ignore[reportImplicitOverride]
+        message = super().format(record)
+        if record.levelno == logging.WARNING:
+            return f"\033[33m{message}\033[0m"
+        return message
+
+
+if sys.stderr.isatty():
+    for _handler in logging.getLogger().handlers:
+        _handler.setFormatter(_ColorFormatter("%(message)s"))
+
 DEFAULT_ENCODING = "utf-8"
 PLACEHOLDER_BORT_AOSP_PATCH_VERSION = "manually_patched"
 PLACEHOLDER_BORT_APP_ID = "vnd.myandroid.bortappid"
@@ -54,6 +67,20 @@ SYSFS_SECONTEXTS = {
     "/sys/class/thermal": "sysfs_thermal",
     "/sys/devices/virtual/thermal": "sysfs_thermal",
 }
+# Sysfs nodes MemfaultDumpster falls back to for flash wear when the Health HAL does not
+# implement getStorageInfo. See MemfaultDumpster/storage.h.
+FLASH_WEAR_FIXED_PATHS = [
+    "/sys/bus/mmc/devices/mmc0:0001/life_time",
+    "/sys/devices/soc/624000.ufshc/health",
+]
+UFS_HEALTH_DESCRIPTOR_GLOBS = [
+    "/sys/devices/platform/*/health_descriptor/life_time_estimation_a",
+    "/sys/devices/platform/*/*/health_descriptor/life_time_estimation_a",
+    "/sys/devices/platform/*/*/*/health_descriptor/life_time_estimation_a",
+]
+# ro.hardware values of the goldfish (ranchu) and cuttlefish emulators, which have no flash to wear.
+EMULATOR_HARDWARE = {"goldfish", "ranchu", "cutf_cvm"}
+UFS_HEALTH_SECONTEXT = "u:object_r:memfault_sysfs_ufs_health:s0"
 LOG_ENTRY_SEPARATOR = "============================================================"
 
 
@@ -820,6 +847,7 @@ class ValidateConnectedDevice(Command):
         self._device: Optional[str] = device
         self._vendor_feature_name = vendor_feature_name or bort_app_id
         self._errors: List[str] = []
+        self._warnings: List[str] = []
         self._ignore_enabled = ignore_enabled
         sdk_version = self._query_sdk_version()
         if not sdk_version:
@@ -894,6 +922,69 @@ class ValidateConnectedDevice(Command):
                 logging.info("\tTest passed")
 
         return errors
+
+    def _warn(self, message: str) -> None:
+        logging.warning("\tWARNING: %s", message)
+        self._warnings.append(message)
+
+    def _find_flash_wear_sysfs_problem(self) -> Optional[str]:
+        """
+        Returns None if MemfaultDumpster should be able to read a flash wear sysfs node, or a
+        description of why it can't. Requires adb root.
+        """
+        output, _ = _get_adb_shell_cmd_output_and_errors(
+            description="Looking for flash wear sysfs nodes",
+            cmd=(
+                "ls",
+                "-Z",
+                *FLASH_WEAR_FIXED_PATHS,
+                *UFS_HEALTH_DESCRIPTOR_GLOBS,
+                "2>/dev/null;",
+                "true",
+            ),
+            device=self._device,
+        )
+        lines = [line.strip() for line in (output or "").splitlines() if line.strip()]
+
+        if any(path in line for line in lines for path in FLASH_WEAR_FIXED_PATHS):
+            return None
+
+        ufs_lines = [line for line in lines if "/health_descriptor/" in line]
+        if not ufs_lines:
+            return "No eMMC or UFS health sysfs node found."
+
+        if any(UFS_HEALTH_SECONTEXT in line for line in ufs_lines):
+            return None
+
+        return (
+            f"Found a UFS health descriptor, but without the {UFS_HEALTH_SECONTEXT} SELinux"
+            f" context so MemfaultDumpster cannot read it: {ufs_lines[0]}. Check that the image"
+            f" includes the latest Bort sepolicy and that no vendor file_contexts or genfscon"
+            f" entry overrides it - see https://mflt.io/android-sepolicy."
+        )
+
+    def _check_flash_wear_source(self, diagnostics: Dict[str, str], has_root: bool) -> None:
+        logging.info("\nVerifying Bort has a flash wear (disk_wear.*) source")
+        no_source = (
+            "Bort has no flash wear source, so disk_wear.* metrics will not be reported. The"
+            " Health HAL does not implement getStorageInfo and no sysfs fallback is readable."
+        )
+        if self._getprop("ro.hardware") in EMULATOR_HARDWARE:
+            logging.info("\tSkipped: emulators have no flash storage")
+            return
+
+        source = diagnostics.get("flash_wear_source")
+
+        if source is not None and source != "none":
+            logging.info("\tTest passed (source: %s)", source)
+            return
+
+        if source is None:
+            # Likely running the script against an older version of Bort, ignore.
+            return
+
+        problem = self._find_flash_wear_sysfs_problem() if has_root else None
+        self._warn(f"{no_source} {problem}" if problem else no_source)
 
     def _check_sepolicy_cil(self):
         cmd_results = [
@@ -1130,7 +1221,7 @@ Row: 1 key=requires_runtime_enable, value=true
                 diagnostic_entries[key] = value
         return diagnostic_entries, errors
 
-    def _validate_bort_diagnostics(self):
+    def _validate_bort_diagnostics(self) -> Dict[str, str]:
         diagnostics, errors = self._query_bort_diagnostics()
         logging.info("Bort Diagnostics:")
         for key, value in diagnostics.items():
@@ -1144,6 +1235,7 @@ Row: 1 key=requires_runtime_enable, value=true
             logging.warning("\nBort Errors:")
             for error in errors:
                 logging.warning("   %s", error)
+        return diagnostics
 
     def _validate_jobs(self):
         output, errors = _query_jobscheduler(self._bort_app_id, self._device)
@@ -1177,7 +1269,8 @@ Row: 1 key=requires_runtime_enable, value=true
             sys.exit("Failure: device not found. No tests run.")
 
         build_type = self._query_build_type()
-        if build_type == "user":
+        has_root = build_type != "user"
+        if not has_root:
             logging.info(
                 "'%s' build detected. Skipping validation checks that require adb root!", build_type
             )
@@ -1241,7 +1334,8 @@ Row: 1 key=requires_runtime_enable, value=true
             )
         )
 
-        self._validate_bort_diagnostics()
+        diagnostics = self._validate_bort_diagnostics()
+        self._check_flash_wear_source(diagnostics, has_root)
         self._validate_jobs()
 
         if self._errors:
@@ -1249,6 +1343,11 @@ Row: 1 key=requires_runtime_enable, value=true
                 logging.info(LOG_ENTRY_SEPARATOR)
                 logging.info(error)
             sys.exit(f" Failure: One or more errors detected. See {LOG_FILE} for details")
+
+        if self._warnings:
+            logging.info("")
+            for warning in self._warnings:
+                logging.warning("WARNING: %s", warning)
 
         logging.info("")
         logging.info("SUCCESS: Bort SDK on the connected device appears to be valid")

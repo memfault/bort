@@ -1,6 +1,7 @@
 package com.memfault.bort.metrics
 
 import android.content.SharedPreferences
+import com.memfault.bort.BatteryStatsSummaryPrefs
 import com.memfault.bort.PREFERENCE_BATTERYSTATS_SUMMARY_DATA
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.BatteryStatsSummary
 import com.memfault.bort.parsers.BatteryStatsSummaryParser.BatteryStatsSummary.Companion.toJson
@@ -18,7 +19,7 @@ interface BatteryStatsSummaryProvider {
 
 @ContributesBinding(SingletonComponent::class, boundType = BatteryStatsSummaryProvider::class)
 class RealBatteryStatsSummaryProvider @Inject constructor(
-    sharedPreferences: SharedPreferences,
+    @BatteryStatsSummaryPrefs sharedPreferences: SharedPreferences,
 ) : BatteryStatsSummaryProvider, PreferenceKeyProvider<String>(
     sharedPreferences = sharedPreferences,
     defaultValue = INVALID_MARKER,

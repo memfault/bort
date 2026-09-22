@@ -6,6 +6,56 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 This project currently does not attempt to adhere to Semantic Versioning, but
 breaking changes are avoided unless absolutely necessary.
 
+## v5.11.0 - September 18, 2026
+
+This release adds per-app disk write metrics and USB connector and compliance
+metrics, and cuts the flash writes and CPU a heartbeat costs: metric values for
+a collection cycle are now committed in a single transaction, the high-res
+telemetry file is appended to instead of rewritten, and preference writes are
+batched and deduped. It also fixes two bugs that could leave a device unable to
+upload any data at all.
+
+### :rocket: New Features
+
+- Added per-app disk write metrics for packages configured as significant apps.
+  `storage_<app>_logical_write_bytes` counts the bytes written by the app and
+  `storage_<app>_write_bytes` counts the bytes actually reaching the physical
+  storage.
+- Added USB connector metrics.
+  - `usb.connected.latest`: whether USB is connected
+  - `usb.connections.sum`: number of connections
+  - `usb.connect_duration_ms.mean`, `usb.connect_duration_ms.max`,
+    `usb.connect_duration_ms.sum`: how long each connection lasted
+- Added USB compliance warning metrics (Android 14 and later).
+  - `usb.compliance_warnings.sum`: number of compliance warnings raised
+  - `usb.compliance_warning.latest`: event naming the warnings raised
+
+### :construction: Fixes
+
+- Fixed large batched `.mar` uploads timing out, which could leave a device
+  unable to upload any data.
+- Fixed a single corrupt `.mar` file permanently preventing a device from
+  uploading any data.
+- Fixed parsing of the kernel's per-UID I/O stats, which assumed a non-standard
+  column layout and so reported incorrect bytes-written values on stock Android
+  kernels. Unrecognized formats are now skipped instead of misparsed.
+- Fixed flash wear (`disk_wear.*`) metrics missing on UFS devices whose Health
+  HAL does not implement `getStorageInfo`.
+
+### :chart_with_upwards_trend: Improvements
+
+- A metrics collection cycle now writes its metric values in one SQLite
+  transaction instead of one per value, roughly halving the flash writes a
+  collection costs.
+- High-res telemetry rollups are now appended to the existing file instead of
+  the whole report being decoded and rewritten each heartbeat, which removes the
+  largest repeated write of a collection and its memory cost.
+- Preference writes that don't change a value are now dropped, and the writes a
+  collection cycle makes are applied as a single edit.
+- The large CPU usage, batterystats summary and disk activity blobs now live in
+  their own preference files, so writing one no longer re-serializes the others.
+  Existing values are migrated on first access.
+
 ## v5.10.1 - August 17, 2026
 
 ### :rocket: New Features

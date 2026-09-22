@@ -42,6 +42,7 @@ import com.memfault.bort.settings.CollectionDecision
 import com.memfault.bort.settings.CurrentSamplingConfig
 import com.memfault.bort.settings.Resolution
 import com.memfault.bort.settings.shouldCollect
+import com.memfault.bort.shared.BatchableSharedPreferences
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.storage.AppStorageStatsCollector
 import com.memfault.bort.storage.DatabaseSizeCollector
@@ -157,6 +158,7 @@ class MetricsCollectionTask @Inject constructor(
     private val statsDMetricCollector: StatsdMetricCollector,
     private val batterySessionVitals: BatterySessionVitals,
     private val currentSamplingConfig: CurrentSamplingConfig,
+    private val sharedPreferences: BatchableSharedPreferences,
 ) : Task<Unit> {
     override fun getMaxAttempts(input: Unit) = 1
     override fun convertAndValidateInputData(inputData: Data) = Unit
@@ -435,18 +437,26 @@ class MetricsCollectionTask @Inject constructor(
             return TaskResult.FAILURE
         }
 
-        val now = combinedTimeProvider.now()
-        val lastHeartbeatUptime = lastHeartbeatEndTimeProvider.lastEnd
+        // Collectors update ~10 preferences; batch them into one rewrite and fsync.
+        return sharedPreferences.withBatch {
+            val now = combinedTimeProvider.now()
+            val lastHeartbeatUptime = lastHeartbeatEndTimeProvider.lastEnd
 
-        // Create a properties store, which will collect properties in-memory if that setting is enabled (instead of
-        // writing them to the metrics service).
-        val propertiesStore = DevicePropertiesStore()
+            // Create a properties store, which will collect properties in-memory if that setting is enabled (instead
+            // of writing them to the metrics service).
+            val propertiesStore = DevicePropertiesStore()
 
-        enqueueHeartbeatUpload(now, lastHeartbeatUptime, propertiesStore)
+            // Batch the cycle's metric writes, instead of one transaction per value: each commit is a flash page
+            // program.
+            customMetrics.batchMetricWrites {
+                enqueueHeartbeatUpload(now, lastHeartbeatUptime, propertiesStore)
+            }
 
-        lastHeartbeatEndTimeProvider.lastEnd = now
-        everCollectedMetricsPreferenceProvider.setValue(true)
-        return TaskResult.SUCCESS
+            lastHeartbeatEndTimeProvider.lastEnd = now
+            everCollectedMetricsPreferenceProvider.setValue(true)
+            Logger.test("Metrics: collection complete")
+            TaskResult.SUCCESS
+        }
     }
 
     private fun inMemoryDuration(
