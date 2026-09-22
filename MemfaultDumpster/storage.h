@@ -8,7 +8,9 @@
 #include <android-base/strings.h>
 #include <binder/Status.h>
 #include <cstdio>
+#include <dirent.h>
 #include <string>
+#include <vector>
 
 using namespace android::base;
 
@@ -42,6 +44,12 @@ namespace memfault {
 
 // UFS fallback path
 const std::string ufs_health_file = "/sys/devices/soc/624000.ufshc/health";
+
+// UFS hosts expose the JEDEC health descriptor as one file per attribute in a
+// health_descriptor directory next to the host device. The host address differs
+// per SoC/vendor so we search for it.
+const std::string ufs_platform_devices_dir = "/sys/devices/platform";
+const int ufs_platform_devices_max_depth = 3;
 
 // eMMC fallback path
 const std::string emmc_health_file_dir = "/sys/bus/mmc/devices/mmc0:0001/";
@@ -270,6 +278,99 @@ static bool _get_storage_info_from_ufs(jedec_storage_info &info) {
     return true;
 }
 
+static bool _find_ufs_health_descriptor_host(const std::string &dir, int depth, std::string &host) {
+    DIR *d = opendir(dir.c_str());
+    if (!d) {
+        return false;
+    }
+
+    std::vector<std::string> subdirs;
+    dirent *entry;
+    while ((entry = readdir(d)) != nullptr) {
+        if (entry->d_type != DT_DIR || entry->d_name[0] == '.') {
+            continue;
+        }
+        std::string name = entry->d_name;
+        if (name == "health_descriptor") {
+            closedir(d);
+            host = dir;
+            return true;
+        }
+        subdirs.push_back(dir + "/" + name);
+    }
+    closedir(d);
+
+    if (depth >= ufs_platform_devices_max_depth) {
+        return false;
+    }
+    for (const auto &subdir : subdirs) {
+        if (_find_ufs_health_descriptor_host(subdir, depth + 1, host)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool _read_hex_file(const std::string &path, int &value) {
+    std::string buffer;
+    if (!ReadFileToString(path, &buffer)) {
+        ALOGD("Failed to read %s", path.c_str());
+        return false;
+    }
+    unsigned int parsed = 0;
+    if (sscanf(buffer.c_str(), "%x", &parsed) < 1 || parsed > 0xff) {
+        ALOGD("Failed to parse %s", path.c_str());
+        return false;
+    }
+    value = static_cast<int>(parsed);
+    return true;
+}
+
+static bool _get_storage_info_from_ufs_health_descriptor(jedec_storage_info &info) {
+    std::string host;
+    if (!_find_ufs_health_descriptor_host(ufs_platform_devices_dir, 1, host)) {
+        ALOGD("No UFS health_descriptor found under %s", ufs_platform_devices_dir.c_str());
+        return false;
+    }
+
+    const std::string health_dir = host + "/health_descriptor/";
+    int eol = 0, lifetimeA = 0, lifetimeB = 0;
+    if (!_read_hex_file(health_dir + "eol_info", eol) ||
+        !_read_hex_file(health_dir + "life_time_estimation_a", lifetimeA) ||
+        !_read_hex_file(health_dir + "life_time_estimation_b", lifetimeB)) {
+        return false;
+    }
+
+    if (eol == 0 && lifetimeA == 0 && lifetimeB == 0) {
+        ALOGD("UFS health_descriptor at %s has no data", health_dir.c_str());
+        return false;
+    }
+
+    std::string version = "ufs";
+    std::string spec_version;
+    if (ReadFileToString(host + "/device_descriptor/specification_version", &spec_version)) {
+        spec_version = Trim(spec_version);
+        if (StartsWith(spec_version, "0x")) {
+            spec_version = spec_version.substr(2);
+        }
+        if (!spec_version.empty()) {
+            version += " " + spec_version;
+        }
+    }
+
+#if PLATFORM_SDK_VERSION < 26
+    // android::base::Basename is not available on Android 7
+    info.source = host.substr(host.find_last_of('/') + 1);
+#else
+    info.source = Basename(host);
+#endif
+    info.eol = eol;
+    info.lifetimeA = lifetimeA;
+    info.lifetimeB = lifetimeB;
+    info.version = version;
+
+    return true;
+}
 
 bool get_storage_info(jedec_storage_info &info) {
 
@@ -285,6 +386,11 @@ bool get_storage_info(jedec_storage_info &info) {
 
     // if that fails get it from the ufs sysfs node
     if (_get_storage_info_from_ufs(info)) {
+        return true;
+    }
+
+    // if that fails search for a UFS health_descriptor sysfs directory
+    if (_get_storage_info_from_ufs_health_descriptor(info)) {
         return true;
     }
 

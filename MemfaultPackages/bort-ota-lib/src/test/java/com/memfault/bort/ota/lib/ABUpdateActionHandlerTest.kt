@@ -303,6 +303,7 @@ class ABUpdateActionHandlerTest {
         }
         val prefs = mockk<SharedPreferences> {
             every { edit() } returns editor
+            every { getString(any(), any()) } returns "cached-ota"
         }
         val provider = SharedPreferenceCachedOtaProvider(prefs)
         provider.set(null)

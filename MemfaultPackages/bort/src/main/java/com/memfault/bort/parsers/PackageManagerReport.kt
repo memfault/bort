@@ -40,7 +40,17 @@ data class PackageManagerReport(val packages: List<Package> = emptyList()) {
 
     fun findByUid(uid: Int): List<Package> = uidMapper[uid] ?: emptyList()
 
+    fun uidToName(uid: Int): String = PROCESS_UID_COMPONENT_MAP[uid]
+        ?: if (uid % PER_USER_RANGE in Process.FIRST_APPLICATION_UID..Process.LAST_APPLICATION_UID) {
+            packages.lastOrNull { it.userId == uid }?.id ?: "unknown"
+        } else {
+            "android"
+        }
+
     companion object {
+        /** UIDs are one block of this size per Android user: uid = userId * PER_USER_RANGE + appId. */
+        private const val PER_USER_RANGE = 100_000
+
         /**
          * https://cs.android.com/android/platform/superproject/main/+/main:system/core/libcutils/include/private/android_filesystem_config.h
          *

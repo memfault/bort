@@ -9,6 +9,7 @@ import com.memfault.bort.metrics.statsd.proto.BluetoothDeviceTxPowerLevelReporte
 import com.memfault.bort.metrics.statsd.proto.BluetoothQualityReportReported
 import com.memfault.bort.metrics.statsd.proto.BqrIdEnum.BQR_ID_UNKNOWN
 import com.memfault.bort.metrics.statsd.proto.BqrPacketTypeEnum.BQR_PACKET_TYPE_UNKNOWN
+import com.memfault.bort.metrics.statsd.proto.ComplianceWarning
 import com.memfault.bort.metrics.statsd.proto.ConfigMetricsReport
 import com.memfault.bort.metrics.statsd.proto.EventMetricData
 import com.memfault.bort.metrics.statsd.proto.LowMemReported
@@ -17,6 +18,8 @@ import com.memfault.bort.metrics.statsd.proto.StatsLogReport
 import com.memfault.bort.metrics.statsd.proto.StatsLogReport.EventMetricDataWrapper
 import com.memfault.bort.metrics.statsd.proto.StatusEnum
 import com.memfault.bort.metrics.statsd.proto.StatusEnum.STATUS_SUCCESS
+import com.memfault.bort.metrics.statsd.proto.UsbComplianceWarningsReported
+import com.memfault.bort.metrics.statsd.proto.UsbConnectorStateChanged
 import com.memfault.bort.metrics.statsd.proto.UsbContaminantReported
 import com.memfault.bort.metrics.statsd.proto.WifiDisconnectReported
 import com.memfault.bort.metrics.statsd.proto.WifiDisconnectReported.FailureCode
@@ -43,6 +46,8 @@ object FakeStatsdReportFixtures {
                             add(lowMemReported())
                             addAll(slowIo())
                             add(usbContaminantDetected())
+                            addAll(usbConnectorStateChanged())
+                            add(usbComplianceWarningsReported())
                         }.map { it.toEventMetricData() },
                     ),
                 ),
@@ -124,6 +129,33 @@ object FakeStatsdReportFixtures {
         usb_contaminant_reported = UsbContaminantReported(
             id = "0001",
             status = UsbContaminantReported.ContaminantPresenceStatus.CONTAMINANT_STATUS_DETECTED,
+        ),
+    )
+
+    private fun usbConnectorStateChanged(): List<Atom> = listOf(
+        Atom(
+            usb_connector_state_changed = UsbConnectorStateChanged(
+                state = UsbConnectorStateChanged.State.STATE_CONNECTED,
+                id = "0001",
+                last_connect_duration_millis = 0,
+            ),
+        ),
+        Atom(
+            usb_connector_state_changed = UsbConnectorStateChanged(
+                state = UsbConnectorStateChanged.State.STATE_DISCONNECTED,
+                id = "0001",
+                last_connect_duration_millis = 30_000,
+            ),
+        ),
+    )
+
+    private fun usbComplianceWarningsReported(): Atom = Atom(
+        usb_compliance_warnings_reported = UsbComplianceWarningsReported(
+            id = "0001",
+            compliance_warnings = listOf(
+                ComplianceWarning.COMPLIANCE_WARNING_DEBUG_ACCESSORY,
+                ComplianceWarning.COMPLIANCE_WARNING_MISSING_DATA_LINES,
+            ),
         ),
     )
 }

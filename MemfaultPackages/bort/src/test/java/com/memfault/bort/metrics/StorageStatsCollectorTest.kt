@@ -1,11 +1,16 @@
 package com.memfault.bort.metrics
 
+import android.os.Process
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.DumpsterServiceProvider
 import com.memfault.bort.FakeCombinedTimeProvider
+import com.memfault.bort.PackageManagerClient
+import com.memfault.bort.parsers.Package
+import com.memfault.bort.parsers.PackageManagerReport
 import com.memfault.bort.process.ProcessExecutor
+import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import com.memfault.dumpster.IDumpster
 import com.memfault.dumpster.IDumpsterBasicCommandListener
 import io.mockk.coEvery
@@ -62,6 +67,17 @@ class StorageStatsCollectorTest {
 
     private val storageStatsReporter = mockk<StorageStatsReporter>(relaxed = true)
 
+    private var packages = emptyList<Package>()
+    private val packageManagerClient = mockk<PackageManagerClient> {
+        coEvery { getPackageManagerReport() } answers { PackageManagerReport(packages) }
+    }
+
+    private var significantApps = emptyList<SignificantApp>()
+    private val significantAppsProvider = object : SignificantAppsProvider {
+        override fun internalApps(): List<SignificantApp> = significantApps.filter { it.internal }
+        override fun externalApps(): List<SignificantApp> = significantApps.filter { !it.internal }
+    }
+
     private var nextDiskActivity = DiskActivity.EMPTY
     private var nextUidIoStats = UidIoStats.EMPTY
     private val storageStatsCollector = StorageStatsCollector(
@@ -77,6 +93,8 @@ class StorageStatsCollectorTest {
         },
         uidIoStatsStorage = uidIoStatsStorage,
         storageStatsReporter = storageStatsReporter,
+        significantAppsProvider = significantAppsProvider,
+        packageManagerClient = packageManagerClient,
     )
     private val sectorSize = 512L
 
@@ -188,6 +206,308 @@ class StorageStatsCollectorTest {
 
         verify(exactly = 0) { storageStatsReporter.reportBortWrites(any(), any(), any()) }
         assertThat(uidIoStatsStorage.state).isEqualTo(UidIoStats(bootId = "boot-A", writtenBytes = 5_000))
+    }
+
+    @Test fun `app writes are reported per significant app as a delta within the same boot`() = runTest(
+        coroutineContext,
+    ) {
+        val combined = FakeCombinedTimeProvider.now
+        val now = combined.timestamp.toEpochMilli()
+        val elapsed = combined.elapsedRealtime.duration.inWholeMilliseconds
+
+        packages = listOf(Package(id = "com.memfault.smartfridge", userId = 10045))
+        significantApps = listOf(
+            SignificantApp(
+                packageName = "com.memfault.smartfridge",
+                identifier = "com.memfault.smartfridge",
+                internal = false,
+            ),
+        )
+        uidIoStatsStorage.state = UidIoStats(
+            bootId = "boot-A",
+            writtenBytes = 0,
+            writesByUid = mapOf(10045 to UidWrites(writeBytes = 1_000, logicalWriteBytes = 8_000)),
+        )
+        nextUidIoStats = UidIoStats(
+            bootId = "boot-A",
+            writtenBytes = 0,
+            writesByUid = mapOf(10045 to UidWrites(writeBytes = 5_000, logicalWriteBytes = 9_500)),
+        )
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify {
+            storageStatsReporter.reportAppWrites(
+                app = significantApps.single(),
+                writes = UidWrites(writeBytes = 4_000, logicalWriteBytes = 1_500),
+                now = now,
+                uptime = elapsed,
+            )
+        }
+    }
+
+    @Test fun `app writes sum the uids that share a package name`() = runTest(coroutineContext) {
+        val combined = FakeCombinedTimeProvider.now
+        val now = combined.timestamp.toEpochMilli()
+        val elapsed = combined.elapsedRealtime.duration.inWholeMilliseconds
+
+        // Both uids resolve to "android", as every system uid without a component name does.
+        packages = listOf(Package(id = "com.memfault.smartfridge", userId = 10045))
+        significantApps = listOf(
+            SignificantApp(packageName = "android", identifier = "android", internal = false),
+        )
+        uidIoStatsStorage.state = UidIoStats(
+            bootId = "boot-A",
+            writtenBytes = 0,
+            writesByUid = mapOf(
+                1234 to UidWrites(writeBytes = 50, logicalWriteBytes = 300),
+                5678 to UidWrites(writeBytes = 100, logicalWriteBytes = 400),
+            ),
+        )
+        nextUidIoStats = UidIoStats(
+            bootId = "boot-A",
+            writtenBytes = 0,
+            writesByUid = mapOf(
+                1234 to UidWrites(writeBytes = 150, logicalWriteBytes = 1_000),
+                5678 to UidWrites(writeBytes = 300, logicalWriteBytes = 1_300),
+            ),
+        )
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify {
+            storageStatsReporter.reportAppWrites(
+                app = significantApps.single(),
+                writes = UidWrites(writeBytes = 300, logicalWriteBytes = 1_600),
+                now = now,
+                uptime = elapsed,
+            )
+        }
+    }
+
+    @Test fun `app writes use the full current value after a reboot`() = runTest(coroutineContext) {
+        val combined = FakeCombinedTimeProvider.now
+        val now = combined.timestamp.toEpochMilli()
+        val elapsed = combined.elapsedRealtime.duration.inWholeMilliseconds
+
+        packages = listOf(Package(id = "com.memfault.smartfridge", userId = 10045))
+        significantApps = listOf(
+            SignificantApp(
+                packageName = "com.memfault.smartfridge",
+                identifier = "com.memfault.smartfridge",
+                internal = false,
+            ),
+        )
+        uidIoStatsStorage.state = UidIoStats(
+            bootId = "boot-old",
+            writtenBytes = 0,
+            writesByUid = mapOf(10045 to UidWrites(writeBytes = 900_000, logicalWriteBytes = 999_000)),
+        )
+        nextUidIoStats = UidIoStats(
+            bootId = "boot-new",
+            writtenBytes = 0,
+            writesByUid = mapOf(10045 to UidWrites(writeBytes = 2_048, logicalWriteBytes = 4_096)),
+        )
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify {
+            storageStatsReporter.reportAppWrites(
+                app = significantApps.single(),
+                writes = UidWrites(writeBytes = 2_048, logicalWriteBytes = 4_096),
+                now = now,
+                uptime = elapsed,
+            )
+        }
+    }
+
+    @Test fun `app writes are reported as zero for an app that is not installed`() = runTest(coroutineContext) {
+        val combined = FakeCombinedTimeProvider.now
+        val now = combined.timestamp.toEpochMilli()
+        val elapsed = combined.elapsedRealtime.duration.inWholeMilliseconds
+
+        packages = listOf(Package(id = "com.memfault.smartfridge", userId = 10045))
+        significantApps = listOf(
+            SignificantApp(packageName = "com.memfault.bort", identifier = "bort", internal = true),
+        )
+        uidIoStatsStorage.state = UidIoStats(
+            bootId = "boot-A",
+            writtenBytes = 0,
+            writesByUid = mapOf(10045 to UidWrites(writeBytes = 1_000, logicalWriteBytes = 2_000)),
+        )
+        nextUidIoStats = UidIoStats(
+            bootId = "boot-A",
+            writtenBytes = 0,
+            writesByUid = mapOf(10045 to UidWrites(writeBytes = 5_000, logicalWriteBytes = 9_000)),
+        )
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify {
+            storageStatsReporter.reportAppWrites(
+                app = significantApps.single(),
+                writes = UidWrites.ZERO,
+                now = now,
+                uptime = elapsed,
+            )
+        }
+    }
+
+    @Test fun `app writes only establish a baseline when upgrading from state without per uid writes`() = runTest(
+        coroutineContext,
+    ) {
+        val combined = FakeCombinedTimeProvider.now
+        val now = combined.timestamp.toEpochMilli()
+        val elapsed = combined.elapsedRealtime.duration.inWholeMilliseconds
+
+        packages = listOf(Package(id = "com.memfault.smartfridge", userId = 10045))
+        significantApps = listOf(
+            SignificantApp(
+                packageName = "com.memfault.smartfridge",
+                identifier = "com.memfault.smartfridge",
+                internal = false,
+            ),
+        )
+        // State written by a version of Bort that only tracked its own writes.
+        uidIoStatsStorage.state = UidIoStats(bootId = "boot-A", writtenBytes = 10_000)
+        nextUidIoStats = UidIoStats(
+            bootId = "boot-A",
+            writtenBytes = 12_000,
+            writesByUid = mapOf(10045 to UidWrites(writeBytes = 900_000_000, logicalWriteBytes = 999_000_000)),
+        )
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify {
+            storageStatsReporter.reportAppWrites(
+                app = significantApps.single(),
+                writes = UidWrites.ZERO,
+                now = now,
+                uptime = elapsed,
+            )
+        }
+        assertThat(uidIoStatsStorage.state.writesByUid).isEqualTo(nextUidIoStats.writesByUid)
+    }
+
+    @Test fun `app writes are reported in full for a uid first seen after a reboot`() = runTest(coroutineContext) {
+        val combined = FakeCombinedTimeProvider.now
+        val now = combined.timestamp.toEpochMilli()
+        val elapsed = combined.elapsedRealtime.duration.inWholeMilliseconds
+
+        packages = listOf(Package(id = "com.memfault.smartfridge", userId = 10045))
+        significantApps = listOf(
+            SignificantApp(
+                packageName = "com.memfault.smartfridge",
+                identifier = "com.memfault.smartfridge",
+                internal = false,
+            ),
+        )
+        uidIoStatsStorage.state = UidIoStats(bootId = "boot-old", writtenBytes = 10_000)
+        nextUidIoStats = UidIoStats(
+            bootId = "boot-new",
+            writtenBytes = 12_000,
+            writesByUid = mapOf(10045 to UidWrites(writeBytes = 2_048, logicalWriteBytes = 4_096)),
+        )
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify {
+            storageStatsReporter.reportAppWrites(
+                app = significantApps.single(),
+                writes = UidWrites(writeBytes = 2_048, logicalWriteBytes = 4_096),
+                now = now,
+                uptime = elapsed,
+            )
+        }
+    }
+
+    @Test fun `app writes are not reported when EMPTY is returned`() = runTest(coroutineContext) {
+        significantApps = listOf(
+            SignificantApp(packageName = "com.memfault.bort", identifier = "bort", internal = true),
+        )
+        uidIoStatsStorage.state = UidIoStats(bootId = "boot-A", writtenBytes = 5_000)
+        nextUidIoStats = UidIoStats.EMPTY
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify(exactly = 0) { storageStatsReporter.reportAppWrites(any(), any(), any(), any()) }
+    }
+
+    @Test fun `app writes keep their baseline when packages cannot be resolved`() = runTest(coroutineContext) {
+        val combined = FakeCombinedTimeProvider.now
+        val now = combined.timestamp.toEpochMilli()
+        val elapsed = combined.elapsedRealtime.duration.inWholeMilliseconds
+
+        significantApps = listOf(
+            SignificantApp(
+                packageName = "com.memfault.smartfridge",
+                identifier = "com.memfault.smartfridge",
+                internal = false,
+            ),
+        )
+        val baseline = mapOf(10045 to UidWrites(writeBytes = 1_000, logicalWriteBytes = 8_000))
+        uidIoStatsStorage.state = UidIoStats(
+            bootId = "boot-A",
+            writtenBytes = 0,
+            writesByUid = baseline,
+        )
+
+        // The package manager timed out.
+        packages = emptyList()
+        nextUidIoStats = UidIoStats(
+            bootId = "boot-A",
+            writtenBytes = 0,
+            writesByUid = mapOf(10045 to UidWrites(writeBytes = 5_000, logicalWriteBytes = 9_500)),
+        )
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify(exactly = 0) { storageStatsReporter.reportAppWrites(any(), any(), any(), any()) }
+        assertThat(uidIoStatsStorage.state.writesByUid).isEqualTo(baseline)
+
+        packages = listOf(Package(id = "com.memfault.smartfridge", userId = 10045))
+        nextUidIoStats = UidIoStats(
+            bootId = "boot-A",
+            writtenBytes = 0,
+            writesByUid = mapOf(10045 to UidWrites(writeBytes = 6_000, logicalWriteBytes = 10_000)),
+        )
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify {
+            storageStatsReporter.reportAppWrites(
+                app = significantApps.single(),
+                writes = UidWrites(writeBytes = 5_000, logicalWriteBytes = 2_000),
+                now = now,
+                uptime = elapsed,
+            )
+        }
+    }
+
+    @Test fun `usage reporter writes are not reported because it shares the system uid`() = runTest(
+        coroutineContext,
+    ) {
+        val reporter = SignificantApp(
+            packageName = APPLICATION_ID_MEMFAULT_USAGE_REPORTER,
+            identifier = "reporter",
+            internal = true,
+        )
+        packages = listOf(Package(id = APPLICATION_ID_MEMFAULT_USAGE_REPORTER, userId = Process.SYSTEM_UID))
+        significantApps = listOf(reporter)
+        uidIoStatsStorage.state = UidIoStats(
+            bootId = "boot-A",
+            writtenBytes = 0,
+            writesByUid = mapOf(Process.SYSTEM_UID to UidWrites(writeBytes = 100, logicalWriteBytes = 400)),
+        )
+        nextUidIoStats = UidIoStats(
+            bootId = "boot-A",
+            writtenBytes = 0,
+            writesByUid = mapOf(Process.SYSTEM_UID to UidWrites(writeBytes = 700, logicalWriteBytes = 900)),
+        )
+
+        storageStatsCollector.collectStorageStats(FakeCombinedTimeProvider.now())
+
+        verify(exactly = 0) { storageStatsReporter.reportAppWrites(reporter, any(), any(), any()) }
     }
 
     @Test fun `lifetime percentage is calculated correctly`() {

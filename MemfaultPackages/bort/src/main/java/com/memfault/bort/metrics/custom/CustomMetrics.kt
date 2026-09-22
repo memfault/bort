@@ -1,5 +1,6 @@
 package com.memfault.bort.metrics.custom
 
+import androidx.room.withTransaction
 import com.memfault.bort.DeviceInfoProvider
 import com.memfault.bort.TemporaryFileFactory
 import com.memfault.bort.battery.BATTERY_CHARGING_METRIC
@@ -34,6 +35,8 @@ import com.memfault.bort.tokenbucket.SessionMetrics
 import com.memfault.bort.tokenbucket.TokenBucketStore
 import com.squareup.anvil.annotations.ContributesBinding
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import javax.inject.Inject
@@ -57,6 +60,16 @@ interface CustomMetrics {
     suspend fun finish(finish: FinishReport): Long
     suspend fun startedHeartbeatOrNull(): DbReport?
 
+    /**
+     * Buffers heartbeat metrics recorded while [block] runs, writing them in one transaction instead of one
+     * per value. Each commit is at least one flash page program.
+     *
+     * Buffered values keep their original timestamp, so aggregations are unaffected. Flushed before anything
+     * reads them back ([collectHeartbeat], [start]) and when [block] throws; values still buffered when the
+     * process dies are lost.
+     */
+    suspend fun <R> batchMetricWrites(block: suspend () -> R): R
+
     suspend fun collectHeartbeat(
         endTimestampMs: Long,
         endUptimeMs: Long,
@@ -69,6 +82,12 @@ interface CustomMetrics {
         const val NOT_INSERTED = -1L
     }
 }
+
+/** Returned for a buffered metric. Callers only check for [CustomMetrics.NOT_INSERTED]. */
+private const val BATCHED = 1L
+
+/** Bounds the buffer, in case a batch runs long. */
+private const val MAX_BATCHED_METRICS = 500
 
 private val SYNC_METRICS = setOf(
     "sync_memfault_failure",
@@ -119,10 +138,65 @@ class RealCustomMetrics @Inject constructor(
         return currentSamplingConfig.get().shouldCollect(data) == CollectionDecision.FULL
     }
 
+    /** Guarded by [batchLock], which is never held across a database write. */
+    private val batchLock = Mutex()
+    private val batchedMetrics = mutableListOf<MetricValue>()
+    private var batchDepth = 0
+
+    override suspend fun <R> batchMetricWrites(block: suspend () -> R): R {
+        batchLock.withLock { batchDepth++ }
+        try {
+            return block()
+        } finally {
+            val batching = batchLock.withLock { --batchDepth > 0 }
+            if (!batching) {
+                flushBatchedMetrics()
+            }
+        }
+    }
+
+    /**
+     * Writes every buffered metric in one transaction, with the lock released: metrics recorded mid-flush are
+     * buffered for the next one rather than blocking their caller.
+     */
+    private suspend fun flushBatchedMetrics() {
+        val metrics = batchLock.withLock {
+            if (batchedMetrics.isEmpty()) {
+                return
+            }
+            batchedMetrics.toList().also { batchedMetrics.clear() }
+        }
+        db.withTransaction {
+            metrics.forEach { metric -> insert(metric) }
+        }
+    }
+
     override suspend fun add(metric: MetricValue): Long {
         if (!shouldCollect(metric.reportType, metric.isDeviceAttribute())) return CustomMetrics.NOT_COLLECTED
 
-        return if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
+        // Only heartbeat metrics: other report types return NOT_INSERTED when there's nowhere to write them, and
+        // the caller falls back to structuredlogd, which buffering would hide.
+        if (metric.reportType != HOURLY_HEARTBEAT_REPORT_TYPE) {
+            return insert(metric)
+        }
+
+        val buffered = batchLock.withLock {
+            if (batchDepth == 0) {
+                null
+            } else {
+                batchedMetrics += metric
+                batchedMetrics.size
+            }
+        } ?: return insert(metric)
+
+        if (buffered >= MAX_BATCHED_METRICS) {
+            flushBatchedMetrics()
+        }
+        return BATCHED
+    }
+
+    private suspend fun insert(metric: MetricValue): Long =
+        if (metric.reportType == HOURLY_HEARTBEAT_REPORT_TYPE &&
             metric.eventName == OPERATIONAL_CRASHES_METRIC_KEY
         ) {
             db.dao().insertAllReports(metric, dbReportBuilder, getBootId())
@@ -145,10 +219,11 @@ class RealCustomMetrics @Inject constructor(
         } else {
             CustomMetrics.NOT_INSERTED
         }
-    }
 
-    override suspend fun start(start: StartReport): Long =
-        when (start.reportType) {
+    override suspend fun start(start: StartReport): Long {
+        // Reads back the latest heartbeat values, so flush first.
+        flushBatchedMetrics()
+        return when (start.reportType) {
             SESSION_REPORT_TYPE -> {
                 val allowedByRateLimit = shouldCollect(start.reportType) &&
                     sessionMetricsTokenBucketStore.takeSimple(tag = "session")
@@ -169,6 +244,7 @@ class RealCustomMetrics @Inject constructor(
                 -1
             }
         }
+    }
 
     override suspend fun finish(finish: FinishReport): Long =
         if (finish.reportType == SESSION_REPORT_TYPE) {
@@ -184,61 +260,65 @@ class RealCustomMetrics @Inject constructor(
         endTimestampMs: Long,
         endUptimeMs: Long,
         forceEndAllReports: Boolean,
-    ): CustomReport = db.dao()
-        .collectHeartbeat(
-            dailyHeartbeatReportType = if (dailyHeartbeatEnabled()) {
-                DAILY_HEARTBEAT_REPORT_TYPE
-            } else {
-                null
-            },
-            endTimestampMs = endTimestampMs,
-            hrtFileFactory = if (highResMetricsEnabled() &&
-                currentSamplingConfig.get().shouldCollect(CollectedData.HIGH_RES_TELEMETRY) ==
-                CollectionDecision.FULL
-            ) {
-                HrtFileFactory {
-                    temporaryFileFactory.createTemporaryFile(suffix = "hrt").useFile { file, preventDeletion ->
-                        preventDeletion()
-                        file
+    ): CustomReport {
+        // Generated from the database, so flush first.
+        flushBatchedMetrics()
+        return db.dao()
+            .collectHeartbeat(
+                dailyHeartbeatReportType = if (dailyHeartbeatEnabled()) {
+                    DAILY_HEARTBEAT_REPORT_TYPE
+                } else {
+                    null
+                },
+                endTimestampMs = endTimestampMs,
+                hrtFileFactory = if (highResMetricsEnabled() &&
+                    currentSamplingConfig.get().shouldCollect(CollectedData.HIGH_RES_TELEMETRY) ==
+                    CollectionDecision.FULL
+                ) {
+                    HrtFileFactory {
+                        temporaryFileFactory.createTemporaryFile(suffix = "hrt").useFile { file, preventDeletion ->
+                            preventDeletion()
+                            file
+                        }
                     }
-                }
-            } else {
-                null
-            },
-            calculateDerivedAggregations = {
-                    reportType,
-                    dbReport,
-                    endTimestamp,
-                    metrics,
-                    internalMetrics,
-                    startUptimeMs,
-                    endUptimeMsNonShadow,
-                ->
-                derivedAggregations.flatMap { aggregation ->
-                    aggregation.calculate(
-                        reportType = reportType,
-                        startTimestampMs = dbReport,
-                        endTimestampMs = endTimestamp,
-                        metrics = metrics,
-                        internalMetrics = internalMetrics,
-                        startUptimeMs = startUptimeMs,
-                        endUptimeMs = endUptimeMsNonShadow,
-                    )
-                }
-            },
-            dailyHeartbeatReportMetricsForSessions = BATTERY_METRICS.toList(),
-            dbReportBuilder = dbReportBuilder,
-            forceEndAllReports = forceEndAllReports,
-            endUptimeMs = endUptimeMs,
-            bootId = getBootId(),
-        )
-        .let { report ->
-            report.copy(
-                hourlyHeartbeatReport = report.hourlyHeartbeatReport.filterAndRenameMetrics(Hourly),
-                dailyHeartbeatReport = report.dailyHeartbeatReport?.filterAndRenameMetrics(Daily),
-                sessions = report.sessions.map { it.filterAndRenameMetrics(Session) },
+                } else {
+                    null
+                },
+                calculateDerivedAggregations = {
+                        reportType,
+                        dbReport,
+                        endTimestamp,
+                        metrics,
+                        internalMetrics,
+                        startUptimeMs,
+                        endUptimeMsNonShadow,
+                    ->
+                    derivedAggregations.flatMap { aggregation ->
+                        aggregation.calculate(
+                            reportType = reportType,
+                            startTimestampMs = dbReport,
+                            endTimestampMs = endTimestamp,
+                            metrics = metrics,
+                            internalMetrics = internalMetrics,
+                            startUptimeMs = startUptimeMs,
+                            endUptimeMs = endUptimeMsNonShadow,
+                        )
+                    }
+                },
+                dailyHeartbeatReportMetricsForSessions = BATTERY_METRICS.toList(),
+                dbReportBuilder = dbReportBuilder,
+                forceEndAllReports = forceEndAllReports,
+                endUptimeMs = endUptimeMs,
+                bootId = getBootId(),
             )
-        }
+            .let { report ->
+                report.copy(
+                    hourlyHeartbeatReport = report.hourlyHeartbeatReport.filterAndRenameMetrics(Hourly),
+                    dailyHeartbeatReport = report.dailyHeartbeatReport?.filterAndRenameMetrics(Daily),
+                    sessions = report.sessions.map { it.filterAndRenameMetrics(Session) },
+                )
+            }
+    }
 }
 
 data class CustomReport(

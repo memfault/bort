@@ -14,8 +14,8 @@ class LmkEventMetricListener @Inject constructor() : StatsdEventMetricListener {
         eventElapsedRealtimeMillis: Long,
         atom: Atom,
     ) {
-        if (atom.lmk_kill_kill_occurred != null) {
-            val lmkEvent = atom.lmk_kill_kill_occurred
+        if (atom.lmk_kill_occurred != null) {
+            val lmkEvent = atom.lmk_kill_occurred
 
             Reporting.report().event(
                 name = LMK_KILL_OCCURRED_EVENT,
