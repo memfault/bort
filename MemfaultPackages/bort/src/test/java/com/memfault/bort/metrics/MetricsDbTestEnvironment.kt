@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
 import androidx.room.Room
+import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.test.core.app.ApplicationProvider
 import com.memfault.bort.DevModeDisabled
 import com.memfault.bort.DeviceInfo
@@ -53,6 +54,9 @@ class MetricsDbTestEnvironment : ExternalResource() {
     lateinit var dao: CustomMetrics
 
     private val temporaryFolder: TemporaryFolder = TemporaryFolder.builder().assureDeletion().build()
+
+    /** Set to wrap the database connection, e.g. to count the transactions a test causes. */
+    var openHelperFactory: SupportSQLiteOpenHelper.Factory? = null
 
     var dailyHeartbeatEnabledValue: Boolean = false
     private val dailyHeartbeatEnabled = DailyHeartbeatEnabled { dailyHeartbeatEnabledValue }
@@ -162,6 +166,7 @@ class MetricsDbTestEnvironment : ExternalResource() {
         db = Room.inMemoryDatabaseBuilder(context, MetricsDb::class.java)
             .fallbackToDestructiveMigration()
             .allowMainThreadQueries()
+            .apply { openHelperFactory?.let { openHelperFactory(it) } }
             .build()
         temporaryFolder.create()
 

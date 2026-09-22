@@ -18,7 +18,9 @@ import com.memfault.bort.settings.BundledConfig
 import com.memfault.bort.settings.DeviceConfigUpdateService
 import com.memfault.bort.settings.SettingsProvider
 import com.memfault.bort.settings.readBundledSettings
+import com.memfault.bort.shared.BatchableSharedPreferences
 import com.memfault.bort.shared.BuildConfig
+import com.memfault.bort.shared.migrateStringPreference
 import com.memfault.bort.tokenbucket.Anr
 import com.memfault.bort.tokenbucket.BugReportPeriodic
 import com.memfault.bort.tokenbucket.BugReportRequestStore
@@ -122,8 +124,51 @@ abstract class BortAppModule {
         )
 
         @Provides
-        fun provideSharedPreferences(application: Application): SharedPreferences =
-            PreferenceManager.getDefaultSharedPreferences(application)
+        @Singleton
+        fun batchableSharedPreferences(application: Application) =
+            BatchableSharedPreferences(PreferenceManager.getDefaultSharedPreferences(application))
+
+        @Provides
+        fun provideSharedPreferences(preferences: BatchableSharedPreferences): SharedPreferences = preferences
+
+        @CpuUsagePrefs
+        @Provides
+        @Singleton
+        fun cpuUsagePrefs(
+            application: Application,
+            defaultPrefs: SharedPreferences,
+        ): SharedPreferences = application.getSharedPreferences(
+            CPU_USAGE_PREFERENCE_FILE_NAME,
+            Context.MODE_PRIVATE,
+        ).also { migrateStringPreference(from = defaultPrefs, into = it, key = PREFERENCE_CPU_USAGE) }
+
+        @DiskActivityPrefs
+        @Provides
+        @Singleton
+        fun diskActivityPrefs(
+            application: Application,
+            defaultPrefs: SharedPreferences,
+        ): SharedPreferences = application.getSharedPreferences(
+            DISK_ACTIVITY_PREFERENCE_FILE_NAME,
+            Context.MODE_PRIVATE,
+        ).also { migrateStringPreference(from = defaultPrefs, into = it, key = PREFERENCE_DISK_ACTIVITY) }
+
+        @BatteryStatsSummaryPrefs
+        @Provides
+        @Singleton
+        fun batteryStatsSummaryPrefs(
+            application: Application,
+            defaultPrefs: SharedPreferences,
+        ): SharedPreferences = application.getSharedPreferences(
+            BATTERYSTATS_SUMMARY_PREFERENCE_FILE_NAME,
+            Context.MODE_PRIVATE,
+        ).also {
+            migrateStringPreference(
+                from = defaultPrefs,
+                into = it,
+                key = PREFERENCE_BATTERYSTATS_SUMMARY_DATA,
+            )
+        }
 
         @Provides
         fun bundledConfig(resources: Resources) = BundledConfig {
@@ -586,6 +631,15 @@ annotation class AndroidSdkVersion
 
 @Qualifier
 annotation class UploadHoldingArea
+
+@Qualifier
+annotation class CpuUsagePrefs
+
+@Qualifier
+annotation class DiskActivityPrefs
+
+@Qualifier
+annotation class BatteryStatsSummaryPrefs
 
 @Qualifier
 annotation class MarFileSampledHoldingDir

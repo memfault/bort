@@ -154,6 +154,10 @@ object AggregateMetricFilter {
         if (metric.key == "storage_used_pct.latest") {
             return "storage_used_pct" to metric.value
         }
+        // Device vitals: per-app disk writes. Named without the aggregation suffix
+        if (metric.key.isAppWriteMetric()) {
+            return metric.key.removeSuffix(".sum") to metric.value
+        }
         // Device vitals: storage wear
         if (metric.key.startsWith("disk_wear.")) {
             if (metric.key.endsWith("bytes_written.mean")) {
@@ -178,6 +182,9 @@ object AggregateMetricFilter {
     private fun String.isNetworkMetric(): Boolean =
         CONNECTIVITY_REGEX.matches(this) || startsWith(CONNECTIVITY_WIFI_PREFIX)
 
+    private fun String.isAppWriteMetric(): Boolean = APP_WRITE_REGEX.matches(this)
+
     private val CONNECTIVITY_REGEX = Regex("connectivity_.*(sent|recv)_bytes\\.(latest|sum)")
+    private val APP_WRITE_REGEX = Regex("storage_.*_(logical_)?write_bytes\\.sum")
     private const val CONNECTIVITY_WIFI_PREFIX = "connectivity.wifi"
 }

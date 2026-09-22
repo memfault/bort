@@ -27,6 +27,8 @@ import com.memfault.bort.settings.Resolution.NORMAL
 import com.memfault.bort.settings.Resolution.NOT_APPLICABLE
 import com.memfault.bort.settings.Resolution.OFF
 import com.memfault.bort.settings.SamplingConfig
+import com.memfault.bort.shared.BatchableSharedPreferences
+import com.memfault.bort.shared.FakeSharedPreferences
 import com.memfault.bort.storage.AppStorageStatsCollector
 import com.memfault.bort.storage.DatabaseSizeCollector
 import com.memfault.bort.time.BaseLinuxBootRelativeTime
@@ -173,6 +175,7 @@ class MetricsCollectionTaskTest {
     private val customMetrics: CustomMetrics = mockk {
         coEvery { startedHeartbeatOrNull() } returns null
         coEvery { collectHeartbeat(any(), any()) } returns mockCustomReport
+        coEvery { batchMetricWrites<Any?>(any()) } coAnswers { firstArg<suspend () -> Any?>().invoke() }
     }
 
     private val storageStatsCollector: StorageStatsCollector = mockk {
@@ -273,6 +276,7 @@ class MetricsCollectionTaskTest {
         statsDMetricCollector = statsDMetricCollector,
         batterySessionVitals = batterySessionVitals,
         currentSamplingConfig = currentSamplingConfig,
+        sharedPreferences = BatchableSharedPreferences(FakeSharedPreferences()),
     )
 
     @Test

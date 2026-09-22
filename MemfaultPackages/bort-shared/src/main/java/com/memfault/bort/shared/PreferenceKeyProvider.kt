@@ -23,18 +23,22 @@ abstract class PreferenceKeyProvider<T>(
         }
     }
 
-    @Suppress("UNCHECKED_CAST")
-    fun setValue(newValue: T): Unit = with(sharedPreferences.edit()) {
-        when (newValue) {
-            is Boolean -> putBoolean(preferenceKey, newValue)
-            is String -> putString(preferenceKey, newValue)
-            is Int -> putInt(preferenceKey, newValue)
-            is Long -> putLong(preferenceKey, newValue)
-            is Float -> putFloat(preferenceKey, newValue)
-            is Set<*> -> putStringSet(preferenceKey, ensureStringSet(newValue))
-            else -> throw IllegalArgumentException("Unsupported type $newValue")
+    fun setValue(newValue: T) {
+        // Avoid rewriting and fsyncing the file to write the same value.
+        if (getValue() == newValue) return
+
+        with(sharedPreferences.edit()) {
+            when (newValue) {
+                is Boolean -> putBoolean(preferenceKey, newValue)
+                is String -> putString(preferenceKey, newValue)
+                is Int -> putInt(preferenceKey, newValue)
+                is Long -> putLong(preferenceKey, newValue)
+                is Float -> putFloat(preferenceKey, newValue)
+                is Set<*> -> putStringSet(preferenceKey, ensureStringSet(newValue))
+                else -> throw IllegalArgumentException("Unsupported type $newValue")
+            }
+            if (commit) commit() else apply()
         }
-        if (commit) commit() else apply()
     }
 
     @Suppress("UNCHECKED_CAST")

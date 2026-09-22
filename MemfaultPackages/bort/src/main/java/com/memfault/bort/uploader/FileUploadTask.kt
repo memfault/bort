@@ -46,6 +46,8 @@ data class FileUploadTaskInput(
             FileUploadTaskInput(
                 file = File(checkNotNull(inputData.getString(PATH_KEY)) { "File path missing" }),
                 payload = deserializePayload(checkNotNull(inputData.getString(METADATA_KEY)) { "Metadata missing" }),
+                // Older enqueued tasks may not have this key: default to compressing, as we always used to.
+                shouldCompress = inputData.getBoolean(SHOULD_COMPRESS_KEY, true),
             )
     }
 }

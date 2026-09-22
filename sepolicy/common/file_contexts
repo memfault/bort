@@ -12,3 +12,7 @@
 /sys/class/thermal(/.*)?                                u:object_r:sysfs_thermal:s0
 /sys/devices/virtual/thermal(/.*)?                      u:object_r:sysfs_thermal:s0
 
+# UFS JEDEC health descriptor. The host address differs per SoC, e.g.
+# /sys/devices/platform/soc/1d84000.ufshc/health_descriptor/
+/sys/devices/platform/.+/health_descriptor(/.*)?                  u:object_r:memfault_sysfs_ufs_health:s0
+/sys/devices/platform/.+/device_descriptor/specification_version  u:object_r:memfault_sysfs_ufs_health:s0

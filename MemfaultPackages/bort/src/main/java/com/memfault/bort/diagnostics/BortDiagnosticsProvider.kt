@@ -8,8 +8,10 @@ import android.database.MatrixCursor
 import android.net.Uri
 import com.memfault.bort.DevMode
 import com.memfault.bort.DeviceInfoProvider
+import com.memfault.bort.DumpsterClient
 import com.memfault.bort.OverrideSerial
 import com.memfault.bort.ProjectKeySyspropName
+import com.memfault.bort.metrics.StorageWearInfo
 import com.memfault.bort.requester.PeriodicWorkRequester.PeriodicWorkManager
 import com.memfault.bort.settings.AllowProjectKeyChange
 import com.memfault.bort.settings.BortEnabledProvider
@@ -39,6 +41,7 @@ class BortDiagnosticsProvider : ContentProvider() {
         fun bortJobReporter(): BortJobReporter
         fun deviceInfoProvider(): DeviceInfoProvider
         fun overrideSerial(): OverrideSerial
+        fun dumpsterClient(): DumpsterClient
     }
 
     val entryPoint: DiagnosticsProviderEntryPoint by lazy {
@@ -76,12 +79,20 @@ class BortDiagnosticsProvider : ContentProvider() {
             addJobStatus(cursor)
             cursor.addRow(arrayOf("device_serial", entryPoint.deviceInfoProvider().getDeviceInfo().deviceSerial))
             cursor.addRow(arrayOf("override_serial", entryPoint.overrideSerial().overriddenSerial))
+            cursor.addRow(arrayOf("flash_wear_source", flashWearSource()))
         }
         Logger.d("Bort Diagnostics:")
         Logger.d(DatabaseUtils.dumpCursorToString(cursor))
         cursor.moveToFirst()
         return cursor
     }
+
+    private suspend fun flashWearSource(): String =
+        entryPoint.dumpsterClient().getStorageWear()
+            ?.let { StorageWearInfo.fromServiceOutput(it) }
+            ?.source
+            ?.ifBlank { "unknown" }
+            ?: "none"
 
     private suspend fun addJobStatus(cursor: MatrixCursor) {
         // From WorkManager (only tells us about future jobs + last stopped reason)

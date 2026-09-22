@@ -3,9 +3,12 @@ package com.memfault.bort.metrics
 import androidx.annotation.VisibleForTesting
 import com.memfault.bort.DumpsterClient
 import com.memfault.bort.IO
+import com.memfault.bort.PackageManagerClient
 import com.memfault.bort.reporting.NumericAgg
 import com.memfault.bort.reporting.NumericAgg.MEAN
+import com.memfault.bort.reporting.NumericAgg.SUM
 import com.memfault.bort.reporting.Reporting
+import com.memfault.bort.shared.APPLICATION_ID_MEMFAULT_USAGE_REPORTER
 import com.memfault.bort.shared.Logger
 import com.memfault.bort.time.CombinedTime
 import com.squareup.anvil.annotations.ContributesBinding
@@ -28,6 +31,8 @@ class StorageStatsCollector
     private val uidIoStatsProvider: UidIoStatsProvider,
     private val uidIoStatsStorage: UidIoStatsStorage,
     private val storageStatsReporter: StorageStatsReporter,
+    private val significantAppsProvider: SignificantAppsProvider,
+    private val packageManagerClient: PackageManagerClient,
 ) {
     suspend fun collectStorageStats(collectionTime: CombinedTime) = withContext(ioCoroutineContext) {
         Logger.v("collectStorageStats")
@@ -71,16 +76,69 @@ class StorageStatsCollector
         diskActivityStorage.state = activity
     }
 
-    private fun updateUidIoStatsStorage(current: UidIoStats, now: Long, uptime: Long) {
+    private suspend fun updateUidIoStatsStorage(current: UidIoStats, now: Long, uptime: Long) {
         if (current == UidIoStats.EMPTY) return
         val previous = uidIoStatsStorage.state
-        val writtenBytesSinceLastCollection = if (current.bootId == previous.bootId) {
+        val sameBoot = current.bootId == previous.bootId
+        val writtenBytesSinceLastCollection = if (sameBoot) {
             maxOf(0, current.writtenBytes - previous.writtenBytes)
         } else {
             current.writtenBytes
         }
         storageStatsReporter.reportBortWrites(writtenBytesSinceLastCollection, now, uptime)
-        uidIoStatsStorage.state = current
+        val attributed = reportSignificantAppWrites(current, previous, sameBoot, now, uptime)
+        uidIoStatsStorage.state = if (attributed || !sameBoot) {
+            current
+        } else {
+            // Keep the baseline, so the next collection that can resolve packages attributes this window.
+            current.copy(writesByUid = previous.writesByUid)
+        }
+    }
+
+    private suspend fun reportSignificantAppWrites(
+        current: UidIoStats,
+        previous: UidIoStats,
+        sameBoot: Boolean,
+        now: Long,
+        uptime: Long,
+    ): Boolean {
+        // UsageReporter shares android.uid.system, so its writes can't be told apart from the system's.
+        val apps = significantAppsProvider.apps()
+            .filterNot { it.packageName == APPLICATION_ID_MEMFAULT_USAGE_REPORTER }
+        if (apps.isEmpty()) return true
+
+        // An empty report means the lookup failed: PackageManagerClient returns one when it times out.
+        val packageManagerReport = packageManagerClient.getPackageManagerReport()
+        if (packageManagerReport.packages.isEmpty()) {
+            Logger.w("reportSignificantAppWrites: no packages to attribute uid writes to")
+            return false
+        }
+
+        val writesByPackage = mutableMapOf<String, UidWrites>()
+        for ((uid, writes) in current.writesByUid) {
+            val delta = if (sameBoot) {
+                // A UID with no previous sample only establishes a baseline: reporting its counter would land
+                // everything written since boot in this one period.
+                previous.writesByUid[uid]?.let { writes.since(it) } ?: UidWrites.ZERO
+            } else {
+                // The counters restart at boot.
+                writes
+            }
+            val packageName = packageManagerReport.uidToName(uid)
+            writesByPackage[packageName] = writesByPackage[packageName]?.plus(delta) ?: delta
+        }
+
+        // Reported even when an app wrote nothing or isn't installed, so that a gap in the series means
+        // collection stopped rather than the app going quiet.
+        apps.forEach { app ->
+            storageStatsReporter.reportAppWrites(
+                app = app,
+                writes = writesByPackage[app.packageName] ?: UidWrites.ZERO,
+                now = now,
+                uptime = uptime,
+            )
+        }
+        return true
     }
 }
 
@@ -105,6 +163,7 @@ interface StorageStatsReporter {
     )
     fun reportWrites(deviceName: String, bytesWritten: Long, now: Long, uptime: Long)
     fun reportBortWrites(bytesWritten: Long, now: Long, uptime: Long)
+    fun reportAppWrites(app: SignificantApp, writes: UidWrites, now: Long, uptime: Long)
 }
 
 @Singleton
@@ -174,6 +233,24 @@ class RealStorageStatsReporter @Inject constructor() : StorageStatsReporter {
     override fun reportBortWrites(bytesWritten: Long, now: Long, uptime: Long) {
         Reporting.report().distribution("bort.bytes_written", aggregations = listOf(MEAN), internal = true)
             .record(bytesWritten, now, uptime)
+    }
+
+    override fun reportAppWrites(app: SignificantApp, writes: UidWrites, now: Long, uptime: Long) {
+        Reporting.report()
+            .distribution(appWriteBytesMetric(app.identifier), aggregations = listOf(SUM), internal = app.internal)
+            .record(writes.writeBytes, now, uptime)
+        Reporting.report()
+            .distribution(
+                appLogicalWriteBytesMetric(app.identifier),
+                aggregations = listOf(SUM),
+                internal = app.internal,
+            )
+            .record(writes.logicalWriteBytes, now, uptime)
+    }
+
+    companion object {
+        fun appWriteBytesMetric(identifier: String) = "storage_${identifier}_write_bytes"
+        fun appLogicalWriteBytesMetric(identifier: String) = "storage_${identifier}_logical_write_bytes"
     }
 }
 

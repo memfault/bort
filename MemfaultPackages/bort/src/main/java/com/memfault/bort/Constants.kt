@@ -43,8 +43,17 @@ const val PREFERENCE_PENDING_BUG_REPORT_REQUEST_OPTIONS = "com.memfault.preferen
 const val PREFERENCE_FETCHED_SDK_SETTINGS =
     "com.memfault.preference.PREFERENCE_FETCHED_SDK_SETTINGS"
 
+const val PREFERENCE_CPU_USAGE = "CPU_USAGE"
+const val PREFERENCE_DISK_ACTIVITY = "DISK_ACTIVITY"
+
 const val METRICS_PREFERENCE_FILE_NAME = "metrics"
 const val FILE_UPLOAD_HOLDING_AREA_PREFERENCE_FILE_NAME = "file_upload_hold"
 const val TOKEN_STORE_PREFERENCE_FILE_NAME_TEMPLATE = "tokens_%s"
+
+// Each of these holds one large serialized blob. SharedPreferences rewrites and fsyncs a whole file on every
+// edit, so sharing a file with anything else means every unrelated write carries the blob too.
+const val CPU_USAGE_PREFERENCE_FILE_NAME = "cpu_usage"
+const val DISK_ACTIVITY_PREFERENCE_FILE_NAME = "disk_activity"
+const val BATTERYSTATS_SUMMARY_PREFERENCE_FILE_NAME = "batterystats_summary"
 const val PREFERENCE_SAMPLING_CONFIG = "com.memfault.preference.PREFERENCE_SAMPLING_CONFIG"
 const val PREFERENCE_CLIENT_DEVICE_INFO_CONFIG = "com.memfault.preference.PREFERENCE_CLIENT_DEVICE_INFO"
